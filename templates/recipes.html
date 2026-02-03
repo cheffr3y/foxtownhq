@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}Recipes - Foxtown HQ{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50">
+    <!-- Top Navigation Bar -->
+    <nav class="bg-white shadow-sm border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-3">
+                    <a href="{{ url_for('dashboard') }}" class="text-foxtown-orange hover:text-orange-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                        </svg>
+                    </a>
+                    <h1 class="text-2xl font-bold text-foxtown-dark">Recipes</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button class="bg-foxtown-orange hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-medium transition duration-200 shadow hover:shadow-lg">
+                        + New Recipe
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        <!-- Search and Filters -->
+        <div class="bg-white rounded-lg shadow mb-6 p-6">
+            <div class="flex flex-col md:flex-row gap-4">
+                <div class="flex-1">
+                    <input 
+                        type="text" 
+                        placeholder="Search recipes..."
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-foxtown-orange focus:border-transparent outline-none"
+                    >
+                </div>
+                <div class="w-full md:w-48">
+                    <select class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-foxtown-orange focus:border-transparent outline-none">
+                        <option>All Categories</option>
+                        <option>Sauces</option>
+                        <option>Proteins</option>
+                        <option>Sides</option>
+                        <option>Baked Goods</option>
+                        <option>Stocks & Bases</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+   <!-- Recipe Cards -->
+        {% if recipes %}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {% for recipe in recipes %}
+            <div class="bg-white rounded-lg shadow hover:shadow-lg transition duration-200 overflow-hidden">
+                <div class="p-6">
+                    <div class="flex items-start justify-between mb-3">
+                        <div>
+                            <h3 class="text-lg font-bold text-foxtown-dark mb-1">{{ recipe.name }}</h3>
+                            <span class="inline-block px-2 py-1 text-xs font-medium rounded bg-foxtown-blue text-white">
+                                {{ recipe.category or 'Uncategorized' }}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-2 text-sm text-gray-600 mb-4">
+                        <div class="flex items-center">
+                            <svg class="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                            </svg>
+                            Yield: {{ recipe.yield_qty }} {{ recipe.yield_unit }}
+                        </div>
+                        <div class="flex items-center">
+                            <svg class="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                            </svg>
+                            {{ recipe.ingredient_count }} ingredients
+                        </div>
+                    </div>
+                    
+                    <div class="flex gap-2">
+                        <button class="flex-1 bg-foxtown-orange hover:bg-orange-600 text-white px-4 py-2 rounded text-sm font-medium transition">
+                            View
+                        </button>
+                        <button class="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50 transition">
+                            <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <!-- Empty State (keep the existing empty state code here) -->
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

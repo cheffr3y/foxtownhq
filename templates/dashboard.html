@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Foxtown HQ{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50">
+    <!-- Top Navigation Bar -->
+    <nav class="bg-white shadow-sm border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-3">
+                    <h1 class="text-2xl font-bold text-foxtown-dark">Foxtown HQ</h1>
+                    <span class="text-sm text-gray-500 hidden sm:inline">Kitchen Command Center</span>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span class="text-sm text-gray-600">Welcome, {{ current_user.username }}</span>
+                    <a href="{{ url_for('logout') }}" class="text-sm text-foxtown-orange hover:text-orange-600 font-medium">
+                        Logout
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        <!-- Quick Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white rounded-lg shadow p-6 border-l-4 border-foxtown-orange">
+                <div class="text-sm font-medium text-gray-600 mb-1">Upcoming Events</div>
+                <div class="text-3xl font-bold text-foxtown-dark">0</div>
+                <div class="text-xs text-gray-500 mt-1">Next 7 days</div>
+            </div>
+            
+            <div class="bg-white rounded-lg shadow p-6 border-l-4 border-foxtown-blue">
+                <div class="text-sm font-medium text-gray-600 mb-1">Active Orders</div>
+                <div class="text-3xl font-bold text-foxtown-dark">0</div>
+                <div class="text-xs text-gray-500 mt-1">Pending production</div>
+            </div>
+            
+            <div class="bg-white rounded-lg shadow p-6 border-l-4 border-green-500">
+                <div class="text-sm font-medium text-gray-600 mb-1">Recipes</div>
+                <div class="text-3xl font-bold text-foxtown-dark">0</div>
+                <div class="text-xs text-gray-500 mt-1">In database</div>
+            </div>
+            
+            <div class="bg-white rounded-lg shadow p-6 border-l-4 border-purple-500">
+                <div class="text-sm font-medium text-gray-600 mb-1">Recent Transfers</div>
+                <div class="text-3xl font-bold text-foxtown-dark">0</div>
+                <div class="text-xs text-gray-500 mt-1">Last 24 hours</div>
+            </div>
+        </div>
+
+        <!-- Main Navigation Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            
+            <!-- Production Calendar -->
+            <a href="#" class="block bg-gradient-to-br from-foxtown-orange to-orange-600 rounded-lg shadow-lg hover:shadow-xl transition duration-200 p-6 text-white group">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-xl font-bold">Production Calendar</h2>
+                    <svg class="w-8 h-8 opacity-80 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                    </svg>
+                </div>
+                <p class="text-orange-100">Manage events, outlet orders, and production schedule</p>
+            </a>
+
+            <!-- Recipes -->
+            <a href="{{ url_for('recipes') }}" class="block bg-gradient-to-br from-foxtown-blue to-blue-600 rounded-lg shadow-lg hover:shadow-xl transition duration-200 p-6 text-white group">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-xl font-bold">Recipes</h2>
+                    <svg class="w-8 h-8 opacity-80 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                </div>
+                <p class="text-blue-100">Browse, create, and manage recipe database</p>
+            </a>
+
+            <!-- Shopping Lists -->
+            <a href="#" class="block bg-gradient-to-br from-green-500 to-green-600 rounded-lg shadow-lg hover:shadow-xl transition duration-200 p-6 text-white group">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-xl font-bold">Shopping Lists</h2>
+                    <svg class="w-8 h-8 opacity-80 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                    </svg>
+                </div>
+                <p class="text-green-100">Generate aggregated shopping lists by date range</p>
+            </a>
+
+            <!-- Transfers -->
+            <a href="#" class="block bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg shadow-lg hover:shadow-xl transition duration-200 p-6 text-white group">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-xl font-bold">Transfer Log</h2>
+                    <svg class="w-8 h-8 opacity-80 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
+                    </svg>
+                </div>
+                <p class="text-purple-100">Track commissary → outlet product transfers</p>
+            </a>
+
+            <!-- Ingredients -->
+            <a href="#" class="block bg-gradient-to-br from-amber-500 to-amber-600 rounded-lg shadow-lg hover:shadow-xl transition duration-200 p-6 text-white group">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-xl font-bold">Ingredients</h2>
+                    <svg class="w-8 h-8 opacity-80 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                    </svg>
+                </div>
+                <p class="text-amber-100">Manage ingredient database and costs</p>
+            </a>
+
+            <!-- Settings -->
+            <a href="#" class="block bg-gradient-to-br from-foxtown-slate to-gray-600 rounded-lg shadow-lg hover:shadow-xl transition duration-200 p-6 text-white group">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-xl font-bold">Settings</h2>
+                    <svg class="w-8 h-8 opacity-80 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    </svg>
+                </div>
+                <p class="text-gray-100">Users, outlets, and system configuration</p>
+            </a>
+
+        </div>
+    </div>
+</div>
+{% endblock %}
