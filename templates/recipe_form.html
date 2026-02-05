@@ -1,0 +1,379 @@
+{% extends "base.html" %}
+
+{% block title %}
+{% if mode == 'edit' %}Edit Recipe{% else %}New Recipe{% endif %} - Foxtown HQ
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50">
+    <!-- Top Navigation Bar -->
+    <nav class="bg-white shadow-sm border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-3">
+                    <a href="{{ url_for('recipes') }}" class="text-foxtown-orange hover:text-orange-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                        </svg>
+                    </a>
+                    <h1 class="text-2xl font-bold text-foxtown-dark">
+                        {% if mode == 'edit' %}Edit Recipe{% else %}New Recipe{% endif %}
+                    </h1>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <a href="{{ url_for('recipes') }}" class="text-sm text-gray-600 hover:text-foxtown-dark">
+                        Cancel
+                    </a>
+                    <button form="recipeForm" class="bg-foxtown-orange hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-medium transition duration-200 shadow hover:shadow-lg">
+                        {% if mode == 'edit' %}Save Changes{% else %}Create Recipe{% endif %}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <form id="recipeForm" method="POST" class="space-y-6">
+            <!-- Details -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-xl font-bold text-foxtown-dark mb-4">Recipe Details</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                        <input type="text" name="name" value="{{ recipe.name }}" required
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-foxtown-orange focus:border-transparent outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                        <input type="text" name="category" value="{{ recipe.category or '' }}"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-foxtown-orange focus:border-transparent outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Yield Quantity</label>
+                        <input type="number" step="0.01" name="yield_qty" value="{{ recipe.yield_qty or '' }}"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-foxtown-orange focus:border-transparent outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Yield Unit</label>
+                        <input type="text" name="yield_unit" value="{{ recipe.yield_unit or '' }}"
+                            placeholder="qt, lb, each"
+                            list="unitOptions"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-foxtown-orange focus:border-transparent outline-none">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Instructions -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-xl font-bold text-foxtown-dark mb-4">Instructions</h2>
+                <textarea name="instructions" rows="6"
+                          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-foxtown-orange focus:border-transparent outline-none"
+                          placeholder="Step-by-step instructions...">{{ recipe.instructions or '' }}</textarea>
+            </div>
+
+            <!-- Ingredients -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-xl font-bold text-foxtown-dark">Ingredients</h2>
+                    <button type="button" id="addIngredientRow"
+                            class="text-foxtown-orange hover:text-orange-600 text-sm font-medium">
+                        + Add Ingredient
+                    </button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full">
+                        <thead class="text-xs uppercase text-gray-500 border-b">
+                            <tr>
+                                <th class="text-left py-2 pr-4">Ingredient</th>
+                                <th class="text-left py-2 pr-4">Quantity</th>
+                                <th class="text-left py-2 pr-4">Unit</th>
+                                <th class="text-right py-2">Remove</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ingredientRows">
+                            {% if ingredient_items %}
+                                {% for item in ingredient_items %}
+                                <tr>
+                                    <td class="py-2 pr-4">
+                                        <input type="text" class="select-filter ingredient-filter w-full mb-2 border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                                               placeholder="Search ingredients...">
+                                        <select name="ingredient_id[]" class="ingredient-select w-full border border-gray-300 rounded-lg px-3 py-2">
+                                            <option value="">Select ingredient</option>
+                                            {% for ing in ingredients %}
+                                                <option value="{{ ing.id }}" data-unit="{{ ing.unit or '' }}"
+                                                    {% if ing.id == item.item_id %}selected{% endif %}>
+                                                    {{ ing.name }}
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td class="py-2 pr-4">
+                                        <input type="number" step="0.01" name="ingredient_qty[]" value="{{ item.quantity }}"
+                                               class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                                    </td>
+                                    <td class="py-2 pr-4">
+                                        <input type="text" name="ingredient_unit[]" value="{{ item.unit or '' }}"
+                                               list="unitOptions"
+                                               class="ingredient-unit w-full border border-gray-300 rounded-lg px-3 py-2">
+                                    </td>
+                                    <td class="py-2 text-right">
+                                        <button type="button" class="remove-row text-red-500 hover:text-red-600 text-sm">Remove</button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td class="py-2 pr-4">
+                                        <input type="text" class="select-filter ingredient-filter w-full mb-2 border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                                               placeholder="Search ingredients...">
+                                        <select name="ingredient_id[]" class="ingredient-select w-full border border-gray-300 rounded-lg px-3 py-2">
+                                            <option value="">Select ingredient</option>
+                                            {% for ing in ingredients %}
+                                                <option value="{{ ing.id }}" data-unit="{{ ing.unit or '' }}">{{ ing.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td class="py-2 pr-4">
+                                        <input type="number" step="0.01" name="ingredient_qty[]"
+                                               class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                                    </td>
+                                    <td class="py-2 pr-4">
+                                        <input type="text" name="ingredient_unit[]"
+                                               list="unitOptions"
+                                               class="ingredient-unit w-full border border-gray-300 rounded-lg px-3 py-2">
+                                    </td>
+                                    <td class="py-2 text-right">
+                                        <button type="button" class="remove-row text-red-500 hover:text-red-600 text-sm">Remove</button>
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Sub-Recipes -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-xl font-bold text-foxtown-dark">Sub-Recipes</h2>
+                    <button type="button" id="addSubRecipeRow"
+                            class="text-foxtown-orange hover:text-orange-600 text-sm font-medium">
+                        + Add Sub-Recipe
+                    </button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full">
+                        <thead class="text-xs uppercase text-gray-500 border-b">
+                            <tr>
+                                <th class="text-left py-2 pr-4">Recipe</th>
+                                <th class="text-left py-2 pr-4">Quantity</th>
+                                <th class="text-left py-2 pr-4">Unit</th>
+                                <th class="text-right py-2">Remove</th>
+                            </tr>
+                        </thead>
+                        <tbody id="subRecipeRows">
+                            {% if subrecipe_items %}
+                                {% for item in subrecipe_items %}
+                                <tr>
+                                    <td class="py-2 pr-4">
+                                        <input type="text" class="select-filter subrecipe-filter w-full mb-2 border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                                               placeholder="Search recipes...">
+                                        <select name="sub_recipe_id[]" class="subrecipe-select w-full border border-gray-300 rounded-lg px-3 py-2">
+                                            <option value="">Select recipe</option>
+                                            {% for rec in recipes %}
+                                                <option value="{{ rec.id }}" data-unit="{{ rec.yield_unit or '' }}"
+                                                    {% if rec.id == item.item_id %}selected{% endif %}>
+                                                    {{ rec.name }}
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td class="py-2 pr-4">
+                                        <input type="number" step="0.01" name="sub_recipe_qty[]" value="{{ item.quantity }}"
+                                               class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                                    </td>
+                                    <td class="py-2 pr-4">
+                                        <input type="text" name="sub_recipe_unit[]" value="{{ item.unit or '' }}"
+                                               list="unitOptions"
+                                               class="subrecipe-unit w-full border border-gray-300 rounded-lg px-3 py-2">
+                                    </td>
+                                    <td class="py-2 text-right">
+                                        <button type="button" class="remove-row text-red-500 hover:text-red-600 text-sm">Remove</button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td class="py-2 pr-4">
+                                        <input type="text" class="select-filter subrecipe-filter w-full mb-2 border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                                               placeholder="Search recipes...">
+                                        <select name="sub_recipe_id[]" class="subrecipe-select w-full border border-gray-300 rounded-lg px-3 py-2">
+                                            <option value="">Select recipe</option>
+                                            {% for rec in recipes %}
+                                                <option value="{{ rec.id }}" data-unit="{{ rec.yield_unit or '' }}">{{ rec.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td class="py-2 pr-4">
+                                        <input type="number" step="0.01" name="sub_recipe_qty[]"
+                                               class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                                    </td>
+                                    <td class="py-2 pr-4">
+                                        <input type="text" name="sub_recipe_unit[]"
+                                               list="unitOptions"
+                                               class="subrecipe-unit w-full border border-gray-300 rounded-lg px-3 py-2">
+                                    </td>
+                                    <td class="py-2 text-right">
+                                        <button type="button" class="remove-row text-red-500 hover:text-red-600 text-sm">Remove</button>
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<template id="ingredientRowTemplate">
+    <tr>
+        <td class="py-2 pr-4">
+            <input type="text" class="select-filter ingredient-filter w-full mb-2 border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                   placeholder="Search ingredients...">
+            <select name="ingredient_id[]" class="ingredient-select w-full border border-gray-300 rounded-lg px-3 py-2">
+                <option value="">Select ingredient</option>
+                {% for ing in ingredients %}
+                    <option value="{{ ing.id }}" data-unit="{{ ing.unit or '' }}">{{ ing.name }}</option>
+                {% endfor %}
+            </select>
+        </td>
+        <td class="py-2 pr-4">
+            <input type="number" step="0.01" name="ingredient_qty[]"
+                   class="w-full border border-gray-300 rounded-lg px-3 py-2">
+        </td>
+        <td class="py-2 pr-4">
+            <input type="text" name="ingredient_unit[]"
+                   list="unitOptions"
+                   class="ingredient-unit w-full border border-gray-300 rounded-lg px-3 py-2">
+        </td>
+        <td class="py-2 text-right">
+            <button type="button" class="remove-row text-red-500 hover:text-red-600 text-sm">Remove</button>
+        </td>
+    </tr>
+</template>
+
+<template id="subRecipeRowTemplate">
+    <tr>
+        <td class="py-2 pr-4">
+            <input type="text" class="select-filter subrecipe-filter w-full mb-2 border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                   placeholder="Search recipes...">
+            <select name="sub_recipe_id[]" class="subrecipe-select w-full border border-gray-300 rounded-lg px-3 py-2">
+                <option value="">Select recipe</option>
+                {% for rec in recipes %}
+                    <option value="{{ rec.id }}" data-unit="{{ rec.yield_unit or '' }}">{{ rec.name }}</option>
+                {% endfor %}
+            </select>
+        </td>
+        <td class="py-2 pr-4">
+            <input type="number" step="0.01" name="sub_recipe_qty[]"
+                   class="w-full border border-gray-300 rounded-lg px-3 py-2">
+        </td>
+        <td class="py-2 pr-4">
+            <input type="text" name="sub_recipe_unit[]"
+                   list="unitOptions"
+                   class="subrecipe-unit w-full border border-gray-300 rounded-lg px-3 py-2">
+        </td>
+        <td class="py-2 text-right">
+            <button type="button" class="remove-row text-red-500 hover:text-red-600 text-sm">Remove</button>
+        </td>
+    </tr>
+</template>
+
+<script>
+const ingredientRows = document.getElementById('ingredientRows');
+const subRecipeRows = document.getElementById('subRecipeRows');
+
+document.getElementById('addIngredientRow').addEventListener('click', () => {
+    const template = document.getElementById('ingredientRowTemplate');
+    ingredientRows.appendChild(template.content.cloneNode(true));
+});
+
+document.getElementById('addSubRecipeRow').addEventListener('click', () => {
+    const template = document.getElementById('subRecipeRowTemplate');
+    subRecipeRows.appendChild(template.content.cloneNode(true));
+});
+
+document.addEventListener('click', (event) => {
+    if (event.target.classList.contains('remove-row')) {
+        const row = event.target.closest('tr');
+        if (row) row.remove();
+    }
+    if (event.target.closest('select') && event.target.closest('select').size > 0) {
+        event.target.closest('select').size = 1;
+    }
+});
+
+document.addEventListener('change', (event) => {
+    if (event.target.classList.contains('ingredient-select')) {
+        const unit = event.target.selectedOptions[0].dataset.unit;
+        const unitInput = event.target.closest('tr').querySelector('.ingredient-unit');
+        if (unit && unitInput && !unitInput.value) {
+            unitInput.value = unit;
+        }
+        event.target.size = 1;
+    }
+    if (event.target.classList.contains('subrecipe-select')) {
+        const unit = event.target.selectedOptions[0].dataset.unit;
+        const unitInput = event.target.closest('tr').querySelector('.subrecipe-unit');
+        if (unit && unitInput && !unitInput.value) {
+            unitInput.value = unit;
+        }
+        event.target.size = 1;
+    }
+});
+
+document.addEventListener('input', (event) => {
+    if (event.target.classList.contains('select-filter')) {
+        const query = event.target.value.trim().toLowerCase();
+        const row = event.target.closest('tr');
+        const select = row.querySelector('select');
+        if (!select) return;
+        const options = Array.from(select.options);
+        options.forEach((option, index) => {
+            if (index === 0) {
+                option.hidden = false;
+                return;
+            }
+            const text = option.textContent.toLowerCase();
+            option.hidden = query && !text.includes(query);
+        });
+        if (query) {
+            select.size = Math.min(6, options.length);
+        } else {
+            select.size = 1;
+        }
+    }
+});
+</script>
+
+<datalist id="unitOptions">
+    <option value="each"></option>
+    <option value="ea"></option>
+    <option value="g"></option>
+    <option value="kg"></option>
+    <option value="oz"></option>
+    <option value="lb"></option>
+    <option value="ml"></option>
+    <option value="l"></option>
+    <option value="tsp"></option>
+    <option value="tbsp"></option>
+    <option value="fl oz"></option>
+    <option value="cup"></option>
+    <option value="pt"></option>
+    <option value="qt"></option>
+    <option value="gal"></option>
+</datalist>
+
+{% endblock %}

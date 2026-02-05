@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+
+{% block title %}Ingredients - Foxtown HQ{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50">
+    <!-- Top Navigation Bar -->
+    <nav class="bg-white shadow-sm border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-3">
+                    <a href="{{ url_for('dashboard') }}" class="text-foxtown-orange hover:text-orange-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                        </svg>
+                    </a>
+                    <h1 class="text-2xl font-bold text-foxtown-dark">Ingredients</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="text-sm text-gray-600">
+                        {{ ingredients|length }} ingredients
+                    </div>
+                    <a href="{{ url_for('new_ingredient') }}"
+                       class="bg-foxtown-orange hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-medium transition duration-200 shadow hover:shadow-lg text-sm">
+                        + New Ingredient
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {% if needs_update_count and needs_update_count > 0 %}
+        <div class="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900">
+            <div class="flex items-start justify-between gap-4">
+                <div>
+                    <div class="font-semibold">Pricing refresh needed</div>
+                    <div class="text-sm text-amber-800">
+                        {{ needs_update_count }} ingredients have not been price-updated in {{ price_refresh_days // 7 }}+ weeks.
+                    </div>
+                </div>
+                <span class="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-700">
+                    Update soon
+                </span>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Search Bar -->
+        <div class="bg-white rounded-lg shadow mb-6 p-4">
+            <input 
+                type="text" 
+                id="searchInput"
+                placeholder="Search ingredients..."
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-foxtown-orange focus:border-transparent outline-none"
+            >
+        </div>
+
+        <!-- Ingredients Table -->
+        <div class="bg-white rounded-lg shadow overflow-hidden">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unit</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vendor</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">G-Code</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cost</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price Updated</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200" id="ingredientsTable">
+                    {% for ingredient in ingredients %}
+                    <tr class="hover:bg-gray-50 transition ingredient-row">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-medium text-foxtown-dark ingredient-name">{{ ingredient.name }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 py-1 text-xs font-medium rounded bg-gray-100 text-gray-700">
+                                {{ ingredient.category or '-' }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                            {{ ingredient.unit or '-' }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                            {% if ingredient.vendor %}
+                                {{ ingredient.vendor }}
+                                {% if ingredient.vendor_code %}
+                                    <span class="text-gray-400">({{ ingredient.vendor_code }})</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-gray-400 italic">Not set</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-600">
+                            {% if ingredient.g_code %}
+                                {{ ingredient.g_code }}
+                            {% else %}
+                                <span class="text-gray-400 italic">Not set</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                            {% if ingredient.cost_per_unit %}
+                                ${{ "%.2f"|format(ingredient.cost_per_unit) }}
+                            {% else %}
+                                <span class="text-gray-400 italic">Not set</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm">
+                            {% if ingredient.price_age_days is not none %}
+                                <span class="{% if ingredient.needs_price_update %}text-amber-700{% else %}text-gray-600{% endif %}">
+                                    {{ ingredient.price_age_days }} days ago
+                                </span>
+                            {% else %}
+                                <span class="text-amber-700">Never</span>
+                            {% endif %}
+                            {% if ingredient.needs_price_update %}
+                                <div class="text-xs text-amber-600">Update needed</div>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm">
+                            <a href="{{ url_for('edit_ingredient', ingredient_id=ingredient.id) }}" 
+                               class="text-foxtown-orange hover:text-orange-600 font-medium">
+                                Edit
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+</div>
+
+<!-- Simple search functionality -->
+<script>
+document.getElementById('searchInput').addEventListener('keyup', function() {
+    const searchTerm = this.value.toLowerCase();
+    const rows = document.querySelectorAll('.ingredient-row');
+    
+    rows.forEach(row => {
+        const name = row.querySelector('.ingredient-name').textContent.toLowerCase();
+        if (name.includes(searchTerm)) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+});
+</script>
+
+{% endblock %}

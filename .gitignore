@@ -3,3 +3,7 @@ __pycache__/
 *.pyc
 .env
 .DS_Store
+*.sql
+*_backup*.json
+foxtown_commissary_backup.json
+banquet_backup_2026-02-04.json

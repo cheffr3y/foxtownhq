@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+
+{% block title %}Menu Costing - Foxtown HQ{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50">
+    <!-- Top Navigation Bar -->
+    <nav class="bg-white shadow-sm border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-3">
+                    <a href="{{ url_for('dashboard') }}" class="text-foxtown-orange hover:text-orange-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                        </svg>
+                    </a>
+                    <h1 class="text-2xl font-bold text-foxtown-dark">Menu Costing</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span class="text-sm text-gray-600">Uses current ingredient pricing</span>
+                    <a href="{{ url_for('menu_rollouts') }}" class="text-sm text-foxtown-orange hover:text-orange-600 font-medium">
+                        Saved Rollouts
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <form method="POST" class="space-y-6">
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-foxtown-dark">Menu Items</h2>
+                        <p class="text-sm text-gray-500">Add recipes and batch counts to estimate total cost</p>
+                    </div>
+                    <button type="button" id="addMenuRow"
+                            class="text-foxtown-orange hover:text-orange-600 text-sm font-medium">
+                        + Add Item
+                    </button>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="min-w-full">
+                        <thead class="text-xs uppercase text-gray-500 border-b">
+                            <tr>
+                                <th class="text-left py-2 pr-4">Recipe</th>
+                                <th class="text-left py-2 pr-4">Batches</th>
+                                <th class="text-right py-2">Remove</th>
+                            </tr>
+                        </thead>
+                        <tbody id="menuRows">
+                            {% if menu_items %}
+                                {% for item in menu_items %}
+                                <tr>
+                                    <td class="py-2 pr-4">
+                                        <input type="text" class="select-filter menu-filter w-full mb-2 border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                                               placeholder="Search recipes...">
+                                        <select name="menu_recipe_id[]" class="menu-select w-full border border-gray-300 rounded-lg px-3 py-2">
+                                            <option value="">Select recipe</option>
+                                            {% for rec in recipes %}
+                                                <option value="{{ rec.id }}" {% if rec.id == item.recipe_id %}selected{% endif %}>
+                                                    {{ rec.name }}
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td class="py-2 pr-4">
+                                        <input type="number" step="0.01" name="menu_batches[]" value="{{ item.batches }}"
+                                               class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                                    </td>
+                                    <td class="py-2 text-right">
+                                        <button type="button" class="remove-row text-red-500 hover:text-red-600 text-sm">Remove</button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td class="py-2 pr-4">
+                                        <input type="text" class="select-filter menu-filter w-full mb-2 border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                                               placeholder="Search recipes...">
+                                        <select name="menu_recipe_id[]" class="menu-select w-full border border-gray-300 rounded-lg px-3 py-2">
+                                            <option value="">Select recipe</option>
+                                            {% for rec in recipes %}
+                                                <option value="{{ rec.id }}">{{ rec.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td class="py-2 pr-4">
+                                        <input type="number" step="0.01" name="menu_batches[]"
+                                               class="w-full border border-gray-300 rounded-lg px-3 py-2" value="1">
+                                    </td>
+                                    <td class="py-2 text-right">
+                                        <button type="button" class="remove-row text-red-500 hover:text-red-600 text-sm">Remove</button>
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="flex justify-end mt-4">
+                    <button type="submit"
+                            class="bg-foxtown-orange hover:bg-orange-600 text-white px-6 py-2 rounded-lg font-medium transition duration-200 shadow hover:shadow-lg">
+                        Calculate Cost
+                    </button>
+                </div>
+            </div>
+        </form>
+
+        {% if menu_items %}
+        <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-xl font-bold text-foxtown-dark mb-4">Cost Summary</h2>
+            <div class="overflow-x-auto">
+                <table class="min-w-full">
+                    <thead class="text-xs uppercase text-gray-500 border-b">
+                        <tr>
+                            <th class="text-left py-2 pr-4">Recipe</th>
+                            <th class="text-left py-2 pr-4">Batches</th>
+                            <th class="text-left py-2 pr-4">Cost / Batch</th>
+                            <th class="text-left py-2 pr-4">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y">
+                        {% for item in menu_items %}
+                        <tr>
+                            <td class="py-2 pr-4 text-sm text-gray-700">{{ item.recipe.name }}</td>
+                            <td class="py-2 pr-4 text-sm text-gray-700">{{ item.batches }}</td>
+                            <td class="py-2 pr-4 text-sm text-gray-700">${{ "%.2f"|format(item.base_cost) }}</td>
+                            <td class="py-2 pr-4 text-sm font-semibold text-foxtown-dark">${{ "%.2f"|format(item.item_total) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="mt-4 flex justify-end">
+                <div class="text-right">
+                    <div class="text-sm text-gray-600">Estimated Menu Total</div>
+                    <div class="text-2xl font-bold text-foxtown-dark">${{ "%.2f"|format(total_cost) }}</div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<template id="menuRowTemplate">
+    <tr>
+        <td class="py-2 pr-4">
+            <input type="text" class="select-filter menu-filter w-full mb-2 border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                   placeholder="Search recipes...">
+            <select name="menu_recipe_id[]" class="menu-select w-full border border-gray-300 rounded-lg px-3 py-2">
+                <option value="">Select recipe</option>
+                {% for rec in recipes %}
+                    <option value="{{ rec.id }}">{{ rec.name }}</option>
+                {% endfor %}
+            </select>
+        </td>
+        <td class="py-2 pr-4">
+            <input type="number" step="0.01" name="menu_batches[]" value="1"
+                   class="w-full border border-gray-300 rounded-lg px-3 py-2">
+        </td>
+        <td class="py-2 text-right">
+            <button type="button" class="remove-row text-red-500 hover:text-red-600 text-sm">Remove</button>
+        </td>
+    </tr>
+</template>
+
+<script>
+const menuRows = document.getElementById('menuRows');
+document.getElementById('addMenuRow').addEventListener('click', () => {
+    const template = document.getElementById('menuRowTemplate');
+    menuRows.appendChild(template.content.cloneNode(true));
+});
+
+document.addEventListener('click', (event) => {
+    if (event.target.classList.contains('remove-row')) {
+        const row = event.target.closest('tr');
+        if (row) row.remove();
+    }
+});
+
+document.addEventListener('input', (event) => {
+    if (event.target.classList.contains('menu-filter')) {
+        const query = event.target.value.trim().toLowerCase();
+        const row = event.target.closest('tr');
+        const select = row.querySelector('select');
+        if (!select) return;
+        const options = Array.from(select.options);
+        options.forEach((option, index) => {
+            if (index === 0) {
+                option.hidden = false;
+                return;
+            }
+            const text = option.textContent.toLowerCase();
+            option.hidden = query && !text.includes(query);
+        });
+        if (query) {
+            select.size = Math.min(6, options.length);
+        } else {
+            select.size = 1;
+        }
+    }
+});
+
+document.addEventListener('change', (event) => {
+    if (event.target.classList.contains('menu-select')) {
+        event.target.size = 1;
+    }
+});
+</script>
+{% endblock %}

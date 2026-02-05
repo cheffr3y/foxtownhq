@@ -23,6 +23,20 @@
     </script>
 </head>
 <body class="bg-gray-50">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+            <div class="space-y-2">
+                {% for category, message in messages %}
+                    <div class="rounded-lg px-4 py-3 text-sm font-medium border
+                        {% if category == 'success' %}bg-green-50 text-green-800 border-green-200{% elif category == 'error' %}bg-red-50 text-red-800 border-red-200{% else %}bg-blue-50 text-blue-800 border-blue-200{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    {% endwith %}
     {% block content %}{% endblock %}
 </body>
 </html>

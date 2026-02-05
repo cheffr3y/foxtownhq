@@ -55,15 +55,26 @@
         <!-- Main Navigation Cards -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             
-            <!-- Production Calendar -->
-            <a href="#" class="block bg-gradient-to-br from-foxtown-orange to-orange-600 rounded-lg shadow-lg hover:shadow-xl transition duration-200 p-6 text-white group">
+            <!-- Menu Costing -->
+            <a href="{{ url_for('menu_costing') }}" class="block bg-gradient-to-br from-foxtown-orange to-orange-600 rounded-lg shadow-lg hover:shadow-xl transition duration-200 p-6 text-white group">
                 <div class="flex items-center justify-between mb-4">
-                    <h2 class="text-xl font-bold">Production Calendar</h2>
+                    <h2 class="text-xl font-bold">Menu Costing</h2>
+                    <svg class="w-8 h-8 opacity-80 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                </div>
+                <p class="text-orange-100">Estimate menu costs using current ingredient pricing</p>
+            </a>
+
+            <!-- Menu Rollouts -->
+            <a href="{{ url_for('menu_rollouts') }}" class="block bg-gradient-to-br from-amber-500 to-amber-600 rounded-lg shadow-lg hover:shadow-xl transition duration-200 p-6 text-white group">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-xl font-bold">Menu Rollouts</h2>
                     <svg class="w-8 h-8 opacity-80 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                     </svg>
                 </div>
-                <p class="text-orange-100">Manage events, outlet orders, and production schedule</p>
+                <p class="text-amber-100">Saved menus by venue, quarter, and year</p>
             </a>
 
             <!-- Recipes -->
@@ -75,6 +86,17 @@
                     </svg>
                 </div>
                 <p class="text-blue-100">Browse, create, and manage recipe database</p>
+            </a>
+
+            <!-- Recipe Generator -->
+            <a href="{{ url_for('recipe_generator') }}" class="block bg-gradient-to-br from-foxtown-slate to-gray-700 rounded-lg shadow-lg hover:shadow-xl transition duration-200 p-6 text-white group">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-xl font-bold">Recipe Generator</h2>
+                    <svg class="w-8 h-8 opacity-80 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                </div>
+                <p class="text-gray-100">Generate recipe PDFs and save to the database</p>
             </a>
 
             <!-- Shopping Lists -->
@@ -100,7 +122,7 @@
             </a>
 
             <!-- Ingredients -->
-            <a href="#" class="block bg-gradient-to-br from-amber-500 to-amber-600 rounded-lg shadow-lg hover:shadow-xl transition duration-200 p-6 text-white group">
+            <a href="{{ url_for('ingredients') }}" class="block bg-gradient-to-br from-amber-500 to-amber-600 rounded-lg shadow-lg hover:shadow-xl transition duration-200 p-6 text-white group">
                 <div class="flex items-center justify-between mb-4">
                     <h2 class="text-xl font-bold">Ingredients</h2>
                     <svg class="w-8 h-8 opacity-80 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
