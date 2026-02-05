@@ -36,6 +36,16 @@
                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-foxtown-orange focus:border-transparent outline-none">
                     </div>
                     <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Recipe Type</label>
+                        <select name="recipe_type"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-foxtown-orange focus:border-transparent outline-none">
+                            <option value="">Select type...</option>
+                            {% for value, label in recipe_type_choices %}
+                                <option value="{{ value }}" {% if data.recipe_type == value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Venue</label>
                         <input type="text" name="venue" value="{{ data.venue }}" placeholder="Brewpub, Renard's"
                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-foxtown-orange focus:border-transparent outline-none">

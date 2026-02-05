@@ -105,7 +105,7 @@
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                             {% if ingredient.cost_per_unit %}
-                                ${{ "%.2f"|format(ingredient.cost_per_unit) }}
+                                ${{ "%.5f"|format(ingredient.cost_per_unit) }}
                             {% else %}
                                 <span class="text-gray-400 italic">Not set</span>
                             {% endif %}

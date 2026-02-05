@@ -50,6 +50,16 @@
                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-foxtown-orange focus:border-transparent outline-none">
                     </div>
                     <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Recipe Type</label>
+                        <select name="recipe_type"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-foxtown-orange focus:border-transparent outline-none">
+                            <option value="">Select type...</option>
+                            {% for value, label in recipe_type_choices %}
+                                <option value="{{ value }}" {% if recipe.recipe_type == value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Yield Quantity</label>
                         <input type="number" step="0.01" name="yield_qty" value="{{ recipe.yield_qty or '' }}"
                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-foxtown-orange focus:border-transparent outline-none">
@@ -156,7 +166,10 @@
             <!-- Sub-Recipes -->
             <div class="bg-white rounded-lg shadow p-6">
                 <div class="flex items-center justify-between mb-4">
-                    <h2 class="text-xl font-bold text-foxtown-dark">Sub-Recipes</h2>
+                    <div>
+                        <h2 class="text-xl font-bold text-foxtown-dark">Sub-Recipes (Batch / RB)</h2>
+                        <p class="text-sm text-gray-500">Use batch recipes as components of plated items.</p>
+                    </div>
                     <button type="button" id="addSubRecipeRow"
                             class="text-foxtown-orange hover:text-orange-600 text-sm font-medium">
                         + Add Sub-Recipe
@@ -184,7 +197,7 @@
                                             {% for rec in recipes %}
                                                 <option value="{{ rec.id }}" data-unit="{{ rec.yield_unit or '' }}"
                                                     {% if rec.id == item.item_id %}selected{% endif %}>
-                                                    {{ rec.name }}
+                                                    {{ rec.name }}{% if rec.recipe_type == 'batch' %} (RB){% elif rec.recipe_type is none %} (Unclassified){% endif %}
                                                 </option>
                                             {% endfor %}
                                         </select>
@@ -211,7 +224,7 @@
                                         <select name="sub_recipe_id[]" class="subrecipe-select w-full border border-gray-300 rounded-lg px-3 py-2">
                                             <option value="">Select recipe</option>
                                             {% for rec in recipes %}
-                                                <option value="{{ rec.id }}" data-unit="{{ rec.yield_unit or '' }}">{{ rec.name }}</option>
+                                                <option value="{{ rec.id }}" data-unit="{{ rec.yield_unit or '' }}">{{ rec.name }}{% if rec.recipe_type == 'batch' %} (RB){% elif rec.recipe_type is none %} (Unclassified){% endif %}</option>
                                             {% endfor %}
                                         </select>
                                     </td>

@@ -86,6 +86,28 @@ def normalize_unit(unit):
     key = ''.join(ch for ch in unit.lower() if ch.isalnum())
     return UNIT_ALIASES.get(key)
 
+def normalize_recipe_type(value):
+    if not value:
+        return None
+    key = value.strip().lower()
+    if key in ('menu', 'plated', 'rm', 'plated recipe'):
+        return 'menu'
+    if key in ('batch', 'rb', 'sub', 'subrecipe', 'sub-recipe', 'prep'):
+        return 'batch'
+    return None
+
+def infer_recipe_type(name, selected_type):
+    normalized = normalize_recipe_type(selected_type)
+    if normalized:
+        return normalized
+    if name:
+        trimmed = name.strip().upper()
+        if trimmed.startswith('RB '):
+            return 'batch'
+        if trimmed.startswith('RM '):
+            return 'menu'
+    return None
+
 def to_float(value):
     if value is None:
         return 0.0
@@ -114,6 +136,11 @@ def generate_id(prefix):
     return f"{prefix}{uuid.uuid4().hex[:12]}"
 
 PRICE_REFRESH_DAYS = 56
+
+RECIPE_TYPE_CHOICES = [
+    ('menu', 'Plated (RM)'),
+    ('batch', 'Batch (RB)')
+]
 
 def get_unit_system():
     system = request.args.get('units')
@@ -191,13 +218,14 @@ def smart_quantity(quantity, unit, system=None):
 def inject_helpers():
     return {
         'smart_quantity': smart_quantity,
-        'unit_system': get_unit_system()
+        'unit_system': get_unit_system(),
+        'recipe_type_choices': RECIPE_TYPE_CHOICES
     }
 
 # Recipe helpers
 def get_recipe_by_id(cur, recipe_id):
     cur.execute(
-        "SELECT id, name, category, yield_qty, yield_unit, instructions, source_venue, equipment FROM recipes WHERE id = %s",
+        "SELECT id, name, category, yield_qty, yield_unit, instructions, source_venue, equipment, recipe_type FROM recipes WHERE id = %s",
         (recipe_id,)
     )
     return cur.fetchone()
@@ -563,7 +591,11 @@ def menu_costing():
     cur = conn.cursor(cursor_factory=RealDictCursor)
     unit_system = get_unit_system()
 
-    cur.execute("SELECT id, name, yield_qty, yield_unit FROM recipes ORDER BY name")
+    cur.execute("""
+        SELECT id, name, yield_qty, yield_unit, recipe_type
+        FROM recipes
+        ORDER BY name
+    """)
     recipes_list = cur.fetchall()
 
     menu_items = []
@@ -640,7 +672,12 @@ def menu_rollout_new():
     cur = conn.cursor(cursor_factory=RealDictCursor)
     unit_system = get_unit_system()
 
-    cur.execute("SELECT id, name, yield_qty, yield_unit FROM recipes ORDER BY name")
+    cur.execute("""
+        SELECT id, name, yield_qty, yield_unit, recipe_type
+        FROM recipes
+        WHERE recipe_type = 'menu' OR recipe_type IS NULL
+        ORDER BY name
+    """)
     recipes_list = cur.fetchall()
 
     menu_items = []
@@ -760,7 +797,7 @@ def menu_rollout_edit(rollout_id):
         flash('Menu rollout not found', 'error')
         return redirect(url_for('menu_rollouts'))
 
-    cur.execute("SELECT id, name, yield_qty, yield_unit FROM recipes ORDER BY name")
+    cur.execute("SELECT id, name, yield_qty, yield_unit, recipe_type FROM recipes ORDER BY name")
     recipes_list = cur.fetchall()
 
     menu_items = []
@@ -905,6 +942,8 @@ def recipe_new():
         yield_unit = (request.form.get('yield_unit') or '').strip()
         yield_unit = normalize_unit(yield_unit) or yield_unit
         instructions = (request.form.get('instructions') or '').strip()
+        recipe_type = infer_recipe_type(name, request.form.get('recipe_type'))
+        recipe_type = infer_recipe_type(name, request.form.get('recipe_type'))
 
         if not name:
             flash('Recipe name is required', 'error')
@@ -912,15 +951,16 @@ def recipe_new():
             recipe_id = generate_id('rec_')
             try:
                 cur.execute("""
-                    INSERT INTO recipes (id, name, category, yield_qty, yield_unit, instructions)
-                    VALUES (%s, %s, %s, %s, %s, %s)
+                    INSERT INTO recipes (id, name, category, yield_qty, yield_unit, instructions, recipe_type)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
                 """, (
                     recipe_id,
                     name,
                     category or None,
                     yield_qty or None,
                     yield_unit or None,
-                    instructions or None
+                    instructions or None,
+                    recipe_type
                 ))
 
                 # Ingredients
@@ -987,7 +1027,12 @@ def recipe_new():
     cur.execute("SELECT id, name, unit, category FROM ingredients ORDER BY name")
     ingredients_list = cur.fetchall()
 
-    cur.execute("SELECT id, name, yield_qty, yield_unit FROM recipes ORDER BY name")
+    cur.execute("""
+        SELECT id, name, yield_qty, yield_unit, recipe_type
+        FROM recipes
+        WHERE recipe_type = 'batch' OR recipe_type IS NULL
+        ORDER BY name
+    """)
     recipes_list = cur.fetchall()
 
     cur.close()
@@ -996,7 +1041,7 @@ def recipe_new():
     return render_template(
         'recipe_form.html',
         mode='new',
-        recipe={'name': '', 'category': '', 'yield_qty': '', 'yield_unit': '', 'instructions': ''},
+        recipe={'name': '', 'category': '', 'yield_qty': '', 'yield_unit': '', 'instructions': '', 'recipe_type': ''},
         ingredients=ingredients_list,
         recipes=recipes_list,
         ingredient_items=[],
@@ -1034,7 +1079,8 @@ def recipe_edit(recipe_id):
                         category = %s,
                         yield_qty = %s,
                         yield_unit = %s,
-                        instructions = %s
+                        instructions = %s,
+                        recipe_type = %s
                     WHERE id = %s
                 """, (
                     name,
@@ -1042,6 +1088,7 @@ def recipe_edit(recipe_id):
                     yield_qty or None,
                     yield_unit or None,
                     instructions or None,
+                    recipe_type,
                     recipe_id
                 ))
 
@@ -1113,7 +1160,12 @@ def recipe_edit(recipe_id):
     cur.execute("SELECT id, name, unit, category FROM ingredients ORDER BY name")
     ingredients_list = cur.fetchall()
 
-    cur.execute("SELECT id, name, yield_qty, yield_unit FROM recipes WHERE id != %s ORDER BY name", (recipe_id,))
+    cur.execute("""
+        SELECT id, name, yield_qty, yield_unit, recipe_type
+        FROM recipes
+        WHERE id != %s AND (recipe_type = 'batch' OR recipe_type IS NULL)
+        ORDER BY name
+    """, (recipe_id,))
     recipes_list = cur.fetchall()
 
     cur.close()
@@ -1142,6 +1194,7 @@ def recipe_generator():
         'name': '',
         'category': '',
         'venue': '',
+        'recipe_type': '',
         'yield_qty': '',
         'yield_unit': '',
         'equipment': '',
@@ -1154,10 +1207,12 @@ def recipe_generator():
         data['name'] = (request.form.get('name') or '').strip()
         data['category'] = (request.form.get('category') or '').strip()
         data['venue'] = (request.form.get('venue') or '').strip()
+        data['recipe_type'] = (request.form.get('recipe_type') or '').strip()
         data['yield_qty'] = (request.form.get('yield_qty') or '').strip()
         data['yield_unit'] = (request.form.get('yield_unit') or '').strip()
         data['equipment'] = (request.form.get('equipment') or '').strip()
 
+        recipe_type_value = infer_recipe_type(data['name'], data['recipe_type'])
         yield_qty_value = parse_float_field(data['yield_qty'], 'Yield quantity', errors, required=True, min_value=0.0001)
         yield_unit_value = normalize_unit(data['yield_unit']) or data['yield_unit']
         if not data['yield_unit']:
@@ -1226,8 +1281,8 @@ def recipe_generator():
 
             try:
                 cur.execute("""
-                    INSERT INTO recipes (id, name, category, yield_qty, yield_unit, instructions, source_venue, equipment)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    INSERT INTO recipes (id, name, category, yield_qty, yield_unit, instructions, source_venue, equipment, recipe_type)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, (
                     recipe_id,
                     data['name'],
@@ -1236,7 +1291,8 @@ def recipe_generator():
                     yield_unit_value or None,
                     instructions or None,
                     data['venue'] or None,
-                    data['equipment'] or None
+                    data['equipment'] or None,
+                    recipe_type_value
                 ))
 
                 created_ingredients = 0

@@ -114,7 +114,7 @@
                 <div class="flex items-center justify-between mb-4">
                     <div>
                         <h2 class="text-xl font-semibold text-foxtown-dark">Menu Recipes</h2>
-                        <p class="text-sm text-slate-500">Add recipes and batch counts for this rollout.</p>
+                        <p class="text-sm text-slate-500">Add plated menu recipes (RM). Batch recipes should be nested as sub-recipes.</p>
                     </div>
                     <button type="button" id="addMenuRow"
                             class="text-foxtown-orange hover:text-orange-600 text-sm font-medium">
@@ -144,7 +144,7 @@
                                             <option value="">Select recipe</option>
                                             {% for rec in recipes %}
                                                 <option value="{{ rec.id }}" {% if rec.id == item.recipe_id %}selected{% endif %}>
-                                                    {{ rec.name }}
+                                                    {{ rec.name }}{% if rec.recipe_type == 'menu' %} (RM){% elif rec.recipe_type == 'batch' %} (RB){% elif rec.recipe_type is none %} (Unclassified){% endif %}
                                                 </option>
                                             {% endfor %}
                                         </select>
@@ -168,7 +168,7 @@
                                         <select name="menu_recipe_id[]" class="menu-select w-full border border-slate-200 rounded-lg px-3 py-2">
                                             <option value="">Select recipe</option>
                                             {% for rec in recipes %}
-                                                <option value="{{ rec.id }}">{{ rec.name }}</option>
+                                                <option value="{{ rec.id }}">{{ rec.name }}{% if rec.recipe_type == 'menu' %} (RM){% elif rec.recipe_type == 'batch' %} (RB){% elif rec.recipe_type is none %} (Unclassified){% endif %}</option>
                                             {% endfor %}
                                         </select>
                                     </td>
@@ -277,7 +277,7 @@
                                 <td class="py-3 pr-4 text-slate-600">{{ ing.display_unit }}</td>
                                 <td class="py-3 pr-4 text-slate-600">
                                     {% if ing.cost_per_unit %}
-                                        ${{ "%.4f"|format(ing.cost_per_unit) }}
+                                        ${{ "%.5f"|format(ing.cost_per_unit) }}
                                     {% else %}
                                         --
                                     {% endif %}
@@ -310,7 +310,7 @@
             <select name="menu_recipe_id[]" class="menu-select w-full border border-slate-200 rounded-lg px-3 py-2">
                 <option value="">Select recipe</option>
                 {% for rec in recipes %}
-                    <option value="{{ rec.id }}">{{ rec.name }}</option>
+                    <option value="{{ rec.id }}">{{ rec.name }}{% if rec.recipe_type == 'menu' %} (RM){% elif rec.recipe_type == 'batch' %} (RB){% elif rec.recipe_type is none %} (Unclassified){% endif %}</option>
                 {% endfor %}
             </select>
         </td>
