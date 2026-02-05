@@ -936,6 +936,7 @@ def recipe_new():
     cur = conn.cursor(cursor_factory=RealDictCursor)
 
     if request.method == 'POST':
+        errors = []
         name = (request.form.get('name') or '').strip()
         category = (request.form.get('category') or '').strip()
         yield_qty = (request.form.get('yield_qty') or '').strip()
@@ -943,10 +944,23 @@ def recipe_new():
         yield_unit = normalize_unit(yield_unit) or yield_unit
         instructions = (request.form.get('instructions') or '').strip()
         recipe_type = infer_recipe_type(name, request.form.get('recipe_type'))
-        recipe_type = infer_recipe_type(name, request.form.get('recipe_type'))
 
         if not name:
-            flash('Recipe name is required', 'error')
+            errors.append('Recipe name is required.')
+
+        ingredient_ids = request.form.getlist('ingredient_id[]')
+        ingredient_names = request.form.getlist('ingredient_name[]')
+        ingredient_qtys = request.form.getlist('ingredient_qty[]')
+        ingredient_units = request.form.getlist('ingredient_unit[]')
+
+        for idx, ing_id in enumerate(ingredient_ids):
+            ing_id = (ing_id or '').strip()
+            ing_name = (ingredient_names[idx] if idx < len(ingredient_names) else '').strip()
+            if not ing_id and ing_name:
+                errors.append(f'Ingredient \"{ing_name}\" was not found. Select it from the list or create it first.')
+
+        if errors:
+            flash(' '.join(sorted(set(errors))), 'error')
         else:
             recipe_id = generate_id('rec_')
             try:
@@ -964,10 +978,6 @@ def recipe_new():
                 ))
 
                 # Ingredients
-                ingredient_ids = request.form.getlist('ingredient_id[]')
-                ingredient_qtys = request.form.getlist('ingredient_qty[]')
-                ingredient_units = request.form.getlist('ingredient_unit[]')
-
                 for idx, ing_id in enumerate(ingredient_ids):
                     ing_id = (ing_id or '').strip()
                     if not ing_id:
@@ -1062,15 +1072,31 @@ def recipe_edit(recipe_id):
         return redirect(url_for('recipes'))
 
     if request.method == 'POST':
+        errors = []
         name = (request.form.get('name') or '').strip()
         category = (request.form.get('category') or '').strip()
         yield_qty = (request.form.get('yield_qty') or '').strip()
         yield_unit = (request.form.get('yield_unit') or '').strip()
         yield_unit = normalize_unit(yield_unit) or yield_unit
         instructions = (request.form.get('instructions') or '').strip()
+        recipe_type = infer_recipe_type(name, request.form.get('recipe_type'))
 
         if not name:
-            flash('Recipe name is required', 'error')
+            errors.append('Recipe name is required.')
+
+        ingredient_ids = request.form.getlist('ingredient_id[]')
+        ingredient_names = request.form.getlist('ingredient_name[]')
+        ingredient_qtys = request.form.getlist('ingredient_qty[]')
+        ingredient_units = request.form.getlist('ingredient_unit[]')
+
+        for idx, ing_id in enumerate(ingredient_ids):
+            ing_id = (ing_id or '').strip()
+            ing_name = (ingredient_names[idx] if idx < len(ingredient_names) else '').strip()
+            if not ing_id and ing_name:
+                errors.append(f'Ingredient \"{ing_name}\" was not found. Select it from the list or create it first.')
+
+        if errors:
+            flash(' '.join(sorted(set(errors))), 'error')
         else:
             try:
                 cur.execute("""
@@ -1093,10 +1119,6 @@ def recipe_edit(recipe_id):
                 ))
 
                 cur.execute("DELETE FROM recipe_ingredients WHERE recipe_id = %s", (recipe_id,))
-
-                ingredient_ids = request.form.getlist('ingredient_id[]')
-                ingredient_qtys = request.form.getlist('ingredient_qty[]')
-                ingredient_units = request.form.getlist('ingredient_unit[]')
 
                 for idx, ing_id in enumerate(ingredient_ids):
                     ing_id = (ing_id or '').strip()
