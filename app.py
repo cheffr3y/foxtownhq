@@ -355,6 +355,107 @@ def parse_menu_items(cur, unit_system, recipe_ids, batch_values):
 
     return menu_items, total_cost, errors
 
+def compute_q_factor(total_cost, q_factor_percent):
+    q_percent = to_float(q_factor_percent)
+    if q_percent < 0:
+        q_percent = 0
+    q_amount = total_cost * (q_percent / 100)
+    grand_total = total_cost + q_amount
+    return q_percent, q_amount, grand_total
+
+def build_rollout_breakdown(cur, unit_system, menu_items):
+    ingredient_totals = {}
+    subrecipe_ids = set()
+
+    for item in menu_items:
+        recipe_id = item.get('recipe_id')
+        batches = to_float(item.get('batches'))
+        if not recipe_id or batches <= 0:
+            continue
+        components, _, _ = build_component_tree(cur, recipe_id, batches, 0, set(), unit_system)
+        collect_ingredients_from_components(components, ingredient_totals)
+        collect_subrecipes_from_components(components, subrecipe_ids)
+
+    ingredient_master = []
+    ingredient_total_cost = 0
+    if ingredient_totals:
+        ingredient_ids = list({ing_id for ing_id, _ in ingredient_totals.keys()})
+        cur.execute("""
+            SELECT id, name, unit, category, cost_per_unit, vendor, vendor_code, g_code
+            FROM ingredients
+            WHERE id = ANY(%s)
+        """, (ingredient_ids,))
+        ingredient_map = {row['id']: row for row in cur.fetchall()}
+
+        for (ing_id, unit), qty in ingredient_totals.items():
+            ingredient = ingredient_map.get(ing_id, {})
+            cost_per_unit = to_float(ingredient.get('cost_per_unit'))
+            ext_cost = qty * cost_per_unit if cost_per_unit else 0
+            ingredient_total_cost += ext_cost
+            display = smart_quantity(qty, unit, unit_system)
+            ingredient_master.append({
+                'id': ing_id,
+                'name': ingredient.get('name') or 'Unknown',
+                'category': ingredient.get('category'),
+                'unit': unit or ingredient.get('unit'),
+                'quantity': qty,
+                'display_quantity': display['quantity'],
+                'display_unit': display['unit'],
+                'cost_per_unit': cost_per_unit,
+                'ext_cost': ext_cost,
+                'vendor': ingredient.get('vendor'),
+                'vendor_code': ingredient.get('vendor_code'),
+                'g_code': ingredient.get('g_code')
+            })
+
+        ingredient_master.sort(key=lambda item: (item['name'] or '').lower())
+
+    batch_recipes = []
+    if subrecipe_ids:
+        cur.execute("""
+            SELECT id, name, category, yield_qty, yield_unit
+            FROM recipes
+            WHERE id = ANY(%s)
+            ORDER BY name
+        """, (list(subrecipe_ids),))
+        for recipe in cur.fetchall():
+            total_cost = get_recipe_total_cost(cur, recipe['id'], unit_system)
+            yield_qty = to_float(recipe.get('yield_qty'))
+            cost_per_yield = total_cost / yield_qty if yield_qty > 0 else None
+            display_yield = smart_quantity(yield_qty, recipe.get('yield_unit'), unit_system) if yield_qty > 0 else None
+            batch_recipes.append({
+                'id': recipe['id'],
+                'name': recipe['name'],
+                'category': recipe.get('category'),
+                'yield_qty': yield_qty,
+                'yield_unit': recipe.get('yield_unit'),
+                'display_yield_qty': display_yield['quantity'] if display_yield else None,
+                'display_yield_unit': display_yield['unit'] if display_yield else None,
+                'total_cost': total_cost,
+                'cost_per_yield': cost_per_yield
+            })
+
+    return ingredient_master, ingredient_total_cost, batch_recipes
+
+def collect_ingredients_from_components(components, totals):
+    for item in components:
+        if item.get('type') == 'ingredient':
+            ing_id = item.get('item_id')
+            unit = (item.get('unit') or '').strip()
+            qty = to_float(item.get('scaled_quantity'))
+            if ing_id:
+                key = (ing_id, unit)
+                totals[key] = totals.get(key, 0) + qty
+        if item.get('children'):
+            collect_ingredients_from_components(item['children'], totals)
+
+def collect_subrecipes_from_components(components, subrecipes):
+    for item in components:
+        if item.get('type') == 'recipe' and item.get('item_id'):
+            subrecipes.add(item['item_id'])
+        if item.get('children'):
+            collect_subrecipes_from_components(item['children'], subrecipes)
+
 def find_or_create_ingredient(cur, name, unit_value):
     cur.execute("SELECT id FROM ingredients WHERE LOWER(name) = LOWER(%s) LIMIT 1", (name,))
     existing = cur.fetchone()
@@ -467,13 +568,22 @@ def menu_costing():
 
     menu_items = []
     total_cost = 0
+    q_factor_percent = 5
+    q_amount = 0
+    grand_total = 0
 
     if request.method == 'POST':
+        q_factor_raw = (request.form.get('q_factor_percent') or '').strip()
+        if q_factor_raw:
+            q_factor_percent = q_factor_raw
         recipe_ids = request.form.getlist('menu_recipe_id[]')
         batch_values = request.form.getlist('menu_batches[]')
         menu_items, total_cost, errors = parse_menu_items(cur, unit_system, recipe_ids, batch_values)
+        q_factor_percent, q_amount, grand_total = compute_q_factor(total_cost, q_factor_percent)
         if errors:
             flash(' '.join(sorted(set(errors))), 'error')
+    else:
+        q_factor_percent, q_amount, grand_total = compute_q_factor(total_cost, q_factor_percent)
 
     cur.close()
     conn.close()
@@ -482,7 +592,10 @@ def menu_costing():
         'menu_costing.html',
         recipes=recipes_list,
         menu_items=menu_items,
-        total_cost=total_cost
+        total_cost=total_cost,
+        q_factor_percent=q_factor_percent,
+        q_amount=q_amount,
+        grand_total=grand_total
     )
 
 @app.route('/menu-rollouts')
@@ -532,7 +645,13 @@ def menu_rollout_new():
 
     menu_items = []
     total_cost = 0
-    rollout_data = {'name': '', 'venue': '', 'year': '', 'quarter': '', 'notes': ''}
+    ingredient_master = []
+    ingredient_total_cost = 0
+    batch_recipes = []
+    q_factor_percent = 5
+    q_amount = 0
+    grand_total = 0
+    rollout_data = {'name': '', 'venue': '', 'year': '', 'quarter': '', 'notes': '', 'q_factor_percent': q_factor_percent}
 
     if request.method == 'POST':
         name = (request.form.get('name') or '').strip()
@@ -540,13 +659,16 @@ def menu_rollout_new():
         year_value = (request.form.get('year') or '').strip()
         quarter = normalize_quarter(request.form.get('quarter'))
         notes = (request.form.get('notes') or '').strip()
+        q_factor_raw = (request.form.get('q_factor_percent') or '').strip()
+        q_factor_percent = q_factor_raw if q_factor_raw else q_factor_percent
 
         rollout_data = {
             'name': name,
             'venue': venue,
             'year': year_value,
             'quarter': quarter,
-            'notes': notes
+            'notes': notes,
+            'q_factor_percent': q_factor_percent
         }
 
         year = int(year_value) if year_value.isdigit() else None
@@ -556,6 +678,13 @@ def menu_rollout_new():
         recipe_ids = request.form.getlist('menu_recipe_id[]')
         batch_values = request.form.getlist('menu_batches[]')
         menu_items, total_cost, errors = parse_menu_items(cur, unit_system, recipe_ids, batch_values)
+        q_factor_percent, q_amount, grand_total = compute_q_factor(total_cost, q_factor_percent)
+        if menu_items:
+            ingredient_master, ingredient_total_cost, batch_recipes = build_rollout_breakdown(
+                cur,
+                unit_system,
+                menu_items
+            )
 
         if not name:
             errors.append('Menu name is required.')
@@ -566,15 +695,16 @@ def menu_rollout_new():
             rollout_id = generate_id('menu_')
             try:
                 cur.execute("""
-                    INSERT INTO menu_rollouts (id, name, venue, year, quarter, notes, is_one_off)
-                    VALUES (%s, %s, %s, %s, %s, %s, FALSE)
+                    INSERT INTO menu_rollouts (id, name, venue, year, quarter, notes, q_factor_percent, is_one_off)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, FALSE)
                 """, (
                     rollout_id,
                     name,
                     venue or None,
                     year,
                     quarter or None,
-                    notes or None
+                    notes or None,
+                    to_float(q_factor_percent)
                 ))
 
                 for item in menu_items:
@@ -606,7 +736,13 @@ def menu_rollout_new():
         rollout=rollout_data,
         recipes=recipes_list,
         menu_items=menu_items,
-        total_cost=total_cost
+        total_cost=total_cost,
+        q_factor_percent=q_factor_percent,
+        q_amount=q_amount,
+        grand_total=grand_total,
+        ingredient_master=ingredient_master,
+        ingredient_total_cost=ingredient_total_cost,
+        batch_recipes=batch_recipes
     )
 
 @app.route('/menu-rollouts/<rollout_id>', methods=['GET', 'POST'])
@@ -629,6 +765,12 @@ def menu_rollout_edit(rollout_id):
 
     menu_items = []
     total_cost = 0
+    ingredient_master = []
+    ingredient_total_cost = 0
+    batch_recipes = []
+    q_factor_percent = rollout.get('q_factor_percent') if rollout and rollout.get('q_factor_percent') is not None else 5
+    q_amount = 0
+    grand_total = 0
 
     if request.method == 'POST':
         name = (request.form.get('name') or '').strip()
@@ -636,6 +778,8 @@ def menu_rollout_edit(rollout_id):
         year_value = (request.form.get('year') or '').strip()
         quarter = normalize_quarter(request.form.get('quarter'))
         notes = (request.form.get('notes') or '').strip()
+        q_factor_raw = (request.form.get('q_factor_percent') or '').strip()
+        q_factor_percent = q_factor_raw if q_factor_raw else q_factor_percent
 
         rollout = dict(rollout)
         rollout.update({
@@ -643,7 +787,8 @@ def menu_rollout_edit(rollout_id):
             'venue': venue,
             'year': year_value,
             'quarter': quarter,
-            'notes': notes
+            'notes': notes,
+            'q_factor_percent': q_factor_percent
         })
 
         year = int(year_value) if year_value.isdigit() else None
@@ -653,6 +798,13 @@ def menu_rollout_edit(rollout_id):
         recipe_ids = request.form.getlist('menu_recipe_id[]')
         batch_values = request.form.getlist('menu_batches[]')
         menu_items, total_cost, errors = parse_menu_items(cur, unit_system, recipe_ids, batch_values)
+        q_factor_percent, q_amount, grand_total = compute_q_factor(total_cost, q_factor_percent)
+        if menu_items:
+            ingredient_master, ingredient_total_cost, batch_recipes = build_rollout_breakdown(
+                cur,
+                unit_system,
+                menu_items
+            )
 
         if not name:
             errors.append('Menu name is required.')
@@ -667,7 +819,8 @@ def menu_rollout_edit(rollout_id):
                         venue = %s,
                         year = %s,
                         quarter = %s,
-                        notes = %s
+                        notes = %s,
+                        q_factor_percent = %s
                     WHERE id = %s
                 """, (
                     name,
@@ -675,6 +828,7 @@ def menu_rollout_edit(rollout_id):
                     year,
                     quarter or None,
                     notes or None,
+                    to_float(q_factor_percent),
                     rollout_id
                 ))
 
@@ -713,6 +867,12 @@ def menu_rollout_edit(rollout_id):
         batch_values = [row['batches'] for row in saved_items]
         if recipe_ids:
             menu_items, total_cost, _ = parse_menu_items(cur, unit_system, recipe_ids, batch_values)
+            q_factor_percent, q_amount, grand_total = compute_q_factor(total_cost, q_factor_percent)
+            ingredient_master, ingredient_total_cost, batch_recipes = build_rollout_breakdown(
+                cur,
+                unit_system,
+                menu_items
+            )
 
     cur.close()
     conn.close()
@@ -723,7 +883,13 @@ def menu_rollout_edit(rollout_id):
         rollout=rollout,
         recipes=recipes_list,
         menu_items=menu_items,
-        total_cost=total_cost
+        total_cost=total_cost,
+        q_factor_percent=q_factor_percent,
+        q_amount=q_amount,
+        grand_total=grand_total,
+        ingredient_master=ingredient_master,
+        ingredient_total_cost=ingredient_total_cost,
+        batch_recipes=batch_recipes
     )
 
 @app.route('/recipes/new', methods=['GET', 'POST'])

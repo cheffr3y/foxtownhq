@@ -3,23 +3,26 @@
 {% block title %}{% if mode == 'edit' %}Edit Menu Rollout{% else %}New Menu Rollout{% endif %} - Foxtown HQ{% endblock %}
 
 {% block content %}
-<div class="min-h-screen bg-gray-50">
-    <nav class="bg-white shadow-sm border-b border-gray-200">
+<div class="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50">
+    <nav class="bg-white/90 backdrop-blur border-b border-slate-200">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center h-16">
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between py-4">
                 <div class="flex items-center space-x-3">
                     <a href="{{ url_for('menu_rollouts') }}" class="text-foxtown-orange hover:text-orange-600">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                         </svg>
                     </a>
-                    <h1 class="text-2xl font-bold text-foxtown-dark">
-                        {% if mode == 'edit' %}Edit Menu Rollout{% else %}New Menu Rollout{% endif %}
-                    </h1>
+                    <div>
+                        <h1 class="text-2xl font-bold text-foxtown-dark">
+                            {% if mode == 'edit' %}Menu Rollout{% else %}New Menu Rollout{% endif %}
+                        </h1>
+                        <p class="text-sm text-slate-500">Plan a venue menu by quarter and price it from the ingredient master.</p>
+                    </div>
                 </div>
-                <div class="flex items-center space-x-3">
-                    <a href="{{ url_for('menu_rollouts') }}" class="text-sm text-gray-600 hover:text-foxtown-dark">Back to Rollouts</a>
-                    <button form="rolloutForm" class="bg-foxtown-orange hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-medium transition duration-200 shadow hover:shadow-lg">
+                <div class="flex items-center gap-3">
+                    <a href="{{ url_for('menu_rollouts') }}" class="text-sm text-slate-600 hover:text-foxtown-dark">Back to Rollouts</a>
+                    <button form="rolloutForm" class="bg-foxtown-orange hover:bg-orange-600 text-white px-5 py-2 rounded-lg font-medium transition duration-200 shadow-sm hover:shadow">
                         {% if mode == 'edit' %}Save Changes{% else %}Create Rollout{% endif %}
                     </button>
                 </div>
@@ -27,50 +30,91 @@
         </div>
     </nav>
 
-    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <form id="rolloutForm" method="POST" class="space-y-6">
-            <div class="bg-white rounded-lg shadow p-6">
-                <h2 class="text-xl font-bold text-foxtown-dark mb-4">Rollout Details</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Menu Name</label>
-                        <input type="text" name="name" value="{{ rollout.name or '' }}" placeholder="Brewpub Q1 2026"
-                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-foxtown-orange focus:border-transparent outline-none">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h2 class="text-xl font-semibold text-foxtown-dark">Rollout Details</h2>
+                            <p class="text-sm text-slate-500">Each rollout represents one menu for a specific venue and quarter.</p>
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Venue</label>
-                        <input type="text" name="venue" value="{{ rollout.venue or '' }}" list="venueOptions"
-                               placeholder="Brewpub, Renard's, Interurban"
-                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-foxtown-orange focus:border-transparent outline-none">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Menu Name</label>
+                            <input type="text" name="name" value="{{ rollout.name or '' }}" placeholder="Brewpub Q1 2026"
+                                   class="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-foxtown-orange focus:border-transparent outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Venue</label>
+                            <input type="text" name="venue" value="{{ rollout.venue or '' }}" list="venueOptions"
+                                   placeholder="Brewpub, Renard's, Interurban"
+                                   class="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-foxtown-orange focus:border-transparent outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Year</label>
+                            <input type="number" name="year" value="{{ rollout.year or '' }}" placeholder="2026"
+                                   class="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-foxtown-orange focus:border-transparent outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Quarter</label>
+                            <select name="quarter" class="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-foxtown-orange focus:border-transparent outline-none">
+                                <option value="">Select...</option>
+                                {% for q in ['Q1', 'Q2', 'Q3', 'Q4'] %}
+                                    <option value="{{ q }}" {% if rollout.quarter == q %}selected{% endif %}>{{ q }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Year</label>
-                        <input type="number" name="year" value="{{ rollout.year or '' }}" placeholder="2026"
-                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-foxtown-orange focus:border-transparent outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Quarter</label>
-                        <select name="quarter" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-foxtown-orange focus:border-transparent outline-none">
-                            <option value="">Select...</option>
-                            {% for q in ['Q1', 'Q2', 'Q3', 'Q4'] %}
-                                <option value="{{ q }}" {% if rollout.quarter == q %}selected{% endif %}>{{ q }}</option>
-                            {% endfor %}
-                        </select>
+                    <div class="mt-4">
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Notes</label>
+                        <textarea name="notes" rows="3"
+                                  class="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-foxtown-orange focus:border-transparent outline-none"
+                                  placeholder="Optional notes for this rollout">{{ rollout.notes or '' }}</textarea>
                     </div>
                 </div>
-                <div class="mt-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                    <textarea name="notes" rows="3"
-                              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-foxtown-orange focus:border-transparent outline-none"
-                              placeholder="Optional notes for this rollout">{{ rollout.notes or '' }}</textarea>
+
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                    <h2 class="text-lg font-semibold text-foxtown-dark">Cost Summary</h2>
+                    <p class="text-sm text-slate-500 mb-4">Based on current ingredient pricing.</p>
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between text-sm text-slate-600">
+                            <span>Menu Subtotal</span>
+                            <span class="font-semibold text-foxtown-dark">${{ "%.2f"|format(total_cost) }}</span>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Q Factor (%)</label>
+                            <input type="number" step="0.1" name="q_factor_percent" value="{{ q_factor_percent }}"
+                                   class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-foxtown-orange focus:border-transparent outline-none">
+                        </div>
+                        <div class="flex items-center justify-between text-sm text-slate-600">
+                            <span>Q Factor Amount</span>
+                            <span class="font-semibold text-foxtown-dark">${{ "%.2f"|format(q_amount) }}</span>
+                        </div>
+                        <div class="pt-3 border-t border-slate-200 flex items-center justify-between">
+                            <span class="text-sm text-slate-600">Grand Total</span>
+                            <span class="text-2xl font-bold text-foxtown-dark">${{ "%.2f"|format(grand_total) }}</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3 text-xs text-slate-500 pt-2">
+                            <div class="bg-slate-50 rounded-lg p-2">
+                                <div class="uppercase tracking-wide">Menu Recipes</div>
+                                <div class="text-lg font-semibold text-foxtown-dark">{{ menu_items|length }}</div>
+                            </div>
+                            <div class="bg-slate-50 rounded-lg p-2">
+                                <div class="uppercase tracking-wide">Ingredients</div>
+                                <div class="text-lg font-semibold text-foxtown-dark">{{ ingredient_master|length }}</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <div class="bg-white rounded-lg shadow p-6">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
                 <div class="flex items-center justify-between mb-4">
                     <div>
-                        <h2 class="text-xl font-bold text-foxtown-dark">Menu Items</h2>
-                        <p class="text-sm text-gray-500">Add recipes and batch counts</p>
+                        <h2 class="text-xl font-semibold text-foxtown-dark">Menu Recipes</h2>
+                        <p class="text-sm text-slate-500">Add recipes and batch counts for this rollout.</p>
                     </div>
                     <button type="button" id="addMenuRow"
                             class="text-foxtown-orange hover:text-orange-600 text-sm font-medium">
@@ -79,22 +123,24 @@
                 </div>
 
                 <div class="overflow-x-auto">
-                    <table class="min-w-full">
-                        <thead class="text-xs uppercase text-gray-500 border-b">
+                    <table class="min-w-full text-sm">
+                        <thead class="text-xs uppercase text-slate-500 border-b">
                             <tr>
                                 <th class="text-left py-2 pr-4">Recipe</th>
                                 <th class="text-left py-2 pr-4">Batches</th>
+                                <th class="text-left py-2 pr-4">Cost / Batch</th>
+                                <th class="text-left py-2 pr-4">Total</th>
                                 <th class="text-right py-2">Remove</th>
                             </tr>
                         </thead>
-                        <tbody id="menuRows">
+                        <tbody id="menuRows" class="divide-y">
                             {% if menu_items %}
                                 {% for item in menu_items %}
                                 <tr>
-                                    <td class="py-2 pr-4">
-                                        <input type="text" class="select-filter menu-filter w-full mb-2 border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                                    <td class="py-3 pr-4">
+                                        <input type="text" class="select-filter menu-filter w-full mb-2 border border-slate-200 rounded-lg px-3 py-2 text-sm"
                                                placeholder="Search recipes...">
-                                        <select name="menu_recipe_id[]" class="menu-select w-full border border-gray-300 rounded-lg px-3 py-2">
+                                        <select name="menu_recipe_id[]" class="menu-select w-full border border-slate-200 rounded-lg px-3 py-2">
                                             <option value="">Select recipe</option>
                                             {% for rec in recipes %}
                                                 <option value="{{ rec.id }}" {% if rec.id == item.recipe_id %}selected{% endif %}>
@@ -103,32 +149,36 @@
                                             {% endfor %}
                                         </select>
                                     </td>
-                                    <td class="py-2 pr-4">
+                                    <td class="py-3 pr-4">
                                         <input type="number" step="0.01" name="menu_batches[]" value="{{ item.batches }}"
-                                               class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                                               class="w-full border border-slate-200 rounded-lg px-3 py-2">
                                     </td>
-                                    <td class="py-2 text-right">
+                                    <td class="py-3 pr-4 text-slate-600">${{ "%.2f"|format(item.base_cost) }}</td>
+                                    <td class="py-3 pr-4 font-semibold text-foxtown-dark">${{ "%.2f"|format(item.item_total) }}</td>
+                                    <td class="py-3 text-right">
                                         <button type="button" class="remove-row text-red-500 hover:text-red-600 text-sm">Remove</button>
                                     </td>
                                 </tr>
                                 {% endfor %}
                             {% else %}
                                 <tr>
-                                    <td class="py-2 pr-4">
-                                        <input type="text" class="select-filter menu-filter w-full mb-2 border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                                    <td class="py-3 pr-4">
+                                        <input type="text" class="select-filter menu-filter w-full mb-2 border border-slate-200 rounded-lg px-3 py-2 text-sm"
                                                placeholder="Search recipes...">
-                                        <select name="menu_recipe_id[]" class="menu-select w-full border border-gray-300 rounded-lg px-3 py-2">
+                                        <select name="menu_recipe_id[]" class="menu-select w-full border border-slate-200 rounded-lg px-3 py-2">
                                             <option value="">Select recipe</option>
                                             {% for rec in recipes %}
                                                 <option value="{{ rec.id }}">{{ rec.name }}</option>
                                             {% endfor %}
                                         </select>
                                     </td>
-                                    <td class="py-2 pr-4">
+                                    <td class="py-3 pr-4">
                                         <input type="number" step="0.01" name="menu_batches[]" value="1"
-                                               class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                                               class="w-full border border-slate-200 rounded-lg px-3 py-2">
                                     </td>
-                                    <td class="py-2 text-right">
+                                    <td class="py-3 pr-4 text-slate-500">--</td>
+                                    <td class="py-3 pr-4 text-slate-500">--</td>
+                                    <td class="py-3 text-right">
                                         <button type="button" class="remove-row text-red-500 hover:text-red-600 text-sm">Remove</button>
                                     </td>
                                 </tr>
@@ -140,35 +190,112 @@
         </form>
 
         {% if menu_items %}
-        <div class="bg-white rounded-lg shadow p-6">
-            <h2 class="text-xl font-bold text-foxtown-dark mb-4">Cost Summary</h2>
-            <div class="overflow-x-auto">
-                <table class="min-w-full">
-                    <thead class="text-xs uppercase text-gray-500 border-b">
-                        <tr>
-                            <th class="text-left py-2 pr-4">Recipe</th>
-                            <th class="text-left py-2 pr-4">Batches</th>
-                            <th class="text-left py-2 pr-4">Cost / Batch</th>
-                            <th class="text-left py-2 pr-4">Total</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y">
-                        {% for item in menu_items %}
-                        <tr>
-                            <td class="py-2 pr-4 text-sm text-gray-700">{{ item.recipe.name }}</td>
-                            <td class="py-2 pr-4 text-sm text-gray-700">{{ item.batches }}</td>
-                            <td class="py-2 pr-4 text-sm text-gray-700">${{ "%.2f"|format(item.base_cost) }}</td>
-                            <td class="py-2 pr-4 text-sm font-semibold text-foxtown-dark">${{ "%.2f"|format(item.item_total) }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            <div class="mt-4 flex justify-end">
-                <div class="text-right">
-                    <div class="text-sm text-gray-600">Estimated Menu Total</div>
-                    <div class="text-2xl font-bold text-foxtown-dark">${{ "%.2f"|format(total_cost) }}</div>
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mt-6">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h2 class="text-xl font-semibold text-foxtown-dark">Batch Recipes</h2>
+                        <p class="text-sm text-slate-500">Sub-recipes used inside this rollout.</p>
+                    </div>
                 </div>
+                {% if batch_recipes %}
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-sm">
+                        <thead class="text-xs uppercase text-slate-500 border-b">
+                            <tr>
+                                <th class="text-left py-2 pr-4">Recipe</th>
+                                <th class="text-left py-2 pr-4">Yield</th>
+                                <th class="text-left py-2 pr-4">Cost / Batch</th>
+                                <th class="text-left py-2">Cost / Yield Unit</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y">
+                            {% for batch in batch_recipes %}
+                            <tr>
+                                <td class="py-3 pr-4">
+                                    <div class="font-medium text-foxtown-dark">{{ batch.name }}</div>
+                                    <div class="text-xs text-slate-500">{{ batch.category or 'Uncategorized' }}</div>
+                                </td>
+                                <td class="py-3 pr-4 text-slate-600">
+                                    {% if batch.display_yield_qty %}
+                                        {{ batch.display_yield_qty }} {{ batch.display_yield_unit }}
+                                    {% else %}
+                                        --
+                                    {% endif %}
+                                </td>
+                                <td class="py-3 pr-4 text-slate-600">${{ "%.2f"|format(batch.total_cost) }}</td>
+                                <td class="py-3 text-slate-600">
+                                    {% if batch.cost_per_yield %}
+                                        ${{ "%.2f"|format(batch.cost_per_yield) }} / {{ batch.display_yield_unit or batch.yield_unit or '' }}
+                                    {% else %}
+                                        --
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-sm text-slate-500">No sub-recipes yet.</p>
+                {% endif %}
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h2 class="text-xl font-semibold text-foxtown-dark">Ingredient Master List</h2>
+                        <p class="text-sm text-slate-500">Aggregated ingredients for the full rollout.</p>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-xs text-slate-500">Ingredient Total</div>
+                        <div class="text-lg font-semibold text-foxtown-dark">${{ "%.2f"|format(ingredient_total_cost) }}</div>
+                    </div>
+                </div>
+                {% if ingredient_master %}
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-sm">
+                        <thead class="text-xs uppercase text-slate-500 border-b">
+                            <tr>
+                                <th class="text-left py-2 pr-4">Ingredient</th>
+                                <th class="text-left py-2 pr-4">Qty</th>
+                                <th class="text-left py-2 pr-4">Unit</th>
+                                <th class="text-left py-2 pr-4">Price / Unit</th>
+                                <th class="text-left py-2 pr-4">Ext. Cost</th>
+                                <th class="text-left py-2 pr-4">Vendor</th>
+                                <th class="text-left py-2">Codes</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y">
+                            {% for ing in ingredient_master %}
+                            <tr>
+                                <td class="py-3 pr-4">
+                                    <div class="font-medium text-foxtown-dark">{{ ing.name }}</div>
+                                    <div class="text-xs text-slate-500">{{ ing.category or 'Uncategorized' }}</div>
+                                </td>
+                                <td class="py-3 pr-4 text-slate-600">{{ ing.display_quantity }}</td>
+                                <td class="py-3 pr-4 text-slate-600">{{ ing.display_unit }}</td>
+                                <td class="py-3 pr-4 text-slate-600">
+                                    {% if ing.cost_per_unit %}
+                                        ${{ "%.4f"|format(ing.cost_per_unit) }}
+                                    {% else %}
+                                        --
+                                    {% endif %}
+                                </td>
+                                <td class="py-3 pr-4 font-semibold text-foxtown-dark">${{ "%.2f"|format(ing.ext_cost) }}</td>
+                                <td class="py-3 pr-4 text-slate-600">{{ ing.vendor or 'Not set' }}</td>
+                                <td class="py-3 text-xs text-slate-500">
+                                    <div>Item: {{ ing.vendor_code or '—' }}</div>
+                                    <div>G-Code: {{ ing.g_code or '—' }}</div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-sm text-slate-500">Add recipes to populate the ingredient master list.</p>
+                {% endif %}
             </div>
         </div>
         {% endif %}
@@ -177,21 +304,23 @@
 
 <template id="menuRowTemplate">
     <tr>
-        <td class="py-2 pr-4">
-            <input type="text" class="select-filter menu-filter w-full mb-2 border border-gray-200 rounded-lg px-3 py-2 text-sm"
+        <td class="py-3 pr-4">
+            <input type="text" class="select-filter menu-filter w-full mb-2 border border-slate-200 rounded-lg px-3 py-2 text-sm"
                    placeholder="Search recipes...">
-            <select name="menu_recipe_id[]" class="menu-select w-full border border-gray-300 rounded-lg px-3 py-2">
+            <select name="menu_recipe_id[]" class="menu-select w-full border border-slate-200 rounded-lg px-3 py-2">
                 <option value="">Select recipe</option>
                 {% for rec in recipes %}
                     <option value="{{ rec.id }}">{{ rec.name }}</option>
                 {% endfor %}
             </select>
         </td>
-        <td class="py-2 pr-4">
+        <td class="py-3 pr-4">
             <input type="number" step="0.01" name="menu_batches[]" value="1"
-                   class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                   class="w-full border border-slate-200 rounded-lg px-3 py-2">
         </td>
-        <td class="py-2 text-right">
+        <td class="py-3 pr-4 text-slate-500">--</td>
+        <td class="py-3 pr-4 text-slate-500">--</td>
+        <td class="py-3 text-right">
             <button type="button" class="remove-row text-red-500 hover:text-red-600 text-sm">Remove</button>
         </td>
     </tr>
