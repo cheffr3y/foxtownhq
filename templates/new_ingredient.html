@@ -51,8 +51,7 @@
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-foxtown-orange focus:border-transparent outline-none"
                         >
                             <option value="">Select category...</option>
-                            {% set categories = ['Protein', 'Produce', 'Dairy', 'Dry Goods', 'Frozen', 'Bread', 'Condiments', 'Other'] %}
-                            {% for cat in categories %}
+                            {% for cat in ingredient_categories %}
                                 <option value="{{ cat }}">{{ cat }}</option>
                             {% endfor %}
                         </select>

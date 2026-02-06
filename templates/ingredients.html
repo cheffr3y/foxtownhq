@@ -81,6 +81,14 @@
                                class="mt-1 inline-flex text-xs text-foxtown-orange hover:text-orange-600 font-medium sm:hidden">
                                 Edit
                             </a>
+                            <form method="POST"
+                                  action="{{ url_for('delete_ingredient', ingredient_id=ingredient.id) }}"
+                                  onsubmit="return confirm('Delete {{ ingredient.name|e }}?');"
+                                  class="mt-1 sm:hidden">
+                                <button type="submit" class="text-xs text-red-600 hover:text-red-700 font-medium">
+                                    Delete
+                                </button>
+                            </form>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             <span class="px-2 py-1 text-xs font-medium rounded bg-gray-100 text-gray-700">
@@ -127,10 +135,20 @@
                             {% endif %}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm sticky right-0 bg-white group-hover:bg-gray-50">
-                            <a href="{{ url_for('edit_ingredient', ingredient_id=ingredient.id) }}" 
-                               class="text-foxtown-orange hover:text-orange-600 font-medium">
-                                Edit
-                            </a>
+                            <div class="flex justify-end items-center gap-4">
+                                <a href="{{ url_for('edit_ingredient', ingredient_id=ingredient.id) }}" 
+                                   class="text-foxtown-orange hover:text-orange-600 font-medium">
+                                    Edit
+                                </a>
+                                <form method="POST"
+                                      action="{{ url_for('delete_ingredient', ingredient_id=ingredient.id) }}"
+                                      onsubmit="return confirm('Delete {{ ingredient.name|e }}?');"
+                                      class="inline">
+                                    <button type="submit" class="text-red-600 hover:text-red-700 font-medium">
+                                        Delete
+                                    </button>
+                                </form>
+                            </div>
                         </td>
                     </tr>
                     {% endfor %}

@@ -145,6 +145,49 @@ RECIPE_TYPE_CHOICES = [
     ('batch', 'Batch (RB)')
 ]
 
+INGREDIENT_CATEGORIES = [
+    'Produce',
+    'Herbs',
+    'Dairy',
+    'Meat',
+    'Poultry',
+    'Seafood',
+    'Dry Goods',
+    'Spices',
+    'Baking',
+    'Oils & Vinegars',
+    'Condiments & Sauces',
+    'Bread',
+    'Frozen',
+    'Beverages',
+    'Packaging',
+    'Disposables',
+    'Cleaning',
+    'Other'
+]
+
+RECIPE_CATEGORIES = [
+    'Appetizers',
+    'Salads',
+    'Soups',
+    'Sauces',
+    'Dressings',
+    'Marinades',
+    'Sides',
+    'Proteins',
+    'Sandwiches',
+    'Pasta',
+    'Pizza',
+    'Breads',
+    'Desserts',
+    'Breakfast/Brunch',
+    'Snacks',
+    'Beverages',
+    'Stocks & Bases',
+    'Batch/Prep',
+    'Other'
+]
+
 def get_unit_system():
     system = request.args.get('units')
     if system in ('auto', 'metric', 'imperial'):
@@ -239,7 +282,9 @@ def inject_helpers():
     return {
         'smart_quantity': smart_quantity,
         'unit_system': get_unit_system(),
-        'recipe_type_choices': RECIPE_TYPE_CHOICES
+        'recipe_type_choices': RECIPE_TYPE_CHOICES,
+        'ingredient_categories': INGREDIENT_CATEGORIES,
+        'recipe_categories': RECIPE_CATEGORIES
     }
 
 # Recipe helpers
@@ -1752,6 +1797,47 @@ def edit_ingredient(ingredient_id):
         return redirect(url_for('ingredients'))
     
     return render_template('edit_ingredient.html', ingredient=ingredient)
+
+@app.route('/ingredients/<ingredient_id>/delete', methods=['POST'])
+@login_required
+def delete_ingredient(ingredient_id):
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+
+    cur.execute("SELECT id, name FROM ingredients WHERE id = %s", (ingredient_id,))
+    ingredient = cur.fetchone()
+    if not ingredient:
+        cur.close()
+        conn.close()
+        flash('Ingredient not found', 'error')
+        return redirect(url_for('ingredients'))
+
+    cur.execute("""
+        SELECT COUNT(*) AS usage_count
+        FROM recipe_ingredients
+        WHERE type = 'ingredient' AND item_id = %s
+    """, (ingredient_id,))
+    usage = cur.fetchone() or {}
+    usage_count = int(usage.get('usage_count') or 0)
+    if usage_count > 0:
+        cur.close()
+        conn.close()
+        flash(f"Can't delete {ingredient['name']} — used in {usage_count} recipe(s).", 'error')
+        return redirect(url_for('edit_ingredient', ingredient_id=ingredient_id))
+
+    try:
+        cur.execute("DELETE FROM ingredients WHERE id = %s", (ingredient_id,))
+        conn.commit()
+        cur.close()
+        conn.close()
+        flash('Ingredient deleted', 'success')
+        return redirect(url_for('ingredients'))
+    except Exception:
+        conn.rollback()
+        cur.close()
+        conn.close()
+        flash('Error deleting ingredient', 'error')
+        return redirect(url_for('edit_ingredient', ingredient_id=ingredient_id))
 
 if __name__ == '__main__':
     debug_flag = os.getenv('FLASK_DEBUG', '').lower() in ('1', 'true', 'yes')
