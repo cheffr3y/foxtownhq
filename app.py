@@ -462,6 +462,8 @@ def parse_menu_items(
     section_values=None
 ):
     menu_items = []
+    menu_groups = []
+    menu_groups = []
     total_cost = 0
     errors = []
 
@@ -585,6 +587,28 @@ def apply_menu_pricing(menu_items, default_target_percent=20):
         'weighted_avg_cost': weighted_avg_cost,
         'total_weight': total_weight
     }
+
+def group_menu_items(menu_items):
+    grouped = {}
+    for item in menu_items:
+        section = (item.get('menu_section') or '').strip() or 'Uncategorized'
+        grouped.setdefault(section, []).append(item)
+
+    ordered_sections = []
+    for section in MENU_SECTION_OPTIONS:
+        if section in grouped:
+            ordered_sections.append(section)
+    for section in sorted(grouped.keys(), key=lambda value: value.lower()):
+        if section not in ordered_sections:
+            ordered_sections.append(section)
+
+    grouped_list = []
+    for section in ordered_sections:
+        items = grouped.get(section, [])
+        items_sorted = sorted(items, key=lambda item: (item.get('recipe', {}).get('name') or '').lower())
+        grouped_list.append({'section': section, 'items': items_sorted})
+
+    return grouped_list
 
 def compute_q_factor(total_cost, q_factor_percent):
     q_percent = to_float(q_factor_percent)
@@ -1004,6 +1028,8 @@ def menu_rollout_new():
                 unit_system,
                 menu_items
             )
+            menu_groups = group_menu_items(menu_items)
+            menu_groups = group_menu_items(menu_items)
 
         if not name:
             errors.append('Menu name is required.')
@@ -1060,6 +1086,7 @@ def menu_rollout_new():
         rollout=rollout_data,
         recipes=recipes_list,
         menu_items=menu_items,
+        menu_groups=menu_groups,
         total_cost=total_cost,
         q_factor_percent=q_factor_percent,
         q_amount=q_amount,
@@ -1257,6 +1284,7 @@ def menu_rollout_edit(rollout_id):
                 unit_system,
                 menu_items
             )
+            menu_groups = group_menu_items(menu_items)
 
     cur.close()
     conn.close()
@@ -1267,6 +1295,7 @@ def menu_rollout_edit(rollout_id):
         rollout=rollout,
         recipes=recipes_list,
         menu_items=menu_items,
+        menu_groups=menu_groups,
         total_cost=total_cost,
         q_factor_percent=q_factor_percent,
         q_amount=q_amount,

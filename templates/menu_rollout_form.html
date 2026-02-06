@@ -150,7 +150,13 @@
                         </thead>
                         <tbody id="menuRows" class="divide-y">
                             {% if menu_items %}
-                                {% for item in menu_items %}
+                                {% for group in menu_groups %}
+                                <tr class="bg-stone-50">
+                                    <td colspan="10" class="px-4 py-3 text-sm font-display text-foxtown-ink">
+                                        {{ group.section }}
+                                    </td>
+                                </tr>
+                                {% for item in group.items %}
                                 <tr>
                                     <td class="py-3 pr-4">
                                         <input type="text" name="menu_recipe_name[]"
@@ -207,6 +213,7 @@
                                         <button type="button" class="remove-row text-red-600 hover:text-red-700 text-sm font-semibold">Remove</button>
                                     </td>
                                 </tr>
+                                {% endfor %}
                                 {% endfor %}
                             {% else %}
                                 <tr>
