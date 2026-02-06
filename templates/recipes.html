@@ -3,36 +3,36 @@
 {% block title %}Recipes - Foxtown HQ{% endblock %}
 
 {% block content %}
-<div class="min-h-screen bg-gray-50">
+<div class="min-h-screen">
     <!-- Top Navigation Bar -->
-    <nav class="bg-white shadow-sm border-b border-gray-200">
+    <nav class="bg-foxtown-charcoal text-white border-b border-slate-800/60">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-16">
                 <div class="flex items-center space-x-3">
-                    <a href="{{ url_for('dashboard') }}" class="text-foxtown-orange hover:text-orange-600">
+                    <a href="{{ url_for('dashboard') }}" class="text-amber-200 hover:text-white">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                         </svg>
                     </a>
-                    <h1 class="text-2xl font-bold text-foxtown-dark">Recipes</h1>
+                    <h1 class="text-2xl font-display tracking-tight">Recipes</h1>
                 </div>
                 <div class="flex items-center space-x-4">
-                    <div class="flex items-center bg-gray-100 rounded-lg p-1 text-xs">
-                        <span class="px-2 text-gray-500">Units</span>
+                    <div class="flex items-center bg-slate-800/60 rounded-lg p-1 text-xs">
+                        <span class="px-2 text-stone-200">Units</span>
                         <a href="{{ request.path }}?units=auto"
-                           class="px-2 py-1 rounded {% if unit_system == 'auto' %}bg-white shadow text-foxtown-dark{% else %}text-gray-500 hover:text-foxtown-dark{% endif %}">
+                           class="px-2 py-1 rounded {% if unit_system == 'auto' %}bg-white/90 text-foxtown-ink{% else %}text-stone-200 hover:text-white{% endif %}">
                             Auto
                         </a>
                         <a href="{{ request.path }}?units=imperial"
-                           class="px-2 py-1 rounded {% if unit_system == 'imperial' %}bg-white shadow text-foxtown-dark{% else %}text-gray-500 hover:text-foxtown-dark{% endif %}">
+                           class="px-2 py-1 rounded {% if unit_system == 'imperial' %}bg-white/90 text-foxtown-ink{% else %}text-stone-200 hover:text-white{% endif %}">
                             US
                         </a>
                         <a href="{{ request.path }}?units=metric"
-                           class="px-2 py-1 rounded {% if unit_system == 'metric' %}bg-white shadow text-foxtown-dark{% else %}text-gray-500 hover:text-foxtown-dark{% endif %}">
+                           class="px-2 py-1 rounded {% if unit_system == 'metric' %}bg-white/90 text-foxtown-ink{% else %}text-stone-200 hover:text-white{% endif %}">
                             Metric
                         </a>
                     </div>
-                    <a href="{{ url_for('recipe_new') }}" class="bg-foxtown-orange hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-medium transition duration-200 shadow hover:shadow-lg">
+                    <a href="{{ url_for('recipe_new') }}" class="bg-foxtown-ember hover:bg-orange-700 text-white px-4 py-2 rounded-xl font-semibold transition duration-200 shadow-soft">
                         + New Recipe
                     </a>
                 </div>
@@ -44,18 +44,18 @@
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
         <!-- Search and Filters -->
-        <div class="bg-white rounded-lg shadow mb-6 p-6">
+        <div class="bg-white/90 rounded-2xl shadow-soft border border-stone-200 mb-6 p-6">
             <div class="flex flex-col md:flex-row gap-4">
                 <div class="flex-1">
                     <input 
                         type="text"
                         id="recipeSearch"
                         placeholder="Search recipes..."
-                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-foxtown-orange focus:border-transparent outline-none"
+                        class="w-full px-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none"
                     >
                 </div>
                 <div class="w-full md:w-48">
-                    <select id="categoryFilter" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-foxtown-orange focus:border-transparent outline-none">
+                    <select id="categoryFilter" class="w-full px-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none">
                         <option>All Categories</option>
                         <option>Sauces</option>
                         <option>Proteins</option>
@@ -71,36 +71,36 @@
         {% if recipes %}
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {% for recipe in recipes %}
-            <div class="bg-white rounded-lg shadow hover:shadow-lg transition duration-200 overflow-hidden recipe-card"
+            <div class="bg-white rounded-2xl border border-stone-200 shadow-soft hover:shadow-lift transition duration-200 overflow-hidden recipe-card"
                  data-name="{{ recipe.name | lower }}"
                  data-category="{{ (recipe.category or 'Uncategorized') | lower }}">
                 <div class="p-6">
                     <div class="flex items-start justify-between mb-3">
                         <div>
-                            <h3 class="text-lg font-bold text-foxtown-dark mb-1">{{ recipe.name }}</h3>
+                            <h3 class="text-lg font-display text-foxtown-ink mb-1">{{ recipe.name }}</h3>
                             <div class="flex flex-wrap gap-2">
-                                <span class="inline-block px-2 py-1 text-xs font-medium rounded bg-foxtown-blue text-white">
+                                <span class="inline-block px-2 py-1 text-xs font-semibold rounded bg-stone-100 text-stone-700">
                                     {{ recipe.category or 'Uncategorized' }}
                                 </span>
                                 {% if recipe.recipe_type == 'menu' %}
-                                    <span class="inline-block px-2 py-1 text-xs font-medium rounded bg-foxtown-orange text-white">RM Plated</span>
+                                    <span class="inline-block px-2 py-1 text-xs font-semibold rounded bg-foxtown-ember text-white">RM Plated</span>
                                 {% elif recipe.recipe_type == 'batch' %}
-                                    <span class="inline-block px-2 py-1 text-xs font-medium rounded bg-slate-200 text-slate-700">RB Batch</span>
+                                    <span class="inline-block px-2 py-1 text-xs font-semibold rounded bg-slate-200 text-slate-700">RB Batch</span>
                                 {% endif %}
                             </div>
                         </div>
                     </div>
                     
-                    <div class="space-y-2 text-sm text-gray-600 mb-4">
+                    <div class="space-y-2 text-sm text-stone-600 mb-4">
                         <div class="flex items-center">
-                            <svg class="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg class="w-4 h-4 mr-2 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
                             </svg>
                             {% set yield_display = smart_quantity(recipe.yield_qty, recipe.yield_unit) %}
                             Yield: {{ yield_display.quantity }} {{ yield_display.unit }}
                         </div>
                         <div class="flex items-center">
-                            <svg class="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg class="w-4 h-4 mr-2 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
                             </svg>
                             {{ recipe.ingredient_count }} ingredients
@@ -108,11 +108,11 @@
                     </div>
                     
                     <div class="flex gap-2">
-                        <a href="{{ url_for('recipe_detail', recipe_id=recipe.id) }}" class="flex-1 bg-foxtown-orange hover:bg-orange-600 text-white px-4 py-2 rounded text-sm font-medium transition text-center block">
+                        <a href="{{ url_for('recipe_detail', recipe_id=recipe.id) }}" class="flex-1 bg-foxtown-ember hover:bg-orange-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition text-center block shadow-soft">
                             View
                         </a>
-                        <a href="{{ url_for('recipe_edit', recipe_id=recipe.id) }}" class="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50 transition inline-flex items-center justify-center">
-                            <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <a href="{{ url_for('recipe_edit', recipe_id=recipe.id) }}" class="px-4 py-2 border border-stone-300 rounded-xl hover:bg-stone-50 transition inline-flex items-center justify-center">
+                            <svg class="w-4 h-4 text-stone-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
                             </svg>
                         </a>
@@ -123,17 +123,17 @@
         </div>
         {% else %}
         <!-- Empty State -->
-        <div class="bg-white rounded-lg shadow p-12 text-center">
-            <svg class="w-24 h-24 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-12 text-center">
+            <svg class="w-24 h-24 mx-auto text-stone-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
             </svg>
-            <h3 class="text-xl font-semibold text-gray-700 mb-2">No recipes yet</h3>
-            <p class="text-gray-500 mb-6">Get started by creating your first recipe or importing from your existing tools</p>
+            <h3 class="text-xl font-display text-foxtown-ink mb-2">No recipes yet</h3>
+            <p class="text-stone-500 mb-6">Get started by creating your first recipe or importing from your existing tools</p>
             <div class="flex justify-center gap-4">
-                <button class="bg-foxtown-orange hover:bg-orange-600 text-white px-6 py-3 rounded-lg font-medium transition duration-200 shadow hover:shadow-lg">
+                <button class="bg-foxtown-ember hover:bg-orange-700 text-white px-6 py-3 rounded-xl font-semibold transition duration-200 shadow-soft">
                     + Create Recipe
                 </button>
-                <button class="bg-white hover:bg-gray-50 text-foxtown-dark px-6 py-3 rounded-lg font-medium border-2 border-gray-300 transition duration-200">
+                <button class="bg-white hover:bg-stone-50 text-foxtown-ink px-6 py-3 rounded-xl font-semibold border border-stone-300 transition duration-200">
                     Import Data
                 </button>
             </div>

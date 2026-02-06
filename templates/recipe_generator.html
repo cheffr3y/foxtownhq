@@ -3,42 +3,42 @@
 {% block title %}Recipe Generator - Foxtown HQ{% endblock %}
 
 {% block content %}
-<div class="min-h-screen bg-gray-50">
-    <nav class="bg-white shadow-sm border-b border-gray-200">
+<div class="min-h-screen">
+    <nav class="bg-foxtown-charcoal text-white border-b border-slate-800/60">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-16">
                 <div class="flex items-center space-x-3">
-                    <a href="{{ url_for('dashboard') }}" class="text-foxtown-orange hover:text-orange-600">
+                    <a href="{{ url_for('dashboard') }}" class="text-amber-200 hover:text-white">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                         </svg>
                     </a>
-                    <h1 class="text-2xl font-bold text-foxtown-dark">Recipe Generator</h1>
+                    <h1 class="text-2xl font-display tracking-tight">Recipe Generator</h1>
                 </div>
-                <div class="text-sm text-gray-600">Generate PDF and save to recipes</div>
+                <div class="text-sm text-stone-200">Generate PDF and save to recipes</div>
             </div>
         </div>
     </nav>
 
     <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <form id="generatorForm" method="POST" class="space-y-6">
-            <div class="bg-white rounded-lg shadow p-6">
-                <h2 class="text-xl font-bold text-foxtown-dark mb-4">Recipe Information</h2>
+            <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-6">
+                <h2 class="text-xl font-display text-foxtown-ink mb-4">Recipe Information</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Recipe Name *</label>
+                        <label class="block text-sm font-medium text-stone-700 mb-1">Recipe Name *</label>
                         <input type="text" name="name" value="{{ data.name }}" required
-                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-foxtown-orange focus:border-transparent outline-none">
+                               class="w-full px-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                        <label class="block text-sm font-medium text-stone-700 mb-1">Category</label>
                         <input type="text" name="category" value="{{ data.category }}" placeholder="Sauces, Sides, Proteins"
-                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-foxtown-orange focus:border-transparent outline-none">
+                               class="w-full px-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Recipe Type</label>
+                        <label class="block text-sm font-medium text-stone-700 mb-1">Recipe Type</label>
                         <select name="recipe_type"
-                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-foxtown-orange focus:border-transparent outline-none">
+                                class="w-full px-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none">
                             <option value="">Select type...</option>
                             {% for value, label in recipe_type_choices %}
                                 <option value="{{ value }}" {% if data.recipe_type == value %}selected{% endif %}>{{ label }}</option>
@@ -46,90 +46,90 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Venue</label>
+                        <label class="block text-sm font-medium text-stone-700 mb-1">Venue</label>
                         <input type="text" name="venue" value="{{ data.venue }}" placeholder="Brewpub, Renard's"
-                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-foxtown-orange focus:border-transparent outline-none">
+                               class="w-full px-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Equipment Needed</label>
+                        <label class="block text-sm font-medium text-stone-700 mb-1">Equipment Needed</label>
                         <input type="text" name="equipment" value="{{ data.equipment }}" placeholder="Mixer, food processor"
-                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-foxtown-orange focus:border-transparent outline-none">
+                               class="w-full px-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Yield Quantity *</label>
+                        <label class="block text-sm font-medium text-stone-700 mb-1">Yield Quantity *</label>
                         <input type="number" step="0.01" name="yield_qty" value="{{ data.yield_qty }}" required
-                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-foxtown-orange focus:border-transparent outline-none">
+                               class="w-full px-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Yield Unit *</label>
+                        <label class="block text-sm font-medium text-stone-700 mb-1">Yield Unit *</label>
                         <input type="text" name="yield_unit" value="{{ data.yield_unit }}" list="unitOptions" placeholder="fl oz, oz, each" required
-                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-foxtown-orange focus:border-transparent outline-none">
+                               class="w-full px-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none">
                     </div>
                 </div>
             </div>
 
-            <div class="bg-white rounded-lg shadow p-6">
+            <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-6">
                 <div class="flex items-center justify-between mb-4">
-                    <h2 class="text-xl font-bold text-foxtown-dark">Ingredients</h2>
+                    <h2 class="text-xl font-display text-foxtown-ink">Ingredients</h2>
                     <button type="button" id="addIngredientRow"
-                            class="text-foxtown-orange hover:text-orange-600 text-sm font-medium">
+                            class="text-foxtown-ember hover:text-orange-700 text-sm font-semibold">
                         + Add Ingredient
                     </button>
                 </div>
                 <div class="space-y-3" id="ingredientRows">
                     {% for ing in data.ingredients %}
-                    <div class="ingredient-row grid grid-cols-1 md:grid-cols-5 gap-3 border border-gray-200 rounded-lg p-3">
+                    <div class="ingredient-row grid grid-cols-1 md:grid-cols-5 gap-3 border border-stone-200 rounded-2xl p-3">
                         <div>
-                            <label class="block text-xs font-medium text-gray-500 mb-1">Ingredient Name *</label>
+                            <label class="block text-xs font-medium text-stone-500 mb-1">Ingredient Name *</label>
                             <input type="text" name="ingredient_name[]" value="{{ ing.name }}" list="ingredientOptions"
-                                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                                   class="w-full border border-stone-300 rounded-xl px-3 py-2 text-sm">
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-gray-500 mb-1">Quantity *</label>
+                            <label class="block text-xs font-medium text-stone-500 mb-1">Quantity *</label>
                             <input type="number" step="0.01" name="ingredient_qty[]" value="{{ ing.amount }}"
-                                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                                   class="w-full border border-stone-300 rounded-xl px-3 py-2 text-sm">
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-gray-500 mb-1">Unit *</label>
+                            <label class="block text-xs font-medium text-stone-500 mb-1">Unit *</label>
                             <input type="text" name="ingredient_unit[]" value="{{ ing.unit }}" list="unitOptions"
-                                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                                   class="w-full border border-stone-300 rounded-xl px-3 py-2 text-sm">
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-gray-500 mb-1">Notes</label>
+                            <label class="block text-xs font-medium text-stone-500 mb-1">Notes</label>
                             <input type="text" name="ingredient_notes[]" value="{{ ing.notes }}"
-                                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                                   class="w-full border border-stone-300 rounded-xl px-3 py-2 text-sm">
                         </div>
                         <div class="flex items-end justify-end">
-                            <button type="button" class="remove-ingredient text-red-500 hover:text-red-600 text-sm">Remove</button>
+                            <button type="button" class="remove-ingredient text-red-600 hover:text-red-700 text-sm font-semibold">Remove</button>
                         </div>
                     </div>
                     {% endfor %}
                 </div>
             </div>
 
-            <div class="bg-white rounded-lg shadow p-6">
+            <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-6">
                 <div class="flex items-center justify-between mb-4">
-                    <h2 class="text-xl font-bold text-foxtown-dark">Preparation Steps</h2>
+                    <h2 class="text-xl font-display text-foxtown-ink">Preparation Steps</h2>
                     <button type="button" id="addStepRow"
-                            class="text-foxtown-orange hover:text-orange-600 text-sm font-medium">
+                            class="text-foxtown-ember hover:text-orange-700 text-sm font-semibold">
                         + Add Step
                     </button>
                 </div>
                 <div class="space-y-3" id="stepRows">
                     {% for step in data.steps %}
-                    <div class="step-row grid grid-cols-1 md:grid-cols-3 gap-3 border border-gray-200 rounded-lg p-3">
+                    <div class="step-row grid grid-cols-1 md:grid-cols-3 gap-3 border border-stone-200 rounded-2xl p-3">
                         <div class="md:col-span-2">
-                            <label class="block text-xs font-medium text-gray-500 mb-1">Step Description *</label>
+                            <label class="block text-xs font-medium text-stone-500 mb-1">Step Description *</label>
                             <textarea name="step_desc[]" rows="2"
-                                      class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">{{ step.description }}</textarea>
+                                      class="w-full border border-stone-300 rounded-xl px-3 py-2 text-sm">{{ step.description }}</textarea>
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-gray-500 mb-1">Time</label>
+                            <label class="block text-xs font-medium text-stone-500 mb-1">Time</label>
                             <input type="text" name="step_time[]" value="{{ step.time }}" placeholder="5 minutes"
-                                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                                   class="w-full border border-stone-300 rounded-xl px-3 py-2 text-sm">
                         </div>
                         <div class="md:col-span-3 flex justify-end">
-                            <button type="button" class="remove-step text-red-500 hover:text-red-600 text-sm">Remove</button>
+                            <button type="button" class="remove-step text-red-600 hover:text-red-700 text-sm font-semibold">Remove</button>
                         </div>
                     </div>
                     {% endfor %}
@@ -137,13 +137,13 @@
             </div>
 
             <div class="flex flex-wrap gap-3 justify-end">
-                <button type="button" id="generatePdf" class="bg-foxtown-slate hover:bg-gray-700 text-white px-5 py-2 rounded-lg font-medium transition duration-200">
+                <button type="button" id="generatePdf" class="bg-foxtown-ink hover:bg-foxtown-charcoal text-white px-5 py-2 rounded-xl font-semibold transition duration-200 shadow-soft">
                     Generate PDF
                 </button>
-                <button type="button" id="clearForm" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-5 py-2 rounded-lg font-medium transition duration-200">
+                <button type="button" id="clearForm" class="bg-stone-200 hover:bg-stone-300 text-stone-700 px-5 py-2 rounded-xl font-semibold transition duration-200">
                     Clear Form
                 </button>
-                <button type="submit" class="bg-foxtown-orange hover:bg-orange-600 text-white px-5 py-2 rounded-lg font-medium transition duration-200 shadow hover:shadow-lg">
+                <button type="submit" class="bg-foxtown-ember hover:bg-orange-700 text-white px-5 py-2 rounded-xl font-semibold transition duration-200 shadow-soft hover:shadow-lift">
                     Save Recipe
                 </button>
             </div>
@@ -152,46 +152,46 @@
 </div>
 
 <template id="ingredientRowTemplate">
-    <div class="ingredient-row grid grid-cols-1 md:grid-cols-5 gap-3 border border-gray-200 rounded-lg p-3">
+    <div class="ingredient-row grid grid-cols-1 md:grid-cols-5 gap-3 border border-stone-200 rounded-2xl p-3">
         <div>
-            <label class="block text-xs font-medium text-gray-500 mb-1">Ingredient Name *</label>
+            <label class="block text-xs font-medium text-stone-500 mb-1">Ingredient Name *</label>
             <input type="text" name="ingredient_name[]" list="ingredientOptions"
-                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                   class="w-full border border-stone-300 rounded-xl px-3 py-2 text-sm">
         </div>
         <div>
-            <label class="block text-xs font-medium text-gray-500 mb-1">Quantity *</label>
+            <label class="block text-xs font-medium text-stone-500 mb-1">Quantity *</label>
             <input type="number" step="0.01" name="ingredient_qty[]"
-                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                   class="w-full border border-stone-300 rounded-xl px-3 py-2 text-sm">
         </div>
         <div>
-            <label class="block text-xs font-medium text-gray-500 mb-1">Unit *</label>
+            <label class="block text-xs font-medium text-stone-500 mb-1">Unit *</label>
             <input type="text" name="ingredient_unit[]" list="unitOptions"
-                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                   class="w-full border border-stone-300 rounded-xl px-3 py-2 text-sm">
         </div>
         <div>
-            <label class="block text-xs font-medium text-gray-500 mb-1">Notes</label>
+            <label class="block text-xs font-medium text-stone-500 mb-1">Notes</label>
             <input type="text" name="ingredient_notes[]"
-                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                   class="w-full border border-stone-300 rounded-xl px-3 py-2 text-sm">
         </div>
         <div class="flex items-end justify-end">
-            <button type="button" class="remove-ingredient text-red-500 hover:text-red-600 text-sm">Remove</button>
+            <button type="button" class="remove-ingredient text-red-600 hover:text-red-700 text-sm font-semibold">Remove</button>
         </div>
     </div>
 </template>
 
 <template id="stepRowTemplate">
-    <div class="step-row grid grid-cols-1 md:grid-cols-3 gap-3 border border-gray-200 rounded-lg p-3">
+    <div class="step-row grid grid-cols-1 md:grid-cols-3 gap-3 border border-stone-200 rounded-2xl p-3">
         <div class="md:col-span-2">
-            <label class="block text-xs font-medium text-gray-500 mb-1">Step Description *</label>
-            <textarea name="step_desc[]" rows="2" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"></textarea>
+            <label class="block text-xs font-medium text-stone-500 mb-1">Step Description *</label>
+            <textarea name="step_desc[]" rows="2" class="w-full border border-stone-300 rounded-xl px-3 py-2 text-sm"></textarea>
         </div>
         <div>
-            <label class="block text-xs font-medium text-gray-500 mb-1">Time</label>
+            <label class="block text-xs font-medium text-stone-500 mb-1">Time</label>
             <input type="text" name="step_time[]" placeholder="5 minutes"
-                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                   class="w-full border border-stone-300 rounded-xl px-3 py-2 text-sm">
         </div>
         <div class="md:col-span-3 flex justify-end">
-            <button type="button" class="remove-step text-red-500 hover:text-red-600 text-sm">Remove</button>
+            <button type="button" class="remove-step text-red-600 hover:text-red-700 text-sm font-semibold">Remove</button>
         </div>
     </div>
 </template>

@@ -3,18 +3,18 @@
 {% block title %}New Ingredient - Foxtown HQ{% endblock %}
 
 {% block content %}
-<div class="min-h-screen bg-gray-50">
+<div class="min-h-screen">
     <!-- Top Navigation Bar -->
-    <nav class="bg-white shadow-sm border-b border-gray-200">
+    <nav class="bg-foxtown-charcoal text-white border-b border-slate-800/60">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-16">
                 <div class="flex items-center space-x-3">
-                    <a href="{{ url_for('ingredients') }}" class="text-foxtown-orange hover:text-orange-600">
+                    <a href="{{ url_for('ingredients') }}" class="text-amber-200 hover:text-white">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                         </svg>
                     </a>
-                    <h1 class="text-2xl font-bold text-foxtown-dark">New Ingredient</h1>
+                    <h1 class="text-2xl font-display tracking-tight">New Ingredient</h1>
                 </div>
             </div>
         </div>
@@ -23,7 +23,7 @@
     <!-- Main Content -->
     <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
-        <div class="bg-white rounded-lg shadow p-6">
+        <div class="bg-white border border-stone-200 rounded-2xl shadow-soft p-6">
             <form method="POST" class="space-y-6">
                 
                 <!-- Name -->
@@ -36,7 +36,7 @@
                         name="name" 
                         value="{{ ingredient.name }}"
                         required
-                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-foxtown-orange focus:border-transparent outline-none"
+                        class="w-full px-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none"
                     >
                 </div>
 
@@ -48,7 +48,7 @@
                         </label>
                         <select 
                             name="category"
-                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-foxtown-orange focus:border-transparent outline-none"
+                            class="w-full px-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none"
                         >
                             <option value="">Select category...</option>
                             {% for cat in ingredient_categories %}
@@ -67,7 +67,7 @@
                             value="{{ ingredient.unit or '' }}"
                             placeholder="oz, lb, each, fl oz..."
                             list="unitOptions"
-                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-foxtown-orange focus:border-transparent outline-none"
+                            class="w-full px-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none"
                         >
                     </div>
                 </div>
@@ -83,7 +83,7 @@
                             name="vendor" 
                             value="{{ ingredient.vendor or '' }}"
                             placeholder="Sysco, US Foods, etc."
-                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-foxtown-orange focus:border-transparent outline-none"
+                            class="w-full px-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none"
                         >
                     </div>
 
@@ -96,7 +96,7 @@
                             name="vendor_code" 
                             value="{{ ingredient.vendor_code or '' }}"
                             placeholder="Vendor SKU"
-                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-foxtown-orange focus:border-transparent outline-none"
+                            class="w-full px-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none"
                         >
                     </div>
                 </div>
@@ -112,7 +112,7 @@
                             name="g_code" 
                             value="{{ ingredient.g_code or '' }}"
                             placeholder="G-CODE-123"
-                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-foxtown-orange focus:border-transparent outline-none font-mono"
+                            class="w-full px-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none font-mono"
                         >
                         <p class="text-xs text-gray-500 mt-1">For Acumatica ERP integration</p>
                     </div>
@@ -128,7 +128,7 @@
                             step="0.00001"
                             min="0"
                             placeholder="0.00000"
-                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-foxtown-orange focus:border-transparent outline-none"
+                            class="w-full px-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none"
                         >
                         <p class="text-xs text-gray-500 mt-1">
                             If provided, this sets the price update date to today
@@ -139,12 +139,12 @@
                 <!-- Save Button -->
                 <div class="flex justify-end space-x-3 pt-4">
                     <a href="{{ url_for('ingredients') }}" 
-                       class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition">
+                       class="px-6 py-2 border border-stone-300 rounded-xl text-stone-700 hover:bg-stone-50 font-medium transition">
                         Cancel
                     </a>
                     <button 
                         type="submit"
-                        class="px-6 py-2 bg-foxtown-orange hover:bg-orange-600 text-white rounded-lg font-medium transition shadow hover:shadow-lg">
+                        class="px-6 py-2 bg-foxtown-ember hover:bg-orange-700 text-white rounded-xl font-semibold transition shadow-soft hover:shadow-lift">
                         Create Ingredient
                     </button>
                 </div>

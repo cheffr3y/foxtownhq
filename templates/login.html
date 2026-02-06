@@ -3,57 +3,81 @@
 {% block title %}Login - Foxtown HQ{% endblock %}
 
 {% block content %}
-<div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-foxtown-dark to-foxtown-slate">
-    <div class="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md">
-        <div class="text-center mb-8">
-            <h1 class="text-3xl font-bold text-foxtown-dark">Foxtown HQ</h1>
-            <p class="text-gray-600 mt-2">Kitchen Command Center</p>
+<div class="min-h-screen flex items-center justify-center px-6 py-12">
+    <div class="w-full max-w-5xl grid lg:grid-cols-2 gap-10 items-center fhq-fade">
+        <div class="space-y-6">
+            <div class="inline-flex items-center gap-2 rounded-full bg-foxtown-emberSoft px-3 py-1 text-xs font-semibold tracking-widest uppercase text-foxtown-ember">
+                Culinary Command Center
+            </div>
+            <h1 class="text-4xl md:text-5xl font-display text-foxtown-ink leading-tight">
+                Foxtown HQ
+            </h1>
+            <p class="text-lg text-stone-600">
+                A focused, modern kitchen ops workspace built for cost control, menu rollouts, and batch production.
+            </p>
+            <div class="grid grid-cols-2 gap-4 text-sm text-stone-600">
+                <div class="bg-white/80 border border-stone-200 rounded-xl p-4 shadow-soft">
+                    Recipe costing with Q-factor
+                </div>
+                <div class="bg-white/80 border border-stone-200 rounded-xl p-4 shadow-soft">
+                    Venue menus by quarter
+                </div>
+                <div class="bg-white/80 border border-stone-200 rounded-xl p-4 shadow-soft">
+                    Ingredient price cadence
+                </div>
+                <div class="bg-white/80 border border-stone-200 rounded-xl p-4 shadow-soft">
+                    Sub-recipe visibility
+                </div>
+            </div>
         </div>
 
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="mb-4 p-3 rounded {% if category == 'error' %}bg-red-100 text-red-700{% else %}bg-green-100 text-green-700{% endif %}">
-                        {{ message }}
-                    </div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-
-        <form method="POST" class="space-y-6">
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Username</label>
-                <input 
-                    type="text" 
-                    name="username" 
-                    required
-                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-foxtown-orange focus:border-transparent outline-none transition"
-                    placeholder="your username"
-                >
+        <div class="bg-white border border-stone-200 rounded-2xl shadow-lift p-8 md:p-10">
+            <div class="mb-8">
+                <h2 class="text-2xl font-display text-foxtown-ink">Sign in</h2>
+                <p class="text-sm text-stone-500 mt-2">Use your assigned credentials to continue.</p>
             </div>
 
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Password</label>
-                <input 
-                    type="password" 
-                    name="password" 
-                    required
-                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-foxtown-orange focus:border-transparent outline-none transition"
-                    placeholder="••••••••"
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="mb-4 px-4 py-3 rounded-xl border text-sm font-medium {% if category == 'error' %}bg-red-50 text-red-700 border-red-200{% else %}bg-green-50 text-green-700 border-green-200{% endif %}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <form method="POST" class="space-y-5">
+                <div>
+                    <label class="block text-sm font-medium text-stone-700 mb-2">Username</label>
+                    <input 
+                        type="text" 
+                        name="username" 
+                        required
+                        class="w-full px-4 py-3 border border-stone-300 rounded-xl bg-white focus:ring-2 focus:ring-foxtown-ember focus:border-transparent transition"
+                        placeholder="your username"
+                    >
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-stone-700 mb-2">Password</label>
+                    <input 
+                        type="password" 
+                        name="password" 
+                        required
+                        class="w-full px-4 py-3 border border-stone-300 rounded-xl bg-white focus:ring-2 focus:ring-foxtown-ember focus:border-transparent transition"
+                        placeholder="••••••••"
+                    >
+                </div>
+
+                <button 
+                    type="submit"
+                    class="w-full bg-foxtown-ember hover:bg-orange-700 text-white font-semibold py-3 rounded-xl transition duration-200 shadow-soft hover:shadow-lift"
                 >
-            </div>
-
-            <button 
-                type="submit"
-                class="w-full bg-foxtown-orange hover:bg-orange-600 text-white font-semibold py-3 rounded-lg transition duration-200 shadow-lg hover:shadow-xl"
-            >
-                Sign In
-            </button>
-        </form>
-
-        <p class="text-center text-sm text-gray-500 mt-6">
-            Use your assigned credentials
-        </p>
+                    Sign In
+                </button>
+            </form>
+        </div>
     </div>
 </div>
 {% endblock %}

@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Foxtown HQ{% endblock %}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -11,25 +12,68 @@
                 extend: {
                     colors: {
                         'foxtown': {
-                            'orange': '#F97316',
+                            'orange': '#EA580C',
                             'blue': '#0EA5E9',
-                            'slate': '#475569',
+                            'slate': '#57534E',
                             'dark': '#1E293B',
+                            'ink': '#1E293B',
+                            'ember': '#EA580C',
+                            'emberSoft': '#FFF7ED',
+                            'stone': '#57534E',
+                            'stoneSoft': '#F5F5F4',
+                            'canvas': '#FAFAF9',
+                            'charcoal': '#0F172A'
                         }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        display: ['Fraunces', 'Georgia', 'serif']
+                    },
+                    boxShadow: {
+                        soft: '0 12px 28px rgba(15, 23, 42, 0.10)',
+                        lift: '0 18px 40px rgba(15, 23, 42, 0.16)'
                     }
                 }
             }
         }
     </script>
+    <style>
+        :root {
+            color-scheme: light;
+        }
+        ::selection {
+            background: #FED7AA;
+            color: #1E293B;
+        }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fhq-fade {
+            animation: fadeUp 0.45s ease-out both;
+        }
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(234, 88, 12, 0.25);
+            border-color: #EA580C;
+        }
+        input::placeholder, textarea::placeholder {
+            color: #A8A29E;
+        }
+    </style>
 </head>
-<body class="bg-gray-50">
+<body class="min-h-screen bg-foxtown-canvas text-slate-900 font-sans antialiased">
+    <div class="fixed inset-0 -z-10">
+        <div class="absolute inset-0 bg-[radial-gradient(1200px_600px_at_12%_-10%,rgba(234,88,12,0.18),transparent_60%),radial-gradient(1000px_600px_at_110%_0%,rgba(15,23,42,0.12),transparent_55%)]"></div>
+        <div class="absolute inset-0 bg-[linear-gradient(to_right,rgba(15,23,42,0.06)_1px,transparent_1px),linear-gradient(to_bottom,rgba(15,23,42,0.06)_1px,transparent_1px)] bg-[size:56px_56px]"></div>
+    </div>
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
             <div class="space-y-2">
                 {% for category, message in messages %}
-                    <div class="rounded-lg px-4 py-3 text-sm font-medium border
-                        {% if category == 'success' %}bg-green-50 text-green-800 border-green-200{% elif category == 'error' %}bg-red-50 text-red-800 border-red-200{% else %}bg-blue-50 text-blue-800 border-blue-200{% endif %}">
+                    <div class="rounded-xl px-4 py-3 text-sm font-medium border shadow-sm
+                        {% if category == 'success' %}bg-green-50 text-green-800 border-green-200{% elif category == 'error' %}bg-red-50 text-red-800 border-red-200{% else %}bg-foxtown-emberSoft text-foxtown-ink border-amber-200{% endif %}">
                         {{ message }}
                     </div>
                 {% endfor %}
