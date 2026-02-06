@@ -1116,7 +1116,7 @@ def menu_rollout_order_guide(rollout_id):
     wb.save(output)
     output.seek(0)
 
-    filename = f\"{make_safe_filename(rollout.get('name') or 'order_guide')}_order_guide.xlsx\"
+    filename = f"{make_safe_filename(rollout.get('name') or 'order_guide')}_order_guide.xlsx"
     return send_file(
         output,
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
