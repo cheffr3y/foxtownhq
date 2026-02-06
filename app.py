@@ -953,6 +953,7 @@ def menu_rollout_new():
     ingredient_master = []
     ingredient_total_cost = 0
     batch_recipes = []
+    menu_groups = []
     q_factor_percent = 5
     default_target_percent = 20
     q_amount = 0
@@ -1028,7 +1029,6 @@ def menu_rollout_new():
                 unit_system,
                 menu_items
             )
-            menu_groups = group_menu_items(menu_items)
             menu_groups = group_menu_items(menu_items)
 
         if not name:
