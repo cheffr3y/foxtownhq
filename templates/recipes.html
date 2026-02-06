@@ -48,13 +48,14 @@
             <div class="flex flex-col md:flex-row gap-4">
                 <div class="flex-1">
                     <input 
-                        type="text" 
+                        type="text"
+                        id="recipeSearch"
                         placeholder="Search recipes..."
                         class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-foxtown-orange focus:border-transparent outline-none"
                     >
                 </div>
                 <div class="w-full md:w-48">
-                    <select class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-foxtown-orange focus:border-transparent outline-none">
+                    <select id="categoryFilter" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-foxtown-orange focus:border-transparent outline-none">
                         <option>All Categories</option>
                         <option>Sauces</option>
                         <option>Proteins</option>
@@ -70,7 +71,9 @@
         {% if recipes %}
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {% for recipe in recipes %}
-            <div class="bg-white rounded-lg shadow hover:shadow-lg transition duration-200 overflow-hidden">
+            <div class="bg-white rounded-lg shadow hover:shadow-lg transition duration-200 overflow-hidden recipe-card"
+                 data-name="{{ recipe.name | lower }}"
+                 data-category="{{ (recipe.category or 'Uncategorized') | lower }}">
                 <div class="p-6">
                     <div class="flex items-start justify-between mb-3">
                         <div>
@@ -139,4 +142,28 @@
 
     </div>
 </div>
+<script>
+const recipeSearch = document.getElementById('recipeSearch');
+const categoryFilter = document.getElementById('categoryFilter');
+
+function normalizeCategory(value) {
+    return (value || '').trim().toLowerCase();
+}
+
+function filterRecipes() {
+    const query = (recipeSearch?.value || '').trim().toLowerCase();
+    const category = normalizeCategory(categoryFilter?.value);
+    const cards = document.querySelectorAll('.recipe-card');
+    cards.forEach(card => {
+        const name = card.dataset.name || '';
+        const cardCategory = card.dataset.category || '';
+        const matchesQuery = !query || name.includes(query);
+        const matchesCategory = !category || category === 'all categories' || cardCategory === category;
+        card.style.display = (matchesQuery && matchesCategory) ? '' : 'none';
+    });
+}
+
+if (recipeSearch) recipeSearch.addEventListener('input', filterRecipes);
+if (categoryFilter) categoryFilter.addEventListener('change', filterRecipes);
+</script>
 {% endblock %}

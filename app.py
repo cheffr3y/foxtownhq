@@ -156,6 +156,23 @@ def format_number(value, decimals=2):
         return str(int(round(rounded)))
     return f"{rounded:.{decimals}f}".rstrip('0').rstrip('.')
 
+def convert_cost_per_unit(cost_per_unit, from_unit, to_unit):
+    cost = to_float(cost_per_unit)
+    from_canonical = normalize_unit(from_unit)
+    to_canonical = normalize_unit(to_unit)
+    if not from_canonical or not to_canonical:
+        return cost
+    if from_canonical == to_canonical:
+        return cost
+    from_def = UNIT_DEFS.get(from_canonical)
+    to_def = UNIT_DEFS.get(to_canonical)
+    if not from_def or not to_def:
+        return cost
+    if from_def['type'] != to_def['type']:
+        return cost
+    factor = to_def['to_base'] / from_def['to_base']
+    return cost * factor
+
 def convert_quantity(quantity, unit, system='auto'):
     quantity = to_float(quantity)
     canonical = normalize_unit(unit)
@@ -244,7 +261,11 @@ def get_recipe_components(cur, recipe_id):
                CASE
                    WHEN ri.type = 'ingredient' THEN i.cost_per_unit
                    ELSE NULL
-               END as cost_per_unit
+               END as cost_per_unit,
+               CASE
+                   WHEN ri.type = 'ingredient' THEN i.unit
+                   ELSE NULL
+               END as ingredient_unit
         FROM recipe_ingredients ri
         LEFT JOIN ingredients i ON ri.type = 'ingredient' AND ri.item_id = i.id
         LEFT JOIN recipes r ON ri.type = 'recipe' AND ri.item_id = r.id
@@ -295,7 +316,12 @@ def build_component_tree(cur, recipe_id, scale_ratio, depth, path, unit_system):
         item['display_type'] = display['type']
 
         if component.get('type') == 'ingredient':
-            cost_per_unit = to_float(component.get('cost_per_unit'))
+            ingredient_unit = component.get('ingredient_unit')
+            cost_per_unit = convert_cost_per_unit(
+                component.get('cost_per_unit'),
+                ingredient_unit,
+                component.get('unit')
+            )
             item['cost_total'] = scaled_qty * cost_per_unit
             if item['display_factor']:
                 item['display_cost_per_unit'] = cost_per_unit / item['display_factor']
@@ -417,7 +443,12 @@ def build_rollout_breakdown(cur, unit_system, menu_items):
 
         for (ing_id, unit), qty in ingredient_totals.items():
             ingredient = ingredient_map.get(ing_id, {})
-            cost_per_unit = to_float(ingredient.get('cost_per_unit'))
+            cost_per_unit_raw = ingredient.get('cost_per_unit')
+            cost_per_unit = convert_cost_per_unit(
+                cost_per_unit_raw,
+                ingredient.get('unit'),
+                unit
+            )
             ext_cost = qty * cost_per_unit if cost_per_unit else 0
             ingredient_total_cost += ext_cost
             display = smart_quantity(qty, unit, unit_system)
