@@ -1,13 +1,16 @@
 import os
 import uuid
 import hmac
+from io import BytesIO
 from datetime import datetime
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session, send_file
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from dotenv import load_dotenv
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from werkzeug.security import check_password_hash
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 
 load_dotenv()
 
@@ -304,6 +307,8 @@ def build_component_tree(cur, recipe_id, scale_ratio, depth, path, unit_system):
         item['scaled_quantity_display'] = format_number(scaled_qty)
         item['children'] = []
         item['sub_total_cost'] = None
+        item['sub_cost_per_unit'] = None
+        item['sub_cost_unit'] = None
         item['scale_note'] = None
         item['scale_ratio'] = None
         item['cycle'] = False
@@ -364,6 +369,20 @@ def build_component_tree(cur, recipe_id, scale_ratio, depth, path, unit_system):
             else:
                 item['children'] = []
                 item['sub_total_cost'] = 0
+
+            if sub_recipe:
+                sub_yield_qty = to_float(sub_recipe.get('yield_qty'))
+                if sub_yield_qty > 0:
+                    full_cost = get_recipe_total_cost(cur, sub_recipe['id'], unit_system)
+                    cost_per_yield = full_cost / sub_yield_qty
+                    display_yield = smart_quantity(sub_yield_qty, sub_recipe.get('yield_unit'), unit_system)
+                    display_unit = display_yield.get('unit') or sub_recipe.get('yield_unit')
+                    item['sub_cost_per_unit'] = convert_cost_per_unit(
+                        cost_per_yield,
+                        sub_recipe.get('yield_unit'),
+                        display_unit
+                    )
+                    item['sub_cost_unit'] = display_unit
 
         components.append(item)
 
@@ -495,6 +514,30 @@ def build_rollout_breakdown(cur, unit_system, menu_items):
             })
 
     return ingredient_master, ingredient_total_cost, batch_recipes
+
+def sanitize_sheet_title(name, existing):
+    title = (name or 'Vendor').strip()
+    for ch in ['[', ']', ':', '*', '?', '/', '\\']:
+        title = title.replace(ch, ' ')
+    title = ' '.join(title.split())
+    if not title:
+        title = 'Vendor'
+    title = title[:31]
+    base = title
+    counter = 1
+    while title in existing:
+        suffix = f" {counter}"
+        max_len = 31 - len(suffix)
+        title = f"{base[:max_len]}{suffix}"
+        counter += 1
+    existing.add(title)
+    return title
+
+def make_safe_filename(text):
+    cleaned = ''.join(ch for ch in (text or '') if ch.isalnum() or ch in (' ', '-', '_')).strip()
+    if not cleaned:
+        return 'order_guide'
+    return cleaned.replace(' ', '_').lower()
 
 def collect_ingredients_from_components(components, totals):
     for item in components:
@@ -958,6 +1001,127 @@ def menu_rollout_edit(rollout_id):
         ingredient_master=ingredient_master,
         ingredient_total_cost=ingredient_total_cost,
         batch_recipes=batch_recipes
+    )
+
+@app.route('/menu-rollouts/<rollout_id>/order-guide')
+@login_required
+def menu_rollout_order_guide(rollout_id):
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    unit_system = get_unit_system()
+
+    cur.execute("SELECT * FROM menu_rollouts WHERE id = %s", (rollout_id,))
+    rollout = cur.fetchone()
+    if not rollout:
+        cur.close()
+        conn.close()
+        flash('Menu rollout not found', 'error')
+        return redirect(url_for('menu_rollouts'))
+
+    cur.execute("SELECT recipe_id, batches FROM menu_rollout_items WHERE rollout_id = %s", (rollout_id,))
+    items = cur.fetchall()
+    if not items:
+        cur.close()
+        conn.close()
+        flash('Add recipes to this rollout before exporting an order guide.', 'error')
+        return redirect(url_for('menu_rollout_edit', rollout_id=rollout_id))
+
+    recipe_ids = [row['recipe_id'] for row in items]
+    batch_values = [row['batches'] for row in items]
+    menu_items, _, errors = parse_menu_items(cur, unit_system, recipe_ids, batch_values)
+    if errors:
+        cur.close()
+        conn.close()
+        flash(' '.join(sorted(set(errors))), 'error')
+        return redirect(url_for('menu_rollout_edit', rollout_id=rollout_id))
+
+    ingredient_master, _, _ = build_rollout_breakdown(cur, unit_system, menu_items)
+    if not ingredient_master:
+        cur.close()
+        conn.close()
+        flash('No ingredients found for this rollout.', 'error')
+        return redirect(url_for('menu_rollout_edit', rollout_id=rollout_id))
+
+    grouped = {}
+    for ing in ingredient_master:
+        vendor = ing.get('vendor') or 'Unassigned Vendor'
+        category = ing.get('category') or 'Uncategorized'
+        grouped.setdefault(vendor, {}).setdefault(category, []).append(ing)
+
+    wb = Workbook()
+    existing_titles = set()
+    header_fill = PatternFill('solid', fgColor='E2E8F0')
+    category_fill = PatternFill('solid', fgColor='DCFCE7')
+    stripe_fill = PatternFill('solid', fgColor='F8FAFC')
+    header_font = Font(bold=True, color='1F2937')
+    category_font = Font(bold=True, color='14532D')
+    align = Alignment(vertical='center')
+    thin = Side(border_style='thin', color='E5E7EB')
+    border = Border(top=thin, bottom=thin, left=thin, right=thin)
+
+    headers = ["Ingredient", "Unit", "Vendor Code", "G-Code", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+    column_widths = [36, 10, 16, 16, 10, 10, 10, 10, 10, 10]
+
+    first_sheet = True
+    for vendor, categories in sorted(grouped.items(), key=lambda item: item[0].lower()):
+        ws = wb.active if first_sheet else wb.create_sheet()
+        first_sheet = False
+        ws.title = sanitize_sheet_title(vendor, existing_titles)
+
+        ws.append(headers)
+        for col_idx, _ in enumerate(headers, start=1):
+            cell = ws.cell(row=1, column=col_idx)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = align
+            cell.border = border
+            ws.column_dimensions[cell.column_letter].width = column_widths[col_idx - 1]
+
+        ws.freeze_panes = "A2"
+
+        row_idx = 2
+        for category, items_list in sorted(categories.items(), key=lambda item: item[0].lower()):
+            ws.merge_cells(start_row=row_idx, start_column=1, end_row=row_idx, end_column=len(headers))
+            cell = ws.cell(row=row_idx, column=1, value=category)
+            cell.fill = category_fill
+            cell.font = category_font
+            cell.alignment = align
+            cell.border = border
+            row_idx += 1
+
+            zebra = False
+            for ing in sorted(items_list, key=lambda item: (item.get('name') or '').lower()):
+                row_values = [
+                    ing.get('name') or '',
+                    ing.get('unit') or ing.get('display_unit') or '',
+                    ing.get('vendor_code') or '',
+                    ing.get('g_code') or '',
+                    '', '', '', '', '', ''
+                ]
+                for col_idx, value in enumerate(row_values, start=1):
+                    cell = ws.cell(row=row_idx, column=col_idx, value=value)
+                    cell.alignment = align
+                    cell.border = border
+                    if zebra:
+                        cell.fill = stripe_fill
+                zebra = not zebra
+                row_idx += 1
+
+            row_idx += 1
+
+    cur.close()
+    conn.close()
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    filename = f\"{make_safe_filename(rollout.get('name') or 'order_guide')}_order_guide.xlsx\"
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=filename
     )
 
 @app.route('/recipes/new', methods=['GET', 'POST'])
