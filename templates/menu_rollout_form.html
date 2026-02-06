@@ -82,35 +82,39 @@
                 </div>
 
                 <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-6">
-                    <h2 class="text-lg font-display text-foxtown-ink">Cost Summary</h2>
-                    <p class="text-sm text-stone-500 mb-4">Based on current ingredient pricing.</p>
+                    <h2 class="text-lg font-display text-foxtown-ink">Pricing Strategy</h2>
+                    <p class="text-sm text-stone-500 mb-4">Set targets and popularity to estimate theoretical food cost.</p>
                     <div class="space-y-4">
-                        <div class="flex items-center justify-between text-sm text-stone-600">
-                            <span>Menu Subtotal</span>
-                            <span class="font-semibold text-foxtown-ink">${{ "%.2f"|format(total_cost) }}</span>
-                        </div>
                         <div>
-                            <label class="block text-sm font-medium text-stone-700 mb-1">Q Factor (%)</label>
-                            <input type="number" step="0.1" name="q_factor_percent" value="{{ q_factor_percent }}"
+                            <label class="block text-sm font-medium text-stone-700 mb-1">Default Target Food Cost (%)</label>
+                            <input type="number" step="0.1" name="target_food_cost_percent"
+                                   value="{{ rollout.target_food_cost_percent or default_target_percent }}"
                                    class="w-full px-3 py-2 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none">
                         </div>
-                        <div class="flex items-center justify-between text-sm text-stone-600">
-                            <span>Q Factor Amount</span>
-                            <span class="font-semibold text-foxtown-ink">${{ "%.2f"|format(q_amount) }}</span>
-                        </div>
-                        <div class="pt-3 border-t border-stone-200 flex items-center justify-between">
-                            <span class="text-sm text-stone-600">Grand Total</span>
-                            <span class="text-2xl font-semibold text-foxtown-ink">${{ "%.2f"|format(grand_total) }}</span>
-                        </div>
-                        <div class="grid grid-cols-2 gap-3 text-xs text-stone-500 pt-2">
-                            <div class="bg-stone-50 border border-stone-200 rounded-xl p-2">
-                                <div class="uppercase tracking-wide">Menu Recipes</div>
-                                <div class="text-lg font-semibold text-foxtown-ink">{{ menu_items|length }}</div>
+                        <div class="grid grid-cols-2 gap-3 text-xs text-stone-500">
+                            <div class="bg-stone-50 border border-stone-200 rounded-xl p-3">
+                                <div class="uppercase tracking-wide">Theo Food Cost</div>
+                                <div class="text-lg font-semibold text-foxtown-ink">
+                                    {% if pricing_summary.theoretical_food_cost_percent %}
+                                        {{ "%.1f"|format(pricing_summary.theoretical_food_cost_percent) }}%
+                                    {% else %}
+                                        --
+                                    {% endif %}
+                                </div>
                             </div>
-                            <div class="bg-stone-50 border border-stone-200 rounded-xl p-2">
-                                <div class="uppercase tracking-wide">Ingredients</div>
-                                <div class="text-lg font-semibold text-foxtown-ink">{{ ingredient_master|length }}</div>
+                            <div class="bg-stone-50 border border-stone-200 rounded-xl p-3">
+                                <div class="uppercase tracking-wide">Weighted Avg Price</div>
+                                <div class="text-lg font-semibold text-foxtown-ink">
+                                    {% if pricing_summary.weighted_avg_price %}
+                                        ${{ "%.2f"|format(pricing_summary.weighted_avg_price) }}
+                                    {% else %}
+                                        --
+                                    {% endif %}
+                                </div>
                             </div>
+                        </div>
+                        <div class="text-xs text-stone-500">
+                            Popularity scores (1–10) weight each dish. Uses menu price when provided, otherwise suggested price.
                         </div>
                     </div>
                 </div>
@@ -129,13 +133,17 @@
                 </div>
 
                 <div class="overflow-x-auto">
-                    <table class="min-w-full text-sm">
+                    <table class="min-w-[1100px] text-sm">
                         <thead class="text-xs uppercase text-stone-500 border-b border-stone-200">
                             <tr>
                                 <th class="text-left py-2 pr-4">Recipe</th>
                                 <th class="text-left py-2 pr-4">Batches</th>
                                 <th class="text-left py-2 pr-4">Cost / Batch</th>
-                                <th class="text-left py-2 pr-4">Total</th>
+                                <th class="text-left py-2 pr-4">Target FC%</th>
+                                <th class="text-left py-2 pr-4">Price Proposal</th>
+                                <th class="text-left py-2 pr-4">Menu Price</th>
+                                <th class="text-left py-2 pr-4">Popularity (1–10)</th>
+                                <th class="text-left py-2 pr-4">Food Cost %</th>
                                 <th class="text-right py-2">Remove</th>
                             </tr>
                         </thead>
@@ -144,23 +152,48 @@
                                 {% for item in menu_items %}
                                 <tr>
                                     <td class="py-3 pr-4">
-                                        <input type="text" class="select-filter menu-filter w-full mb-2 border border-stone-300 rounded-xl px-3 py-2 text-sm"
-                                               placeholder="Search recipes...">
-                                        <select name="menu_recipe_id[]" class="menu-select w-full border border-stone-300 rounded-xl px-3 py-2">
-                                            <option value="">Select recipe</option>
-                                            {% for rec in recipes %}
-                                                <option value="{{ rec.id }}" {% if rec.id == item.recipe_id %}selected{% endif %}>
-                                                    {{ rec.name }}{% if rec.recipe_type == 'menu' %} (RM){% elif rec.recipe_type == 'batch' %} (RB){% elif rec.recipe_type is none %} (Unclassified){% endif %}
-                                                </option>
-                                            {% endfor %}
-                                        </select>
+                                        <input type="text" name="menu_recipe_name[]"
+                                               value="{{ item.recipe.name }}"
+                                               list="menuRecipeOptions"
+                                               class="menu-autocomplete w-full border border-stone-300 rounded-xl px-3 py-2 text-sm"
+                                               placeholder="Start typing recipe name...">
+                                        <input type="hidden" name="menu_recipe_id[]" value="{{ item.recipe_id }}" class="menu-recipe-id">
                                     </td>
                                     <td class="py-3 pr-4">
                                         <input type="number" step="0.01" name="menu_batches[]" value="{{ item.batches }}"
                                                class="w-full border border-stone-300 rounded-xl px-3 py-2">
                                     </td>
                                     <td class="py-3 pr-4 text-stone-600">${{ "%.2f"|format(item.base_cost) }}</td>
-                                    <td class="py-3 pr-4 font-semibold text-foxtown-ink">${{ "%.2f"|format(item.item_total) }}</td>
+                                    <td class="py-3 pr-4">
+                                        <input type="number" step="0.1" name="menu_target_percent[]"
+                                               value="{{ item.target_food_cost_percent or default_target_percent }}"
+                                               class="w-full border border-stone-300 rounded-xl px-3 py-2">
+                                    </td>
+                                    <td class="py-3 pr-4 text-stone-600">
+                                        {% if item.suggested_price %}
+                                            ${{ "%.2f"|format(item.suggested_price) }}
+                                        {% else %}
+                                            --
+                                        {% endif %}
+                                    </td>
+                                    <td class="py-3 pr-4">
+                                        <input type="number" step="0.01" name="menu_price[]"
+                                               value="{{ item.menu_price or '' }}"
+                                               placeholder="{{ item.suggested_price and ('%.2f'|format(item.suggested_price)) or '' }}"
+                                               class="w-full border border-stone-300 rounded-xl px-3 py-2">
+                                    </td>
+                                    <td class="py-3 pr-4">
+                                        <input type="number" step="1" min="1" max="10" name="menu_popularity[]"
+                                               value="{{ item.popularity_score or 5 }}"
+                                               class="w-full border border-stone-300 rounded-xl px-3 py-2">
+                                    </td>
+                                    <td class="py-3 pr-4 text-stone-600">
+                                        {% if item.food_cost_percent %}
+                                            {{ "%.1f"|format(item.food_cost_percent) }}%
+                                        {% else %}
+                                            --
+                                        {% endif %}
+                                    </td>
                                     <td class="py-3 text-right">
                                         <button type="button" class="remove-row text-red-600 hover:text-red-700 text-sm font-semibold">Remove</button>
                                     </td>
@@ -169,20 +202,31 @@
                             {% else %}
                                 <tr>
                                     <td class="py-3 pr-4">
-                                        <input type="text" class="select-filter menu-filter w-full mb-2 border border-stone-300 rounded-xl px-3 py-2 text-sm"
-                                               placeholder="Search recipes...">
-                                        <select name="menu_recipe_id[]" class="menu-select w-full border border-stone-300 rounded-xl px-3 py-2">
-                                            <option value="">Select recipe</option>
-                                            {% for rec in recipes %}
-                                                <option value="{{ rec.id }}">{{ rec.name }}{% if rec.recipe_type == 'menu' %} (RM){% elif rec.recipe_type == 'batch' %} (RB){% elif rec.recipe_type is none %} (Unclassified){% endif %}</option>
-                                            {% endfor %}
-                                        </select>
+                                        <input type="text" name="menu_recipe_name[]" list="menuRecipeOptions"
+                                               class="menu-autocomplete w-full border border-stone-300 rounded-xl px-3 py-2 text-sm"
+                                               placeholder="Start typing recipe name...">
+                                        <input type="hidden" name="menu_recipe_id[]" value="" class="menu-recipe-id">
                                     </td>
                                     <td class="py-3 pr-4">
                                         <input type="number" step="0.01" name="menu_batches[]" value="1"
                                                class="w-full border border-stone-300 rounded-xl px-3 py-2">
                                     </td>
                                     <td class="py-3 pr-4 text-stone-500">--</td>
+                                    <td class="py-3 pr-4">
+                                        <input type="number" step="0.1" name="menu_target_percent[]"
+                                               value="{{ default_target_percent }}"
+                                               class="w-full border border-stone-300 rounded-xl px-3 py-2">
+                                    </td>
+                                    <td class="py-3 pr-4 text-stone-500">--</td>
+                                    <td class="py-3 pr-4">
+                                        <input type="number" step="0.01" name="menu_price[]"
+                                               class="w-full border border-stone-300 rounded-xl px-3 py-2">
+                                    </td>
+                                    <td class="py-3 pr-4">
+                                        <input type="number" step="1" min="1" max="10" name="menu_popularity[]"
+                                               value="5"
+                                               class="w-full border border-stone-300 rounded-xl px-3 py-2">
+                                    </td>
                                     <td class="py-3 pr-4 text-stone-500">--</td>
                                     <td class="py-3 text-right">
                                         <button type="button" class="remove-row text-red-600 hover:text-red-700 text-sm font-semibold">Remove</button>
@@ -253,10 +297,6 @@
                         <h2 class="text-xl font-display text-foxtown-ink">Ingredient Master List</h2>
                         <p class="text-sm text-stone-500">Aggregated ingredients for the full rollout.</p>
                     </div>
-                    <div class="text-right">
-                        <div class="text-xs text-stone-500">Ingredient Total</div>
-                        <div class="text-lg font-semibold text-foxtown-ink">${{ "%.2f"|format(ingredient_total_cost) }}</div>
-                    </div>
                 </div>
                 {% if ingredient_master %}
                 <div class="overflow-x-auto">
@@ -264,10 +304,6 @@
                         <thead class="text-xs uppercase text-stone-500 border-b border-stone-200">
                             <tr>
                                 <th class="text-left py-2 pr-4">Ingredient</th>
-                                <th class="text-left py-2 pr-4">Qty</th>
-                                <th class="text-left py-2 pr-4">Unit</th>
-                                <th class="text-left py-2 pr-4">Price / Unit</th>
-                                <th class="text-left py-2 pr-4">Ext. Cost</th>
                                 <th class="text-left py-2 pr-4">Vendor</th>
                                 <th class="text-left py-2">Codes</th>
                             </tr>
@@ -279,16 +315,6 @@
                                     <div class="font-medium text-foxtown-ink">{{ ing.name }}</div>
                                     <div class="text-xs text-stone-500">{{ ing.category or 'Uncategorized' }}</div>
                                 </td>
-                                <td class="py-3 pr-4 text-stone-600">{{ ing.display_quantity }}</td>
-                                <td class="py-3 pr-4 text-stone-600">{{ ing.display_unit }}</td>
-                                <td class="py-3 pr-4 text-stone-600">
-                                    {% if ing.cost_per_unit %}
-                                        ${{ "%.5f"|format(ing.cost_per_unit) }}
-                                    {% else %}
-                                        --
-                                    {% endif %}
-                                </td>
-                                <td class="py-3 pr-4 font-semibold text-foxtown-ink">${{ "%.2f"|format(ing.ext_cost) }}</td>
                                 <td class="py-3 pr-4 text-stone-600">{{ ing.vendor or 'Not set' }}</td>
                                 <td class="py-3 text-xs text-stone-500">
                                     <div>Item: {{ ing.vendor_code or '—' }}</div>
@@ -311,26 +337,46 @@
 <template id="menuRowTemplate">
     <tr>
         <td class="py-3 pr-4">
-            <input type="text" class="select-filter menu-filter w-full mb-2 border border-stone-300 rounded-xl px-3 py-2 text-sm"
-                   placeholder="Search recipes...">
-            <select name="menu_recipe_id[]" class="menu-select w-full border border-stone-300 rounded-xl px-3 py-2">
-                <option value="">Select recipe</option>
-                {% for rec in recipes %}
-                    <option value="{{ rec.id }}">{{ rec.name }}{% if rec.recipe_type == 'menu' %} (RM){% elif rec.recipe_type == 'batch' %} (RB){% elif rec.recipe_type is none %} (Unclassified){% endif %}</option>
-                {% endfor %}
-            </select>
+            <input type="text" name="menu_recipe_name[]" list="menuRecipeOptions"
+                   class="menu-autocomplete w-full border border-stone-300 rounded-xl px-3 py-2 text-sm"
+                   placeholder="Start typing recipe name...">
+            <input type="hidden" name="menu_recipe_id[]" value="" class="menu-recipe-id">
         </td>
         <td class="py-3 pr-4">
             <input type="number" step="0.01" name="menu_batches[]" value="1"
                    class="w-full border border-stone-300 rounded-xl px-3 py-2">
         </td>
         <td class="py-3 pr-4 text-stone-500">--</td>
+        <td class="py-3 pr-4">
+            <input type="number" step="0.1" name="menu_target_percent[]"
+                   value="{{ default_target_percent }}"
+                   class="w-full border border-stone-300 rounded-xl px-3 py-2">
+        </td>
+        <td class="py-3 pr-4 text-stone-500">--</td>
+        <td class="py-3 pr-4">
+            <input type="number" step="0.01" name="menu_price[]"
+                   class="w-full border border-stone-300 rounded-xl px-3 py-2">
+        </td>
+        <td class="py-3 pr-4">
+            <input type="number" step="1" min="1" max="10" name="menu_popularity[]"
+                   value="5"
+                   class="w-full border border-stone-300 rounded-xl px-3 py-2">
+        </td>
         <td class="py-3 pr-4 text-stone-500">--</td>
         <td class="py-3 text-right">
             <button type="button" class="remove-row text-red-600 hover:text-red-700 text-sm font-semibold">Remove</button>
         </td>
     </tr>
 </template>
+
+<datalist id="menuRecipeOptions">
+    {% for rec in recipes %}
+        <option value="{{ rec.name }}"
+                data-id="{{ rec.id }}"
+                label="{{ rec.name }}{% if rec.recipe_type == 'menu' %} (RM){% elif rec.recipe_type == 'batch' %} (RB){% elif rec.recipe_type is none %} (Unclassified){% endif %}">
+        </option>
+    {% endfor %}
+</datalist>
 
 <datalist id="venueOptions">
     <option value="Foxtown Brewing"></option>
@@ -345,10 +391,37 @@
 <script>
 const menuRows = document.getElementById('menuRows');
 const addMenuRow = document.getElementById('addMenuRow');
+const recipeOptions = Array.from(document.querySelectorAll('#menuRecipeOptions option'));
+
+function findRecipeOption(name) {
+    const target = (name || '').trim().toLowerCase();
+    if (!target) return null;
+    return recipeOptions.find(option => option.value.toLowerCase() === target) || null;
+}
+
+function syncMenuRow(row) {
+    const input = row.querySelector('.menu-autocomplete');
+    const hiddenId = row.querySelector('.menu-recipe-id');
+    if (!input || !hiddenId) return;
+    const match = findRecipeOption(input.value);
+    if (match) {
+        hiddenId.value = match.dataset.id || '';
+        input.classList.remove('border-red-300');
+    } else {
+        hiddenId.value = '';
+        if (input.value) {
+            input.classList.add('border-red-300');
+        } else {
+            input.classList.remove('border-red-300');
+        }
+    }
+}
+
 if (addMenuRow) {
     addMenuRow.addEventListener('click', () => {
         const template = document.getElementById('menuRowTemplate');
-        menuRows.appendChild(template.content.cloneNode(true));
+        const node = template.content.cloneNode(true);
+        menuRows.appendChild(node);
     });
 }
 
@@ -360,32 +433,12 @@ document.addEventListener('click', (event) => {
 });
 
 document.addEventListener('input', (event) => {
-    if (event.target.classList.contains('menu-filter')) {
-        const query = event.target.value.trim().toLowerCase();
+    if (event.target.classList.contains('menu-autocomplete')) {
         const row = event.target.closest('tr');
-        const select = row.querySelector('select');
-        if (!select) return;
-        const options = Array.from(select.options);
-        options.forEach((option, index) => {
-            if (index === 0) {
-                option.hidden = false;
-                return;
-            }
-            const text = option.textContent.toLowerCase();
-            option.hidden = query && !text.includes(query);
-        });
-        if (query) {
-            select.size = Math.min(6, options.length);
-        } else {
-            select.size = 1;
-        }
+        if (row) syncMenuRow(row);
     }
 });
 
-document.addEventListener('change', (event) => {
-    if (event.target.classList.contains('menu-select')) {
-        event.target.size = 1;
-    }
-});
+document.querySelectorAll('#menuRows tr').forEach((row) => syncMenuRow(row));
 </script>
 {% endblock %}
