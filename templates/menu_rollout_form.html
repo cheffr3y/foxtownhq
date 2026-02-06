@@ -137,6 +137,7 @@
                         <thead class="text-xs uppercase text-stone-500 border-b border-stone-200">
                             <tr>
                                 <th class="text-left py-2 pr-4">Recipe</th>
+                                <th class="text-left py-2 pr-4">Section</th>
                                 <th class="text-left py-2 pr-4">Batches</th>
                                 <th class="text-left py-2 pr-4">Cost / Batch</th>
                                 <th class="text-left py-2 pr-4">Target FC%</th>
@@ -158,6 +159,14 @@
                                                class="menu-autocomplete w-full border border-stone-300 rounded-xl px-3 py-2 text-sm"
                                                placeholder="Start typing recipe name...">
                                         <input type="hidden" name="menu_recipe_id[]" value="{{ item.recipe_id }}" class="menu-recipe-id">
+                                    </td>
+                                    <td class="py-3 pr-4">
+                                        <select name="menu_section[]" class="w-full border border-stone-300 rounded-xl px-3 py-2 text-sm">
+                                            <option value="">Select section</option>
+                                            {% for option in section_options %}
+                                                <option value="{{ option }}" {% if item.menu_section == option %}selected{% endif %}>{{ option }}</option>
+                                            {% endfor %}
+                                        </select>
                                     </td>
                                     <td class="py-3 pr-4">
                                         <input type="number" step="0.01" name="menu_batches[]" value="{{ item.batches }}"
@@ -206,6 +215,14 @@
                                                class="menu-autocomplete w-full border border-stone-300 rounded-xl px-3 py-2 text-sm"
                                                placeholder="Start typing recipe name...">
                                         <input type="hidden" name="menu_recipe_id[]" value="" class="menu-recipe-id">
+                                    </td>
+                                    <td class="py-3 pr-4">
+                                        <select name="menu_section[]" class="w-full border border-stone-300 rounded-xl px-3 py-2 text-sm">
+                                            <option value="">Select section</option>
+                                            {% for option in section_options %}
+                                                <option value="{{ option }}">{{ option }}</option>
+                                            {% endfor %}
+                                        </select>
                                     </td>
                                     <td class="py-3 pr-4">
                                         <input type="number" step="0.01" name="menu_batches[]" value="1"
@@ -341,6 +358,14 @@
                    class="menu-autocomplete w-full border border-stone-300 rounded-xl px-3 py-2 text-sm"
                    placeholder="Start typing recipe name...">
             <input type="hidden" name="menu_recipe_id[]" value="" class="menu-recipe-id">
+        </td>
+        <td class="py-3 pr-4">
+            <select name="menu_section[]" class="w-full border border-stone-300 rounded-xl px-3 py-2 text-sm">
+                <option value="">Select section</option>
+                {% for option in section_options %}
+                    <option value="{{ option }}">{{ option }}</option>
+                {% endfor %}
+            </select>
         </td>
         <td class="py-3 pr-4">
             <input type="number" step="0.01" name="menu_batches[]" value="1"

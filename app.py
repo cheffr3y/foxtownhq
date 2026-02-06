@@ -458,7 +458,8 @@ def parse_menu_items(
     menu_price_values=None,
     target_percent_values=None,
     popularity_values=None,
-    default_target_percent=None
+    default_target_percent=None,
+    section_values=None
 ):
     menu_items = []
     total_cost = 0
@@ -507,6 +508,10 @@ def parse_menu_items(
         item_total = base_cost * batches
         total_cost += item_total
 
+        section = None
+        if section_values and idx < len(section_values):
+            section = (section_values[idx] or '').strip() or None
+
         menu_items.append({
             'recipe': recipe,
             'recipe_id': recipe_id,
@@ -515,7 +520,8 @@ def parse_menu_items(
             'item_total': item_total,
             'menu_price': menu_price,
             'target_food_cost_percent': target_percent,
-            'popularity_score': popularity
+            'popularity_score': popularity,
+            'menu_section': section
         })
 
     if not menu_items:
@@ -877,6 +883,18 @@ def menu_rollouts():
 
     return render_template('menu_rollouts.html', rollouts=rollouts)
 
+MENU_SECTION_OPTIONS = [
+    'Appetizers',
+    'Salads',
+    'Wraps',
+    'BBQ Dinner',
+    'Handhelds',
+    'Fish Fry Friday',
+    'Entrees',
+    'Sides',
+    'Desserts'
+]
+
 def normalize_quarter(value):
     if not value:
         return None
@@ -962,6 +980,7 @@ def menu_rollout_new():
         menu_prices = request.form.getlist('menu_price[]')
         target_values = request.form.getlist('menu_target_percent[]')
         popularity_values = request.form.getlist('menu_popularity[]')
+        section_values = request.form.getlist('menu_section[]')
         menu_items, total_cost, errors = parse_menu_items(
             cur,
             unit_system,
@@ -970,7 +989,8 @@ def menu_rollout_new():
             menu_prices,
             target_values,
             popularity_values,
-            default_target_percent
+            default_target_percent,
+            section_values
         )
         for idx, recipe_id in enumerate(recipe_ids):
             name = (recipe_names[idx] if idx < len(recipe_names) else '').strip()
@@ -1009,8 +1029,8 @@ def menu_rollout_new():
 
                 for item in menu_items:
                     cur.execute("""
-                        INSERT INTO menu_rollout_items (id, rollout_id, recipe_id, batches, menu_price, target_food_cost_percent, popularity_score)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        INSERT INTO menu_rollout_items (id, rollout_id, recipe_id, batches, menu_price, target_food_cost_percent, popularity_score, menu_section)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                     """, (
                         generate_id('mri_'),
                         rollout_id,
@@ -1018,7 +1038,8 @@ def menu_rollout_new():
                         item['batches'],
                         item.get('menu_price'),
                         item.get('target_food_cost_percent'),
-                        item.get('popularity_score')
+                        item.get('popularity_score'),
+                        item.get('menu_section')
                     ))
 
                 conn.commit()
@@ -1047,7 +1068,8 @@ def menu_rollout_new():
         default_target_percent=to_float(default_target_percent) or 20,
         ingredient_master=ingredient_master,
         ingredient_total_cost=ingredient_total_cost,
-        batch_recipes=batch_recipes
+        batch_recipes=batch_recipes,
+        section_options=MENU_SECTION_OPTIONS
     )
 
 @app.route('/menu-rollouts/<rollout_id>', methods=['GET', 'POST'])
@@ -1116,6 +1138,7 @@ def menu_rollout_edit(rollout_id):
         menu_prices = request.form.getlist('menu_price[]')
         target_values = request.form.getlist('menu_target_percent[]')
         popularity_values = request.form.getlist('menu_popularity[]')
+        section_values = request.form.getlist('menu_section[]')
         menu_items, total_cost, errors = parse_menu_items(
             cur,
             unit_system,
@@ -1124,7 +1147,8 @@ def menu_rollout_edit(rollout_id):
             menu_prices,
             target_values,
             popularity_values,
-            default_target_percent
+            default_target_percent,
+            section_values
         )
         for idx, recipe_id in enumerate(recipe_ids):
             name = (recipe_names[idx] if idx < len(recipe_names) else '').strip()
@@ -1170,8 +1194,8 @@ def menu_rollout_edit(rollout_id):
                 cur.execute("DELETE FROM menu_rollout_items WHERE rollout_id = %s", (rollout_id,))
                 for item in menu_items:
                     cur.execute("""
-                        INSERT INTO menu_rollout_items (id, rollout_id, recipe_id, batches, menu_price, target_food_cost_percent, popularity_score)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        INSERT INTO menu_rollout_items (id, rollout_id, recipe_id, batches, menu_price, target_food_cost_percent, popularity_score, menu_section)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                     """, (
                         generate_id('mri_'),
                         rollout_id,
@@ -1179,7 +1203,8 @@ def menu_rollout_edit(rollout_id):
                         item['batches'],
                         item.get('menu_price'),
                         item.get('target_food_cost_percent'),
-                        item.get('popularity_score')
+                        item.get('popularity_score'),
+                        item.get('menu_section')
                     ))
 
                 conn.commit()
@@ -1198,6 +1223,7 @@ def menu_rollout_edit(rollout_id):
                    mri.menu_price,
                    mri.target_food_cost_percent,
                    mri.popularity_score,
+                   mri.menu_section,
                    r.name
             FROM menu_rollout_items mri
             JOIN recipes r ON r.id = mri.recipe_id
@@ -1211,6 +1237,7 @@ def menu_rollout_edit(rollout_id):
         menu_prices = [row.get('menu_price') for row in saved_items]
         target_values = [row.get('target_food_cost_percent') for row in saved_items]
         popularity_values = [row.get('popularity_score') for row in saved_items]
+        section_values = [row.get('menu_section') for row in saved_items]
         if recipe_ids:
             menu_items, total_cost, _ = parse_menu_items(
                 cur,
@@ -1220,7 +1247,8 @@ def menu_rollout_edit(rollout_id):
                 menu_prices,
                 target_values,
                 popularity_values,
-                default_target_percent
+                default_target_percent,
+                section_values
             )
             q_factor_percent, q_amount, grand_total = compute_q_factor(total_cost, q_factor_percent)
             pricing_summary = apply_menu_pricing(menu_items, default_target_percent)
@@ -1247,7 +1275,8 @@ def menu_rollout_edit(rollout_id):
         default_target_percent=to_float(default_target_percent) or 20,
         ingredient_master=ingredient_master,
         ingredient_total_cost=ingredient_total_cost,
-        batch_recipes=batch_recipes
+        batch_recipes=batch_recipes,
+        section_options=MENU_SECTION_OPTIONS
     )
 
 @app.route('/menu-rollouts/<rollout_id>/order-guide')
