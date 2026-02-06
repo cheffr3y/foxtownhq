@@ -1624,10 +1624,15 @@ def recipe_detail(recipe_id):
         return redirect(url_for('recipes'))
     
     components, total_cost, _ = build_component_tree(cur, recipe_id, 1, 0, set(), unit_system, apply_q_factor=True)
-    base_total_cost = get_recipe_total_cost(cur, recipe_id, unit_system, apply_q_factor=False)
+    base_total_cost = None
     q_factor_amount = None
-    if total_cost is not None and base_total_cost is not None:
+    q_factor_percent = RECIPE_Q_FACTOR_PERCENT
+    if total_cost is not None and q_factor_percent and q_factor_percent > 0:
+        divisor = 1 + (q_factor_percent / 100)
+        base_total_cost = total_cost / divisor
         q_factor_amount = total_cost - base_total_cost
+    elif total_cost is not None:
+        base_total_cost = total_cost
     yield_qty_float = to_float(recipe.get('yield_qty'))
     cost_per_yield = None
     if total_cost and yield_qty_float > 0:
