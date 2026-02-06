@@ -153,10 +153,10 @@
                                 {% for group in menu_groups %}
                                 <tr class="bg-stone-50">
                                     <td colspan="10" class="px-4 py-3 text-sm font-display text-foxtown-ink">
-                                        {{ group.section }}
+                                        {{ group['section'] }}
                                     </td>
                                 </tr>
-                                {% for item in group.items %}
+                                {% for item in group['items'] %}
                                 <tr>
                                     <td class="py-3 pr-4">
                                         <input type="text" name="menu_recipe_name[]"
