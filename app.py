@@ -75,8 +75,8 @@ SYSTEM_UNITS = {
         'volume': ['l', 'ml'],
     },
     'imperial': {
-        'weight': ['lb', 'oz'],
-        'volume': ['gal', 'qt', 'pt', 'cup', 'fl oz', 'tbsp', 'tsp'],
+        'weight': ['oz'],
+        'volume': ['fl oz'],
     }
 }
 
