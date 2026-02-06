@@ -176,6 +176,11 @@
                             </div>
                             {% endif %}
                         </div>
+                        {% if base_total_cost is not none and q_factor_amount is not none and q_factor_percent %}
+                        <div class="mt-2 text-xs text-gray-500">
+                            Subtotal: ${{ "%.2f"|format(base_total_cost) }} · Q Factor ({{ q_factor_percent|round(2) }}%): ${{ "%.2f"|format(q_factor_amount) }}
+                        </div>
+                        {% endif %}
                         <div class="text-xs text-gray-500 mt-2">
                             Costs reflect current ingredient pricing and any scaled sub-recipes.
                         </div>

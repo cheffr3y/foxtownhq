@@ -139,6 +139,7 @@ def generate_id(prefix):
     return f"{prefix}{uuid.uuid4().hex[:12]}"
 
 PRICE_REFRESH_DAYS = 56
+RECIPE_Q_FACTOR_PERCENT = to_float(os.getenv('RECIPE_Q_FACTOR_PERCENT') or 5)
 
 RECIPE_TYPE_CHOICES = [
     ('menu', 'Plated (RM)'),
@@ -335,7 +336,15 @@ def compute_scale_ratio(component, sub_recipe):
         return None
     return qty / yield_qty
 
-def build_component_tree(cur, recipe_id, scale_ratio, depth, path, unit_system):
+def apply_recipe_q_factor(total_cost):
+    if total_cost is None:
+        return total_cost
+    q_percent = RECIPE_Q_FACTOR_PERCENT
+    if q_percent <= 0:
+        return total_cost
+    return total_cost * (1 + (q_percent / 100))
+
+def build_component_tree(cur, recipe_id, scale_ratio, depth, path, unit_system, apply_q_factor=True):
     if recipe_id in path:
         return [], 0, True
     path = path | {recipe_id}
@@ -404,7 +413,8 @@ def build_component_tree(cur, recipe_id, scale_ratio, depth, path, unit_system):
                     scale_ratio * applied_ratio,
                     depth + 1,
                     path,
-                    unit_system
+                    unit_system,
+                    apply_q_factor=apply_q_factor
                 )
                 item['children'] = child_items
                 item['sub_total_cost'] = child_cost
@@ -431,10 +441,13 @@ def build_component_tree(cur, recipe_id, scale_ratio, depth, path, unit_system):
 
         components.append(item)
 
+    if apply_q_factor:
+        total_cost = apply_recipe_q_factor(total_cost)
+
     return components, total_cost, has_cycle
 
-def get_recipe_total_cost(cur, recipe_id, unit_system):
-    _, total_cost, _ = build_component_tree(cur, recipe_id, 1, 0, set(), unit_system)
+def get_recipe_total_cost(cur, recipe_id, unit_system, apply_q_factor=True):
+    _, total_cost, _ = build_component_tree(cur, recipe_id, 1, 0, set(), unit_system, apply_q_factor=apply_q_factor)
     return total_cost
 
 def parse_menu_items(cur, unit_system, recipe_ids, batch_values):
@@ -1610,7 +1623,11 @@ def recipe_detail(recipe_id):
         flash('Recipe not found', 'error')
         return redirect(url_for('recipes'))
     
-    components, total_cost, _ = build_component_tree(cur, recipe_id, 1, 0, set(), unit_system)
+    components, total_cost, _ = build_component_tree(cur, recipe_id, 1, 0, set(), unit_system, apply_q_factor=True)
+    base_total_cost = get_recipe_total_cost(cur, recipe_id, unit_system, apply_q_factor=False)
+    q_factor_amount = None
+    if total_cost is not None and base_total_cost is not None:
+        q_factor_amount = total_cost - base_total_cost
     yield_qty_float = to_float(recipe.get('yield_qty'))
     cost_per_yield = None
     if total_cost and yield_qty_float > 0:
@@ -1625,7 +1642,10 @@ def recipe_detail(recipe_id):
         components=components,
         component_count=len(components),
         total_cost=total_cost,
-        cost_per_yield=cost_per_yield
+        cost_per_yield=cost_per_yield,
+        base_total_cost=base_total_cost,
+        q_factor_percent=RECIPE_Q_FACTOR_PERCENT,
+        q_factor_amount=q_factor_amount
     )
 
 @app.route('/ingredients')
