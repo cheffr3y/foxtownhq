@@ -94,6 +94,11 @@
                             Metric
                         </a>
                     </div>
+                    <button type="button"
+                            onclick="exportRecipePdf()"
+                            class="bg-white/90 hover:bg-white text-foxtown-ink px-4 py-2 rounded-xl font-semibold transition duration-200 shadow-soft">
+                        Export PDF
+                    </button>
                     <a href="{{ url_for('recipe_edit', recipe_id=recipe.id) }}" class="bg-foxtown-ember hover:bg-orange-700 text-white px-4 py-2 rounded-xl font-semibold transition duration-200 shadow-soft">
                         Edit Recipe
                     </a>
@@ -221,4 +226,132 @@
 
     </div>
 </div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+const recipePdfData = {{ recipe_pdf | tojson }};
+
+function exportRecipePdf() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('l', 'pt', 'letter');
+
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 30;
+    let yPos = margin;
+
+    doc.setFontSize(9);
+    doc.setTextColor(234, 88, 12);
+    doc.setFont(undefined, 'bold');
+    doc.text('FOXTOWN HOSPITALITY GROUP', pageWidth / 2, yPos, { align: 'center' });
+    yPos += 12;
+
+    doc.setDrawColor(234, 88, 12);
+    doc.setLineWidth(2);
+    doc.line(margin, yPos, pageWidth - margin, yPos);
+    yPos += 18;
+
+    doc.setFontSize(18);
+    doc.setTextColor(0, 0, 0);
+    doc.setFont(undefined, 'bold');
+    doc.text(recipePdfData.name || 'Recipe Name', margin, yPos);
+
+    if (recipePdfData.venue) {
+        doc.setFontSize(10);
+        doc.setTextColor(234, 88, 12);
+        doc.setFont(undefined, 'bold');
+        doc.text('VENUE:', pageWidth - margin - 160, yPos);
+        doc.setFont(undefined, 'normal');
+        doc.setTextColor(0, 0, 0);
+        doc.text(recipePdfData.venue, pageWidth - margin - 110, yPos);
+    }
+    yPos += 20;
+
+    doc.setFontSize(9);
+    doc.setFont(undefined, 'bold');
+    doc.setTextColor(234, 88, 12);
+    doc.text('Yield:', margin, yPos);
+    doc.setFont(undefined, 'normal');
+    doc.setTextColor(0, 0, 0);
+    doc.text(recipePdfData.yield || 'N/A', margin + 40, yPos);
+
+    doc.setFont(undefined, 'bold');
+    doc.setTextColor(234, 88, 12);
+    doc.text('Equipment:', margin + 170, yPos);
+    doc.setFont(undefined, 'normal');
+    doc.setTextColor(0, 0, 0);
+    const equipText = recipePdfData.equipment || 'N/A';
+    doc.text(equipText.substring(0, 80), margin + 245, yPos);
+    yPos += 18;
+
+    doc.setFontSize(11);
+    doc.setFont(undefined, 'bold');
+    doc.setTextColor(255, 255, 255);
+    doc.setFillColor(234, 88, 12);
+    doc.rect(margin, yPos - 10, pageWidth - margin * 2, 14, 'F');
+    doc.text('INGREDIENTS', margin + 5, yPos);
+    yPos += 15;
+
+    const ingredients = recipePdfData.ingredients || [];
+    if (ingredients.length) {
+        doc.setFontSize(8);
+        const colWidths = [200, 50, 50, 230];
+        let colX = [margin];
+        for (let i = 1; i < colWidths.length; i++) {
+            colX.push(colX[i - 1] + colWidths[i - 1]);
+        }
+        const totalTableWidth = colWidths.reduce((a, b) => a + b, 0);
+        const headers = ['Ingredient', 'Qty', 'UOM', 'Notes'];
+
+        const headerHeight = 20;
+        doc.setFillColor(234, 88, 12);
+        doc.rect(margin, yPos, totalTableWidth, headerHeight, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFont(undefined, 'bold');
+        headers.forEach((header, i) => {
+            doc.text(header, colX[i] + 3, yPos + 13);
+        });
+        yPos += headerHeight + 4;
+
+        doc.setFont(undefined, 'normal');
+        doc.setTextColor(0, 0, 0);
+
+        ingredients.forEach((ing, index) => {
+            const rowHeight = 14;
+            if (index % 2 === 0) {
+                doc.setFillColor(248, 249, 250);
+                doc.rect(margin, yPos - 11, totalTableWidth, rowHeight, 'F');
+            }
+            doc.text(ing.name || '', colX[0] + 3, yPos);
+            doc.text(ing.qty || '', colX[1] + 3, yPos);
+            doc.text(ing.unit || '', colX[2] + 3, yPos);
+            doc.text(ing.notes || '', colX[3] + 3, yPos);
+            yPos += rowHeight;
+        });
+        yPos += 10;
+    }
+
+    if (recipePdfData.instructions) {
+        doc.setFontSize(11);
+        doc.setFont(undefined, 'bold');
+        doc.setTextColor(255, 255, 255);
+        doc.setFillColor(234, 88, 12);
+        doc.rect(margin, yPos - 10, pageWidth - margin * 2, 14, 'F');
+        doc.text('INSTRUCTIONS', margin + 5, yPos);
+        yPos += 16;
+
+        doc.setFontSize(9);
+        doc.setTextColor(50, 50, 50);
+        const steps = recipePdfData.instructions.split(/\n+/).filter(Boolean);
+        steps.forEach((step, index) => {
+            doc.text(`${index + 1}. ${step}`, margin, yPos);
+            yPos += 14;
+        });
+    }
+
+    const safeName = (recipePdfData.name || 'recipe')
+        .replace(/[^a-z0-9]+/gi, '_')
+        .replace(/^_+|_+$/g, '')
+        .toLowerCase();
+    doc.save(`${safeName || 'recipe'}.pdf`);
+}
+</script>
 {% endblock %}

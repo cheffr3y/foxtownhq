@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ rollout.name or 'Menu Rollout' }} - Print</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: "Inter", Arial, sans-serif;
+            color: #111827;
+            margin: 24px;
+        }
+        h1 {
+            font-family: "Fraunces", Georgia, serif;
+            margin: 0 0 6px 0;
+            font-size: 24px;
+        }
+        .meta {
+            font-size: 12px;
+            color: #6b7280;
+            margin-bottom: 16px;
+        }
+        .section-title {
+            margin-top: 24px;
+            font-size: 14px;
+            font-weight: 700;
+            color: #9a3412;
+            background: #fff7ed;
+            padding: 6px 10px;
+            border-radius: 6px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 12px;
+        }
+        th, td {
+            border: 1px solid #e5e7eb;
+            padding: 6px 8px;
+            text-align: left;
+        }
+        th {
+            background: #f3f4f6;
+            font-weight: 600;
+            color: #374151;
+        }
+        .muted {
+            color: #6b7280;
+            font-size: 11px;
+        }
+        @media print {
+            body { margin: 8mm; }
+            .no-print { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="no-print" style="margin-bottom: 12px;">
+        <button onclick="window.print()">Print / Save PDF</button>
+    </div>
+
+    <h1>{{ rollout.name or 'Menu Rollout' }}</h1>
+    <div class="meta">
+        {{ rollout.venue or 'Venue' }}
+        {% if rollout.quarter %} · {{ rollout.quarter }}{% endif %}
+        {% if rollout.year %} {{ rollout.year }}{% endif %}
+        · Generated {{ generated_at.strftime('%b %d, %Y %I:%M %p') }}
+    </div>
+
+    {% for group in menu_groups %}
+    <div class="section-title">{{ group['section'] }}</div>
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 28%;">Recipe</th>
+                <th style="width: 8%;">Batches</th>
+                <th style="width: 10%;">Cost / Batch</th>
+                <th style="width: 10%;">Target FC%</th>
+                <th style="width: 12%;">Price Proposal</th>
+                <th style="width: 10%;">Menu Price</th>
+                <th style="width: 8%;">Popularity</th>
+                <th style="width: 10%;">Food Cost %</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in group['items'] %}
+            <tr>
+                <td>{{ item.recipe.name }}</td>
+                <td>{{ item.batches }}</td>
+                <td>${{ "%.2f"|format(item.base_cost) }}</td>
+                <td>{{ "%.1f"|format(item.target_food_cost_percent or default_target_percent) }}%</td>
+                <td>
+                    {% if item.suggested_price %}
+                        ${{ "%.2f"|format(item.suggested_price) }}
+                    {% else %}--{% endif %}
+                </td>
+                <td>
+                    {% if item.menu_price %}
+                        ${{ "%.2f"|format(item.menu_price) }}
+                    {% else %}--{% endif %}
+                </td>
+                <td>{{ item.popularity_score or 5 }}</td>
+                <td>
+                    {% if item.food_cost_percent %}
+                        {{ "%.1f"|format(item.food_cost_percent) }}%
+                    {% else %}--{% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endfor %}
+</body>
+</html>

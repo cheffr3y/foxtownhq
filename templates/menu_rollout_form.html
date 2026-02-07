@@ -23,6 +23,14 @@
                 <div class="flex items-center gap-3">
                     <a href="{{ url_for('menu_rollouts') }}" class="text-sm text-stone-200 hover:text-white">Back to Rollouts</a>
                     {% if mode == 'edit' %}
+                    <a href="{{ url_for('menu_rollout_print', rollout_id=rollout.id) }}"
+                       class="text-sm text-amber-200 hover:text-white font-semibold">
+                        Print Rollout (PDF)
+                    </a>
+                    <a href="{{ url_for('menu_rollout_pricing_export', rollout_id=rollout.id) }}"
+                       class="text-sm text-amber-200 hover:text-white font-semibold">
+                        Export Menu Pricing (Excel)
+                    </a>
                     <a href="{{ url_for('menu_rollout_order_guide', rollout_id=rollout.id) }}"
                        class="text-sm text-amber-200 hover:text-white font-semibold">
                         Export Order Guide (Excel)

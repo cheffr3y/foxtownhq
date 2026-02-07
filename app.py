@@ -610,6 +610,44 @@ def group_menu_items(menu_items):
 
     return grouped_list
 
+def format_display_value(value, precision=2):
+    if value is None:
+        return ''
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return str(value)
+    if number.is_integer():
+        return str(int(number))
+    return f"{number:.{precision}f}".rstrip('0').rstrip('.')
+
+def flatten_components_for_pdf(items, level=0):
+    rows = []
+    for item in items:
+        name = item.get('item_name') or ''
+        prefix = '  ' * level
+        label = ''
+        if item.get('type') == 'recipe':
+            label = 'Sub-recipe'
+        elif item.get('category'):
+            label = item.get('category')
+
+        quantity = item.get('display_quantity')
+        if quantity is None:
+            quantity = item.get('scaled_quantity_display') or item.get('scaled_quantity') or ''
+        qty_text = format_display_value(quantity, precision=2)
+
+        unit = item.get('display_unit') or item.get('unit') or ''
+        rows.append({
+            'name': f"{prefix}{name}",
+            'qty': qty_text,
+            'unit': unit,
+            'notes': label
+        })
+        if item.get('children'):
+            rows.extend(flatten_components_for_pdf(item.get('children'), level + 1))
+    return rows
+
 def compute_q_factor(total_cost, q_factor_percent):
     q_percent = to_float(q_factor_percent)
     if q_percent < 0:
@@ -1429,6 +1467,213 @@ def menu_rollout_order_guide(rollout_id):
         download_name=filename
     )
 
+@app.route('/menu-rollouts/<rollout_id>/pricing-export')
+@login_required
+def menu_rollout_pricing_export(rollout_id):
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    unit_system = get_unit_system()
+
+    cur.execute("SELECT * FROM menu_rollouts WHERE id = %s", (rollout_id,))
+    rollout = cur.fetchone()
+    if not rollout:
+        cur.close()
+        conn.close()
+        flash('Menu rollout not found', 'error')
+        return redirect(url_for('menu_rollouts'))
+
+    cur.execute("""
+        SELECT mri.recipe_id,
+               mri.batches,
+               mri.menu_price,
+               mri.target_food_cost_percent,
+               mri.popularity_score,
+               mri.menu_section,
+               r.name
+        FROM menu_rollout_items mri
+        JOIN recipes r ON r.id = mri.recipe_id
+        WHERE mri.rollout_id = %s
+        ORDER BY r.name
+    """, (rollout_id,))
+    items = cur.fetchall()
+    if not items:
+        cur.close()
+        conn.close()
+        flash('Add recipes to this rollout before exporting.', 'error')
+        return redirect(url_for('menu_rollout_edit', rollout_id=rollout_id))
+
+    recipe_ids = [row['recipe_id'] for row in items]
+    batch_values = [row['batches'] for row in items]
+    menu_prices = [row.get('menu_price') for row in items]
+    target_values = [row.get('target_food_cost_percent') for row in items]
+    popularity_values = [row.get('popularity_score') for row in items]
+    section_values = [row.get('menu_section') for row in items]
+    default_target = rollout.get('target_food_cost_percent') or 20
+
+    menu_items, _, errors = parse_menu_items(
+        cur,
+        unit_system,
+        recipe_ids,
+        batch_values,
+        menu_prices,
+        target_values,
+        popularity_values,
+        default_target,
+        section_values
+    )
+    if errors:
+        cur.close()
+        conn.close()
+        flash(' '.join(sorted(set(errors))), 'error')
+        return redirect(url_for('menu_rollout_edit', rollout_id=rollout_id))
+
+    apply_menu_pricing(menu_items, default_target)
+    grouped = group_menu_items(menu_items)
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Menu Pricing"
+
+    header_fill = PatternFill('solid', fgColor='E2E8F0')
+    header_font = Font(bold=True, color='1F2937')
+    section_fill = PatternFill('solid', fgColor='FFF7ED')
+    section_font = Font(bold=True, color='9A3412')
+    align = Alignment(vertical='center')
+    thin = Side(border_style='thin', color='E5E7EB')
+    border = Border(top=thin, bottom=thin, left=thin, right=thin)
+
+    headers = [
+        "Section",
+        "Recipe",
+        "Batches",
+        "Cost / Batch",
+        "Target FC%",
+        "Price Proposal",
+        "Menu Price",
+        "Popularity",
+        "Food Cost %"
+    ]
+    ws.append(headers)
+    for col_idx, _ in enumerate(headers, start=1):
+        cell = ws.cell(row=1, column=col_idx)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = align
+        cell.border = border
+
+    row_idx = 2
+    for group in grouped:
+        section = group['section']
+        ws.merge_cells(start_row=row_idx, start_column=1, end_row=row_idx, end_column=len(headers))
+        section_cell = ws.cell(row=row_idx, column=1, value=section)
+        section_cell.fill = section_fill
+        section_cell.font = section_font
+        section_cell.alignment = align
+        section_cell.border = border
+        row_idx += 1
+
+        for item in group['items']:
+            ws.cell(row=row_idx, column=1, value=section).border = border
+            ws.cell(row=row_idx, column=2, value=item['recipe']['name']).border = border
+            ws.cell(row=row_idx, column=3, value=item['batches']).border = border
+            ws.cell(row=row_idx, column=4, value=round(to_float(item['base_cost']), 2)).border = border
+            ws.cell(row=row_idx, column=5, value=round(to_float(item.get('target_food_cost_percent')), 1)).border = border
+            ws.cell(row=row_idx, column=6, value=round(to_float(item.get('suggested_price')), 2)).border = border
+            ws.cell(row=row_idx, column=7, value=item.get('menu_price')).border = border
+            ws.cell(row=row_idx, column=8, value=item.get('popularity_score')).border = border
+            fc_val = item.get('food_cost_percent')
+            ws.cell(row=row_idx, column=9, value=round(fc_val, 1) if fc_val else None).border = border
+            row_idx += 1
+
+        row_idx += 1
+
+    column_widths = [18, 36, 10, 14, 12, 14, 12, 10, 12]
+    for col_idx, width in enumerate(column_widths, start=1):
+        ws.column_dimensions[ws.cell(row=1, column=col_idx).column_letter].width = width
+
+    cur.close()
+    conn.close()
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    filename = f"{make_safe_filename(rollout.get('name') or 'menu_rollout')}_menu_pricing.xlsx"
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=filename
+    )
+
+@app.route('/menu-rollouts/<rollout_id>/print')
+@login_required
+def menu_rollout_print(rollout_id):
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    unit_system = get_unit_system()
+
+    cur.execute("SELECT * FROM menu_rollouts WHERE id = %s", (rollout_id,))
+    rollout = cur.fetchone()
+    if not rollout:
+        cur.close()
+        conn.close()
+        flash('Menu rollout not found', 'error')
+        return redirect(url_for('menu_rollouts'))
+
+    cur.execute("""
+        SELECT mri.recipe_id,
+               mri.batches,
+               mri.menu_price,
+               mri.target_food_cost_percent,
+               mri.popularity_score,
+               mri.menu_section,
+               r.name
+        FROM menu_rollout_items mri
+        JOIN recipes r ON r.id = mri.recipe_id
+        WHERE mri.rollout_id = %s
+        ORDER BY r.name
+    """, (rollout_id,))
+    items = cur.fetchall()
+    if not items:
+        cur.close()
+        conn.close()
+        flash('Add recipes to this rollout before printing.', 'error')
+        return redirect(url_for('menu_rollout_edit', rollout_id=rollout_id))
+
+    recipe_ids = [row['recipe_id'] for row in items]
+    batch_values = [row['batches'] for row in items]
+    menu_prices = [row.get('menu_price') for row in items]
+    target_values = [row.get('target_food_cost_percent') for row in items]
+    popularity_values = [row.get('popularity_score') for row in items]
+    section_values = [row.get('menu_section') for row in items]
+    default_target = rollout.get('target_food_cost_percent') or 20
+
+    menu_items, _, _ = parse_menu_items(
+        cur,
+        unit_system,
+        recipe_ids,
+        batch_values,
+        menu_prices,
+        target_values,
+        popularity_values,
+        default_target,
+        section_values
+    )
+    apply_menu_pricing(menu_items, default_target)
+    menu_groups = group_menu_items(menu_items)
+
+    cur.close()
+    conn.close()
+
+    return render_template(
+        'menu_rollout_print.html',
+        rollout=rollout,
+        menu_groups=menu_groups,
+        default_target_percent=default_target,
+        generated_at=datetime.utcnow()
+    )
+
 @app.route('/recipes/new', methods=['GET', 'POST'])
 @login_required
 def recipe_new():
@@ -1884,6 +2129,16 @@ def recipe_detail(recipe_id):
     cost_per_yield = None
     if total_cost and yield_qty_float > 0:
         cost_per_yield = total_cost / yield_qty_float
+
+    yield_display = smart_quantity(recipe.get('yield_qty'), recipe.get('yield_unit'), unit_system)
+    pdf_data = {
+        'name': recipe.get('name') or '',
+        'venue': recipe.get('source_venue') or '',
+        'equipment': recipe.get('equipment') or '',
+        'yield': f"{yield_display.get('quantity')} {yield_display.get('unit')}".strip(),
+        'ingredients': flatten_components_for_pdf(components),
+        'instructions': recipe.get('instructions') or ''
+    }
     
     cur.close()
     conn.close()
@@ -1897,7 +2152,8 @@ def recipe_detail(recipe_id):
         cost_per_yield=cost_per_yield,
         base_total_cost=base_total_cost,
         q_factor_percent=RECIPE_Q_FACTOR_PERCENT,
-        q_factor_amount=q_factor_amount
+        q_factor_amount=q_factor_amount,
+        recipe_pdf=pdf_data
     )
 
 @app.route('/ingredients')
