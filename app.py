@@ -1674,6 +1674,35 @@ def menu_rollout_print(rollout_id):
         generated_at=datetime.utcnow()
     )
 
+@app.route('/menu-rollouts/<rollout_id>/delete', methods=['POST'])
+@login_required
+def menu_rollout_delete(rollout_id):
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+
+    cur.execute("SELECT id, name FROM menu_rollouts WHERE id = %s", (rollout_id,))
+    rollout = cur.fetchone()
+    if not rollout:
+        cur.close()
+        conn.close()
+        flash('Menu rollout not found', 'error')
+        return redirect(url_for('menu_rollouts'))
+
+    try:
+        cur.execute("DELETE FROM menu_rollout_items WHERE rollout_id = %s", (rollout_id,))
+        cur.execute("DELETE FROM menu_rollouts WHERE id = %s", (rollout_id,))
+        conn.commit()
+        cur.close()
+        conn.close()
+        flash('Menu rollout deleted', 'success')
+        return redirect(url_for('menu_rollouts'))
+    except Exception:
+        conn.rollback()
+        cur.close()
+        conn.close()
+        flash('Error deleting menu rollout', 'error')
+        return redirect(url_for('menu_rollout_edit', rollout_id=rollout_id))
+
 @app.route('/recipes/new', methods=['GET', 'POST'])
 @login_required
 def recipe_new():

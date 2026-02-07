@@ -35,6 +35,13 @@
                        class="text-sm text-amber-200 hover:text-white font-semibold">
                         Export Order Guide (Excel)
                     </a>
+                    <form method="POST"
+                          action="{{ url_for('menu_rollout_delete', rollout_id=rollout.id) }}"
+                          onsubmit="return confirm('Delete this menu rollout? This cannot be undone.');">
+                        <button type="submit" class="text-sm text-red-200 hover:text-white font-semibold">
+                            Delete Rollout
+                        </button>
+                    </form>
                     {% endif %}
                     <button form="rolloutForm" class="bg-foxtown-ember hover:bg-orange-700 text-white px-5 py-2 rounded-xl font-semibold transition duration-200 shadow-soft hover:shadow-lift">
                         {% if mode == 'edit' %}Save Changes{% else %}Create Rollout{% endif %}
