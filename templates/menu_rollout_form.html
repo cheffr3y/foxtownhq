@@ -64,7 +64,7 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-stone-700 mb-1">Menu Name</label>
-                            <input type="text" name="name" value="{{ rollout.name or '' }}" placeholder="Brewpub Q1 2026"
+                            <input type="text" name="rollout_name" value="{{ rollout.name or '' }}" placeholder="Brewpub Q1 2026"
                                    class="w-full px-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none">
                         </div>
                         <div>
@@ -148,10 +148,11 @@
                 </div>
 
                 <div class="overflow-x-auto">
-                    <table class="min-w-[1100px] text-sm">
+                    <table class="min-w-[1240px] text-sm">
                         <thead class="text-xs uppercase text-stone-500 border-b border-stone-200">
                             <tr>
                                 <th class="text-left py-2 pr-4">Recipe</th>
+                                <th class="text-left py-2 pr-4">Menu Item</th>
                                 <th class="text-left py-2 pr-4">Section</th>
                                 <th class="text-left py-2 pr-4">Batches</th>
                                 <th class="text-left py-2 pr-4">Cost / Batch</th>
@@ -167,7 +168,7 @@
                             {% if menu_items %}
                                 {% for group in menu_groups %}
                                 <tr class="bg-stone-50">
-                                    <td colspan="10" class="px-4 py-3 text-sm font-display text-foxtown-ink">
+                                    <td colspan="11" class="px-4 py-3 text-sm font-display text-foxtown-ink">
                                         {{ group['section'] }}
                                     </td>
                                 </tr>
@@ -180,6 +181,12 @@
                                                class="menu-autocomplete w-full border border-stone-300 rounded-xl px-3 py-2 text-sm"
                                                placeholder="Start typing recipe name...">
                                         <input type="hidden" name="menu_recipe_id[]" value="{{ item.recipe_id }}" class="menu-recipe-id">
+                                    </td>
+                                    <td class="py-3 pr-4">
+                                        <input type="text" name="menu_descriptor[]"
+                                               value="{{ item.menu_descriptor or '' }}"
+                                               placeholder="Optional menu label"
+                                               class="w-full border border-stone-300 rounded-xl px-3 py-2 text-sm">
                                     </td>
                                     <td class="py-3 pr-4">
                                         <select name="menu_section[]" class="w-full border border-stone-300 rounded-xl px-3 py-2 text-sm">
@@ -239,6 +246,11 @@
                                                class="menu-autocomplete w-full border border-stone-300 rounded-xl px-3 py-2 text-sm"
                                                placeholder="Start typing recipe name...">
                                         <input type="hidden" name="menu_recipe_id[]" value="" class="menu-recipe-id">
+                                    </td>
+                                    <td class="py-3 pr-4">
+                                        <input type="text" name="menu_descriptor[]"
+                                               placeholder="Optional menu label"
+                                               class="w-full border border-stone-300 rounded-xl px-3 py-2 text-sm">
                                     </td>
                                     <td class="py-3 pr-4">
                                         <select name="menu_section[]" class="w-full border border-stone-300 rounded-xl px-3 py-2 text-sm">
@@ -382,6 +394,11 @@
                    class="menu-autocomplete w-full border border-stone-300 rounded-xl px-3 py-2 text-sm"
                    placeholder="Start typing recipe name...">
             <input type="hidden" name="menu_recipe_id[]" value="" class="menu-recipe-id">
+        </td>
+        <td class="py-3 pr-4">
+            <input type="text" name="menu_descriptor[]"
+                   placeholder="Optional menu label"
+                   class="w-full border border-stone-300 rounded-xl px-3 py-2 text-sm">
         </td>
         <td class="py-3 pr-4">
             <select name="menu_section[]" class="w-full border border-stone-300 rounded-xl px-3 py-2 text-sm">

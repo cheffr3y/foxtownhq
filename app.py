@@ -296,6 +296,152 @@ def get_recipe_by_id(cur, recipe_id):
     )
     return cur.fetchone()
 
+def ensure_menu_rollout_schema(cur):
+    cur.execute("ALTER TABLE menu_rollouts ADD COLUMN IF NOT EXISTS target_food_cost_percent NUMERIC")
+    cur.execute("ALTER TABLE menu_rollout_items ADD COLUMN IF NOT EXISTS menu_price NUMERIC")
+    cur.execute("ALTER TABLE menu_rollout_items ADD COLUMN IF NOT EXISTS target_food_cost_percent NUMERIC")
+    cur.execute("ALTER TABLE menu_rollout_items ADD COLUMN IF NOT EXISTS popularity_score INTEGER")
+    cur.execute("ALTER TABLE menu_rollout_items ADD COLUMN IF NOT EXISTS menu_section TEXT")
+    cur.execute("ALTER TABLE menu_rollout_items ADD COLUMN IF NOT EXISTS menu_descriptor TEXT")
+
+def ensure_weighted_options_schema(cur):
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS recipe_weighted_options (
+            id TEXT PRIMARY KEY,
+            recipe_id TEXT NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
+            group_name TEXT NOT NULL,
+            item_type TEXT NOT NULL CHECK (item_type IN ('ingredient', 'recipe')),
+            item_id TEXT NOT NULL,
+            quantity NUMERIC NOT NULL,
+            unit TEXT,
+            weight_percent NUMERIC NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+def get_recipe_weighted_options(cur, recipe_id):
+    ensure_weighted_options_schema(cur)
+    cur.execute("""
+        SELECT rwo.*,
+               CASE
+                   WHEN rwo.item_type = 'ingredient' THEN i.name
+                   WHEN rwo.item_type = 'recipe' THEN r.name
+               END AS item_name,
+               CASE
+                   WHEN rwo.item_type = 'ingredient' THEN i.unit
+                   WHEN rwo.item_type = 'recipe' THEN r.yield_unit
+               END AS item_default_unit,
+               CASE
+                   WHEN rwo.item_type = 'ingredient' THEN i.cost_per_unit
+                   ELSE NULL
+               END AS ingredient_cost_per_unit
+        FROM recipe_weighted_options rwo
+        LEFT JOIN ingredients i ON rwo.item_type = 'ingredient' AND rwo.item_id = i.id
+        LEFT JOIN recipes r ON rwo.item_type = 'recipe' AND rwo.item_id = r.id
+        WHERE rwo.recipe_id = %s
+        ORDER BY rwo.group_name, item_name
+    """, (recipe_id,))
+    return cur.fetchall()
+
+def distribute_group_weights(option_rows, errors):
+    groups = {}
+    for row in option_rows:
+        groups.setdefault(row['group_name'], []).append(row)
+
+    for group_name, rows in groups.items():
+        explicit_total = 0.0
+        blanks = []
+        for row in rows:
+            if row['weight_percent'] is None:
+                blanks.append(row)
+            else:
+                explicit_total += row['weight_percent']
+
+        if explicit_total > 100.0001:
+            errors.append(f'Weighted options in "{group_name}" exceed 100%.')
+            continue
+
+        if blanks:
+            remaining = 100.0 - explicit_total
+            if remaining < -0.0001:
+                errors.append(f'Weighted options in "{group_name}" exceed 100%.')
+                continue
+            share = remaining / len(blanks)
+            for row in blanks:
+                row['weight_percent'] = share
+        else:
+            if abs(explicit_total - 100.0) > 0.0001:
+                errors.append(f'Weighted options in "{group_name}" must total 100%.')
+
+def parse_weighted_options_from_form(request, recipe_type, cur, errors):
+    ensure_weighted_options_schema(cur)
+    if recipe_type != 'menu':
+        return []
+
+    group_names = request.form.getlist('option_group_name[]')
+    item_types = request.form.getlist('option_item_type[]')
+    item_ids = request.form.getlist('option_item_id[]')
+    item_names = request.form.getlist('option_item_name[]')
+    quantities = request.form.getlist('option_qty[]')
+    units = request.form.getlist('option_unit[]')
+    weights = request.form.getlist('option_weight[]')
+
+    max_len = max(
+        len(group_names),
+        len(item_types),
+        len(item_ids),
+        len(item_names),
+        len(quantities),
+        len(units),
+        len(weights),
+        0
+    )
+
+    option_rows = []
+    for idx in range(max_len):
+        group_name = (group_names[idx] if idx < len(group_names) else '').strip()
+        item_type = (item_types[idx] if idx < len(item_types) else '').strip().lower()
+        item_id = (item_ids[idx] if idx < len(item_ids) else '').strip()
+        item_name = (item_names[idx] if idx < len(item_names) else '').strip()
+        qty_raw = (quantities[idx] if idx < len(quantities) else '').strip()
+        unit_raw = (units[idx] if idx < len(units) else '').strip()
+        weight_raw = (weights[idx] if idx < len(weights) else '').strip()
+
+        if not any([group_name, item_type, item_id, item_name, qty_raw, unit_raw, weight_raw]):
+            continue
+
+        if not group_name:
+            errors.append('Each weighted option row needs a group name.')
+        if item_type not in ('ingredient', 'recipe'):
+            errors.append('Weighted option type must be ingredient or recipe.')
+        if not item_id and item_name:
+            errors.append(f'Weighted option "{item_name}" was not found. Select it from the list.')
+        if not item_id and not item_name:
+            errors.append('Each weighted option row needs an item.')
+
+        qty_value = parse_float_field(qty_raw, 'Weighted option quantity', errors, required=True, min_value=0.0001)
+        unit_value = normalize_unit(unit_raw) or unit_raw
+        if not unit_value:
+            errors.append('Each weighted option row needs a unit.')
+
+        weight_value = None
+        if weight_raw:
+            weight_value = parse_float_field(weight_raw, 'Weighted option percent', errors, required=True, min_value=0.0)
+            if weight_value is not None and weight_value > 100:
+                errors.append('Weighted option percent cannot exceed 100.')
+
+        option_rows.append({
+            'group_name': group_name,
+            'item_type': item_type,
+            'item_id': item_id,
+            'quantity': qty_value,
+            'unit': unit_value,
+            'weight_percent': weight_value
+        })
+
+    distribute_group_weights(option_rows, errors)
+    return option_rows
+
 def get_recipe_components(cur, recipe_id):
     cur.execute("""
         SELECT ri.*, ri.type, ri.quantity, ri.unit,
@@ -348,6 +494,7 @@ def build_component_tree(cur, recipe_id, scale_ratio, depth, path, unit_system, 
     if recipe_id in path:
         return [], 0, True
     path = path | {recipe_id}
+    current_recipe = get_recipe_by_id(cur, recipe_id)
 
     components = []
     total_cost = 0
@@ -441,6 +588,141 @@ def build_component_tree(cur, recipe_id, scale_ratio, depth, path, unit_system, 
 
         components.append(item)
 
+    # Weighted option groups are only applied to plated/menu recipes.
+    if current_recipe and current_recipe.get('recipe_type') == 'menu':
+        weighted_rows = get_recipe_weighted_options(cur, recipe_id)
+        grouped_options = {}
+        for row in weighted_rows:
+            group_name = (row.get('group_name') or '').strip() or 'Options'
+            grouped_options.setdefault(group_name, []).append(row)
+
+        for group_name, options in grouped_options.items():
+            group_item = {
+                'id': f"optgrp_{recipe_id}_{group_name}",
+                'type': 'option_group',
+                'item_name': group_name,
+                'category': 'Weighted options',
+                'scaled_quantity': '',
+                'scaled_quantity_display': '',
+                'display_quantity': '',
+                'display_unit': '',
+                'display_converted': False,
+                'display_factor': 1,
+                'display_type': None,
+                'children': [],
+                'sub_total_cost': None,
+                'sub_cost_per_unit': None,
+                'sub_cost_unit': None,
+                'scale_note': None,
+                'scale_ratio': None,
+                'cycle': False,
+                'group_weight_total': 0,
+                'raw_cost_total': 0,
+                'cost_total': 0,
+                'display_cost_per_unit': None
+            }
+
+            for option in options:
+                opt_weight_pct = to_float(option.get('weight_percent'))
+                opt_weight_ratio = opt_weight_pct / 100.0
+                qty = to_float(option.get('quantity'))
+                scaled_qty = qty * scale_ratio
+
+                opt_item = {
+                    'id': option.get('id'),
+                    'type': option.get('item_type'),
+                    'item_name': option.get('item_name') or 'Unknown option',
+                    'category': 'Weighted option',
+                    'scaled_quantity': scaled_qty,
+                    'scaled_quantity_display': format_number(scaled_qty),
+                    'children': [],
+                    'sub_total_cost': None,
+                    'sub_cost_per_unit': None,
+                    'sub_cost_unit': None,
+                    'scale_note': None,
+                    'scale_ratio': None,
+                    'cycle': False,
+                    'weight_percent': opt_weight_pct,
+                    'weighted_cost': 0,
+                    'raw_cost_total': 0
+                }
+
+                display = smart_quantity(scaled_qty, option.get('unit'), unit_system)
+                opt_item['display_quantity'] = display['quantity']
+                opt_item['display_unit'] = display['unit']
+                opt_item['display_converted'] = display['converted']
+                opt_item['display_factor'] = display['factor']
+                opt_item['display_type'] = display['type']
+
+                raw_option_cost = 0
+                if option.get('item_type') == 'ingredient':
+                    source_unit = option.get('item_default_unit')
+                    cost_per_unit = convert_cost_per_unit(
+                        option.get('ingredient_cost_per_unit'),
+                        source_unit,
+                        option.get('unit')
+                    )
+                    raw_option_cost = scaled_qty * cost_per_unit
+                    if opt_item['display_factor']:
+                        opt_item['display_cost_per_unit'] = cost_per_unit / opt_item['display_factor']
+                    else:
+                        opt_item['display_cost_per_unit'] = cost_per_unit
+                else:
+                    sub_recipe = get_recipe_by_id(cur, option.get('item_id'))
+                    opt_item['sub_recipe'] = sub_recipe
+                    pseudo_component = {
+                        'quantity': option.get('quantity'),
+                        'unit': option.get('unit')
+                    }
+                    child_ratio = compute_scale_ratio(pseudo_component, sub_recipe)
+                    applied_ratio = child_ratio if child_ratio is not None else 1
+                    opt_item['scale_ratio'] = applied_ratio
+
+                    if depth < 3 and sub_recipe:
+                        child_items, child_cost, child_cycle = build_component_tree(
+                            cur,
+                            sub_recipe['id'],
+                            scale_ratio * applied_ratio,
+                            depth + 1,
+                            path,
+                            unit_system,
+                            apply_q_factor=apply_q_factor
+                        )
+                        opt_item['children'] = child_items
+                        opt_item['sub_total_cost'] = child_cost
+                        opt_item['cycle'] = child_cycle
+                        has_cycle = has_cycle or child_cycle
+                        raw_option_cost = child_cost
+                    elif sub_recipe:
+                        raw_option_cost = get_recipe_total_cost(cur, sub_recipe['id'], unit_system) * (scale_ratio * applied_ratio)
+
+                    if sub_recipe:
+                        sub_yield_qty = to_float(sub_recipe.get('yield_qty'))
+                        if sub_yield_qty > 0:
+                            full_cost = get_recipe_total_cost(cur, sub_recipe['id'], unit_system)
+                            cost_per_yield = full_cost / sub_yield_qty
+                            display_yield = smart_quantity(sub_yield_qty, sub_recipe.get('yield_unit'), unit_system)
+                            display_unit = display_yield.get('unit') or sub_recipe.get('yield_unit')
+                            opt_item['sub_cost_per_unit'] = convert_cost_per_unit(
+                                cost_per_yield,
+                                sub_recipe.get('yield_unit'),
+                                display_unit
+                            )
+                            opt_item['sub_cost_unit'] = display_unit
+
+                weighted_cost = raw_option_cost * opt_weight_ratio
+                opt_item['raw_cost_total'] = raw_option_cost
+                opt_item['cost_total'] = weighted_cost
+                opt_item['weighted_cost'] = weighted_cost
+
+                group_item['children'].append(opt_item)
+                group_item['group_weight_total'] += opt_weight_pct
+                group_item['raw_cost_total'] += raw_option_cost
+                group_item['cost_total'] += weighted_cost
+
+            total_cost += group_item['cost_total']
+            components.append(group_item)
+
     if apply_q_factor:
         total_cost = apply_recipe_q_factor(total_cost)
 
@@ -459,11 +741,10 @@ def parse_menu_items(
     target_percent_values=None,
     popularity_values=None,
     default_target_percent=None,
-    section_values=None
+    section_values=None,
+    descriptor_values=None
 ):
     menu_items = []
-    menu_groups = []
-    menu_groups = []
     total_cost = 0
     errors = []
 
@@ -514,6 +795,10 @@ def parse_menu_items(
         if section_values and idx < len(section_values):
             section = (section_values[idx] or '').strip() or None
 
+        descriptor = None
+        if descriptor_values and idx < len(descriptor_values):
+            descriptor = (descriptor_values[idx] or '').strip() or None
+
         menu_items.append({
             'recipe': recipe,
             'recipe_id': recipe_id,
@@ -523,7 +808,8 @@ def parse_menu_items(
             'menu_price': menu_price,
             'target_food_cost_percent': target_percent,
             'popularity_score': popularity,
-            'menu_section': section
+            'menu_section': section,
+            'menu_descriptor': descriptor
         })
 
     if not menu_items:
@@ -605,7 +891,13 @@ def group_menu_items(menu_items):
     grouped_list = []
     for section in ordered_sections:
         items = grouped.get(section, [])
-        items_sorted = sorted(items, key=lambda item: (item.get('recipe', {}).get('name') or '').lower())
+        items_sorted = sorted(
+            items,
+            key=lambda item: (
+                (item.get('menu_descriptor') or '').lower(),
+                (item.get('recipe', {}).get('name') or '').lower()
+            )
+        )
         grouped_list.append({'section': section, 'items': items_sorted})
 
     return grouped_list
@@ -929,6 +1221,8 @@ def menu_costing():
 def menu_rollouts():
     conn = get_db()
     cur = conn.cursor(cursor_factory=RealDictCursor)
+    ensure_menu_rollout_schema(cur)
+    conn.commit()
 
     cur.execute("""
         SELECT mr.*, COUNT(mri.id) as item_count
@@ -977,6 +1271,8 @@ def menu_rollout_new():
     conn = get_db()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     unit_system = get_unit_system()
+    ensure_menu_rollout_schema(cur)
+    conn.commit()
 
     cur.execute("""
         SELECT id, name, yield_qty, yield_unit, recipe_type
@@ -987,11 +1283,11 @@ def menu_rollout_new():
     recipes_list = cur.fetchall()
 
     menu_items = []
+    menu_groups = []
     total_cost = 0
     ingredient_master = []
     ingredient_total_cost = 0
     batch_recipes = []
-    menu_groups = []
     q_factor_percent = 5
     default_target_percent = 20
     q_amount = 0
@@ -1013,7 +1309,7 @@ def menu_rollout_new():
     }
 
     if request.method == 'POST':
-        name = (request.form.get('name') or '').strip()
+        rollout_name = (request.form.get('rollout_name') or request.form.get('name') or '').strip()
         venue = (request.form.get('venue') or '').strip()
         year_value = (request.form.get('year') or '').strip()
         quarter = normalize_quarter(request.form.get('quarter'))
@@ -1024,7 +1320,7 @@ def menu_rollout_new():
         default_target_percent = target_raw if target_raw else default_target_percent
 
         rollout_data = {
-            'name': name,
+            'name': rollout_name,
             'venue': venue,
             'year': year_value,
             'quarter': quarter,
@@ -1034,8 +1330,9 @@ def menu_rollout_new():
         }
 
         year = int(year_value) if year_value.isdigit() else None
-        if not name and venue and year and quarter:
-            name = f"{venue} {quarter} {year}"
+        if not rollout_name and venue and year and quarter:
+            rollout_name = f"{venue} {quarter} {year}"
+            rollout_data['name'] = rollout_name
 
         recipe_ids = request.form.getlist('menu_recipe_id[]')
         recipe_names = request.form.getlist('menu_recipe_name[]')
@@ -1044,6 +1341,7 @@ def menu_rollout_new():
         target_values = request.form.getlist('menu_target_percent[]')
         popularity_values = request.form.getlist('menu_popularity[]')
         section_values = request.form.getlist('menu_section[]')
+        descriptor_values = request.form.getlist('menu_descriptor[]')
         menu_items, total_cost, errors = parse_menu_items(
             cur,
             unit_system,
@@ -1053,12 +1351,14 @@ def menu_rollout_new():
             target_values,
             popularity_values,
             default_target_percent,
-            section_values
+            section_values,
+            descriptor_values
         )
+        menu_groups = group_menu_items(menu_items) if menu_items else []
         for idx, recipe_id in enumerate(recipe_ids):
-            name = (recipe_names[idx] if idx < len(recipe_names) else '').strip()
-            if name and not recipe_id:
-                errors.append(f'Recipe "{name}" was not found. Select it from the list.')
+            recipe_name = (recipe_names[idx] if idx < len(recipe_names) else '').strip()
+            if recipe_name and not recipe_id:
+                errors.append(f'Recipe "{recipe_name}" was not found. Select it from the list.')
         q_factor_percent, q_amount, grand_total = compute_q_factor(total_cost, q_factor_percent)
         pricing_summary = apply_menu_pricing(menu_items, default_target_percent)
         if menu_items:
@@ -1067,9 +1367,8 @@ def menu_rollout_new():
                 unit_system,
                 menu_items
             )
-            menu_groups = group_menu_items(menu_items)
 
-        if not name:
+        if not rollout_name:
             errors.append('Menu name is required.')
 
         if errors:
@@ -1082,7 +1381,7 @@ def menu_rollout_new():
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, FALSE)
                 """, (
                     rollout_id,
-                    name,
+                    rollout_name,
                     venue or None,
                     year,
                     quarter or None,
@@ -1093,8 +1392,8 @@ def menu_rollout_new():
 
                 for item in menu_items:
                     cur.execute("""
-                        INSERT INTO menu_rollout_items (id, rollout_id, recipe_id, batches, menu_price, target_food_cost_percent, popularity_score, menu_section)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                        INSERT INTO menu_rollout_items (id, rollout_id, recipe_id, batches, menu_price, target_food_cost_percent, popularity_score, menu_section, menu_descriptor)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """, (
                         generate_id('mri_'),
                         rollout_id,
@@ -1103,7 +1402,8 @@ def menu_rollout_new():
                         item.get('menu_price'),
                         item.get('target_food_cost_percent'),
                         item.get('popularity_score'),
-                        item.get('menu_section')
+                        item.get('menu_section'),
+                        item.get('menu_descriptor')
                     ))
 
                 conn.commit()
@@ -1143,6 +1443,8 @@ def menu_rollout_edit(rollout_id):
     conn = get_db()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     unit_system = get_unit_system()
+    ensure_menu_rollout_schema(cur)
+    conn.commit()
 
     cur.execute("SELECT * FROM menu_rollouts WHERE id = %s", (rollout_id,))
     rollout = cur.fetchone()
@@ -1156,6 +1458,7 @@ def menu_rollout_edit(rollout_id):
     recipes_list = cur.fetchall()
 
     menu_items = []
+    menu_groups = []
     total_cost = 0
     ingredient_master = []
     ingredient_total_cost = 0
@@ -1172,7 +1475,7 @@ def menu_rollout_edit(rollout_id):
     }
 
     if request.method == 'POST':
-        name = (request.form.get('name') or '').strip()
+        rollout_name = (request.form.get('rollout_name') or request.form.get('name') or '').strip()
         venue = (request.form.get('venue') or '').strip()
         year_value = (request.form.get('year') or '').strip()
         quarter = normalize_quarter(request.form.get('quarter'))
@@ -1184,7 +1487,7 @@ def menu_rollout_edit(rollout_id):
 
         rollout = dict(rollout)
         rollout.update({
-            'name': name,
+            'name': rollout_name,
             'venue': venue,
             'year': year_value,
             'quarter': quarter,
@@ -1194,8 +1497,9 @@ def menu_rollout_edit(rollout_id):
         })
 
         year = int(year_value) if year_value.isdigit() else None
-        if not name and venue and year and quarter:
-            name = f"{venue} {quarter} {year}"
+        if not rollout_name and venue and year and quarter:
+            rollout_name = f"{venue} {quarter} {year}"
+            rollout['name'] = rollout_name
 
         recipe_ids = request.form.getlist('menu_recipe_id[]')
         recipe_names = request.form.getlist('menu_recipe_name[]')
@@ -1204,6 +1508,7 @@ def menu_rollout_edit(rollout_id):
         target_values = request.form.getlist('menu_target_percent[]')
         popularity_values = request.form.getlist('menu_popularity[]')
         section_values = request.form.getlist('menu_section[]')
+        descriptor_values = request.form.getlist('menu_descriptor[]')
         menu_items, total_cost, errors = parse_menu_items(
             cur,
             unit_system,
@@ -1213,12 +1518,14 @@ def menu_rollout_edit(rollout_id):
             target_values,
             popularity_values,
             default_target_percent,
-            section_values
+            section_values,
+            descriptor_values
         )
+        menu_groups = group_menu_items(menu_items) if menu_items else []
         for idx, recipe_id in enumerate(recipe_ids):
-            name = (recipe_names[idx] if idx < len(recipe_names) else '').strip()
-            if name and not recipe_id:
-                errors.append(f'Recipe "{name}" was not found. Select it from the list.')
+            recipe_name = (recipe_names[idx] if idx < len(recipe_names) else '').strip()
+            if recipe_name and not recipe_id:
+                errors.append(f'Recipe "{recipe_name}" was not found. Select it from the list.')
         q_factor_percent, q_amount, grand_total = compute_q_factor(total_cost, q_factor_percent)
         pricing_summary = apply_menu_pricing(menu_items, default_target_percent)
         if menu_items:
@@ -1228,7 +1535,7 @@ def menu_rollout_edit(rollout_id):
                 menu_items
             )
 
-        if not name:
+        if not rollout_name:
             errors.append('Menu name is required.')
 
         if errors:
@@ -1246,7 +1553,7 @@ def menu_rollout_edit(rollout_id):
                         target_food_cost_percent = %s
                     WHERE id = %s
                 """, (
-                    name,
+                    rollout_name,
                     venue or None,
                     year,
                     quarter or None,
@@ -1259,8 +1566,8 @@ def menu_rollout_edit(rollout_id):
                 cur.execute("DELETE FROM menu_rollout_items WHERE rollout_id = %s", (rollout_id,))
                 for item in menu_items:
                     cur.execute("""
-                        INSERT INTO menu_rollout_items (id, rollout_id, recipe_id, batches, menu_price, target_food_cost_percent, popularity_score, menu_section)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                        INSERT INTO menu_rollout_items (id, rollout_id, recipe_id, batches, menu_price, target_food_cost_percent, popularity_score, menu_section, menu_descriptor)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """, (
                         generate_id('mri_'),
                         rollout_id,
@@ -1269,7 +1576,8 @@ def menu_rollout_edit(rollout_id):
                         item.get('menu_price'),
                         item.get('target_food_cost_percent'),
                         item.get('popularity_score'),
-                        item.get('menu_section')
+                        item.get('menu_section'),
+                        item.get('menu_descriptor')
                     ))
 
                 conn.commit()
@@ -1289,6 +1597,7 @@ def menu_rollout_edit(rollout_id):
                    mri.target_food_cost_percent,
                    mri.popularity_score,
                    mri.menu_section,
+                   mri.menu_descriptor,
                    r.name
             FROM menu_rollout_items mri
             JOIN recipes r ON r.id = mri.recipe_id
@@ -1303,6 +1612,7 @@ def menu_rollout_edit(rollout_id):
         target_values = [row.get('target_food_cost_percent') for row in saved_items]
         popularity_values = [row.get('popularity_score') for row in saved_items]
         section_values = [row.get('menu_section') for row in saved_items]
+        descriptor_values = [row.get('menu_descriptor') for row in saved_items]
         if recipe_ids:
             menu_items, total_cost, _ = parse_menu_items(
                 cur,
@@ -1313,7 +1623,8 @@ def menu_rollout_edit(rollout_id):
                 target_values,
                 popularity_values,
                 default_target_percent,
-                section_values
+                section_values,
+                descriptor_values
             )
             q_factor_percent, q_amount, grand_total = compute_q_factor(total_cost, q_factor_percent)
             pricing_summary = apply_menu_pricing(menu_items, default_target_percent)
@@ -1352,6 +1663,8 @@ def menu_rollout_order_guide(rollout_id):
     conn = get_db()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     unit_system = get_unit_system()
+    ensure_menu_rollout_schema(cur)
+    conn.commit()
 
     cur.execute("SELECT * FROM menu_rollouts WHERE id = %s", (rollout_id,))
     rollout = cur.fetchone()
@@ -1473,6 +1786,8 @@ def menu_rollout_pricing_export(rollout_id):
     conn = get_db()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     unit_system = get_unit_system()
+    ensure_menu_rollout_schema(cur)
+    conn.commit()
 
     cur.execute("SELECT * FROM menu_rollouts WHERE id = %s", (rollout_id,))
     rollout = cur.fetchone()
@@ -1489,6 +1804,7 @@ def menu_rollout_pricing_export(rollout_id):
                mri.target_food_cost_percent,
                mri.popularity_score,
                mri.menu_section,
+               mri.menu_descriptor,
                r.name
         FROM menu_rollout_items mri
         JOIN recipes r ON r.id = mri.recipe_id
@@ -1508,6 +1824,7 @@ def menu_rollout_pricing_export(rollout_id):
     target_values = [row.get('target_food_cost_percent') for row in items]
     popularity_values = [row.get('popularity_score') for row in items]
     section_values = [row.get('menu_section') for row in items]
+    descriptor_values = [row.get('menu_descriptor') for row in items]
     default_target = rollout.get('target_food_cost_percent') or 20
 
     menu_items, _, errors = parse_menu_items(
@@ -1519,7 +1836,8 @@ def menu_rollout_pricing_export(rollout_id):
         target_values,
         popularity_values,
         default_target,
-        section_values
+        section_values,
+        descriptor_values
     )
     if errors:
         cur.close()
@@ -1544,6 +1862,7 @@ def menu_rollout_pricing_export(rollout_id):
 
     headers = [
         "Section",
+        "Menu Item",
         "Recipe",
         "Batches",
         "Cost / Batch",
@@ -1574,20 +1893,21 @@ def menu_rollout_pricing_export(rollout_id):
 
         for item in group['items']:
             ws.cell(row=row_idx, column=1, value=section).border = border
-            ws.cell(row=row_idx, column=2, value=item['recipe']['name']).border = border
-            ws.cell(row=row_idx, column=3, value=item['batches']).border = border
-            ws.cell(row=row_idx, column=4, value=round(to_float(item['base_cost']), 2)).border = border
-            ws.cell(row=row_idx, column=5, value=round(to_float(item.get('target_food_cost_percent')), 1)).border = border
-            ws.cell(row=row_idx, column=6, value=round(to_float(item.get('suggested_price')), 2)).border = border
-            ws.cell(row=row_idx, column=7, value=item.get('menu_price')).border = border
-            ws.cell(row=row_idx, column=8, value=item.get('popularity_score')).border = border
+            ws.cell(row=row_idx, column=2, value=item.get('menu_descriptor') or item['recipe']['name']).border = border
+            ws.cell(row=row_idx, column=3, value=item['recipe']['name']).border = border
+            ws.cell(row=row_idx, column=4, value=item['batches']).border = border
+            ws.cell(row=row_idx, column=5, value=round(to_float(item['base_cost']), 2)).border = border
+            ws.cell(row=row_idx, column=6, value=round(to_float(item.get('target_food_cost_percent')), 1)).border = border
+            ws.cell(row=row_idx, column=7, value=round(to_float(item.get('suggested_price')), 2)).border = border
+            ws.cell(row=row_idx, column=8, value=item.get('menu_price')).border = border
+            ws.cell(row=row_idx, column=9, value=item.get('popularity_score')).border = border
             fc_val = item.get('food_cost_percent')
-            ws.cell(row=row_idx, column=9, value=round(fc_val, 1) if fc_val else None).border = border
+            ws.cell(row=row_idx, column=10, value=round(fc_val, 1) if fc_val else None).border = border
             row_idx += 1
 
         row_idx += 1
 
-    column_widths = [18, 36, 10, 14, 12, 14, 12, 10, 12]
+    column_widths = [18, 28, 28, 10, 14, 12, 14, 12, 10, 12]
     for col_idx, width in enumerate(column_widths, start=1):
         ws.column_dimensions[ws.cell(row=1, column=col_idx).column_letter].width = width
 
@@ -1612,6 +1932,8 @@ def menu_rollout_print(rollout_id):
     conn = get_db()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     unit_system = get_unit_system()
+    ensure_menu_rollout_schema(cur)
+    conn.commit()
 
     cur.execute("SELECT * FROM menu_rollouts WHERE id = %s", (rollout_id,))
     rollout = cur.fetchone()
@@ -1628,6 +1950,7 @@ def menu_rollout_print(rollout_id):
                mri.target_food_cost_percent,
                mri.popularity_score,
                mri.menu_section,
+               mri.menu_descriptor,
                r.name
         FROM menu_rollout_items mri
         JOIN recipes r ON r.id = mri.recipe_id
@@ -1647,6 +1970,7 @@ def menu_rollout_print(rollout_id):
     target_values = [row.get('target_food_cost_percent') for row in items]
     popularity_values = [row.get('popularity_score') for row in items]
     section_values = [row.get('menu_section') for row in items]
+    descriptor_values = [row.get('menu_descriptor') for row in items]
     default_target = rollout.get('target_food_cost_percent') or 20
 
     menu_items, _, _ = parse_menu_items(
@@ -1658,7 +1982,8 @@ def menu_rollout_print(rollout_id):
         target_values,
         popularity_values,
         default_target,
-        section_values
+        section_values,
+        descriptor_values
     )
     apply_menu_pricing(menu_items, default_target)
     menu_groups = group_menu_items(menu_items)
@@ -1679,6 +2004,8 @@ def menu_rollout_print(rollout_id):
 def menu_rollout_delete(rollout_id):
     conn = get_db()
     cur = conn.cursor(cursor_factory=RealDictCursor)
+    ensure_menu_rollout_schema(cur)
+    conn.commit()
 
     cur.execute("SELECT id, name FROM menu_rollouts WHERE id = %s", (rollout_id,))
     rollout = cur.fetchone()
@@ -1708,6 +2035,7 @@ def menu_rollout_delete(rollout_id):
 def recipe_new():
     conn = get_db()
     cur = conn.cursor(cursor_factory=RealDictCursor)
+    option_items_input = []
 
     if request.method == 'POST':
         errors = []
@@ -1732,6 +2060,44 @@ def recipe_new():
             ing_name = (ingredient_names[idx] if idx < len(ingredient_names) else '').strip()
             if not ing_id and ing_name:
                 errors.append(f'Ingredient \"{ing_name}\" was not found. Select it from the list or create it first.')
+
+        weighted_option_rows = parse_weighted_options_from_form(request, recipe_type, cur, errors)
+        option_group_names = request.form.getlist('option_group_name[]')
+        option_item_types = request.form.getlist('option_item_type[]')
+        option_item_ids = request.form.getlist('option_item_id[]')
+        option_item_names = request.form.getlist('option_item_name[]')
+        option_qtys = request.form.getlist('option_qty[]')
+        option_units = request.form.getlist('option_unit[]')
+        option_weights = request.form.getlist('option_weight[]')
+        max_options = max(
+            len(option_group_names),
+            len(option_item_types),
+            len(option_item_ids),
+            len(option_item_names),
+            len(option_qtys),
+            len(option_units),
+            len(option_weights),
+            0
+        )
+        for idx in range(max_options):
+            group_name = (option_group_names[idx] if idx < len(option_group_names) else '').strip()
+            item_type = (option_item_types[idx] if idx < len(option_item_types) else '').strip()
+            item_id = (option_item_ids[idx] if idx < len(option_item_ids) else '').strip()
+            item_name = (option_item_names[idx] if idx < len(option_item_names) else '').strip()
+            qty = (option_qtys[idx] if idx < len(option_qtys) else '').strip()
+            unit = (option_units[idx] if idx < len(option_units) else '').strip()
+            weight = (option_weights[idx] if idx < len(option_weights) else '').strip()
+            if not any([group_name, item_type, item_id, item_name, qty, unit, weight]):
+                continue
+            option_items_input.append({
+                'group_name': group_name,
+                'item_type': item_type or 'recipe',
+                'item_id': item_id,
+                'item_name': item_name,
+                'quantity': qty,
+                'unit': unit,
+                'weight_percent': weight
+            })
 
         if errors:
             flash(' '.join(sorted(set(errors))), 'error')
@@ -1797,6 +2163,21 @@ def recipe_new():
                         unit or None
                     ))
 
+                for option in weighted_option_rows:
+                    cur.execute("""
+                        INSERT INTO recipe_weighted_options (id, recipe_id, group_name, item_type, item_id, quantity, unit, weight_percent)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    """, (
+                        generate_id('rwo_'),
+                        recipe_id,
+                        option['group_name'],
+                        option['item_type'],
+                        option['item_id'],
+                        option['quantity'],
+                        option['unit'] or None,
+                        option['weight_percent']
+                    ))
+
                 conn.commit()
                 cur.close()
                 conn.close()
@@ -1829,7 +2210,8 @@ def recipe_new():
         ingredients=ingredients_list,
         recipes=recipes_list,
         ingredient_items=[],
-        subrecipe_items=[]
+        subrecipe_items=[],
+        option_items=option_items_input
     )
 
 @app.route('/recipes/<recipe_id>/edit', methods=['GET', 'POST'])
@@ -1868,6 +2250,15 @@ def recipe_edit(recipe_id):
             ing_name = (ingredient_names[idx] if idx < len(ingredient_names) else '').strip()
             if not ing_id and ing_name:
                 errors.append(f'Ingredient \"{ing_name}\" was not found. Select it from the list or create it first.')
+
+        weighted_option_rows = parse_weighted_options_from_form(request, recipe_type, cur, errors)
+        option_group_names = request.form.getlist('option_group_name[]')
+        option_item_types = request.form.getlist('option_item_type[]')
+        option_item_ids = request.form.getlist('option_item_id[]')
+        option_item_names = request.form.getlist('option_item_name[]')
+        option_qtys = request.form.getlist('option_qty[]')
+        option_units = request.form.getlist('option_unit[]')
+        option_weights = request.form.getlist('option_weight[]')
 
         if errors:
             flash(' '.join(sorted(set(errors))), 'error')
@@ -1938,6 +2329,23 @@ def recipe_edit(recipe_id):
                         unit or None
                     ))
 
+                ensure_weighted_options_schema(cur)
+                cur.execute("DELETE FROM recipe_weighted_options WHERE recipe_id = %s", (recipe_id,))
+                for option in weighted_option_rows:
+                    cur.execute("""
+                        INSERT INTO recipe_weighted_options (id, recipe_id, group_name, item_type, item_id, quantity, unit, weight_percent)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    """, (
+                        generate_id('rwo_'),
+                        recipe_id,
+                        option['group_name'],
+                        option['item_type'],
+                        option['item_id'],
+                        option['quantity'],
+                        option['unit'] or None,
+                        option['weight_percent']
+                    ))
+
                 conn.commit()
                 cur.close()
                 conn.close()
@@ -1952,6 +2360,39 @@ def recipe_edit(recipe_id):
     components = get_recipe_components(cur, recipe_id)
     ingredient_items = [c for c in components if c.get('type') == 'ingredient']
     subrecipe_items = [c for c in components if c.get('type') == 'recipe']
+    if request.method == 'POST':
+        option_items = []
+        max_options = max(
+            len(option_group_names),
+            len(option_item_types),
+            len(option_item_ids),
+            len(option_item_names),
+            len(option_qtys),
+            len(option_units),
+            len(option_weights),
+            0
+        )
+        for idx in range(max_options):
+            group_name = (option_group_names[idx] if idx < len(option_group_names) else '').strip()
+            item_type = (option_item_types[idx] if idx < len(option_item_types) else '').strip()
+            item_id = (option_item_ids[idx] if idx < len(option_item_ids) else '').strip()
+            item_name = (option_item_names[idx] if idx < len(option_item_names) else '').strip()
+            qty = (option_qtys[idx] if idx < len(option_qtys) else '').strip()
+            unit = (option_units[idx] if idx < len(option_units) else '').strip()
+            weight = (option_weights[idx] if idx < len(option_weights) else '').strip()
+            if not any([group_name, item_type, item_id, item_name, qty, unit, weight]):
+                continue
+            option_items.append({
+                'group_name': group_name,
+                'item_type': item_type or 'recipe',
+                'item_id': item_id,
+                'item_name': item_name,
+                'quantity': qty,
+                'unit': unit,
+                'weight_percent': weight
+            })
+    else:
+        option_items = get_recipe_weighted_options(cur, recipe_id)
 
     cur.execute("SELECT id, name, unit, category FROM ingredients ORDER BY name")
     ingredients_list = cur.fetchall()
@@ -1974,7 +2415,8 @@ def recipe_edit(recipe_id):
         ingredients=ingredients_list,
         recipes=recipes_list,
         ingredient_items=ingredient_items,
-        subrecipe_items=subrecipe_items
+        subrecipe_items=subrecipe_items,
+        option_items=option_items
     )
 
 @app.route('/recipe-generator', methods=['GET', 'POST'])
