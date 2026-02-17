@@ -290,11 +290,15 @@ def inject_helpers():
 
 # Recipe helpers
 def get_recipe_by_id(cur, recipe_id):
+    ensure_recipe_schema(cur)
     cur.execute(
-        "SELECT id, name, category, yield_qty, yield_unit, instructions, source_venue, equipment, recipe_type FROM recipes WHERE id = %s",
+        "SELECT id, name, category, yield_qty, yield_unit, instructions, source_venue, equipment, recipe_type, menu_descriptor FROM recipes WHERE id = %s",
         (recipe_id,)
     )
     return cur.fetchone()
+
+def ensure_recipe_schema(cur):
+    cur.execute("ALTER TABLE recipes ADD COLUMN IF NOT EXISTS menu_descriptor TEXT")
 
 def ensure_menu_rollout_schema(cur):
     cur.execute("ALTER TABLE menu_rollouts ADD COLUMN IF NOT EXISTS target_food_cost_percent NUMERIC")
@@ -798,6 +802,8 @@ def parse_menu_items(
         descriptor = None
         if descriptor_values and idx < len(descriptor_values):
             descriptor = (descriptor_values[idx] or '').strip() or None
+        if not descriptor:
+            descriptor = (recipe.get('menu_descriptor') or '').strip() or None
 
         menu_items.append({
             'recipe': recipe,
@@ -2035,6 +2041,8 @@ def menu_rollout_delete(rollout_id):
 def recipe_new():
     conn = get_db()
     cur = conn.cursor(cursor_factory=RealDictCursor)
+    ensure_recipe_schema(cur)
+    conn.commit()
     option_items_input = []
 
     if request.method == 'POST':
@@ -2045,6 +2053,7 @@ def recipe_new():
         yield_unit = (request.form.get('yield_unit') or '').strip()
         yield_unit = normalize_unit(yield_unit) or yield_unit
         instructions = (request.form.get('instructions') or '').strip()
+        menu_descriptor = (request.form.get('menu_descriptor') or '').strip()
         recipe_type = infer_recipe_type(name, request.form.get('recipe_type'))
 
         if not name:
@@ -2105,8 +2114,8 @@ def recipe_new():
             recipe_id = generate_id('rec_')
             try:
                 cur.execute("""
-                    INSERT INTO recipes (id, name, category, yield_qty, yield_unit, instructions, recipe_type)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    INSERT INTO recipes (id, name, category, yield_qty, yield_unit, instructions, recipe_type, menu_descriptor)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 """, (
                     recipe_id,
                     name,
@@ -2114,7 +2123,8 @@ def recipe_new():
                     yield_qty or None,
                     yield_unit or None,
                     instructions or None,
-                    recipe_type
+                    recipe_type,
+                    menu_descriptor or None
                 ))
 
                 # Ingredients
@@ -2206,7 +2216,15 @@ def recipe_new():
     return render_template(
         'recipe_form.html',
         mode='new',
-        recipe={'name': '', 'category': '', 'yield_qty': '', 'yield_unit': '', 'instructions': '', 'recipe_type': ''},
+        recipe={
+            'name': (request.form.get('name') if request.method == 'POST' else '') or '',
+            'category': (request.form.get('category') if request.method == 'POST' else '') or '',
+            'yield_qty': (request.form.get('yield_qty') if request.method == 'POST' else '') or '',
+            'yield_unit': (request.form.get('yield_unit') if request.method == 'POST' else '') or '',
+            'instructions': (request.form.get('instructions') if request.method == 'POST' else '') or '',
+            'recipe_type': (request.form.get('recipe_type') if request.method == 'POST' else '') or '',
+            'menu_descriptor': (request.form.get('menu_descriptor') if request.method == 'POST' else '') or ''
+        },
         ingredients=ingredients_list,
         recipes=recipes_list,
         ingredient_items=[],
@@ -2219,6 +2237,8 @@ def recipe_new():
 def recipe_edit(recipe_id):
     conn = get_db()
     cur = conn.cursor(cursor_factory=RealDictCursor)
+    ensure_recipe_schema(cur)
+    conn.commit()
 
     recipe = get_recipe_by_id(cur, recipe_id)
     if not recipe:
@@ -2235,7 +2255,19 @@ def recipe_edit(recipe_id):
         yield_unit = (request.form.get('yield_unit') or '').strip()
         yield_unit = normalize_unit(yield_unit) or yield_unit
         instructions = (request.form.get('instructions') or '').strip()
+        menu_descriptor = (request.form.get('menu_descriptor') or '').strip()
         recipe_type = infer_recipe_type(name, request.form.get('recipe_type'))
+
+        recipe = dict(recipe)
+        recipe.update({
+            'name': name,
+            'category': category,
+            'yield_qty': yield_qty,
+            'yield_unit': yield_unit,
+            'instructions': instructions,
+            'recipe_type': recipe_type,
+            'menu_descriptor': menu_descriptor
+        })
 
         if not name:
             errors.append('Recipe name is required.')
@@ -2271,7 +2303,8 @@ def recipe_edit(recipe_id):
                         yield_qty = %s,
                         yield_unit = %s,
                         instructions = %s,
-                        recipe_type = %s
+                        recipe_type = %s,
+                        menu_descriptor = %s
                     WHERE id = %s
                 """, (
                     name,
@@ -2280,6 +2313,7 @@ def recipe_edit(recipe_id):
                     yield_unit or None,
                     instructions or None,
                     recipe_type,
+                    menu_descriptor or None,
                     recipe_id
                 ))
 
@@ -2424,6 +2458,8 @@ def recipe_edit(recipe_id):
 def recipe_generator():
     conn = get_db()
     cur = conn.cursor(cursor_factory=RealDictCursor)
+    ensure_recipe_schema(cur)
+    conn.commit()
 
     cur.execute("SELECT name FROM ingredients ORDER BY name")
     ingredient_names = [row['name'] for row in cur.fetchall()]

@@ -148,8 +148,14 @@
                         </div>
                     </div>
 
-                    {% if recipe.source_venue or recipe.equipment %}
+                    {% if recipe.menu_descriptor or recipe.source_venue or recipe.equipment %}
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {% if recipe.menu_descriptor %}
+                        <div class="bg-stone-50 border border-stone-200 rounded-xl p-4">
+                            <div class="text-sm text-stone-600 mb-1">Menu Descriptor</div>
+                            <div class="text-base font-semibold text-foxtown-ink">{{ recipe.menu_descriptor }}</div>
+                        </div>
+                        {% endif %}
                         {% if recipe.source_venue %}
                         <div class="bg-stone-50 border border-stone-200 rounded-xl p-4">
                             <div class="text-sm text-stone-600 mb-1">Source Venue</div>
