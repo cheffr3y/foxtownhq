@@ -139,7 +139,7 @@
                 <div class="flex items-center justify-between mb-4">
                     <div>
                         <h2 class="text-xl font-display text-foxtown-ink">Menu Recipes</h2>
-                        <p class="text-sm text-stone-500">Add plated menu recipes (RM). Batch recipes should be nested as sub-recipes.</p>
+                        <p class="text-sm text-stone-500">Add plated menu recipes (RM). Each row is priced as one serving.</p>
                     </div>
                     <button type="button" id="addMenuRow"
                             class="text-foxtown-ember hover:text-orange-700 text-sm font-semibold">
@@ -148,13 +148,11 @@
                 </div>
 
                 <div class="overflow-x-auto">
-                    <table class="min-w-[1240px] text-sm">
+                    <table class="min-w-[1120px] text-sm">
                         <thead class="text-xs uppercase text-stone-500 border-b border-stone-200">
                             <tr>
                                 <th class="text-left py-2 pr-4">Recipe</th>
-                                <th class="text-left py-2 pr-4">Menu Item</th>
                                 <th class="text-left py-2 pr-4">Section</th>
-                                <th class="text-left py-2 pr-4">Batches</th>
                                 <th class="text-left py-2 pr-4">Cost / Batch</th>
                                 <th class="text-left py-2 pr-4">Target FC%</th>
                                 <th class="text-left py-2 pr-4">Price Proposal</th>
@@ -168,25 +166,24 @@
                             {% if menu_items %}
                                 {% for group in menu_groups %}
                                 <tr class="bg-stone-50">
-                                    <td colspan="11" class="px-4 py-3 text-sm font-display text-foxtown-ink">
+                                    <td colspan="9" class="px-4 py-3 text-sm font-display text-foxtown-ink">
                                         {{ group['section'] }}
                                     </td>
                                 </tr>
                                 {% for item in group['items'] %}
-                                <tr class="menu-row" data-base-cost="{{ item.base_cost }}">
-                                    <td class="py-3 pr-4">
+                                <tr class="menu-row hover:bg-stone-50/70 transition-colors" data-base-cost="{{ item.base_cost }}">
+                                    <td class="py-3 pr-4 min-w-[20rem]">
                                         <input type="text" name="menu_recipe_name[]"
                                                value="{{ item.recipe.name }}"
                                                list="menuRecipeOptions"
                                                class="menu-autocomplete w-full border border-stone-300 rounded-xl px-3 py-2 text-sm"
                                                placeholder="Start typing recipe name...">
                                         <input type="hidden" name="menu_recipe_id[]" value="{{ item.recipe_id }}" class="menu-recipe-id">
-                                    </td>
-                                    <td class="py-3 pr-4">
                                         <input type="text" name="menu_descriptor[]"
                                                value="{{ item.menu_descriptor or '' }}"
-                                               placeholder="Optional menu label"
-                                               class="w-full border border-stone-300 rounded-xl px-3 py-2 text-sm">
+                                               placeholder="Menu label / descriptor (optional)"
+                                               class="mt-2 w-full border border-stone-300 rounded-xl px-3 py-2 text-sm text-stone-700">
+                                        <input type="hidden" name="menu_batches[]" value="1">
                                     </td>
                                     <td class="py-3 pr-4">
                                         <select name="menu_section[]" class="w-full border border-stone-300 rounded-xl px-3 py-2 text-sm">
@@ -195,10 +192,6 @@
                                                 <option value="{{ option }}" {% if item.menu_section == option %}selected{% endif %}>{{ option }}</option>
                                             {% endfor %}
                                         </select>
-                                    </td>
-                                    <td class="py-3 pr-4">
-                                        <input type="number" step="0.01" name="menu_batches[]" value="{{ item.batches }}"
-                                               class="w-full border border-stone-300 rounded-xl px-3 py-2">
                                     </td>
                                     <td class="py-3 pr-4 text-stone-600">
                                         ${{ "%.2f"|format(item.base_cost) }}
@@ -241,16 +234,15 @@
                                 {% endfor %}
                             {% else %}
                                 <tr class="menu-row">
-                                    <td class="py-3 pr-4">
+                                    <td class="py-3 pr-4 min-w-[20rem]">
                                         <input type="text" name="menu_recipe_name[]" list="menuRecipeOptions"
                                                class="menu-autocomplete w-full border border-stone-300 rounded-xl px-3 py-2 text-sm"
                                                placeholder="Start typing recipe name...">
                                         <input type="hidden" name="menu_recipe_id[]" value="" class="menu-recipe-id">
-                                    </td>
-                                    <td class="py-3 pr-4">
                                         <input type="text" name="menu_descriptor[]"
-                                               placeholder="Optional menu label"
-                                               class="w-full border border-stone-300 rounded-xl px-3 py-2 text-sm">
+                                               placeholder="Menu label / descriptor (optional)"
+                                               class="mt-2 w-full border border-stone-300 rounded-xl px-3 py-2 text-sm text-stone-700">
+                                        <input type="hidden" name="menu_batches[]" value="1">
                                     </td>
                                     <td class="py-3 pr-4">
                                         <select name="menu_section[]" class="w-full border border-stone-300 rounded-xl px-3 py-2 text-sm">
@@ -259,10 +251,6 @@
                                                 <option value="{{ option }}">{{ option }}</option>
                                             {% endfor %}
                                         </select>
-                                    </td>
-                                    <td class="py-3 pr-4">
-                                        <input type="number" step="0.01" name="menu_batches[]" value="1"
-                                               class="w-full border border-stone-300 rounded-xl px-3 py-2">
                                     </td>
                                     <td class="py-3 pr-4 text-stone-500">--</td>
                                     <td class="py-3 pr-4">
@@ -389,16 +377,15 @@
 
 <template id="menuRowTemplate">
     <tr class="menu-row">
-        <td class="py-3 pr-4">
+        <td class="py-3 pr-4 min-w-[20rem]">
             <input type="text" name="menu_recipe_name[]" list="menuRecipeOptions"
                    class="menu-autocomplete w-full border border-stone-300 rounded-xl px-3 py-2 text-sm"
                    placeholder="Start typing recipe name...">
             <input type="hidden" name="menu_recipe_id[]" value="" class="menu-recipe-id">
-        </td>
-        <td class="py-3 pr-4">
             <input type="text" name="menu_descriptor[]"
-                   placeholder="Optional menu label"
-                   class="w-full border border-stone-300 rounded-xl px-3 py-2 text-sm">
+                   placeholder="Menu label / descriptor (optional)"
+                   class="mt-2 w-full border border-stone-300 rounded-xl px-3 py-2 text-sm text-stone-700">
+            <input type="hidden" name="menu_batches[]" value="1">
         </td>
         <td class="py-3 pr-4">
             <select name="menu_section[]" class="w-full border border-stone-300 rounded-xl px-3 py-2 text-sm">
@@ -407,10 +394,6 @@
                     <option value="{{ option }}">{{ option }}</option>
                 {% endfor %}
             </select>
-        </td>
-        <td class="py-3 pr-4">
-            <input type="number" step="0.01" name="menu_batches[]" value="1"
-                   class="w-full border border-stone-300 rounded-xl px-3 py-2">
         </td>
         <td class="py-3 pr-4 text-stone-500">--</td>
         <td class="py-3 pr-4">
