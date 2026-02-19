@@ -319,28 +319,23 @@ def distribute_group_weights(option_rows, errors):
 
     for group_name, rows in groups.items():
         explicit_total = 0.0
-        blanks = []
+        has_missing = False
         for row in rows:
             if row['weight_percent'] is None:
-                blanks.append(row)
+                has_missing = True
             else:
                 explicit_total += row['weight_percent']
+
+        if has_missing:
+            errors.append(f'Weighted options in "{group_name}" must include a weight percent for every row.')
+            continue
 
         if explicit_total > 100.0001:
             errors.append(f'Weighted options in "{group_name}" exceed 100%.')
             continue
 
-        if blanks:
-            remaining = 100.0 - explicit_total
-            if remaining < -0.0001:
-                errors.append(f'Weighted options in "{group_name}" exceed 100%.')
-                continue
-            share = remaining / len(blanks)
-            for row in blanks:
-                row['weight_percent'] = share
-        else:
-            if abs(explicit_total - 100.0) > 0.0001:
-                errors.append(f'Weighted options in "{group_name}" must total 100%.')
+        if abs(explicit_total - 100.0) > 0.0001:
+            errors.append(f'Weighted options in "{group_name}" must total 100%.')
 
 def parse_weighted_options_from_form(request, recipe_type, cur, errors):
     if recipe_type != 'menu':
@@ -375,13 +370,15 @@ def parse_weighted_options_from_form(request, recipe_type, cur, errors):
         unit_raw = (units[idx] if idx < len(units) else '').strip()
         weight_raw = (weights[idx] if idx < len(weights) else '').strip()
 
-        if not any([group_name, item_type, item_id, item_name, qty_raw, unit_raw, weight_raw]):
+        if not any([group_name, item_id, item_name, qty_raw, unit_raw, weight_raw]):
             continue
 
         if not group_name:
             errors.append('Each weighted option row needs a group name.')
-        if item_type not in ('ingredient', 'recipe'):
-            errors.append('Weighted option type must be ingredient or recipe.')
+        if not item_type:
+            item_type = 'recipe'
+        if item_type != 'recipe':
+            errors.append('Weighted option type must be sub-recipe.')
         if not item_id and item_name:
             errors.append(f'Weighted option "{item_name}" was not found. Select it from the list.')
         if not item_id and not item_name:
@@ -392,11 +389,9 @@ def parse_weighted_options_from_form(request, recipe_type, cur, errors):
         if not unit_value:
             errors.append('Each weighted option row needs a unit.')
 
-        weight_value = None
-        if weight_raw:
-            weight_value = parse_float_field(weight_raw, 'Weighted option percent', errors, required=True, min_value=0.0)
-            if weight_value is not None and weight_value > 100:
-                errors.append('Weighted option percent cannot exceed 100.')
+        weight_value = parse_float_field(weight_raw, 'Weighted option percent', errors, required=True, min_value=0.0)
+        if weight_value is not None and weight_value > 100:
+            errors.append('Weighted option percent cannot exceed 100.')
 
         option_rows.append({
             'group_name': group_name,
@@ -2509,7 +2504,7 @@ def recipe_new():
             qty = (option_qtys[idx] if idx < len(option_qtys) else '').strip()
             unit = (option_units[idx] if idx < len(option_units) else '').strip()
             weight = (option_weights[idx] if idx < len(option_weights) else '').strip()
-            if not any([group_name, item_type, item_id, item_name, qty, unit, weight]):
+            if not any([group_name, item_id, item_name, qty, unit, weight]):
                 continue
             option_items_input.append({
                 'group_name': group_name,
@@ -2824,7 +2819,7 @@ def recipe_edit(recipe_id):
             qty = (option_qtys[idx] if idx < len(option_qtys) else '').strip()
             unit = (option_units[idx] if idx < len(option_units) else '').strip()
             weight = (option_weights[idx] if idx < len(option_weights) else '').strip()
-            if not any([group_name, item_type, item_id, item_name, qty, unit, weight]):
+            if not any([group_name, item_id, item_name, qty, unit, weight]):
                 continue
             option_items.append({
                 'group_name': group_name,

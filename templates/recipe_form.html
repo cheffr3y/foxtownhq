@@ -242,6 +242,110 @@
                     </table>
                 </div>
             </div>
+
+            <div id="weightedOptionsSection" class="bg-white rounded-2xl shadow-soft border border-stone-200 p-6 {% if recipe.recipe_type != 'menu' %}hidden{% endif %}">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h2 class="text-xl font-display text-foxtown-ink">Choice Groups (RM Averages)</h2>
+                        <p class="text-sm text-stone-500">Use this for averages like dressing choice or protein mix. Each group must total 100%.</p>
+                    </div>
+                    <button type="button" id="addWeightedOptionRow"
+                            class="text-foxtown-ember hover:text-orange-700 text-sm font-semibold">
+                        + Add Choice
+                    </button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full">
+                        <thead class="text-xs uppercase text-stone-500 border-b border-stone-200">
+                            <tr>
+                                <th class="text-left py-2 pr-4">Group Name</th>
+                                <th class="text-left py-2 pr-4">Sub-Recipe</th>
+                                <th class="text-left py-2 pr-4">Qty</th>
+                                <th class="text-left py-2 pr-4">Unit</th>
+                                <th class="text-left py-2 pr-4">Weight %</th>
+                                <th class="text-right py-2">Remove</th>
+                            </tr>
+                        </thead>
+                        <tbody id="weightedOptionRows">
+                            {% if option_items %}
+                                {% for option in option_items %}
+                                <tr class="weighted-option-row">
+                                    <td class="py-2 pr-4">
+                                        <input type="text" name="option_group_name[]"
+                                               value="{{ option.group_name or '' }}"
+                                               placeholder="Dressing Choice"
+                                               class="weighted-group-name w-full border border-stone-300 rounded-xl px-3 py-2">
+                                    </td>
+                                    <td class="py-2 pr-4">
+                                        <input type="hidden" name="option_item_type[]" value="recipe">
+                                        <input type="text" name="option_item_name[]"
+                                               value="{{ option.item_name or '' }}"
+                                               list="weightedRecipeOptions"
+                                               class="weighted-recipe-autocomplete w-full border border-stone-300 rounded-xl px-3 py-2"
+                                               placeholder="Start typing batch recipe name...">
+                                        <input type="hidden" name="option_item_id[]" value="{{ option.item_id or '' }}" class="weighted-item-id">
+                                    </td>
+                                    <td class="py-2 pr-4">
+                                        <input type="number" step="0.01" min="0.0001" name="option_qty[]"
+                                               value="{{ option.quantity or '' }}"
+                                               class="w-full border border-stone-300 rounded-xl px-3 py-2">
+                                    </td>
+                                    <td class="py-2 pr-4">
+                                        <input type="text" name="option_unit[]"
+                                               value="{{ option.unit or '' }}"
+                                               list="unitOptions"
+                                               class="weighted-option-unit w-full border border-stone-300 rounded-xl px-3 py-2">
+                                    </td>
+                                    <td class="py-2 pr-4">
+                                        <input type="number" step="0.01" min="0" max="100" name="option_weight[]"
+                                               value="{{ option.weight_percent if option.weight_percent is not none else '' }}"
+                                               class="weighted-option-weight w-full border border-stone-300 rounded-xl px-3 py-2"
+                                               placeholder="e.g. 70">
+                                    </td>
+                                    <td class="py-2 text-right">
+                                        <button type="button" class="remove-row text-red-600 hover:text-red-700 text-sm font-semibold">Remove</button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr class="weighted-option-row">
+                                    <td class="py-2 pr-4">
+                                        <input type="text" name="option_group_name[]"
+                                               placeholder="Dressing Choice"
+                                               class="weighted-group-name w-full border border-stone-300 rounded-xl px-3 py-2">
+                                    </td>
+                                    <td class="py-2 pr-4">
+                                        <input type="hidden" name="option_item_type[]" value="recipe">
+                                        <input type="text" name="option_item_name[]"
+                                               list="weightedRecipeOptions"
+                                               class="weighted-recipe-autocomplete w-full border border-stone-300 rounded-xl px-3 py-2"
+                                               placeholder="Start typing batch recipe name...">
+                                        <input type="hidden" name="option_item_id[]" value="" class="weighted-item-id">
+                                    </td>
+                                    <td class="py-2 pr-4">
+                                        <input type="number" step="0.01" min="0.0001" name="option_qty[]"
+                                               class="w-full border border-stone-300 rounded-xl px-3 py-2">
+                                    </td>
+                                    <td class="py-2 pr-4">
+                                        <input type="text" name="option_unit[]"
+                                               list="unitOptions"
+                                               class="weighted-option-unit w-full border border-stone-300 rounded-xl px-3 py-2">
+                                    </td>
+                                    <td class="py-2 pr-4">
+                                        <input type="number" step="0.01" min="0" max="100" name="option_weight[]"
+                                               class="weighted-option-weight w-full border border-stone-300 rounded-xl px-3 py-2"
+                                               placeholder="e.g. 70">
+                                    </td>
+                                    <td class="py-2 text-right">
+                                        <button type="button" class="remove-row text-red-600 hover:text-red-700 text-sm font-semibold">Remove</button>
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+                <div id="weightedGroupSummary" class="mt-3 text-xs text-stone-600"></div>
+            </div>
         </form>
     </div>
 </div>
@@ -302,15 +406,59 @@
     </tr>
 </template>
 
+<template id="weightedOptionRowTemplate">
+    <tr class="weighted-option-row">
+        <td class="py-2 pr-4">
+            <input type="text" name="option_group_name[]"
+                   placeholder="Dressing Choice"
+                   class="weighted-group-name w-full border border-stone-300 rounded-xl px-3 py-2">
+        </td>
+        <td class="py-2 pr-4">
+            <input type="hidden" name="option_item_type[]" value="recipe">
+            <input type="text" name="option_item_name[]" list="weightedRecipeOptions"
+                   class="weighted-recipe-autocomplete w-full border border-stone-300 rounded-xl px-3 py-2"
+                   placeholder="Start typing batch recipe name...">
+            <input type="hidden" name="option_item_id[]" value="" class="weighted-item-id">
+        </td>
+        <td class="py-2 pr-4">
+            <input type="number" step="0.01" min="0.0001" name="option_qty[]"
+                   class="w-full border border-stone-300 rounded-xl px-3 py-2">
+        </td>
+        <td class="py-2 pr-4">
+            <input type="text" name="option_unit[]" list="unitOptions"
+                   class="weighted-option-unit w-full border border-stone-300 rounded-xl px-3 py-2">
+        </td>
+        <td class="py-2 pr-4">
+            <input type="number" step="0.01" min="0" max="100" name="option_weight[]"
+                   class="weighted-option-weight w-full border border-stone-300 rounded-xl px-3 py-2"
+                   placeholder="e.g. 70">
+        </td>
+        <td class="py-2 text-right">
+            <button type="button" class="remove-row text-red-600 hover:text-red-700 text-sm font-semibold">Remove</button>
+        </td>
+    </tr>
+</template>
+
 <script>
 const ingredientRows = document.getElementById('ingredientRows');
 const subRecipeRows = document.getElementById('subRecipeRows');
+const weightedOptionRows = document.getElementById('weightedOptionRows');
+const weightedGroupSummary = document.getElementById('weightedGroupSummary');
+const recipeTypeSelect = document.querySelector('select[name="recipe_type"]');
+const weightedOptionsSection = document.getElementById('weightedOptionsSection');
 const ingredientOptions = Array.from(document.querySelectorAll('#ingredientOptions option'));
 
 function findIngredientOption(name) {
     const target = (name || '').trim().toLowerCase();
     if (!target) return null;
     return ingredientOptions.find(option => option.value.toLowerCase() === target) || null;
+}
+
+function findWeightedRecipeOption(name) {
+    const target = (name || '').trim().toLowerCase();
+    if (!target) return null;
+    const options = Array.from(document.querySelectorAll('#weightedRecipeOptions option'));
+    return options.find(option => option.value.toLowerCase() === target) || null;
 }
 
 function syncIngredientRow(row) {
@@ -335,6 +483,64 @@ function syncIngredientRow(row) {
     }
 }
 
+function syncWeightedOptionRow(row) {
+    const input = row.querySelector('.weighted-recipe-autocomplete');
+    const hiddenId = row.querySelector('.weighted-item-id');
+    const unitInput = row.querySelector('.weighted-option-unit');
+    if (!input || !hiddenId) return;
+    const match = findWeightedRecipeOption(input.value);
+    if (match) {
+        hiddenId.value = match.dataset.id || '';
+        if (unitInput && !unitInput.value) {
+            unitInput.value = match.dataset.unit || '';
+        }
+        input.classList.remove('border-red-300');
+    } else {
+        hiddenId.value = '';
+        if (input.value) {
+            input.classList.add('border-red-300');
+        } else {
+            input.classList.remove('border-red-300');
+        }
+    }
+}
+
+function renderWeightedGroupSummary() {
+    if (!weightedGroupSummary || !weightedOptionRows) return;
+    const rows = Array.from(weightedOptionRows.querySelectorAll('.weighted-option-row'));
+    const groups = {};
+
+    rows.forEach((row) => {
+        const groupName = (row.querySelector('input[name="option_group_name[]"]')?.value || '').trim();
+        const weightValue = parseFloat(row.querySelector('input[name="option_weight[]"]')?.value || '');
+        if (!groupName) return;
+        if (!groups[groupName]) groups[groupName] = 0;
+        if (!Number.isNaN(weightValue)) {
+            groups[groupName] += weightValue;
+        }
+    });
+
+    const names = Object.keys(groups).sort((a, b) => a.localeCompare(b));
+    if (!names.length) {
+        weightedGroupSummary.textContent = 'Tip: each group must total 100%.';
+        return;
+    }
+
+    const chunks = names.map((name) => {
+        const total = groups[name];
+        const ok = Math.abs(total - 100) < 0.001;
+        const css = ok ? 'text-green-700' : 'text-red-700';
+        return `<span class="${css}">${name}: ${total.toFixed(2)}%</span>`;
+    });
+    weightedGroupSummary.innerHTML = chunks.join(' · ');
+}
+
+function toggleWeightedSection() {
+    if (!recipeTypeSelect || !weightedOptionsSection) return;
+    const show = recipeTypeSelect.value === 'menu';
+    weightedOptionsSection.classList.toggle('hidden', !show);
+}
+
 document.getElementById('addIngredientRow').addEventListener('click', () => {
     const template = document.getElementById('ingredientRowTemplate');
     ingredientRows.appendChild(template.content.cloneNode(true));
@@ -345,10 +551,22 @@ document.getElementById('addSubRecipeRow').addEventListener('click', () => {
     subRecipeRows.appendChild(template.content.cloneNode(true));
 });
 
+const addWeightedOptionRow = document.getElementById('addWeightedOptionRow');
+if (addWeightedOptionRow) {
+    addWeightedOptionRow.addEventListener('click', () => {
+        const template = document.getElementById('weightedOptionRowTemplate');
+        weightedOptionRows.appendChild(template.content.cloneNode(true));
+        renderWeightedGroupSummary();
+    });
+}
+
 document.addEventListener('click', (event) => {
     if (event.target.classList.contains('remove-row')) {
         const row = event.target.closest('tr');
-        if (row) row.remove();
+        if (row) {
+            row.remove();
+            renderWeightedGroupSummary();
+        }
     }
     if (event.target.closest('select') && event.target.closest('select').size > 0) {
         event.target.closest('select').size = 1;
@@ -391,9 +609,25 @@ document.addEventListener('input', (event) => {
             select.size = 1;
         }
     }
+    if (event.target.classList.contains('weighted-recipe-autocomplete')) {
+        const row = event.target.closest('tr');
+        if (row) syncWeightedOptionRow(row);
+    }
+    if (
+        event.target.name === 'option_group_name[]' ||
+        event.target.name === 'option_weight[]'
+    ) {
+        renderWeightedGroupSummary();
+    }
 });
 
 document.querySelectorAll('#ingredientRows tr').forEach((row) => syncIngredientRow(row));
+document.querySelectorAll('#weightedOptionRows tr').forEach((row) => syncWeightedOptionRow(row));
+if (recipeTypeSelect) {
+    recipeTypeSelect.addEventListener('change', toggleWeightedSection);
+}
+toggleWeightedSection();
+renderWeightedGroupSummary();
 </script>
 
 <datalist id="unitOptions">
@@ -401,6 +635,13 @@ document.querySelectorAll('#ingredientRows tr').forEach((row) => syncIngredientR
     <option value="oz"></option>
     <option value="each"></option>
     <option value="ea"></option>
+</datalist>
+
+<datalist id="weightedRecipeOptions">
+    {% for rec in recipes %}
+        <option value="{{ rec.name }}" data-id="{{ rec.id }}" data-unit="{{ rec.yield_unit or '' }}"
+                label="{{ rec.name }}{% if rec.recipe_type == 'batch' %} (RB){% elif rec.recipe_type is none %} (Unclassified){% endif %}"></option>
+    {% endfor %}
 </datalist>
 
 {% endblock %}
