@@ -76,7 +76,7 @@
         <tbody>
             {% for item in group['items'] %}
             <tr>
-                <td>{{ item.menu_descriptor or item.recipe.name }}</td>
+                <td>{{ item.menu_descriptor or '—' }}</td>
                 <td>{{ item.recipe.name }}</td>
                 <td>${{ "%.4f"|format(item.base_cost) }}</td>
                 <td>{{ "%.1f"|format(item.target_food_cost_percent or default_target_percent) }}%</td>

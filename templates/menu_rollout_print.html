@@ -87,7 +87,7 @@
         <tbody>
             {% for item in group['items'] %}
             <tr>
-                <td>{{ item.menu_descriptor or item.recipe.name }}</td>
+                <td>{{ item.menu_descriptor or '—' }}</td>
                 <td>{{ item.recipe.name }}</td>
                 <td>{{ item.batches }}</td>
                 <td>${{ "%.2f"|format(item.base_cost) }}</td>

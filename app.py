@@ -766,8 +766,6 @@ def parse_menu_items(
         descriptor = None
         if descriptor_values and idx < len(descriptor_values):
             descriptor = (descriptor_values[idx] or '').strip() or None
-        if not descriptor:
-            descriptor = (recipe.get('menu_descriptor') or '').strip() or None
 
         menu_items.append({
             'recipe': recipe,
@@ -1930,7 +1928,7 @@ def menu_rollout_pricing_export(rollout_id):
 
         for item in group['items']:
             ws.cell(row=row_idx, column=1, value=section).border = border
-            ws.cell(row=row_idx, column=2, value=item.get('menu_descriptor') or item['recipe']['name']).border = border
+            ws.cell(row=row_idx, column=2, value=item.get('menu_descriptor') or '').border = border
             ws.cell(row=row_idx, column=3, value=item['recipe']['name']).border = border
             ws.cell(row=row_idx, column=4, value=item['batches']).border = border
             ws.cell(row=row_idx, column=5, value=round(to_float(item['base_cost']), 2)).border = border
@@ -2037,8 +2035,10 @@ def menu_rollout_packet_export(rollout_id):
     subrecipe_ids = set()
     for item in menu_items:
         components, total_cost, _ = build_component_tree(cur, item['recipe_id'], item.get('batches') or 1, 0, set(), unit_system)
+        menu_descriptor = item.get('menu_descriptor') or ''
+        usage_label = menu_descriptor or item['recipe']['name']
         rm_component_sets.append({
-            'menu_item': item.get('menu_descriptor') or item['recipe']['name'],
+            'menu_item': menu_descriptor,
             'recipe_name': item['recipe']['name'],
             'components': components,
             'total_cost': total_cost
@@ -2046,7 +2046,7 @@ def menu_rollout_packet_export(rollout_id):
         collect_subrecipes_from_components(components, subrecipe_ids)
         collect_ingredient_usage_from_components(
             components,
-            item.get('menu_descriptor') or item['recipe']['name'],
+            usage_label,
             ingredient_usage
         )
 
@@ -2106,7 +2106,7 @@ def menu_rollout_packet_export(rollout_id):
         for item in group['items']:
             ws_menu.append([
                 group['section'],
-                item.get('menu_descriptor') or item['recipe']['name'],
+                item.get('menu_descriptor') or '',
                 item['recipe']['name'],
                 round(to_float(item.get('base_cost')), 4),
                 round(to_float(item.get('target_food_cost_percent')), 1),
@@ -2303,15 +2303,16 @@ def menu_rollout_packet_print(rollout_id):
     subrecipe_ids = set()
     for item in menu_items:
         components, total_cost, _ = build_component_tree(cur, item['recipe_id'], item.get('batches') or 1, 0, set(), unit_system)
-        menu_label = item.get('menu_descriptor') or item['recipe']['name']
+        menu_descriptor = item.get('menu_descriptor') or ''
+        usage_label = menu_descriptor or item['recipe']['name']
         rm_component_sets.append({
-            'menu_item': menu_label,
+            'menu_item': menu_descriptor,
             'recipe_name': item['recipe']['name'],
             'total_cost': total_cost,
             'rows': flatten_components_for_packet(components, ingredient_map)
         })
         collect_subrecipes_from_components(components, subrecipe_ids)
-        collect_ingredient_usage_from_components(components, menu_label, ingredient_usage)
+        collect_ingredient_usage_from_components(components, usage_label, ingredient_usage)
 
     rb_recipes = []
     if subrecipe_ids:
