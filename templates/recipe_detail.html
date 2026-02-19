@@ -102,9 +102,14 @@
                     <a href="{{ url_for('recipe_edit', recipe_id=recipe.id) }}" class="bg-foxtown-ember hover:bg-orange-700 text-white px-4 py-2 rounded-xl font-semibold transition duration-200 shadow-soft">
                         Edit Recipe
                     </a>
-                    <button class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl font-semibold transition duration-200 shadow-soft">
-                        Delete
-                    </button>
+                    <form method="POST"
+                          action="{{ url_for('recipe_delete', recipe_id=recipe.id) }}"
+                          onsubmit="return confirm('Delete {{ recipe.name|e }}? This cannot be undone.');">
+                        <button type="submit"
+                                class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl font-semibold transition duration-200 shadow-soft">
+                            Delete
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>

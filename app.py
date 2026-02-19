@@ -2435,6 +2435,63 @@ def recipe_generator():
     flash('Recipe Generator has been merged into New Recipe.', 'info')
     return redirect(url_for('recipe_new'))
 
+@app.route('/recipes/<recipe_id>/delete', methods=['POST'])
+@login_required
+def recipe_delete(recipe_id):
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+
+    cur.execute("SELECT id, name FROM recipes WHERE id = %s", (recipe_id,))
+    recipe = cur.fetchone()
+    if not recipe:
+        flash('Recipe not found', 'error')
+        return redirect(url_for('recipes'))
+
+    cur.execute("""
+        SELECT COUNT(*) AS count
+        FROM recipe_ingredients
+        WHERE type = 'recipe' AND item_id = %s
+    """, (recipe_id,))
+    used_in_recipes = int((cur.fetchone() or {}).get('count') or 0)
+
+    cur.execute("""
+        SELECT COUNT(*) AS count
+        FROM menu_rollout_items
+        WHERE recipe_id = %s
+    """, (recipe_id,))
+    used_in_rollouts = int((cur.fetchone() or {}).get('count') or 0)
+
+    cur.execute("""
+        SELECT COUNT(*) AS count
+        FROM recipe_weighted_options
+        WHERE item_type = 'recipe' AND item_id = %s
+    """, (recipe_id,))
+    used_in_weighted = int((cur.fetchone() or {}).get('count') or 0)
+
+    blockers = []
+    if used_in_recipes:
+        blockers.append(f"{used_in_recipes} recipe(s)")
+    if used_in_rollouts:
+        blockers.append(f"{used_in_rollouts} rollout item(s)")
+    if used_in_weighted:
+        blockers.append(f"{used_in_weighted} weighted option(s)")
+
+    if blockers:
+        flash(f"Can't delete {recipe['name']} — used in {', '.join(blockers)}.", 'error')
+        return redirect(url_for('recipe_detail', recipe_id=recipe_id))
+
+    try:
+        cur.execute("DELETE FROM recipe_weighted_options WHERE recipe_id = %s", (recipe_id,))
+        cur.execute("DELETE FROM recipe_ingredients WHERE recipe_id = %s", (recipe_id,))
+        cur.execute("DELETE FROM recipes WHERE id = %s", (recipe_id,))
+        conn.commit()
+        flash('Recipe deleted', 'success')
+        return redirect(url_for('recipes'))
+    except Exception:
+        conn.rollback()
+        flash('Error deleting recipe', 'error')
+        return redirect(url_for('recipe_detail', recipe_id=recipe_id))
+
 @app.route('/recipes/<recipe_id>')
 @login_required
 def recipe_detail(recipe_id):
