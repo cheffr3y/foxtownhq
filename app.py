@@ -2229,6 +2229,127 @@ def menu_rollout_packet_export(rollout_id):
         download_name=filename
     )
 
+@app.route('/menu-rollouts/<rollout_id>/packet-print')
+@login_required
+def menu_rollout_packet_print(rollout_id):
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    unit_system = get_unit_system()
+
+    cur.execute("SELECT * FROM menu_rollouts WHERE id = %s", (rollout_id,))
+    rollout = cur.fetchone()
+    if not rollout:
+        cur.close()
+        flash('Menu rollout not found', 'error')
+        return redirect(url_for('menu_rollouts'))
+
+    cur.execute("""
+        SELECT mri.recipe_id,
+               mri.batches,
+               mri.menu_price,
+               mri.target_food_cost_percent,
+               mri.popularity_score,
+               mri.menu_section,
+               mri.menu_descriptor,
+               r.name
+        FROM menu_rollout_items mri
+        JOIN recipes r ON r.id = mri.recipe_id
+        WHERE mri.rollout_id = %s
+        ORDER BY r.name
+    """, (rollout_id,))
+    items = cur.fetchall()
+    if not items:
+        cur.close()
+        flash('Add recipes to this rollout before printing a packet.', 'error')
+        return redirect(url_for('menu_rollout_edit', rollout_id=rollout_id))
+
+    recipe_ids = [row['recipe_id'] for row in items]
+    batch_values = [row['batches'] for row in items]
+    menu_prices = [row.get('menu_price') for row in items]
+    target_values = [row.get('target_food_cost_percent') for row in items]
+    popularity_values = [row.get('popularity_score') for row in items]
+    section_values = [row.get('menu_section') for row in items]
+    descriptor_values = [row.get('menu_descriptor') for row in items]
+    default_target = rollout.get('target_food_cost_percent') or 20
+
+    menu_items, _, errors = parse_menu_items(
+        cur,
+        unit_system,
+        recipe_ids,
+        batch_values,
+        menu_prices,
+        target_values,
+        popularity_values,
+        default_target,
+        section_values,
+        descriptor_values
+    )
+    if errors:
+        cur.close()
+        flash(' '.join(sorted(set(errors))), 'error')
+        return redirect(url_for('menu_rollout_edit', rollout_id=rollout_id))
+
+    apply_menu_pricing(menu_items, default_target)
+    menu_groups = group_menu_items(menu_items)
+
+    cur.execute("""
+        SELECT id, name, category, unit, cost_per_unit, vendor, vendor_code, g_code
+        FROM ingredients
+    """)
+    ingredient_map = {row['id']: row for row in cur.fetchall()}
+
+    ingredient_usage = {}
+    rm_component_sets = []
+    subrecipe_ids = set()
+    for item in menu_items:
+        components, total_cost, _ = build_component_tree(cur, item['recipe_id'], item.get('batches') or 1, 0, set(), unit_system)
+        menu_label = item.get('menu_descriptor') or item['recipe']['name']
+        rm_component_sets.append({
+            'menu_item': menu_label,
+            'recipe_name': item['recipe']['name'],
+            'total_cost': total_cost,
+            'rows': flatten_components_for_packet(components, ingredient_map)
+        })
+        collect_subrecipes_from_components(components, subrecipe_ids)
+        collect_ingredient_usage_from_components(components, menu_label, ingredient_usage)
+
+    rb_recipes = []
+    if subrecipe_ids:
+        cur.execute("""
+            SELECT id, name, category, yield_qty, yield_unit, recipe_type
+            FROM recipes
+            WHERE id = ANY(%s)
+            ORDER BY name
+        """, (list(subrecipe_ids),))
+        for recipe in cur.fetchall():
+            if normalize_recipe_type(recipe.get('recipe_type')) != 'batch':
+                continue
+            components, total_cost, _ = build_component_tree(cur, recipe['id'], 1, 0, set(), unit_system)
+            yield_qty = to_float(recipe.get('yield_qty'))
+            rb_recipes.append({
+                'recipe': recipe,
+                'total_cost': total_cost,
+                'cost_per_yield': (total_cost / yield_qty) if yield_qty > 0 else None,
+                'rows': flatten_components_for_packet(components, ingredient_map)
+            })
+
+    ingredient_master, _, _ = build_rollout_breakdown(cur, unit_system, menu_items)
+    for ing in ingredient_master:
+        ing['used_in'] = ', '.join(sorted(ingredient_usage.get(ing['id'], set())))
+
+    cur.close()
+
+    return render_template(
+        'menu_rollout_packet_print.html',
+        rollout=rollout,
+        menu_groups=menu_groups,
+        rm_component_sets=rm_component_sets,
+        rb_recipes=rb_recipes,
+        ingredient_master=ingredient_master,
+        generated_at=datetime.utcnow(),
+        default_target_percent=default_target
+    )
+
 @app.route('/menu-rollouts/<rollout_id>/print')
 @login_required
 def menu_rollout_print(rollout_id):

@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ rollout.name or 'Menu Rollout' }} - Acumatica Packet</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: "Inter", Arial, sans-serif; color: #111827; margin: 20px; }
+        h1 { font-family: "Fraunces", Georgia, serif; font-size: 30px; margin: 0 0 8px 0; }
+        h2 { font-family: "Fraunces", Georgia, serif; font-size: 22px; margin: 24px 0 10px 0; }
+        h3 { font-size: 15px; margin: 18px 0 8px 0; color: #1f2937; }
+        .meta { font-size: 13px; color: #6b7280; margin-bottom: 14px; }
+        .section-title {
+            margin-top: 24px;
+            font-size: 15px;
+            font-weight: 700;
+            color: #9a3412;
+            background: #fff7ed;
+            padding: 7px 10px;
+            border-radius: 6px;
+        }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
+        th, td { border: 1px solid #e5e7eb; padding: 6px 8px; text-align: left; vertical-align: top; }
+        th { background: #f3f4f6; color: #374151; font-weight: 700; }
+        .small { font-size: 11px; color: #6b7280; }
+        .page-break { page-break-before: always; break-before: page; }
+        .no-print { margin-bottom: 12px; }
+        .step-list { padding-left: 18px; font-size: 13px; }
+        .step-list li { margin: 5px 0; }
+        .kicker {
+            display: inline-block;
+            font-size: 11px;
+            font-weight: 700;
+            color: #9a3412;
+            background: #fff7ed;
+            border: 1px solid #fdba74;
+            border-radius: 9999px;
+            padding: 3px 8px;
+            margin-left: 8px;
+        }
+        @media print {
+            body { margin: 8mm; }
+            .no-print { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="no-print">
+        <button onclick="window.print()">Print / Save PDF</button>
+    </div>
+
+    <h1>{{ rollout.name or 'Menu Rollout' }} <span class="kicker">Acumatica Packet</span></h1>
+    <div class="meta">
+        {{ rollout.venue or 'Venue' }}
+        {% if rollout.quarter %} · {{ rollout.quarter }}{% endif %}
+        {% if rollout.year %} {{ rollout.year }}{% endif %}
+        · Generated {{ generated_at.strftime('%b %d, %Y %I:%M %p') }}
+    </div>
+
+    <h2>1. Menu Lines</h2>
+    {% for group in menu_groups %}
+    <div class="section-title">{{ group.section }}</div>
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 28%;">Menu Item</th>
+                <th style="width: 18%;">Recipe</th>
+                <th style="width: 10%;">Cost/Serving</th>
+                <th style="width: 8%;">Target FC%</th>
+                <th style="width: 10%;">Price Proposal</th>
+                <th style="width: 10%;">Menu Price</th>
+                <th style="width: 8%;">Popularity</th>
+                <th style="width: 8%;">Food Cost %</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in group['items'] %}
+            <tr>
+                <td>{{ item.menu_descriptor or item.recipe.name }}</td>
+                <td>{{ item.recipe.name }}</td>
+                <td>${{ "%.4f"|format(item.base_cost) }}</td>
+                <td>{{ "%.1f"|format(item.target_food_cost_percent or default_target_percent) }}%</td>
+                <td>{% if item.suggested_price %}${{ "%.2f"|format(item.suggested_price) }}{% else %}--{% endif %}</td>
+                <td>{% if item.menu_price %}${{ "%.2f"|format(item.menu_price) }}{% else %}--{% endif %}</td>
+                <td>{{ item.popularity_score or 5 }}</td>
+                <td>{% if item.food_cost_percent %}{{ "%.1f"|format(item.food_cost_percent) }}%{% else %}--{% endif %}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endfor %}
+
+    <div class="page-break"></div>
+    <h2>2. RM Build Sheets</h2>
+    {% for rm in rm_component_sets %}
+    <h3>{{ rm.menu_item }} <span class="small">({{ rm.recipe_name }}) · Total: ${{ "%.4f"|format(rm.total_cost) }}</span></h3>
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 10%;">Type</th>
+                <th style="width: 30%;">Component</th>
+                <th style="width: 8%;">Qty</th>
+                <th style="width: 8%;">Unit</th>
+                <th style="width: 10%;">Ext Cost</th>
+                <th style="width: 10%;">G-Code</th>
+                <th style="width: 12%;">Vendor</th>
+                <th style="width: 12%;">Vendor SKU</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in rm.rows %}
+            <tr>
+                <td>{{ row.type }}</td>
+                <td>{{ row.name }}</td>
+                <td>{{ row.quantity }}</td>
+                <td>{{ row.unit }}</td>
+                <td>${{ "%.4f"|format(row.ext_cost or 0) }}</td>
+                <td>{{ row.g_code or '—' }}</td>
+                <td>{{ row.vendor or '—' }}</td>
+                <td>{{ row.vendor_code or '—' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endfor %}
+
+    <div class="page-break"></div>
+    <h2>3. RB Batch Sheets</h2>
+    {% for rb in rb_recipes %}
+    <h3>
+        {{ rb.recipe.name }}
+        <span class="small">
+            Yield:
+            {% if rb.recipe.yield_qty %}{{ rb.recipe.yield_qty }}{% else %}--{% endif %}
+            {{ rb.recipe.yield_unit or '' }}
+            · Batch Cost: ${{ "%.4f"|format(rb.total_cost or 0) }}
+            {% if rb.cost_per_yield %}· Cost/Yield: ${{ "%.4f"|format(rb.cost_per_yield) }}{% endif %}
+        </span>
+    </h3>
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 10%;">Type</th>
+                <th style="width: 30%;">Component</th>
+                <th style="width: 8%;">Qty</th>
+                <th style="width: 8%;">Unit</th>
+                <th style="width: 10%;">Ext Cost</th>
+                <th style="width: 10%;">G-Code</th>
+                <th style="width: 12%;">Vendor</th>
+                <th style="width: 12%;">Vendor SKU</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in rb.rows %}
+            <tr>
+                <td>{{ row.type }}</td>
+                <td>{{ row.name }}</td>
+                <td>{{ row.quantity }}</td>
+                <td>{{ row.unit }}</td>
+                <td>${{ "%.4f"|format(row.ext_cost or 0) }}</td>
+                <td>{{ row.g_code or '—' }}</td>
+                <td>{{ row.vendor or '—' }}</td>
+                <td>{{ row.vendor_code or '—' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endfor %}
+
+    <div class="page-break"></div>
+    <h2>4. Ingredient Crosswalk</h2>
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 24%;">Ingredient</th>
+                <th style="width: 10%;">Unit</th>
+                <th style="width: 10%;">Cost/Unit</th>
+                <th style="width: 12%;">G-Code</th>
+                <th style="width: 14%;">Vendor</th>
+                <th style="width: 12%;">Vendor SKU</th>
+                <th style="width: 18%;">Used In RM Items</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ing in ingredient_master %}
+            <tr>
+                <td>{{ ing.name }}</td>
+                <td>{{ ing.unit or '—' }}</td>
+                <td>{% if ing.cost_per_unit is not none %}${{ "%.5f"|format(ing.cost_per_unit) }}{% else %}--{% endif %}</td>
+                <td>{{ ing.g_code or '—' }}</td>
+                <td>{{ ing.vendor or '—' }}</td>
+                <td>{{ ing.vendor_code or '—' }}</td>
+                <td>{{ ing.used_in or '—' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="page-break"></div>
+    <h2>5. Acumatica Entry Order</h2>
+    <ol class="step-list">
+        <li>Update ingredient records first (UOM, cost/unit, vendor SKU, G-code).</li>
+        <li>Enter RB batch recipes with yields and components.</li>
+        <li>Enter RM plated recipes and link RB components where used.</li>
+        <li>Apply menu prices and validate actual food cost % against targets.</li>
+        <li>Final verify where-used and G-code mapping before publish.</li>
+    </ol>
+</body>
+</html>
