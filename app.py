@@ -1,38 +1,31 @@
 import os
 import uuid
-import hmac
 from io import BytesIO
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session, send_file
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from dotenv import load_dotenv
-import psycopg2
 from psycopg2.extras import RealDictCursor
 from werkzeug.security import check_password_hash
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from db import get_db, init_app as init_db_app
 
 load_dotenv()
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY')
-
-# Database connection
-def get_db():
-    conn = psycopg2.connect(os.getenv('DATABASE_URL'))
-    return conn
+init_db_app(app)
 
 # Admin auth (single user for MVP)
 def get_admin_config():
     username = os.getenv('ADMIN_USERNAME')
     password_hash = os.getenv('ADMIN_PASSWORD_HASH')
-    password = os.getenv('ADMIN_PASSWORD')
-    if not username or (not password_hash and not password):
+    if not username or not password_hash:
         return None
     return {
         'username': username,
-        'password_hash': password_hash,
-        'password': password
+        'password_hash': password_hash
     }
 
 # Unit conversion helpers
@@ -290,41 +283,13 @@ def inject_helpers():
 
 # Recipe helpers
 def get_recipe_by_id(cur, recipe_id):
-    ensure_recipe_schema(cur)
     cur.execute(
         "SELECT id, name, category, yield_qty, yield_unit, instructions, source_venue, equipment, recipe_type, menu_descriptor FROM recipes WHERE id = %s",
         (recipe_id,)
     )
     return cur.fetchone()
 
-def ensure_recipe_schema(cur):
-    cur.execute("ALTER TABLE recipes ADD COLUMN IF NOT EXISTS menu_descriptor TEXT")
-
-def ensure_menu_rollout_schema(cur):
-    cur.execute("ALTER TABLE menu_rollouts ADD COLUMN IF NOT EXISTS target_food_cost_percent NUMERIC")
-    cur.execute("ALTER TABLE menu_rollout_items ADD COLUMN IF NOT EXISTS menu_price NUMERIC")
-    cur.execute("ALTER TABLE menu_rollout_items ADD COLUMN IF NOT EXISTS target_food_cost_percent NUMERIC")
-    cur.execute("ALTER TABLE menu_rollout_items ADD COLUMN IF NOT EXISTS popularity_score INTEGER")
-    cur.execute("ALTER TABLE menu_rollout_items ADD COLUMN IF NOT EXISTS menu_section TEXT")
-    cur.execute("ALTER TABLE menu_rollout_items ADD COLUMN IF NOT EXISTS menu_descriptor TEXT")
-
-def ensure_weighted_options_schema(cur):
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS recipe_weighted_options (
-            id TEXT PRIMARY KEY,
-            recipe_id TEXT NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
-            group_name TEXT NOT NULL,
-            item_type TEXT NOT NULL CHECK (item_type IN ('ingredient', 'recipe')),
-            item_id TEXT NOT NULL,
-            quantity NUMERIC NOT NULL,
-            unit TEXT,
-            weight_percent NUMERIC NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-
 def get_recipe_weighted_options(cur, recipe_id):
-    ensure_weighted_options_schema(cur)
     cur.execute("""
         SELECT rwo.*,
                CASE
@@ -378,7 +343,6 @@ def distribute_group_weights(option_rows, errors):
                 errors.append(f'Weighted options in "{group_name}" must total 100%.')
 
 def parse_weighted_options_from_form(request, recipe_type, cur, errors):
-    ensure_weighted_options_schema(cur)
     if recipe_type != 'menu':
         return []
 
@@ -1129,11 +1093,7 @@ def login():
         password = request.form.get('password')
         
         is_user_match = username == config['username']
-        is_pass_match = False
-        if config['password_hash']:
-            is_pass_match = check_password_hash(config['password_hash'], password or '')
-        else:
-            is_pass_match = hmac.compare_digest(password or '', config['password'] or '')
+        is_pass_match = check_password_hash(config['password_hash'], password or '')
 
         if is_user_match and is_pass_match:
             user = User('1', username)
@@ -1153,7 +1113,42 @@ def logout():
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    return render_template('dashboard.html')
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+
+    cur.execute("SELECT COUNT(*) AS count FROM recipes")
+    recipe_count = cur.fetchone()['count']
+
+    cur.execute("SELECT COUNT(*) AS count FROM ingredients")
+    ingredient_count = cur.fetchone()['count']
+
+    stale_cutoff = datetime.utcnow() - timedelta(days=PRICE_REFRESH_DAYS)
+    cur.execute("""
+        SELECT COUNT(*) AS count
+        FROM ingredients
+        WHERE price_updated_at IS NULL OR price_updated_at < %s
+    """, (stale_cutoff,))
+    stale_price_count = cur.fetchone()['count']
+
+    recent_cutoff = datetime.utcnow() - timedelta(days=30)
+    cur.execute("""
+        SELECT COUNT(*) AS count
+        FROM menu_rollouts
+        WHERE is_one_off = FALSE
+          AND created_at >= %s
+    """, (recent_cutoff,))
+    recent_rollout_count = cur.fetchone()['count']
+
+    cur.close()
+
+    return render_template(
+        'dashboard.html',
+        recipe_count=recipe_count,
+        ingredient_count=ingredient_count,
+        stale_price_count=stale_price_count,
+        recent_rollout_count=recent_rollout_count,
+        price_refresh_days=PRICE_REFRESH_DAYS
+    )
 
 @app.route('/recipes')
 @login_required
@@ -1227,8 +1222,6 @@ def menu_costing():
 def menu_rollouts():
     conn = get_db()
     cur = conn.cursor(cursor_factory=RealDictCursor)
-    ensure_menu_rollout_schema(cur)
-    conn.commit()
 
     cur.execute("""
         SELECT mr.*, COUNT(mri.id) as item_count
@@ -1277,8 +1270,6 @@ def menu_rollout_new():
     conn = get_db()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     unit_system = get_unit_system()
-    ensure_menu_rollout_schema(cur)
-    conn.commit()
 
     cur.execute("""
         SELECT id, name, yield_qty, yield_unit, recipe_type
@@ -1449,8 +1440,6 @@ def menu_rollout_edit(rollout_id):
     conn = get_db()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     unit_system = get_unit_system()
-    ensure_menu_rollout_schema(cur)
-    conn.commit()
 
     cur.execute("SELECT * FROM menu_rollouts WHERE id = %s", (rollout_id,))
     rollout = cur.fetchone()
@@ -1669,8 +1658,6 @@ def menu_rollout_order_guide(rollout_id):
     conn = get_db()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     unit_system = get_unit_system()
-    ensure_menu_rollout_schema(cur)
-    conn.commit()
 
     cur.execute("SELECT * FROM menu_rollouts WHERE id = %s", (rollout_id,))
     rollout = cur.fetchone()
@@ -1792,8 +1779,6 @@ def menu_rollout_pricing_export(rollout_id):
     conn = get_db()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     unit_system = get_unit_system()
-    ensure_menu_rollout_schema(cur)
-    conn.commit()
 
     cur.execute("SELECT * FROM menu_rollouts WHERE id = %s", (rollout_id,))
     rollout = cur.fetchone()
@@ -1938,8 +1923,6 @@ def menu_rollout_print(rollout_id):
     conn = get_db()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     unit_system = get_unit_system()
-    ensure_menu_rollout_schema(cur)
-    conn.commit()
 
     cur.execute("SELECT * FROM menu_rollouts WHERE id = %s", (rollout_id,))
     rollout = cur.fetchone()
@@ -2010,8 +1993,6 @@ def menu_rollout_print(rollout_id):
 def menu_rollout_delete(rollout_id):
     conn = get_db()
     cur = conn.cursor(cursor_factory=RealDictCursor)
-    ensure_menu_rollout_schema(cur)
-    conn.commit()
 
     cur.execute("SELECT id, name FROM menu_rollouts WHERE id = %s", (rollout_id,))
     rollout = cur.fetchone()
@@ -2041,8 +2022,6 @@ def menu_rollout_delete(rollout_id):
 def recipe_new():
     conn = get_db()
     cur = conn.cursor(cursor_factory=RealDictCursor)
-    ensure_recipe_schema(cur)
-    conn.commit()
     option_items_input = []
 
     if request.method == 'POST':
@@ -2237,8 +2216,6 @@ def recipe_new():
 def recipe_edit(recipe_id):
     conn = get_db()
     cur = conn.cursor(cursor_factory=RealDictCursor)
-    ensure_recipe_schema(cur)
-    conn.commit()
 
     recipe = get_recipe_by_id(cur, recipe_id)
     if not recipe:
@@ -2363,7 +2340,6 @@ def recipe_edit(recipe_id):
                         unit or None
                     ))
 
-                ensure_weighted_options_schema(cur)
                 cur.execute("DELETE FROM recipe_weighted_options WHERE recipe_id = %s", (recipe_id,))
                 for option in weighted_option_rows:
                     cur.execute("""
@@ -2456,157 +2432,8 @@ def recipe_edit(recipe_id):
 @app.route('/recipe-generator', methods=['GET', 'POST'])
 @login_required
 def recipe_generator():
-    conn = get_db()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
-    ensure_recipe_schema(cur)
-    conn.commit()
-
-    cur.execute("SELECT name FROM ingredients ORDER BY name")
-    ingredient_names = [row['name'] for row in cur.fetchall()]
-
-    data = {
-        'name': '',
-        'category': '',
-        'venue': '',
-        'recipe_type': '',
-        'yield_qty': '',
-        'yield_unit': '',
-        'equipment': '',
-        'ingredients': [{'name': '', 'amount': '', 'unit': '', 'notes': ''}],
-        'steps': [{'description': '', 'time': ''}]
-    }
-
-    if request.method == 'POST':
-        errors = []
-        data['name'] = (request.form.get('name') or '').strip()
-        data['category'] = (request.form.get('category') or '').strip()
-        data['venue'] = (request.form.get('venue') or '').strip()
-        data['recipe_type'] = (request.form.get('recipe_type') or '').strip()
-        data['yield_qty'] = (request.form.get('yield_qty') or '').strip()
-        data['yield_unit'] = (request.form.get('yield_unit') or '').strip()
-        data['equipment'] = (request.form.get('equipment') or '').strip()
-
-        recipe_type_value = infer_recipe_type(data['name'], data['recipe_type'])
-        yield_qty_value = parse_float_field(data['yield_qty'], 'Yield quantity', errors, required=True, min_value=0.0001)
-        yield_unit_value = normalize_unit(data['yield_unit']) or data['yield_unit']
-        if not data['yield_unit']:
-            errors.append('Yield unit is required.')
-
-        ingredient_names_in = request.form.getlist('ingredient_name[]')
-        ingredient_qtys = request.form.getlist('ingredient_qty[]')
-        ingredient_units = request.form.getlist('ingredient_unit[]')
-        ingredient_notes = request.form.getlist('ingredient_notes[]')
-
-        data['ingredients'] = []
-        for idx, ing_name in enumerate(ingredient_names_in):
-            name = (ing_name or '').strip()
-            qty = (ingredient_qtys[idx] if idx < len(ingredient_qtys) else '').strip()
-            unit = (ingredient_units[idx] if idx < len(ingredient_units) else '').strip()
-            notes = (ingredient_notes[idx] if idx < len(ingredient_notes) else '').strip()
-
-            if not name and not qty and not unit and not notes:
-                continue
-
-            if not name:
-                errors.append('Ingredient name is required.')
-            qty_value = parse_float_field(qty, 'Ingredient quantity', errors, required=True, min_value=0.0001) if name else None
-            if not unit:
-                errors.append('Ingredient unit is required.')
-            unit_value = normalize_unit(unit) or unit
-
-            data['ingredients'].append({
-                'name': name,
-                'amount': qty,
-                'unit': unit,
-                'notes': notes
-            })
-
-        step_desc = request.form.getlist('step_desc[]')
-        step_time = request.form.getlist('step_time[]')
-        data['steps'] = []
-        for idx, desc in enumerate(step_desc):
-            description = (desc or '').strip()
-            time_value = (step_time[idx] if idx < len(step_time) else '').strip()
-            if not description and not time_value:
-                continue
-            if not description:
-                errors.append('Each step needs a description.')
-            data['steps'].append({
-                'description': description,
-                'time': time_value
-            })
-
-        if not data['ingredients']:
-            errors.append('Add at least one ingredient.')
-
-        if errors:
-            flash(' '.join(sorted(set(errors))), 'error')
-        else:
-            recipe_id = generate_id('rec_')
-            instructions_lines = []
-            if data['equipment']:
-                instructions_lines.append(f"Equipment: {data['equipment']}")
-            if data['steps']:
-                instructions_lines.append("Steps:")
-                for idx, step in enumerate(data['steps']):
-                    time_label = f" ({step['time']})" if step['time'] else ''
-                    instructions_lines.append(f"{idx + 1}. {step['description']}{time_label}")
-            instructions = '\n'.join(instructions_lines)
-
-            try:
-                cur.execute("""
-                    INSERT INTO recipes (id, name, category, yield_qty, yield_unit, instructions, source_venue, equipment, recipe_type)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                """, (
-                    recipe_id,
-                    data['name'],
-                    data['category'] or None,
-                    yield_qty_value,
-                    yield_unit_value or None,
-                    instructions or None,
-                    data['venue'] or None,
-                    data['equipment'] or None,
-                    recipe_type_value
-                ))
-
-                created_ingredients = 0
-                for item in data['ingredients']:
-                    unit_value = normalize_unit(item['unit']) or item['unit']
-                    ingredient_id, created = find_or_create_ingredient(cur, item['name'], unit_value)
-                    if created:
-                        created_ingredients += 1
-                    cur.execute("""
-                        INSERT INTO recipe_ingredients (id, recipe_id, type, item_id, quantity, unit, notes)
-                        VALUES (%s, %s, 'ingredient', %s, %s, %s, %s)
-                    """, (
-                        generate_id('ri_'),
-                        recipe_id,
-                        ingredient_id,
-                        item['amount'],
-                        unit_value or None,
-                        item['notes'] or None
-                    ))
-
-                conn.commit()
-                cur.close()
-                conn.close()
-                if created_ingredients:
-                    flash(f'Recipe saved. {created_ingredients} new ingredient(s) were created.', 'success')
-                else:
-                    flash('Recipe saved.', 'success')
-                return redirect(url_for('recipe_detail', recipe_id=recipe_id))
-            except Exception:
-                conn.rollback()
-                flash('Error saving recipe', 'error')
-
-    cur.close()
-    conn.close()
-
-    return render_template(
-        'recipe_generator.html',
-        ingredient_names=ingredient_names,
-        data=data
-    )
+    flash('Recipe Generator has been merged into New Recipe.', 'info')
+    return redirect(url_for('recipe_new'))
 
 @app.route('/recipes/<recipe_id>')
 @login_required
@@ -2873,6 +2700,62 @@ def delete_ingredient(ingredient_id):
         conn.close()
         flash('Error deleting ingredient', 'error')
         return redirect(url_for('edit_ingredient', ingredient_id=ingredient_id))
+
+@app.route('/api/recipes/search')
+@login_required
+def api_recipes_search():
+    query = (request.args.get('q') or '').strip()
+    recipe_type = normalize_recipe_type(request.args.get('type'))
+    try:
+        limit = int(request.args.get('limit', 20))
+    except (TypeError, ValueError):
+        limit = 20
+    limit = min(max(limit, 1), 100)
+
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+
+    sql = """
+        SELECT id, name, recipe_type, yield_unit
+        FROM recipes
+        WHERE (%s = '' OR name ILIKE %s)
+    """
+    params = [query, f"%{query}%"]
+    if recipe_type:
+        sql += " AND recipe_type = %s"
+        params.append(recipe_type)
+    sql += " ORDER BY name LIMIT %s"
+    params.append(limit)
+
+    cur.execute(sql, tuple(params))
+    results = cur.fetchall()
+    cur.close()
+
+    return jsonify({'results': results})
+
+@app.route('/api/ingredients/search')
+@login_required
+def api_ingredients_search():
+    query = (request.args.get('q') or '').strip()
+    try:
+        limit = int(request.args.get('limit', 20))
+    except (TypeError, ValueError):
+        limit = 20
+    limit = min(max(limit, 1), 100)
+
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur.execute("""
+        SELECT id, name, unit, category, vendor
+        FROM ingredients
+        WHERE (%s = '' OR name ILIKE %s)
+        ORDER BY name
+        LIMIT %s
+    """, (query, f"%{query}%", limit))
+    results = cur.fetchall()
+    cur.close()
+
+    return jsonify({'results': results})
 
 if __name__ == '__main__':
     debug_flag = os.getenv('FLASK_DEBUG', '').lower() in ('1', 'true', 'yes')

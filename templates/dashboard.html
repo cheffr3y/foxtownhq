@@ -45,24 +45,24 @@
         <!-- Quick Stats -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div class="bg-white/90 border border-stone-200 rounded-2xl shadow-soft p-6">
-                <div class="text-xs uppercase tracking-widest text-stone-500 mb-2">Upcoming Events</div>
-                <div class="text-3xl font-semibold text-foxtown-ink">0</div>
-                <div class="text-xs text-stone-500 mt-2">Next 7 days</div>
-            </div>
-            <div class="bg-white/90 border border-stone-200 rounded-2xl shadow-soft p-6">
-                <div class="text-xs uppercase tracking-widest text-stone-500 mb-2">Active Orders</div>
-                <div class="text-3xl font-semibold text-foxtown-ink">0</div>
-                <div class="text-xs text-stone-500 mt-2">Pending production</div>
-            </div>
-            <div class="bg-white/90 border border-stone-200 rounded-2xl shadow-soft p-6">
                 <div class="text-xs uppercase tracking-widest text-stone-500 mb-2">Recipes</div>
-                <div class="text-3xl font-semibold text-foxtown-ink">0</div>
-                <div class="text-xs text-stone-500 mt-2">In database</div>
+                <div class="text-3xl font-semibold text-foxtown-ink">{{ recipe_count or 0 }}</div>
+                <div class="text-xs text-stone-500 mt-2">Active in database</div>
             </div>
             <div class="bg-white/90 border border-stone-200 rounded-2xl shadow-soft p-6">
-                <div class="text-xs uppercase tracking-widest text-stone-500 mb-2">Transfers</div>
-                <div class="text-3xl font-semibold text-foxtown-ink">0</div>
-                <div class="text-xs text-stone-500 mt-2">Last 24 hours</div>
+                <div class="text-xs uppercase tracking-widest text-stone-500 mb-2">Ingredients</div>
+                <div class="text-3xl font-semibold text-foxtown-ink">{{ ingredient_count or 0 }}</div>
+                <div class="text-xs text-stone-500 mt-2">Master list total</div>
+            </div>
+            <div class="bg-white/90 border border-stone-200 rounded-2xl shadow-soft p-6">
+                <div class="text-xs uppercase tracking-widest text-stone-500 mb-2">Price Refresh Needed</div>
+                <div class="text-3xl font-semibold text-foxtown-ink">{{ stale_price_count or 0 }}</div>
+                <div class="text-xs text-stone-500 mt-2">Older than {{ price_refresh_days or 56 }} days</div>
+            </div>
+            <div class="bg-white/90 border border-stone-200 rounded-2xl shadow-soft p-6">
+                <div class="text-xs uppercase tracking-widest text-stone-500 mb-2">Recent Rollouts</div>
+                <div class="text-3xl font-semibold text-foxtown-ink">{{ recent_rollout_count or 0 }}</div>
+                <div class="text-xs text-stone-500 mt-2">Created in last 30 days</div>
             </div>
         </div>
 
