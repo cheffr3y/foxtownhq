@@ -35,6 +35,10 @@
                        class="text-sm text-amber-200 hover:text-white font-semibold">
                         Export Order Guide (Excel)
                     </a>
+                    <a href="{{ url_for('menu_rollout_packet_export', rollout_id=rollout.id) }}"
+                       class="text-sm text-amber-200 hover:text-white font-semibold">
+                        Export Acumatica Packet (Excel)
+                    </a>
                     <form method="POST"
                           action="{{ url_for('menu_rollout_delete', rollout_id=rollout.id) }}"
                           onsubmit="return confirm('Delete this menu rollout? This cannot be undone.');">

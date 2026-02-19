@@ -910,6 +910,52 @@ def flatten_components_for_pdf(items, level=0):
             rows.extend(flatten_components_for_pdf(item.get('children'), level + 1))
     return rows
 
+def flatten_components_for_packet(items, ingredient_map, level=0):
+    rows = []
+    for item in items:
+        item_type = item.get('type') or 'component'
+        name = item.get('item_name') or 'Unknown'
+        quantity = item.get('display_quantity')
+        if quantity in (None, ''):
+            quantity = item.get('scaled_quantity_display') or item.get('scaled_quantity') or ''
+        unit = item.get('display_unit') or item.get('unit') or ''
+        ext_cost = to_float(item.get('cost_total'))
+
+        g_code = ''
+        vendor = ''
+        vendor_code = ''
+        category = item.get('category') or ''
+        if item_type == 'ingredient':
+            ing = ingredient_map.get(item.get('item_id')) or {}
+            g_code = ing.get('g_code') or ''
+            vendor = ing.get('vendor') or ''
+            vendor_code = ing.get('vendor_code') or ''
+            category = ing.get('category') or category
+
+        rows.append({
+            'type': item_type,
+            'name': f"{'  ' * level}{name}",
+            'quantity': quantity,
+            'unit': unit,
+            'ext_cost': ext_cost,
+            'g_code': g_code,
+            'vendor': vendor,
+            'vendor_code': vendor_code,
+            'category': category,
+            'notes': item.get('scale_note') or ''
+        })
+        if item.get('children'):
+            rows.extend(flatten_components_for_packet(item['children'], ingredient_map, level + 1))
+    return rows
+
+def collect_ingredient_usage_from_components(components, menu_label, usage_map):
+    for item in components:
+        if item.get('type') == 'ingredient' and item.get('item_id'):
+            key = item.get('item_id')
+            usage_map.setdefault(key, set()).add(menu_label)
+        if item.get('children'):
+            collect_ingredient_usage_from_components(item['children'], menu_label, usage_map)
+
 def compute_q_factor(total_cost, q_factor_percent):
     q_percent = to_float(q_factor_percent)
     if q_percent < 0:
@@ -1910,6 +1956,272 @@ def menu_rollout_pricing_export(rollout_id):
     output.seek(0)
 
     filename = f"{make_safe_filename(rollout.get('name') or 'menu_rollout')}_menu_pricing.xlsx"
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=filename
+    )
+
+@app.route('/menu-rollouts/<rollout_id>/packet')
+@login_required
+def menu_rollout_packet_export(rollout_id):
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    unit_system = get_unit_system()
+
+    cur.execute("SELECT * FROM menu_rollouts WHERE id = %s", (rollout_id,))
+    rollout = cur.fetchone()
+    if not rollout:
+        cur.close()
+        flash('Menu rollout not found', 'error')
+        return redirect(url_for('menu_rollouts'))
+
+    cur.execute("""
+        SELECT mri.recipe_id,
+               mri.batches,
+               mri.menu_price,
+               mri.target_food_cost_percent,
+               mri.popularity_score,
+               mri.menu_section,
+               mri.menu_descriptor,
+               r.name
+        FROM menu_rollout_items mri
+        JOIN recipes r ON r.id = mri.recipe_id
+        WHERE mri.rollout_id = %s
+        ORDER BY r.name
+    """, (rollout_id,))
+    items = cur.fetchall()
+    if not items:
+        cur.close()
+        flash('Add recipes to this rollout before exporting a packet.', 'error')
+        return redirect(url_for('menu_rollout_edit', rollout_id=rollout_id))
+
+    recipe_ids = [row['recipe_id'] for row in items]
+    batch_values = [row['batches'] for row in items]
+    menu_prices = [row.get('menu_price') for row in items]
+    target_values = [row.get('target_food_cost_percent') for row in items]
+    popularity_values = [row.get('popularity_score') for row in items]
+    section_values = [row.get('menu_section') for row in items]
+    descriptor_values = [row.get('menu_descriptor') for row in items]
+    default_target = rollout.get('target_food_cost_percent') or 20
+
+    menu_items, _, errors = parse_menu_items(
+        cur,
+        unit_system,
+        recipe_ids,
+        batch_values,
+        menu_prices,
+        target_values,
+        popularity_values,
+        default_target,
+        section_values,
+        descriptor_values
+    )
+    if errors:
+        cur.close()
+        flash(' '.join(sorted(set(errors))), 'error')
+        return redirect(url_for('menu_rollout_edit', rollout_id=rollout_id))
+
+    apply_menu_pricing(menu_items, default_target)
+    menu_groups = group_menu_items(menu_items)
+
+    cur.execute("""
+        SELECT id, name, category, unit, cost_per_unit, vendor, vendor_code, g_code
+        FROM ingredients
+    """)
+    ingredient_map = {row['id']: row for row in cur.fetchall()}
+
+    ingredient_usage = {}
+    rm_component_sets = []
+    subrecipe_ids = set()
+    for item in menu_items:
+        components, total_cost, _ = build_component_tree(cur, item['recipe_id'], item.get('batches') or 1, 0, set(), unit_system)
+        rm_component_sets.append({
+            'menu_item': item.get('menu_descriptor') or item['recipe']['name'],
+            'recipe_name': item['recipe']['name'],
+            'components': components,
+            'total_cost': total_cost
+        })
+        collect_subrecipes_from_components(components, subrecipe_ids)
+        collect_ingredient_usage_from_components(
+            components,
+            item.get('menu_descriptor') or item['recipe']['name'],
+            ingredient_usage
+        )
+
+    rb_recipes = []
+    if subrecipe_ids:
+        cur.execute("""
+            SELECT id, name, category, yield_qty, yield_unit, recipe_type
+            FROM recipes
+            WHERE id = ANY(%s)
+            ORDER BY name
+        """, (list(subrecipe_ids),))
+        for recipe in cur.fetchall():
+            if normalize_recipe_type(recipe.get('recipe_type')) != 'batch':
+                continue
+            components, total_cost, _ = build_component_tree(cur, recipe['id'], 1, 0, set(), unit_system)
+            yield_qty = to_float(recipe.get('yield_qty'))
+            yield_unit = recipe.get('yield_unit') or ''
+            cost_per_yield = (total_cost / yield_qty) if yield_qty > 0 else None
+            rb_recipes.append({
+                'recipe': recipe,
+                'components': components,
+                'total_cost': total_cost,
+                'yield_qty': yield_qty,
+                'yield_unit': yield_unit,
+                'cost_per_yield': cost_per_yield
+            })
+
+    ingredient_master, _, _ = build_rollout_breakdown(cur, unit_system, menu_items)
+    cur.close()
+
+    wb = Workbook()
+    header_fill = PatternFill('solid', fgColor='E2E8F0')
+    header_font = Font(bold=True, color='1F2937')
+    section_fill = PatternFill('solid', fgColor='FFF7ED')
+    section_font = Font(bold=True, color='9A3412')
+    thin = Side(border_style='thin', color='E5E7EB')
+    border = Border(top=thin, bottom=thin, left=thin, right=thin)
+
+    def style_headers(sheet, row=1):
+        for cell in sheet[row]:
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.border = border
+
+    # 1) Menu lines
+    ws_menu = wb.active
+    ws_menu.title = "01 Menu Lines"
+    ws_menu.append([
+        "Section", "Menu Item", "Recipe", "Cost/Serving", "Target FC%", "Price Proposal", "Menu Price", "Popularity", "Food Cost %"
+    ])
+    style_headers(ws_menu)
+    for group in menu_groups:
+        ws_menu.append([group['section'], '', '', '', '', '', '', '', ''])
+        for cell in ws_menu[ws_menu.max_row]:
+            cell.fill = section_fill
+            cell.font = section_font
+        for item in group['items']:
+            ws_menu.append([
+                group['section'],
+                item.get('menu_descriptor') or item['recipe']['name'],
+                item['recipe']['name'],
+                round(to_float(item.get('base_cost')), 4),
+                round(to_float(item.get('target_food_cost_percent')), 1),
+                round(to_float(item.get('suggested_price')), 2),
+                item.get('menu_price'),
+                item.get('popularity_score'),
+                round(to_float(item.get('food_cost_percent')), 1) if item.get('food_cost_percent') else None
+            ])
+    for width, col in [(20, 'A'), (36, 'B'), (28, 'C'), (14, 'D'), (12, 'E'), (14, 'F'), (12, 'G'), (10, 'H'), (12, 'I')]:
+        ws_menu.column_dimensions[col].width = width
+
+    # 2) RM builds
+    ws_rm = wb.create_sheet("02 RM Builds")
+    ws_rm.append([
+        "Menu Item", "RM Recipe", "Type", "Component", "Qty", "Unit", "Ext Cost", "G-Code", "Vendor", "Vendor SKU", "Notes"
+    ])
+    style_headers(ws_rm)
+    for rm in rm_component_sets:
+        ws_rm.append([rm['menu_item'], rm['recipe_name'], "RM", rm['recipe_name'], '', '', round(to_float(rm['total_cost']), 4), '', '', '', 'Total plated cost'])
+        for row in flatten_components_for_packet(rm['components'], ingredient_map):
+            ws_rm.append([
+                rm['menu_item'],
+                rm['recipe_name'],
+                row.get('type'),
+                row.get('name'),
+                row.get('quantity'),
+                row.get('unit'),
+                round(to_float(row.get('ext_cost')), 4),
+                row.get('g_code'),
+                row.get('vendor'),
+                row.get('vendor_code'),
+                row.get('notes')
+            ])
+        ws_rm.append([''] * 11)
+    for width, col in [(28, 'A'), (24, 'B'), (14, 'C'), (40, 'D'), (10, 'E'), (10, 'F'), (12, 'G'), (14, 'H'), (18, 'I'), (16, 'J'), (30, 'K')]:
+        ws_rm.column_dimensions[col].width = width
+
+    # 3) RB batches
+    ws_rb = wb.create_sheet("03 RB Batches")
+    ws_rb.append([
+        "RB Recipe", "Yield Qty", "Yield Unit", "Cost/Batch", "Cost/Yield Unit", "Type", "Component", "Qty", "Unit", "Ext Cost", "G-Code", "Vendor", "Vendor SKU"
+    ])
+    style_headers(ws_rb)
+    for rb in rb_recipes:
+        recipe = rb['recipe']
+        ws_rb.append([
+            recipe['name'],
+            rb['yield_qty'] or '',
+            rb['yield_unit'] or '',
+            round(to_float(rb['total_cost']), 4),
+            round(to_float(rb['cost_per_yield']), 4) if rb.get('cost_per_yield') else None,
+            "RB",
+            recipe['name'],
+            '',
+            '',
+            '',
+            '',
+            '',
+            ''
+        ])
+        for row in flatten_components_for_packet(rb['components'], ingredient_map):
+            ws_rb.append([
+                recipe['name'],
+                '',
+                '',
+                '',
+                '',
+                row.get('type'),
+                row.get('name'),
+                row.get('quantity'),
+                row.get('unit'),
+                round(to_float(row.get('ext_cost')), 4),
+                row.get('g_code'),
+                row.get('vendor'),
+                row.get('vendor_code')
+            ])
+        ws_rb.append([''] * 13)
+    for width, col in [(28, 'A'), (10, 'B'), (12, 'C'), (12, 'D'), (14, 'E'), (12, 'F'), (40, 'G'), (10, 'H'), (10, 'I'), (12, 'J'), (14, 'K'), (18, 'L'), (16, 'M')]:
+        ws_rb.column_dimensions[col].width = width
+
+    # 4) Ingredient crosswalk
+    ws_ing = wb.create_sheet("04 Ingredient Xwalk")
+    ws_ing.append(["Ingredient", "Category", "Unit", "Cost/Unit", "G-Code", "Vendor", "Vendor SKU", "Used In RM Items"])
+    style_headers(ws_ing)
+    for ing in ingredient_master:
+        used_in = sorted(ingredient_usage.get(ing['id'], set()))
+        ws_ing.append([
+            ing.get('name'),
+            ing.get('category'),
+            ing.get('unit'),
+            round(to_float(ing.get('cost_per_unit')), 5) if ing.get('cost_per_unit') is not None else None,
+            ing.get('g_code'),
+            ing.get('vendor'),
+            ing.get('vendor_code'),
+            ', '.join(used_in)
+        ])
+    for width, col in [(32, 'A'), (18, 'B'), (10, 'C'), (12, 'D'), (14, 'E'), (18, 'F'), (16, 'G'), (48, 'H')]:
+        ws_ing.column_dimensions[col].width = width
+
+    # 5) Entry order guide
+    ws_steps = wb.create_sheet("05 Entry Order")
+    ws_steps.append(["Step", "Action"])
+    style_headers(ws_steps)
+    ws_steps.append([1, "Update ingredient records in Acumatica first (cost/uom/vendor/G-code)."])
+    ws_steps.append([2, f"Enter RB batch recipes ({len(rb_recipes)} total), including yields and components."])
+    ws_steps.append([3, f"Enter RM plated recipes ({len(menu_items)} total), linking RB components where used."])
+    ws_steps.append([4, "Apply menu pricing and verify target food cost % against proposal."])
+    ws_steps.append([5, "Final review: run where-used checks for every ingredient with G-code mapping."])
+    ws_steps.column_dimensions['A'].width = 8
+    ws_steps.column_dimensions['B'].width = 110
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    filename = f"{make_safe_filename(rollout.get('name') or 'menu_rollout')}_acumatica_packet.xlsx"
     return send_file(
         output,
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
