@@ -3598,8 +3598,8 @@ def menu_rollout_pricing_export(rollout_id):
 
     headers = [
         "Section",
-        "Menu Item",
         "Recipe",
+        "Menu Descriptor",
         "Batches",
         "Cost / Batch",
         "Target FC%",
@@ -3629,8 +3629,8 @@ def menu_rollout_pricing_export(rollout_id):
 
         for item in group['items']:
             ws.cell(row=row_idx, column=1, value=section).border = border
-            ws.cell(row=row_idx, column=2, value=item.get('menu_descriptor') or '').border = border
-            ws.cell(row=row_idx, column=3, value=item['recipe']['name']).border = border
+            ws.cell(row=row_idx, column=2, value=item['recipe']['name']).border = border
+            ws.cell(row=row_idx, column=3, value=item.get('menu_descriptor') or '').border = border
             ws.cell(row=row_idx, column=4, value=item['batches']).border = border
             ws.cell(row=row_idx, column=5, value=round(to_float(item['base_cost']), 2)).border = border
             ws.cell(row=row_idx, column=6, value=round(to_float(item.get('target_food_cost_percent')), 1)).border = border
@@ -3643,7 +3643,7 @@ def menu_rollout_pricing_export(rollout_id):
 
         row_idx += 1
 
-    column_widths = [18, 28, 28, 10, 14, 12, 14, 12, 10, 12]
+    column_widths = [18, 24, 34, 10, 14, 12, 14, 12, 10, 12]
     for col_idx, width in enumerate(column_widths, start=1):
         ws.column_dimensions[ws.cell(row=1, column=col_idx).column_letter].width = width
 
@@ -3796,7 +3796,7 @@ def menu_rollout_packet_export(rollout_id):
     ws_menu = wb.active
     ws_menu.title = "01 Menu Lines"
     ws_menu.append([
-        "Section", "Menu Item", "Recipe", "Cost/Serving", "Target FC%", "Price Proposal", "Menu Price", "Popularity", "Food Cost %"
+        "Section", "Recipe", "Menu Descriptor", "Cost/Serving", "Target FC%", "Price Proposal", "Menu Price", "Popularity", "Food Cost %"
     ])
     style_headers(ws_menu)
     for group in menu_groups:
@@ -3807,8 +3807,8 @@ def menu_rollout_packet_export(rollout_id):
         for item in group['items']:
             ws_menu.append([
                 group['section'],
-                item.get('menu_descriptor') or '',
                 item['recipe']['name'],
+                item.get('menu_descriptor') or '',
                 round(to_float(item.get('base_cost')), 4),
                 round(to_float(item.get('target_food_cost_percent')), 1),
                 round(to_float(item.get('suggested_price')), 2),
@@ -3816,13 +3816,13 @@ def menu_rollout_packet_export(rollout_id):
                 item.get('popularity_score'),
                 round(to_float(item.get('food_cost_percent')), 1) if item.get('food_cost_percent') else None
             ])
-    for width, col in [(20, 'A'), (36, 'B'), (28, 'C'), (14, 'D'), (12, 'E'), (14, 'F'), (12, 'G'), (10, 'H'), (12, 'I')]:
+    for width, col in [(20, 'A'), (24, 'B'), (36, 'C'), (14, 'D'), (12, 'E'), (14, 'F'), (12, 'G'), (10, 'H'), (12, 'I')]:
         ws_menu.column_dimensions[col].width = width
 
     # 2) RM builds
     ws_rm = wb.create_sheet("02 RM Builds")
     ws_rm.append([
-        "Menu Item", "RM Recipe", "Type", "Component", "Qty", "Unit", "Ext Cost", "G-Code", "Vendor", "Vendor SKU", "Notes"
+        "Menu Descriptor", "RM Recipe", "Type", "Component", "Qty", "Unit", "Ext Cost", "G-Code", "Vendor", "Vendor SKU", "Notes"
     ])
     style_headers(ws_rm)
     for rm in rm_component_sets:

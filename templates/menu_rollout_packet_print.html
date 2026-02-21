@@ -63,8 +63,8 @@
     <table>
         <thead>
             <tr>
-                <th style="width: 28%;">Menu Item</th>
                 <th style="width: 18%;">Recipe</th>
+                <th style="width: 28%;">Menu Descriptor</th>
                 <th style="width: 10%;">Cost/Serving</th>
                 <th style="width: 8%;">Target FC%</th>
                 <th style="width: 10%;">Price Proposal</th>
@@ -76,8 +76,8 @@
         <tbody>
             {% for item in group['items'] %}
             <tr>
-                <td>{{ item.menu_descriptor or '—' }}</td>
                 <td>{{ item.recipe.name }}</td>
+                <td>{{ item.menu_descriptor or '—' }}</td>
                 <td>${{ "%.4f"|format(item.base_cost) }}</td>
                 <td>{{ "%.1f"|format(item.target_food_cost_percent or default_target_percent) }}%</td>
                 <td>{% if item.suggested_price %}${{ "%.2f"|format(item.suggested_price) }}{% else %}--{% endif %}</td>
