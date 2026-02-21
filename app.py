@@ -1232,6 +1232,29 @@ def list_banquet_templates(cur, venue_id=''):
         """)
     return cur.fetchall()
 
+def get_default_banquet_template_id(cur, venue_id=''):
+    if not db_table_exists(cur, 'public.banquet_menu_templates'):
+        return None
+    if venue_id:
+        cur.execute("""
+            SELECT id
+            FROM banquet_menu_templates
+            WHERE venue_id = %s
+            ORDER BY created_at DESC, name
+            LIMIT 1
+        """, (venue_id,))
+        row = cur.fetchone()
+        if row:
+            return row['id']
+    cur.execute("""
+        SELECT id
+        FROM banquet_menu_templates
+        ORDER BY created_at DESC, name
+        LIMIT 1
+    """)
+    row = cur.fetchone()
+    return row['id'] if row else None
+
 def get_banquet_event(cur, event_id):
     cur.execute("""
         SELECT e.*,
@@ -1993,12 +2016,13 @@ def banquet_event_new():
     cur = conn.cursor(cursor_factory=RealDictCursor)
     venues = get_active_venues(cur)
     venue_ids = {row['id'] for row in venues}
+    default_venue_id = 'ven_banquets' if 'ven_banquets' in venue_ids else (venues[0]['id'] if venues else '')
 
     event = {
         'name': '',
         'event_date': '',
         'guests': '',
-        'venue_id': '',
+        'venue_id': default_venue_id,
         'building': '',
         'room': '',
         'service_timing': '',
@@ -2007,6 +2031,11 @@ def banquet_event_new():
     }
     lines = []
     selected_template_id = (request.args.get('template_id') or '').strip()
+    requested_venue_id = (request.args.get('venue_id') or '').strip()
+    if requested_venue_id and requested_venue_id in venue_ids:
+        event['venue_id'] = requested_venue_id
+    if not selected_template_id:
+        selected_template_id = get_default_banquet_template_id(cur, event.get('venue_id') or '')
 
     if request.method == 'POST':
         errors = []
@@ -2103,7 +2132,7 @@ def banquet_event_new():
                 conn.rollback()
                 flash('Error creating event.', 'error')
     else:
-        venue_id = (request.args.get('venue_id') or '').strip()
+        venue_id = requested_venue_id
         if venue_id and venue_id in venue_ids:
             event['venue_id'] = venue_id
         if selected_template_id:

@@ -25,7 +25,8 @@
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
         {% if (not event.id) and templates %}
         <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-6 mb-6">
-            <h2 class="text-xl font-display text-foxtown-ink mb-3">Start From Imported Template</h2>
+            <h2 class="text-xl font-display text-foxtown-ink mb-1">Menu Catalog</h2>
+            <p class="text-sm text-stone-600 mb-3">Auto-loaded by default. Change only if you want a different menu set.</p>
             <form method="GET" action="{{ url_for('banquet_event_new') }}" class="flex flex-col sm:flex-row gap-3 items-end">
                 <div class="flex-1">
                     <label class="block text-sm font-medium text-stone-700 mb-1">Template</label>
@@ -37,7 +38,7 @@
                     </select>
                 </div>
                 <input type="hidden" name="venue_id" value="{{ event.venue_id or '' }}">
-                <button type="submit" class="bg-slate-800 hover:bg-slate-900 text-white px-5 py-3 rounded-xl font-semibold">Load Template</button>
+                <button type="submit" class="bg-slate-800 hover:bg-slate-900 text-white px-5 py-3 rounded-xl font-semibold">Switch Catalog</button>
             </form>
         </div>
         {% endif %}
