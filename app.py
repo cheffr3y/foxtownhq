@@ -2695,11 +2695,27 @@ def recipes():
     cur = conn.cursor(cursor_factory=RealDictCursor)
 
     venues = get_active_venues(cur)
+    search_query = (request.args.get('q') or '').strip()
+    selected_recipe_type = normalize_recipe_type(request.args.get('recipe_type'))
+    selected_category = (request.args.get('category') or '').strip()
+    if selected_category.lower() == 'all':
+        selected_category = ''
+
     selected_venue = (request.args.get('venue') or '').strip()
     if selected_venue and venues:
         selected_venue_ids = {row['id'] for row in venues}
         if selected_venue not in selected_venue_ids:
             selected_venue = ''
+
+    cur.execute("""
+        SELECT COALESCE(NULLIF(TRIM(category), ''), 'Uncategorized') AS category
+        FROM recipes
+        GROUP BY 1
+        ORDER BY 1
+    """)
+    category_options = [row['category'] for row in cur.fetchall()]
+    if selected_category and selected_category not in category_options:
+        selected_category = ''
 
     has_recipe_venues = db_table_exists(cur, 'public.recipe_venues') and db_table_exists(cur, 'public.venues')
     if has_recipe_venues:
@@ -2716,32 +2732,91 @@ def recipes():
             ) ic ON ic.recipe_id = r.id
             LEFT JOIN recipe_venues rv ON rv.recipe_id = r.id
             LEFT JOIN venues v ON v.id = rv.venue_id AND v.active = TRUE
-            WHERE (
-                %s = '' OR
-                EXISTS (
-                    SELECT 1
-                    FROM recipe_venues rvf
-                    WHERE rvf.recipe_id = r.id AND rvf.venue_id = %s
-                ) OR
-                NOT EXISTS (
-                    SELECT 1
-                    FROM recipe_venues rvn
-                    WHERE rvn.recipe_id = r.id
-                )
-            )
+            WHERE (%s = '' OR r.name ILIKE %s OR COALESCE(r.menu_descriptor, '') ILIKE %s)
+              AND (%s IS NULL OR r.recipe_type = %s)
+              AND (
+                    %s = '' OR
+                    COALESCE(NULLIF(TRIM(r.category), ''), 'Uncategorized') = %s
+              )
+              AND (
+                    %s = '' OR
+                    EXISTS (
+                        SELECT 1
+                        FROM recipe_venues rvf
+                        WHERE rvf.recipe_id = r.id AND rvf.venue_id = %s
+                    ) OR
+                    NOT EXISTS (
+                        SELECT 1
+                        FROM recipe_venues rvn
+                        WHERE rvn.recipe_id = r.id
+                    )
+              )
             GROUP BY r.id, ic.ingredient_count
             ORDER BY r.name
-        """, (selected_venue, selected_venue))
+        """, (
+            search_query,
+            f"%{search_query}%",
+            f"%{search_query}%",
+            selected_recipe_type,
+            selected_recipe_type,
+            selected_category,
+            selected_category,
+            selected_venue,
+            selected_venue
+        ))
     else:
         cur.execute("""
             SELECT r.*, COUNT(ri.id) as ingredient_count
             FROM recipes r
             LEFT JOIN recipe_ingredients ri ON r.id = ri.recipe_id
+            WHERE (%s = '' OR r.name ILIKE %s OR COALESCE(r.menu_descriptor, '') ILIKE %s)
+              AND (%s IS NULL OR r.recipe_type = %s)
+              AND (
+                    %s = '' OR
+                    COALESCE(NULLIF(TRIM(r.category), ''), 'Uncategorized') = %s
+              )
             GROUP BY r.id
             ORDER BY r.name
-        """)
+        """, (
+            search_query,
+            f"%{search_query}%",
+            f"%{search_query}%",
+            selected_recipe_type,
+            selected_recipe_type,
+            selected_category,
+            selected_category
+        ))
 
     recipes_list = cur.fetchall()
+    menu_count = sum(1 for row in recipes_list if row.get('recipe_type') == 'menu')
+    batch_count = sum(1 for row in recipes_list if row.get('recipe_type') == 'batch')
+    active_filter_count = sum(1 for value in [
+        search_query,
+        selected_recipe_type,
+        selected_category,
+        selected_venue
+    ] if value)
+
+    def recipe_list_url(unit_value=None):
+        params = {}
+        if search_query:
+            params['q'] = search_query
+        if selected_recipe_type:
+            params['recipe_type'] = selected_recipe_type
+        if selected_category:
+            params['category'] = selected_category
+        if selected_venue:
+            params['venue'] = selected_venue
+        if unit_value:
+            params['units'] = unit_value
+        return url_for('recipes', **params)
+
+    unit_urls = {
+        'auto': recipe_list_url('auto'),
+        'imperial': recipe_list_url('imperial'),
+        'metric': recipe_list_url('metric')
+    }
+
     cur.close()
     conn.close()
 
@@ -2749,7 +2824,16 @@ def recipes():
         'recipes.html',
         recipes=recipes_list,
         venues=venues,
-        selected_venue=selected_venue
+        selected_venue=selected_venue,
+        search_query=search_query,
+        selected_recipe_type=selected_recipe_type or '',
+        selected_category=selected_category,
+        category_options=category_options,
+        menu_count=menu_count,
+        batch_count=batch_count,
+        active_filter_count=active_filter_count,
+        clear_filters_url=url_for('recipes'),
+        unit_urls=unit_urls
     )
 
 @app.route('/menu-costing', methods=['GET', 'POST'])
