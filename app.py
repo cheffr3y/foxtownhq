@@ -4132,6 +4132,9 @@ def recipe_new():
         instructions = (request.form.get('instructions') or '').strip()
         menu_descriptor = (request.form.get('menu_descriptor') or '').strip()
         recipe_type = infer_recipe_type(name, request.form.get('recipe_type'))
+        if recipe_type == 'menu':
+            yield_qty = '1'
+            yield_unit = 'serving'
 
         if not name:
             errors.append('Recipe name is required.')
@@ -4148,6 +4151,14 @@ def recipe_new():
             ing_name = (ingredient_names[idx] if idx < len(ingredient_names) else '').strip()
             if not ing_id and ing_name:
                 errors.append(f'Ingredient \"{ing_name}\" was not found. Select it from the list or create it first.')
+
+        sub_ids = request.form.getlist('sub_recipe_id[]')
+        sub_names = request.form.getlist('sub_recipe_name[]')
+        for idx, sub_id in enumerate(sub_ids):
+            sub_id = (sub_id or '').strip()
+            sub_name = (sub_names[idx] if idx < len(sub_names) else '').strip()
+            if not sub_id and sub_name:
+                errors.append(f'Sub-recipe \"{sub_name}\" was not found. Select it from the list.')
 
         weighted_option_rows = parse_weighted_options_from_form(request, recipe_type, cur, errors)
         option_group_names = request.form.getlist('option_group_name[]')
@@ -4235,7 +4246,6 @@ def recipe_new():
                     ))
 
                 # Sub-recipes
-                sub_ids = request.form.getlist('sub_recipe_id[]')
                 sub_qtys = request.form.getlist('sub_recipe_qty[]')
                 sub_units = request.form.getlist('sub_recipe_unit[]')
 
@@ -4346,6 +4356,9 @@ def recipe_edit(recipe_id):
         instructions = (request.form.get('instructions') or '').strip()
         menu_descriptor = (request.form.get('menu_descriptor') or '').strip()
         recipe_type = infer_recipe_type(name, request.form.get('recipe_type'))
+        if recipe_type == 'menu':
+            yield_qty = '1'
+            yield_unit = 'serving'
 
         recipe = dict(recipe)
         recipe.update({
@@ -4373,6 +4386,14 @@ def recipe_edit(recipe_id):
             ing_name = (ingredient_names[idx] if idx < len(ingredient_names) else '').strip()
             if not ing_id and ing_name:
                 errors.append(f'Ingredient \"{ing_name}\" was not found. Select it from the list or create it first.')
+
+        sub_ids = request.form.getlist('sub_recipe_id[]')
+        sub_names = request.form.getlist('sub_recipe_name[]')
+        for idx, sub_id in enumerate(sub_ids):
+            sub_id = (sub_id or '').strip()
+            sub_name = (sub_names[idx] if idx < len(sub_names) else '').strip()
+            if not sub_id and sub_name:
+                errors.append(f'Sub-recipe \"{sub_name}\" was not found. Select it from the list.')
 
         weighted_option_rows = parse_weighted_options_from_form(request, recipe_type, cur, errors)
         option_group_names = request.form.getlist('option_group_name[]')
@@ -4439,7 +4460,6 @@ def recipe_edit(recipe_id):
                         unit or None
                     ))
 
-                sub_ids = request.form.getlist('sub_recipe_id[]')
                 sub_qtys = request.form.getlist('sub_recipe_qty[]')
                 sub_units = request.form.getlist('sub_recipe_unit[]')
 

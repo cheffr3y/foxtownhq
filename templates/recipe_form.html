@@ -204,17 +204,12 @@
                                 {% for item in subrecipe_items %}
                                 <tr>
                                     <td class="py-2 pr-4">
-                                        <input type="text" class="select-filter subrecipe-filter w-full mb-2 border border-stone-300 rounded-xl px-3 py-2 text-sm"
-                                               placeholder="Search recipes...">
-                                        <select name="sub_recipe_id[]" class="subrecipe-select w-full border border-stone-300 rounded-xl px-3 py-2">
-                                            <option value="">Select recipe</option>
-                                            {% for rec in recipes %}
-                                                <option value="{{ rec.id }}" data-unit="{{ rec.yield_unit or '' }}"
-                                                    {% if rec.id == item.item_id %}selected{% endif %}>
-                                                    {{ rec.name }}{% if rec.recipe_type == 'batch' %} (RB){% elif rec.recipe_type is none %} (Unclassified){% endif %}
-                                                </option>
-                                            {% endfor %}
-                                        </select>
+                                        <input type="text" name="sub_recipe_name[]"
+                                               value="{{ item.item_name }}"
+                                               list="subRecipeOptions"
+                                               class="subrecipe-autocomplete w-full border border-stone-300 rounded-xl px-3 py-2"
+                                               placeholder="Start typing batch recipe name...">
+                                        <input type="hidden" name="sub_recipe_id[]" value="{{ item.item_id }}" class="subrecipe-id">
                                     </td>
                                     <td class="py-2 pr-4">
                                         <input type="number" step="0.01" name="sub_recipe_qty[]" value="{{ item.quantity }}"
@@ -233,14 +228,11 @@
                             {% else %}
                                 <tr>
                                     <td class="py-2 pr-4">
-                                        <input type="text" class="select-filter subrecipe-filter w-full mb-2 border border-stone-300 rounded-xl px-3 py-2 text-sm"
-                                               placeholder="Search recipes...">
-                                        <select name="sub_recipe_id[]" class="subrecipe-select w-full border border-stone-300 rounded-xl px-3 py-2">
-                                            <option value="">Select recipe</option>
-                                            {% for rec in recipes %}
-                                                <option value="{{ rec.id }}" data-unit="{{ rec.yield_unit or '' }}">{{ rec.name }}{% if rec.recipe_type == 'batch' %} (RB){% elif rec.recipe_type is none %} (Unclassified){% endif %}</option>
-                                            {% endfor %}
-                                        </select>
+                                        <input type="text" name="sub_recipe_name[]"
+                                               list="subRecipeOptions"
+                                               class="subrecipe-autocomplete w-full border border-stone-300 rounded-xl px-3 py-2"
+                                               placeholder="Start typing batch recipe name...">
+                                        <input type="hidden" name="sub_recipe_id[]" value="" class="subrecipe-id">
                                     </td>
                                     <td class="py-2 pr-4">
                                         <input type="number" step="0.01" name="sub_recipe_qty[]"
@@ -397,17 +389,20 @@
     {% endfor %}
 </datalist>
 
+<datalist id="subRecipeOptions">
+    {% for rec in recipes %}
+        <option value="{{ rec.name }}" data-id="{{ rec.id }}" data-unit="{{ rec.yield_unit or '' }}"
+                label="{{ rec.name }}{% if rec.recipe_type == 'batch' %} (RB){% elif rec.recipe_type is none %} (Unclassified){% endif %}"></option>
+    {% endfor %}
+</datalist>
+
 <template id="subRecipeRowTemplate">
     <tr>
         <td class="py-2 pr-4">
-            <input type="text" class="select-filter subrecipe-filter w-full mb-2 border border-stone-300 rounded-xl px-3 py-2 text-sm"
-                   placeholder="Search recipes...">
-            <select name="sub_recipe_id[]" class="subrecipe-select w-full border border-stone-300 rounded-xl px-3 py-2">
-                <option value="">Select recipe</option>
-                {% for rec in recipes %}
-                    <option value="{{ rec.id }}" data-unit="{{ rec.yield_unit or '' }}">{{ rec.name }}</option>
-                {% endfor %}
-            </select>
+            <input type="text" name="sub_recipe_name[]" list="subRecipeOptions"
+                   class="subrecipe-autocomplete w-full border border-stone-300 rounded-xl px-3 py-2"
+                   placeholder="Start typing batch recipe name...">
+            <input type="hidden" name="sub_recipe_id[]" value="" class="subrecipe-id">
         </td>
         <td class="py-2 pr-4">
             <input type="number" step="0.01" name="sub_recipe_qty[]"
@@ -464,7 +459,10 @@ const weightedOptionRows = document.getElementById('weightedOptionRows');
 const weightedGroupSummary = document.getElementById('weightedGroupSummary');
 const recipeTypeSelect = document.querySelector('select[name="recipe_type"]');
 const weightedOptionsSection = document.getElementById('weightedOptionsSection');
+const yieldQtyInput = document.querySelector('input[name="yield_qty"]');
+const yieldUnitInput = document.querySelector('input[name="yield_unit"]');
 const ingredientOptions = Array.from(document.querySelectorAll('#ingredientOptions option'));
+const subRecipeOptions = Array.from(document.querySelectorAll('#subRecipeOptions option'));
 
 function findIngredientOption(name) {
     const target = (name || '').trim().toLowerCase();
@@ -479,12 +477,40 @@ function findWeightedRecipeOption(name) {
     return options.find(option => option.value.toLowerCase() === target) || null;
 }
 
+function findSubRecipeOption(name) {
+    const target = (name || '').trim().toLowerCase();
+    if (!target) return null;
+    return subRecipeOptions.find(option => option.value.toLowerCase() === target) || null;
+}
+
 function syncIngredientRow(row) {
     const input = row.querySelector('.ingredient-autocomplete');
     const hiddenId = row.querySelector('.ingredient-id');
     const unitInput = row.querySelector('.ingredient-unit');
     if (!input || !hiddenId) return;
     const match = findIngredientOption(input.value);
+    if (match) {
+        hiddenId.value = match.dataset.id || '';
+        if (unitInput && !unitInput.value) {
+            unitInput.value = match.dataset.unit || '';
+        }
+        input.classList.remove('border-red-300');
+    } else {
+        hiddenId.value = '';
+        if (input.value) {
+            input.classList.add('border-red-300');
+        } else {
+            input.classList.remove('border-red-300');
+        }
+    }
+}
+
+function syncSubRecipeRow(row) {
+    const input = row.querySelector('.subrecipe-autocomplete');
+    const hiddenId = row.querySelector('.subrecipe-id');
+    const unitInput = row.querySelector('.subrecipe-unit');
+    if (!input || !hiddenId) return;
+    const match = findSubRecipeOption(input.value);
     if (match) {
         hiddenId.value = match.dataset.id || '';
         if (unitInput && !unitInput.value) {
@@ -559,6 +585,19 @@ function toggleWeightedSection() {
     weightedOptionsSection.classList.toggle('hidden', !show);
 }
 
+function enforceMenuYield() {
+    if (!recipeTypeSelect || !yieldQtyInput || !yieldUnitInput) return;
+    const isMenu = recipeTypeSelect.value === 'menu';
+    if (isMenu) {
+        yieldQtyInput.value = '1';
+        yieldUnitInput.value = 'serving';
+    }
+    yieldQtyInput.readOnly = isMenu;
+    yieldUnitInput.readOnly = isMenu;
+    yieldQtyInput.classList.toggle('bg-stone-50', isMenu);
+    yieldUnitInput.classList.toggle('bg-stone-50', isMenu);
+}
+
 document.getElementById('addIngredientRow').addEventListener('click', () => {
     const template = document.getElementById('ingredientRowTemplate');
     ingredientRows.appendChild(template.content.cloneNode(true));
@@ -586,20 +625,6 @@ document.addEventListener('click', (event) => {
             renderWeightedGroupSummary();
         }
     }
-    if (event.target.closest('select') && event.target.closest('select').size > 0) {
-        event.target.closest('select').size = 1;
-    }
-});
-
-document.addEventListener('change', (event) => {
-    if (event.target.classList.contains('subrecipe-select')) {
-        const unit = event.target.selectedOptions[0].dataset.unit;
-        const unitInput = event.target.closest('tr').querySelector('.subrecipe-unit');
-        if (unit && unitInput && !unitInput.value) {
-            unitInput.value = unit;
-        }
-        event.target.size = 1;
-    }
 });
 
 document.addEventListener('input', (event) => {
@@ -607,29 +632,13 @@ document.addEventListener('input', (event) => {
         const row = event.target.closest('tr');
         if (row) syncIngredientRow(row);
     }
-    if (event.target.classList.contains('select-filter')) {
-        const query = event.target.value.trim().toLowerCase();
-        const row = event.target.closest('tr');
-        const select = row.querySelector('select');
-        if (!select) return;
-        const options = Array.from(select.options);
-        options.forEach((option, index) => {
-            if (index === 0) {
-                option.hidden = false;
-                return;
-            }
-            const text = option.textContent.toLowerCase();
-            option.hidden = query && !text.includes(query);
-        });
-        if (query) {
-            select.size = Math.min(6, options.length);
-        } else {
-            select.size = 1;
-        }
-    }
     if (event.target.classList.contains('weighted-recipe-autocomplete')) {
         const row = event.target.closest('tr');
         if (row) syncWeightedOptionRow(row);
+    }
+    if (event.target.classList.contains('subrecipe-autocomplete')) {
+        const row = event.target.closest('tr');
+        if (row) syncSubRecipeRow(row);
     }
     if (
         event.target.name === 'option_group_name[]' ||
@@ -640,11 +649,16 @@ document.addEventListener('input', (event) => {
 });
 
 document.querySelectorAll('#ingredientRows tr').forEach((row) => syncIngredientRow(row));
+document.querySelectorAll('#subRecipeRows tr').forEach((row) => syncSubRecipeRow(row));
 document.querySelectorAll('#weightedOptionRows tr').forEach((row) => syncWeightedOptionRow(row));
 if (recipeTypeSelect) {
-    recipeTypeSelect.addEventListener('change', toggleWeightedSection);
+    recipeTypeSelect.addEventListener('change', () => {
+        toggleWeightedSection();
+        enforceMenuYield();
+    });
 }
 toggleWeightedSection();
+enforceMenuYield();
 renderWeightedGroupSummary();
 </script>
 
