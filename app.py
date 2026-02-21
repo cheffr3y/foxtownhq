@@ -745,15 +745,6 @@ def parse_menu_items(
             if target_percent <= 0:
                 target_percent = None
 
-        popularity = None
-        if popularity_values and idx < len(popularity_values):
-            try:
-                popularity = int(float(popularity_values[idx]))
-            except (TypeError, ValueError):
-                popularity = None
-            if popularity is not None and popularity <= 0:
-                popularity = None
-
         base_cost = get_recipe_total_cost(cur, recipe_id, unit_system)
         item_total = base_cost * batches
         total_cost += item_total
@@ -774,7 +765,7 @@ def parse_menu_items(
             'item_total': item_total,
             'menu_price': menu_price,
             'target_food_cost_percent': target_percent,
-            'popularity_score': popularity,
+            'popularity_score': None,
             'menu_section': section,
             'menu_descriptor': descriptor
         })
@@ -785,9 +776,9 @@ def parse_menu_items(
     return menu_items, total_cost, errors
 
 def apply_menu_pricing(menu_items, default_target_percent=20):
-    total_weight = 0
-    weighted_cost = 0
-    weighted_price = 0
+    priced_line_count = 0
+    total_food_cost_percent = 0
+    total_menu_price = 0
 
     for item in menu_items:
         target = to_float(item.get('target_food_cost_percent'))
@@ -809,36 +800,22 @@ def apply_menu_pricing(menu_items, default_target_percent=20):
 
         if menu_price and menu_price > 0:
             item['food_cost_percent'] = (item['base_cost'] / menu_price) * 100
+            total_food_cost_percent += item['food_cost_percent']
+            total_menu_price += menu_price
+            priced_line_count += 1
         else:
             item['food_cost_percent'] = None
 
-        popularity = item.get('popularity_score')
-        try:
-            popularity = int(popularity) if popularity is not None else None
-        except (TypeError, ValueError):
-            popularity = None
-        if not popularity or popularity <= 0:
-            popularity = 5
-        item['popularity_score'] = popularity
-
-        if menu_price and menu_price > 0:
-            weighted_cost += item['base_cost'] * popularity
-            weighted_price += menu_price * popularity
-            total_weight += popularity
-
-    theoretical_food_cost = None
-    weighted_avg_price = None
-    weighted_avg_cost = None
-    if total_weight > 0 and weighted_price > 0:
-        theoretical_food_cost = (weighted_cost / weighted_price) * 100
-        weighted_avg_price = weighted_price / total_weight
-        weighted_avg_cost = weighted_cost / total_weight
+    avg_food_cost_percent = None
+    avg_menu_price = None
+    if priced_line_count > 0:
+        avg_food_cost_percent = total_food_cost_percent / priced_line_count
+        avg_menu_price = total_menu_price / priced_line_count
 
     return {
-        'theoretical_food_cost_percent': theoretical_food_cost,
-        'weighted_avg_price': weighted_avg_price,
-        'weighted_avg_cost': weighted_avg_cost,
-        'total_weight': total_weight
+        'avg_food_cost_percent': avg_food_cost_percent,
+        'avg_menu_price': avg_menu_price,
+        'priced_line_count': priced_line_count
     }
 
 def group_menu_items(menu_items):
@@ -3040,10 +3017,9 @@ def menu_rollout_new():
         'target_food_cost_percent': default_target_percent
     }
     pricing_summary = {
-        'theoretical_food_cost_percent': None,
-        'weighted_avg_price': None,
-        'weighted_avg_cost': None,
-        'total_weight': 0
+        'avg_food_cost_percent': None,
+        'avg_menu_price': None,
+        'priced_line_count': 0
     }
 
     if request.method == 'POST':
@@ -3077,7 +3053,6 @@ def menu_rollout_new():
         batch_values = request.form.getlist('menu_batches[]')
         menu_prices = request.form.getlist('menu_price[]')
         target_values = request.form.getlist('menu_target_percent[]')
-        popularity_values = request.form.getlist('menu_popularity[]')
         section_values = request.form.getlist('menu_section[]')
         descriptor_values = request.form.getlist('menu_descriptor[]')
         menu_items, total_cost, errors = parse_menu_items(
@@ -3087,7 +3062,7 @@ def menu_rollout_new():
             batch_values,
             menu_prices,
             target_values,
-            popularity_values,
+            None,
             default_target_percent,
             section_values,
             descriptor_values
@@ -3207,10 +3182,9 @@ def menu_rollout_edit(rollout_id):
     q_amount = 0
     grand_total = 0
     pricing_summary = {
-        'theoretical_food_cost_percent': None,
-        'weighted_avg_price': None,
-        'weighted_avg_cost': None,
-        'total_weight': 0
+        'avg_food_cost_percent': None,
+        'avg_menu_price': None,
+        'priced_line_count': 0
     }
 
     if request.method == 'POST':
@@ -3245,7 +3219,6 @@ def menu_rollout_edit(rollout_id):
         batch_values = request.form.getlist('menu_batches[]')
         menu_prices = request.form.getlist('menu_price[]')
         target_values = request.form.getlist('menu_target_percent[]')
-        popularity_values = request.form.getlist('menu_popularity[]')
         section_values = request.form.getlist('menu_section[]')
         descriptor_values = request.form.getlist('menu_descriptor[]')
         menu_items, total_cost, errors = parse_menu_items(
@@ -3255,7 +3228,7 @@ def menu_rollout_edit(rollout_id):
             batch_values,
             menu_prices,
             target_values,
-            popularity_values,
+            None,
             default_target_percent,
             section_values,
             descriptor_values
@@ -3334,7 +3307,6 @@ def menu_rollout_edit(rollout_id):
                    mri.batches,
                    mri.menu_price,
                    mri.target_food_cost_percent,
-                   mri.popularity_score,
                    mri.menu_section,
                    mri.menu_descriptor,
                    r.name
@@ -3349,7 +3321,6 @@ def menu_rollout_edit(rollout_id):
         batch_values = [row['batches'] for row in saved_items]
         menu_prices = [row.get('menu_price') for row in saved_items]
         target_values = [row.get('target_food_cost_percent') for row in saved_items]
-        popularity_values = [row.get('popularity_score') for row in saved_items]
         section_values = [row.get('menu_section') for row in saved_items]
         descriptor_values = [row.get('menu_descriptor') for row in saved_items]
         if recipe_ids:
@@ -3360,7 +3331,7 @@ def menu_rollout_edit(rollout_id):
                 batch_values,
                 menu_prices,
                 target_values,
-                popularity_values,
+                None,
                 default_target_percent,
                 section_values,
                 descriptor_values
@@ -3538,7 +3509,6 @@ def menu_rollout_pricing_export(rollout_id):
                mri.batches,
                mri.menu_price,
                mri.target_food_cost_percent,
-               mri.popularity_score,
                mri.menu_section,
                mri.menu_descriptor,
                r.name
@@ -3558,7 +3528,6 @@ def menu_rollout_pricing_export(rollout_id):
     batch_values = [row['batches'] for row in items]
     menu_prices = [row.get('menu_price') for row in items]
     target_values = [row.get('target_food_cost_percent') for row in items]
-    popularity_values = [row.get('popularity_score') for row in items]
     section_values = [row.get('menu_section') for row in items]
     descriptor_values = [row.get('menu_descriptor') for row in items]
     default_target = rollout.get('target_food_cost_percent') or 20
@@ -3570,7 +3539,7 @@ def menu_rollout_pricing_export(rollout_id):
         batch_values,
         menu_prices,
         target_values,
-        popularity_values,
+        None,
         default_target,
         section_values,
         descriptor_values
@@ -3603,9 +3572,8 @@ def menu_rollout_pricing_export(rollout_id):
         "Batches",
         "Cost / Batch",
         "Target FC%",
-        "Price Proposal",
+        "Target Food Cost Price",
         "Menu Price",
-        "Popularity",
         "Food Cost %"
     ]
     ws.append(headers)
@@ -3636,14 +3604,13 @@ def menu_rollout_pricing_export(rollout_id):
             ws.cell(row=row_idx, column=6, value=round(to_float(item.get('target_food_cost_percent')), 1)).border = border
             ws.cell(row=row_idx, column=7, value=round(to_float(item.get('suggested_price')), 2)).border = border
             ws.cell(row=row_idx, column=8, value=item.get('menu_price')).border = border
-            ws.cell(row=row_idx, column=9, value=item.get('popularity_score')).border = border
             fc_val = item.get('food_cost_percent')
-            ws.cell(row=row_idx, column=10, value=round(fc_val, 1) if fc_val else None).border = border
+            ws.cell(row=row_idx, column=9, value=round(fc_val, 1) if fc_val else None).border = border
             row_idx += 1
 
         row_idx += 1
 
-    column_widths = [18, 24, 34, 10, 14, 12, 14, 12, 10, 12]
+    column_widths = [18, 24, 34, 10, 14, 18, 12, 12, 12]
     for col_idx, width in enumerate(column_widths, start=1):
         ws.column_dimensions[ws.cell(row=1, column=col_idx).column_letter].width = width
 
@@ -3681,7 +3648,6 @@ def menu_rollout_packet_export(rollout_id):
                mri.batches,
                mri.menu_price,
                mri.target_food_cost_percent,
-               mri.popularity_score,
                mri.menu_section,
                mri.menu_descriptor,
                r.name
@@ -3700,7 +3666,6 @@ def menu_rollout_packet_export(rollout_id):
     batch_values = [row['batches'] for row in items]
     menu_prices = [row.get('menu_price') for row in items]
     target_values = [row.get('target_food_cost_percent') for row in items]
-    popularity_values = [row.get('popularity_score') for row in items]
     section_values = [row.get('menu_section') for row in items]
     descriptor_values = [row.get('menu_descriptor') for row in items]
     default_target = rollout.get('target_food_cost_percent') or 20
@@ -3712,7 +3677,7 @@ def menu_rollout_packet_export(rollout_id):
         batch_values,
         menu_prices,
         target_values,
-        popularity_values,
+        None,
         default_target,
         section_values,
         descriptor_values
@@ -3796,11 +3761,11 @@ def menu_rollout_packet_export(rollout_id):
     ws_menu = wb.active
     ws_menu.title = "01 Menu Lines"
     ws_menu.append([
-        "Section", "Recipe", "Menu Descriptor", "Cost/Serving", "Target FC%", "Price Proposal", "Menu Price", "Popularity", "Food Cost %"
+        "Section", "Recipe", "Menu Descriptor", "Cost/Serving", "Target FC%", "Target Food Cost Price", "Menu Price", "Food Cost %"
     ])
     style_headers(ws_menu)
     for group in menu_groups:
-        ws_menu.append([group['section'], '', '', '', '', '', '', '', ''])
+        ws_menu.append([group['section'], '', '', '', '', '', '', ''])
         for cell in ws_menu[ws_menu.max_row]:
             cell.fill = section_fill
             cell.font = section_font
@@ -3813,10 +3778,9 @@ def menu_rollout_packet_export(rollout_id):
                 round(to_float(item.get('target_food_cost_percent')), 1),
                 round(to_float(item.get('suggested_price')), 2),
                 item.get('menu_price'),
-                item.get('popularity_score'),
                 round(to_float(item.get('food_cost_percent')), 1) if item.get('food_cost_percent') else None
             ])
-    for width, col in [(20, 'A'), (24, 'B'), (36, 'C'), (14, 'D'), (12, 'E'), (14, 'F'), (12, 'G'), (10, 'H'), (12, 'I')]:
+    for width, col in [(20, 'A'), (24, 'B'), (36, 'C'), (14, 'D'), (12, 'E'), (18, 'F'), (12, 'G'), (12, 'H')]:
         ws_menu.column_dimensions[col].width = width
 
     # 2) RM builds
@@ -3914,7 +3878,7 @@ def menu_rollout_packet_export(rollout_id):
     ws_steps.append([1, "Update ingredient records in Acumatica first (cost/uom/vendor/G-code)."])
     ws_steps.append([2, f"Enter RB batch recipes ({len(rb_recipes)} total), including yields and components."])
     ws_steps.append([3, f"Enter RM plated recipes ({len(menu_items)} total), linking RB components where used."])
-    ws_steps.append([4, "Apply menu pricing and verify target food cost % against proposal."])
+    ws_steps.append([4, "Apply menu pricing and verify target food cost % against target food cost price."])
     ws_steps.append([5, "Final review: run where-used checks for every ingredient with G-code mapping."])
     ws_steps.column_dimensions['A'].width = 8
     ws_steps.column_dimensions['B'].width = 110
@@ -3949,7 +3913,6 @@ def menu_rollout_packet_print(rollout_id):
                mri.batches,
                mri.menu_price,
                mri.target_food_cost_percent,
-               mri.popularity_score,
                mri.menu_section,
                mri.menu_descriptor,
                r.name
@@ -3968,7 +3931,6 @@ def menu_rollout_packet_print(rollout_id):
     batch_values = [row['batches'] for row in items]
     menu_prices = [row.get('menu_price') for row in items]
     target_values = [row.get('target_food_cost_percent') for row in items]
-    popularity_values = [row.get('popularity_score') for row in items]
     section_values = [row.get('menu_section') for row in items]
     descriptor_values = [row.get('menu_descriptor') for row in items]
     default_target = rollout.get('target_food_cost_percent') or 20
@@ -3980,7 +3942,7 @@ def menu_rollout_packet_print(rollout_id):
         batch_values,
         menu_prices,
         target_values,
-        popularity_values,
+        None,
         default_target,
         section_values,
         descriptor_values
@@ -4072,7 +4034,6 @@ def menu_rollout_print(rollout_id):
                mri.batches,
                mri.menu_price,
                mri.target_food_cost_percent,
-               mri.popularity_score,
                mri.menu_section,
                mri.menu_descriptor,
                r.name
@@ -4092,7 +4053,6 @@ def menu_rollout_print(rollout_id):
     batch_values = [row['batches'] for row in items]
     menu_prices = [row.get('menu_price') for row in items]
     target_values = [row.get('target_food_cost_percent') for row in items]
-    popularity_values = [row.get('popularity_score') for row in items]
     section_values = [row.get('menu_section') for row in items]
     descriptor_values = [row.get('menu_descriptor') for row in items]
     default_target = rollout.get('target_food_cost_percent') or 20
@@ -4104,7 +4064,7 @@ def menu_rollout_print(rollout_id):
         batch_values,
         menu_prices,
         target_values,
-        popularity_values,
+        None,
         default_target,
         section_values,
         descriptor_values

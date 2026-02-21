@@ -67,9 +67,8 @@
                 <th style="width: 28%;">Menu Descriptor</th>
                 <th style="width: 10%;">Cost/Serving</th>
                 <th style="width: 8%;">Target FC%</th>
-                <th style="width: 10%;">Price Proposal</th>
+                <th style="width: 10%;">Target Food Cost Price</th>
                 <th style="width: 10%;">Menu Price</th>
-                <th style="width: 8%;">Popularity</th>
                 <th style="width: 8%;">Food Cost %</th>
             </tr>
         </thead>
@@ -82,7 +81,6 @@
                 <td>{{ "%.1f"|format(item.target_food_cost_percent or default_target_percent) }}%</td>
                 <td>{% if item.suggested_price %}${{ "%.2f"|format(item.suggested_price) }}{% else %}--{% endif %}</td>
                 <td>{% if item.menu_price %}${{ "%.2f"|format(item.menu_price) }}{% else %}--{% endif %}</td>
-                <td>{{ item.popularity_score or 5 }}</td>
                 <td>{% if item.food_cost_percent %}{{ "%.1f"|format(item.food_cost_percent) }}%{% else %}--{% endif %}</td>
             </tr>
             {% endfor %}
