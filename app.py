@@ -1124,38 +1124,64 @@ def auto_match_menu_recipe_id(menu_name, recipes):
         return contains[0]
     return None
 
-def get_plated_recipes_for_venue(cur, venue_id=''):
+def get_plated_recipes_for_venue(cur, venue_id='', include_unassigned=True):
     has_recipe_venues = db_table_exists(cur, 'public.recipe_venues') and db_table_exists(cur, 'public.venues')
     if has_recipe_venues:
-        cur.execute("""
-            SELECT r.id,
-                   r.name,
-                   r.recipe_type,
-                   r.category,
-                   r.yield_qty,
-                   r.yield_unit,
-                   r.menu_descriptor,
-                   COALESCE(string_agg(DISTINCT v.name, ', ' ORDER BY v.name), '') AS venue_names
-            FROM recipes r
-            LEFT JOIN recipe_venues rv ON rv.recipe_id = r.id
-            LEFT JOIN venues v ON v.id = rv.venue_id AND v.active = TRUE
-            WHERE r.recipe_type = 'menu'
-              AND (
-                    %s = '' OR
-                    EXISTS (
-                        SELECT 1
-                        FROM recipe_venues rvf
-                        WHERE rvf.recipe_id = r.id AND rvf.venue_id = %s
-                    ) OR
-                    NOT EXISTS (
-                        SELECT 1
-                        FROM recipe_venues rvn
-                        WHERE rvn.recipe_id = r.id
-                    )
-              )
-            GROUP BY r.id
-            ORDER BY r.name
-        """, (venue_id, venue_id))
+        if include_unassigned:
+            cur.execute("""
+                SELECT r.id,
+                       r.name,
+                       r.recipe_type,
+                       r.category,
+                       r.yield_qty,
+                       r.yield_unit,
+                       r.menu_descriptor,
+                       COALESCE(string_agg(DISTINCT v.name, ', ' ORDER BY v.name), '') AS venue_names
+                FROM recipes r
+                LEFT JOIN recipe_venues rv ON rv.recipe_id = r.id
+                LEFT JOIN venues v ON v.id = rv.venue_id AND v.active = TRUE
+                WHERE r.recipe_type = 'menu'
+                  AND (
+                        %s = '' OR
+                        EXISTS (
+                            SELECT 1
+                            FROM recipe_venues rvf
+                            WHERE rvf.recipe_id = r.id AND rvf.venue_id = %s
+                        ) OR
+                        NOT EXISTS (
+                            SELECT 1
+                            FROM recipe_venues rvn
+                            WHERE rvn.recipe_id = r.id
+                        )
+                  )
+                GROUP BY r.id
+                ORDER BY r.name
+            """, (venue_id, venue_id))
+        else:
+            cur.execute("""
+                SELECT r.id,
+                       r.name,
+                       r.recipe_type,
+                       r.category,
+                       r.yield_qty,
+                       r.yield_unit,
+                       r.menu_descriptor,
+                       COALESCE(string_agg(DISTINCT v.name, ', ' ORDER BY v.name), '') AS venue_names
+                FROM recipes r
+                LEFT JOIN recipe_venues rv ON rv.recipe_id = r.id
+                LEFT JOIN venues v ON v.id = rv.venue_id AND v.active = TRUE
+                WHERE r.recipe_type = 'menu'
+                  AND (
+                        %s = '' OR
+                        EXISTS (
+                            SELECT 1
+                            FROM recipe_venues rvf
+                            WHERE rvf.recipe_id = r.id AND rvf.venue_id = %s
+                        )
+                  )
+                GROUP BY r.id
+                ORDER BY r.name
+            """, (venue_id, venue_id))
     else:
         cur.execute("""
             SELECT r.id,
@@ -1230,6 +1256,27 @@ def get_banquet_event_lines(cur, event_id):
     """, (event_id,))
     return cur.fetchall()
 
+def get_banquet_template_items(cur, template_id):
+    cur.execute("""
+        SELECT i.id,
+               i.template_id,
+               i.menu_section,
+               i.item_name,
+               i.menu_descriptor,
+               i.recipe_id,
+               i.default_quantity,
+               i.price_text,
+               i.sort_order,
+               r.name AS recipe_name,
+               r.yield_qty,
+               r.yield_unit
+        FROM banquet_menu_template_items i
+        LEFT JOIN recipes r ON r.id = i.recipe_id
+        WHERE i.template_id = %s
+        ORDER BY i.sort_order, i.id
+    """, (template_id,))
+    return cur.fetchall()
+
 def parse_event_recipe_lines(request):
     recipe_ids = request.form.getlist('line_recipe_id[]')
     names = request.form.getlist('line_menu_item_name[]')
@@ -1257,12 +1304,10 @@ def parse_event_recipe_lines(request):
         if not any([recipe_id, menu_name, descriptor, section, qty_raw, qty_unit, note]):
             continue
         qty = parse_float_field(qty_raw, 'Menu quantity', errors, required=True, min_value=0.0001)
-        if not recipe_id:
-            errors.append('Each banquet line needs a selected recipe.')
         if not menu_name:
             errors.append('Each banquet line needs a menu item name.')
         rows.append({
-            'recipe_id': recipe_id,
+            'recipe_id': recipe_id or None,
             'menu_item_name': menu_name,
             'menu_descriptor': descriptor or None,
             'menu_section': section or None,
@@ -1444,15 +1489,17 @@ def build_banquet_datasets(cur, start_date, end_date, venue_id='', unit_system='
                 'line_count': 0
             }
 
-        if not row.get('line_id') or not row.get('recipe_id'):
+        if not row.get('line_id'):
             continue
 
-        recipe = {
-            'id': row.get('recipe_id'),
-            'name': row.get('recipe_name') or row.get('menu_item_name'),
-            'yield_qty': row.get('yield_qty'),
-            'yield_unit': row.get('yield_unit')
-        }
+        recipe = None
+        if row.get('recipe_id'):
+            recipe = {
+                'id': row.get('recipe_id'),
+                'name': row.get('recipe_name') or row.get('menu_item_name'),
+                'yield_qty': row.get('yield_qty'),
+                'yield_unit': row.get('yield_unit')
+            }
         line = {
             'id': row.get('line_id'),
             'menu_item_name': row.get('menu_item_name') or row.get('recipe_name') or 'Menu Item',
@@ -1463,28 +1510,33 @@ def build_banquet_datasets(cur, start_date, end_date, venue_id='', unit_system='
             'notes': row.get('line_notes'),
             'recipe': recipe
         }
+        line['ratio'] = None
+        line['estimated_cost_total'] = None
+        line['estimated_cost_per_unit'] = None
+        line['components'] = []
 
-        ratio = ratio_from_line_quantity(line, recipe)
-        line['ratio'] = ratio
-        line_cost_total = get_recipe_total_cost(cur, recipe['id'], unit_system, apply_q_factor=True) * ratio
-        line['estimated_cost_total'] = line_cost_total
-        line['estimated_cost_per_unit'] = line_cost_total / line['quantity'] if line['quantity'] > 0 else None
+        if recipe:
+            ratio = ratio_from_line_quantity(line, recipe)
+            line['ratio'] = ratio
+            line_cost_total = get_recipe_total_cost(cur, recipe['id'], unit_system, apply_q_factor=True) * ratio
+            line['estimated_cost_total'] = line_cost_total
+            line['estimated_cost_per_unit'] = line_cost_total / line['quantity'] if line['quantity'] > 0 else None
 
-        components, _, _ = build_component_tree(cur, recipe['id'], ratio, 0, set(), unit_system, apply_q_factor=False)
-        line['components'] = components
-        collect_ingredients_from_components(components, ingredient_totals)
-        collect_ingredients_from_components(components, event_daily_ingredients[event_id])
-        collect_batch_recipe_usage_from_components(
-            components,
-            batch_usage_qty,
-            event_usage_map=batch_usage_events,
-            menu_item_usage_map=batch_usage_menu_items,
-            event_id=event_id,
-            menu_item_name=line['menu_item_name']
-        )
+            components, _, _ = build_component_tree(cur, recipe['id'], ratio, 0, set(), unit_system, apply_q_factor=False)
+            line['components'] = components
+            collect_ingredients_from_components(components, ingredient_totals)
+            collect_ingredients_from_components(components, event_daily_ingredients[event_id])
+            collect_batch_recipe_usage_from_components(
+                components,
+                batch_usage_qty,
+                event_usage_map=batch_usage_events,
+                menu_item_usage_map=batch_usage_menu_items,
+                event_id=event_id,
+                menu_item_name=line['menu_item_name']
+            )
 
-        line_label = line['menu_item_name']
-        collect_ingredient_usage_from_components(components, line_label, ingredient_usage)
+            line_label = line['menu_item_name']
+            collect_ingredient_usage_from_components(components, line_label, ingredient_usage)
 
         events_map[event_id]['lines'].append(line)
         events_map[event_id]['line_count'] += 1
@@ -1915,7 +1967,7 @@ def banquet_planner():
     """, (start_date, end_date, selected_venue, selected_venue))
     upcoming_events = cur.fetchall()
 
-    plated_recipes = get_plated_recipes_for_venue(cur, selected_venue)
+    plated_recipes = get_plated_recipes_for_venue(cur, selected_venue, include_unassigned=False)
 
     cur.close()
 
@@ -1954,9 +2006,11 @@ def banquet_event_new():
         'notes': ''
     }
     lines = []
+    selected_template_id = (request.args.get('template_id') or '').strip()
 
     if request.method == 'POST':
         errors = []
+        selected_template_id = (request.form.get('template_id') or '').strip()
         event_name = clean_menu_text(request.form.get('name'))
         event_date_raw = (request.form.get('event_date') or '').strip()
         venue_id = (request.form.get('venue_id') or '').strip()
@@ -1973,6 +2027,18 @@ def banquet_event_new():
 
         lines, line_errors = parse_event_recipe_lines(request)
         errors.extend(line_errors)
+        if not lines and selected_template_id:
+            template_lines = get_banquet_template_items(cur, selected_template_id)
+            for row in template_lines:
+                lines.append({
+                    'recipe_id': row.get('recipe_id'),
+                    'menu_item_name': row.get('item_name') or '',
+                    'menu_descriptor': row.get('menu_descriptor'),
+                    'menu_section': row.get('menu_section'),
+                    'quantity': to_float(row.get('default_quantity')) or 1,
+                    'quantity_unit': 'each',
+                    'notes': 'Imported from template'
+                })
         if not lines:
             errors.append('Add at least one menu line for the event.')
         if not event_name:
@@ -2036,9 +2102,24 @@ def banquet_event_new():
             except Exception:
                 conn.rollback()
                 flash('Error creating event.', 'error')
+    else:
+        venue_id = (request.args.get('venue_id') or '').strip()
+        if venue_id and venue_id in venue_ids:
+            event['venue_id'] = venue_id
+        if selected_template_id:
+            template_lines = get_banquet_template_items(cur, selected_template_id)
+            lines = [{
+                'recipe_id': row.get('recipe_id'),
+                'menu_item_name': row.get('item_name') or '',
+                'menu_descriptor': row.get('menu_descriptor'),
+                'menu_section': row.get('menu_section'),
+                'quantity': to_float(row.get('default_quantity')) or 1,
+                'quantity_unit': 'each',
+                'notes': ''
+            } for row in template_lines]
 
     venue_filter = event.get('venue_id') or ''
-    plated_recipes = get_plated_recipes_for_venue(cur, venue_filter)
+    plated_recipes = get_plated_recipes_for_venue(cur, venue_filter, include_unassigned=False)
     templates = list_banquet_templates(cur, venue_filter)
     cur.close()
     return render_template(
@@ -2048,6 +2129,7 @@ def banquet_event_new():
         lines=lines,
         venues=venues,
         templates=templates,
+        selected_template_id=selected_template_id,
         plated_recipes=plated_recipes,
         section_options=BANQUET_MENU_SECTION_OPTIONS
     )
@@ -2158,7 +2240,7 @@ def banquet_event_edit(event_id):
     else:
         lines = parse_event_recipe_lines(request)[0]
 
-    plated_recipes = get_plated_recipes_for_venue(cur, event.get('venue_id') or '')
+    plated_recipes = get_plated_recipes_for_venue(cur, event.get('venue_id') or '', include_unassigned=False)
     templates = list_banquet_templates(cur, event.get('venue_id') or '')
     cur.close()
     return render_template(
@@ -2471,7 +2553,7 @@ def banquet_export_excel():
                 event.get('guests'),
                 line.get('menu_item_name'),
                 line.get('menu_section'),
-                line.get('recipe', {}).get('name'),
+                (line.get('recipe') or {}).get('name'),
                 line.get('quantity'),
                 line.get('quantity_unit'),
                 line.get('menu_descriptor'),
@@ -2528,7 +2610,7 @@ def banquet_export_excel():
                     line.get('menu_item_name'),
                     line.get('quantity'),
                     line.get('quantity_unit'),
-                    line.get('recipe', {}).get('name')
+                    (line.get('recipe') or {}).get('name')
                 ])
 
     for ws in [ws_summary, ws_shopping, ws_weekly, ws_daily]:

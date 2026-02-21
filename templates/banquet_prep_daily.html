@@ -79,7 +79,7 @@
                                     {% for line in event.lines %}
                                     <tr>
                                         <td class="py-2 pr-3 font-medium text-foxtown-ink">{{ line.menu_item_name }}</td>
-                                        <td class="py-2 pr-3">{{ line.recipe.name }}</td>
+                                        <td class="py-2 pr-3">{{ line.recipe.name if line.recipe else 'Unlinked' }}</td>
                                         <td class="py-2 pr-3">{{ line.quantity }}</td>
                                         <td class="py-2">{{ line.quantity_unit }}</td>
                                     </tr>
