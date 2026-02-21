@@ -411,6 +411,7 @@
     {% for rec in recipes %}
         <option value="{{ rec.name }}"
                 data-id="{{ rec.id }}"
+                data-descriptor="{{ rec.menu_descriptor or '' }}"
                 label="{{ rec.name }}{% if rec.recipe_type == 'menu' %} (RM){% elif rec.recipe_type == 'batch' %} (RB){% elif rec.recipe_type is none %} (Unclassified){% endif %}">
         </option>
     {% endfor %}
@@ -436,13 +437,27 @@ function findRecipeOption(name) {
 function syncMenuRow(row) {
     const input = row.querySelector('.menu-autocomplete');
     const hiddenId = row.querySelector('.menu-recipe-id');
+    const descriptorInput = row.querySelector('input[name="menu_descriptor[]"]');
     if (!input || !hiddenId) return;
     const match = findRecipeOption(input.value);
     if (match) {
         hiddenId.value = match.dataset.id || '';
+        if (descriptorInput) {
+            const currentDescriptor = (descriptorInput.value || '').trim();
+            const currentAuto = descriptorInput.dataset.autofilled === '1';
+            if (!currentDescriptor || currentAuto) {
+                const defaultDescriptor = (match.dataset.descriptor || '').trim();
+                descriptorInput.value = defaultDescriptor;
+                descriptorInput.dataset.autofilled = defaultDescriptor ? '1' : '0';
+            }
+        }
         input.classList.remove('border-red-300');
     } else {
         hiddenId.value = '';
+        if (descriptorInput && descriptorInput.dataset.autofilled === '1') {
+            descriptorInput.value = '';
+            descriptorInput.dataset.autofilled = '0';
+        }
         if (input.value) {
             input.classList.add('border-red-300');
         } else {
@@ -470,6 +485,9 @@ document.addEventListener('input', (event) => {
     if (event.target.classList.contains('menu-autocomplete')) {
         const row = event.target.closest('tr');
         if (row) syncMenuRow(row);
+    }
+    if (event.target.name === 'menu_descriptor[]') {
+        event.target.dataset.autofilled = '0';
     }
     if (event.target.name === 'menu_price[]' || event.target.name === 'menu_target_percent[]') {
         const row = event.target.closest('tr.menu-row');

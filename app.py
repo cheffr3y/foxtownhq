@@ -756,6 +756,8 @@ def parse_menu_items(
         descriptor = None
         if descriptor_values and idx < len(descriptor_values):
             descriptor = (descriptor_values[idx] or '').strip() or None
+        if not descriptor:
+            descriptor = (recipe.get('menu_descriptor') or '').strip() or None
 
         menu_items.append({
             'recipe': recipe,
@@ -2988,7 +2990,7 @@ def menu_rollout_new():
     unit_system = get_unit_system()
 
     cur.execute("""
-        SELECT id, name, yield_qty, yield_unit, recipe_type
+        SELECT id, name, yield_qty, yield_unit, recipe_type, menu_descriptor
         FROM recipes
         WHERE recipe_type = 'menu' OR recipe_type IS NULL
         ORDER BY name
@@ -3166,7 +3168,7 @@ def menu_rollout_edit(rollout_id):
         flash('Menu rollout not found', 'error')
         return redirect(url_for('menu_rollouts'))
 
-    cur.execute("SELECT id, name, yield_qty, yield_unit, recipe_type FROM recipes ORDER BY name")
+    cur.execute("SELECT id, name, yield_qty, yield_unit, recipe_type, menu_descriptor FROM recipes ORDER BY name")
     recipes_list = cur.fetchall()
     venues = get_active_venues(cur)
     venue_options = venues if venues else [{'id': '', 'name': name} for name in VENUE_DEFAULTS]
