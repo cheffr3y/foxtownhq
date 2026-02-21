@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }} - Foxtown HQ{% endblock %}
+
+{% block content %}
+<div class="min-h-screen">
+    <nav class="bg-foxtown-charcoal text-white border-b border-slate-800/60">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between py-4">
+                <div class="flex items-center space-x-3">
+                    <a href="{{ url_for('banquet_planner') }}" class="text-amber-200 hover:text-white">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                        </svg>
+                    </a>
+                    <div>
+                        <h1 class="text-2xl font-display tracking-tight">{{ page_title }}</h1>
+                        <p class="text-sm text-stone-200">Build banquet events from plated RM recipes and descriptors.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+        {% if event.id and templates %}
+        <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-6">
+            <h2 class="text-xl font-display text-foxtown-ink mb-3">Apply Imported Template</h2>
+            <form method="POST" action="{{ url_for('banquet_event_apply_template', event_id=event.id) }}" class="flex flex-col sm:flex-row gap-3 items-end">
+                <div class="flex-1">
+                    <label class="block text-sm font-medium text-stone-700 mb-1">Template</label>
+                    <select name="template_id" class="w-full px-4 py-3 border border-stone-300 rounded-xl">
+                        <option value="">Select template</option>
+                        {% for template in templates %}
+                        <option value="{{ template.id }}">{{ template.name }}{% if template.venue_name %} · {{ template.venue_name }}{% endif %}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit" class="bg-slate-800 hover:bg-slate-900 text-white px-5 py-3 rounded-xl font-semibold">Apply Template to Event</button>
+            </form>
+        </div>
+        {% endif %}
+    </div>
+
+    <form method="POST" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-6">
+            <h2 class="text-xl font-display text-foxtown-ink mb-4">Event Details</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-stone-700 mb-1">Event Name</label>
+                    <input type="text" name="name" value="{{ event.name or '' }}" class="w-full px-4 py-3 border border-stone-300 rounded-xl" required>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-stone-700 mb-1">Event Date</label>
+                    <input type="date" name="event_date" value="{{ event.event_date or '' }}" class="w-full px-4 py-3 border border-stone-300 rounded-xl" required>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-stone-700 mb-1">Venue</label>
+                    <select name="venue_id" class="w-full px-4 py-3 border border-stone-300 rounded-xl">
+                        <option value="">Select venue</option>
+                        {% for venue in venues %}
+                        <option value="{{ venue.id }}" {% if event.venue_id == venue.id %}selected{% endif %}>{{ venue.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-stone-700 mb-1">Guests</label>
+                    <input type="number" name="guests" min="1" value="{{ event.guests or '' }}" class="w-full px-4 py-3 border border-stone-300 rounded-xl">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-stone-700 mb-1">Service Timing</label>
+                    <input type="text" name="service_timing" value="{{ event.service_timing or '' }}" class="w-full px-4 py-3 border border-stone-300 rounded-xl" placeholder="Cocktail hour 5:30pm">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-stone-700 mb-1">Building</label>
+                    <input type="text" name="building" value="{{ event.building or '' }}" class="w-full px-4 py-3 border border-stone-300 rounded-xl">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-stone-700 mb-1">Room</label>
+                    <input type="text" name="room" value="{{ event.room or '' }}" class="w-full px-4 py-3 border border-stone-300 rounded-xl">
+                </div>
+                <div class="md:col-span-3">
+                    <label class="block text-sm font-medium text-stone-700 mb-1">Dietary Notes</label>
+                    <input type="text" name="dietary_notes" value="{{ event.dietary_notes or '' }}" class="w-full px-4 py-3 border border-stone-300 rounded-xl">
+                </div>
+                <div class="md:col-span-3">
+                    <label class="block text-sm font-medium text-stone-700 mb-1">General Notes</label>
+                    <textarea name="notes" rows="3" class="w-full px-4 py-3 border border-stone-300 rounded-xl">{{ event.notes or '' }}</textarea>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-xl font-display text-foxtown-ink">Menu Lines</h2>
+                <button type="button" id="addLineBtn" class="text-foxtown-ember font-semibold hover:text-orange-700">+ Add line</button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-sm" id="linesTable">
+                    <thead class="text-xs uppercase text-stone-500 border-b border-stone-200">
+                        <tr>
+                            <th class="text-left py-2 pr-2 min-w-[220px]">Recipe (RM)</th>
+                            <th class="text-left py-2 pr-2 min-w-[180px]">Menu Item</th>
+                            <th class="text-left py-2 pr-2 min-w-[220px]">Descriptor</th>
+                            <th class="text-left py-2 pr-2 min-w-[160px]">Section</th>
+                            <th class="text-left py-2 pr-2 min-w-[120px]">Qty</th>
+                            <th class="text-left py-2 pr-2 min-w-[100px]">Unit</th>
+                            <th class="text-left py-2 pr-2 min-w-[160px]">Notes</th>
+                            <th class="text-left py-2 pr-2">Remove</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lineRows" class="divide-y divide-stone-100">
+                        {% for line in lines %}
+                        <tr>
+                            <td class="py-2 pr-2">
+                                <select name="line_recipe_id[]" class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm">
+                                    <option value="">Select recipe</option>
+                                    {% for recipe in plated_recipes %}
+                                    <option value="{{ recipe.id }}" {% if line.recipe_id == recipe.id %}selected{% endif %}>{{ recipe.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td class="py-2 pr-2"><input name="line_menu_item_name[]" value="{{ line.menu_item_name or '' }}" class="w-full px-3 py-2 border border-stone-300 rounded-lg" placeholder="Buffalo Chicken Slider"></td>
+                            <td class="py-2 pr-2"><input name="line_menu_descriptor[]" value="{{ line.menu_descriptor or '' }}" class="w-full px-3 py-2 border border-stone-300 rounded-lg" placeholder="House ranch + pickles"></td>
+                            <td class="py-2 pr-2">
+                                <select name="line_menu_section[]" class="w-full px-3 py-2 border border-stone-300 rounded-lg">
+                                    <option value="">Select</option>
+                                    {% for sec in section_options %}
+                                    <option value="{{ sec }}" {% if line.menu_section == sec %}selected{% endif %}>{{ sec }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td class="py-2 pr-2"><input type="number" step="0.01" min="0" name="line_qty[]" value="{{ line.quantity or '' }}" class="w-full px-3 py-2 border border-stone-300 rounded-lg"></td>
+                            <td class="py-2 pr-2"><input name="line_unit[]" value="{{ line.quantity_unit or line.yield_unit or 'each' }}" class="w-full px-3 py-2 border border-stone-300 rounded-lg"></td>
+                            <td class="py-2 pr-2"><input name="line_notes[]" value="{{ line.notes or '' }}" class="w-full px-3 py-2 border border-stone-300 rounded-lg" placeholder="No nuts"></td>
+                            <td class="py-2 pr-2"><button type="button" class="removeRow text-red-600 hover:text-red-800 font-semibold">Remove</button></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% if not lines %}
+            <p class="text-sm text-stone-500 mt-4">Start by adding at least one plated menu line.</p>
+            {% endif %}
+        </div>
+
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                {% if event.id %}
+                <button type="button" onclick="if(confirm('Delete this event?')) document.getElementById('deleteEventForm').submit();" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl font-semibold">Delete Event</button>
+                {% endif %}
+            </div>
+            <div class="flex items-center gap-3">
+                <a href="{{ url_for('banquet_planner') }}" class="px-5 py-3 rounded-xl border border-stone-300 text-stone-700 hover:bg-stone-50">Cancel</a>
+                <button type="submit" class="bg-foxtown-ember hover:bg-orange-700 text-white px-5 py-3 rounded-xl font-semibold">Save Event</button>
+            </div>
+        </div>
+    </form>
+
+    {% if event.id %}
+    <form id="deleteEventForm" method="POST" action="{{ url_for('banquet_event_delete', event_id=event.id) }}"></form>
+    {% endif %}
+</div>
+
+<template id="lineRowTemplate">
+<tr>
+    <td class="py-2 pr-2">
+        <select name="line_recipe_id[]" class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm">
+            <option value="">Select recipe</option>
+            {% for recipe in plated_recipes %}
+            <option value="{{ recipe.id }}">{{ recipe.name }}</option>
+            {% endfor %}
+        </select>
+    </td>
+    <td class="py-2 pr-2"><input name="line_menu_item_name[]" class="w-full px-3 py-2 border border-stone-300 rounded-lg" placeholder="Menu item"></td>
+    <td class="py-2 pr-2"><input name="line_menu_descriptor[]" class="w-full px-3 py-2 border border-stone-300 rounded-lg" placeholder="Descriptor"></td>
+    <td class="py-2 pr-2">
+        <select name="line_menu_section[]" class="w-full px-3 py-2 border border-stone-300 rounded-lg">
+            <option value="">Select</option>
+            {% for sec in section_options %}
+            <option value="{{ sec }}">{{ sec }}</option>
+            {% endfor %}
+        </select>
+    </td>
+    <td class="py-2 pr-2"><input type="number" step="0.01" min="0" name="line_qty[]" class="w-full px-3 py-2 border border-stone-300 rounded-lg"></td>
+    <td class="py-2 pr-2"><input name="line_unit[]" value="each" class="w-full px-3 py-2 border border-stone-300 rounded-lg"></td>
+    <td class="py-2 pr-2"><input name="line_notes[]" class="w-full px-3 py-2 border border-stone-300 rounded-lg" placeholder="Notes"></td>
+    <td class="py-2 pr-2"><button type="button" class="removeRow text-red-600 hover:text-red-800 font-semibold">Remove</button></td>
+</tr>
+</template>
+
+<script>
+(function () {
+    const lineRows = document.getElementById('lineRows');
+    const addLineBtn = document.getElementById('addLineBtn');
+    const template = document.getElementById('lineRowTemplate');
+
+    function bindRemoveButtons() {
+        document.querySelectorAll('.removeRow').forEach((btn) => {
+            btn.onclick = () => {
+                const row = btn.closest('tr');
+                if (row) row.remove();
+            };
+        });
+    }
+
+    addLineBtn.addEventListener('click', () => {
+        const clone = template.content.cloneNode(true);
+        lineRows.appendChild(clone);
+        bindRemoveButtons();
+    });
+
+    bindRemoveButtons();
+})();
+</script>
+{% endblock %}

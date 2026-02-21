@@ -64,6 +64,14 @@
                         <option>Stocks & Bases</option>
                     </select>
                 </div>
+                <div class="w-full md:w-56">
+                    <select id="venueFilter" class="w-full px-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none">
+                        <option value="">All Venues</option>
+                        {% for venue in venues %}
+                        <option value="{{ venue.id }}" {% if selected_venue == venue.id %}selected{% endif %}>{{ venue.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
             </div>
         </div>
 
@@ -73,7 +81,8 @@
             {% for recipe in recipes %}
             <div class="bg-white rounded-2xl border border-stone-200 shadow-soft hover:shadow-lift transition duration-200 overflow-hidden recipe-card"
                  data-name="{{ recipe.name | lower }}"
-                 data-category="{{ (recipe.category or 'Uncategorized') | lower }}">
+                 data-category="{{ (recipe.category or 'Uncategorized') | lower }}"
+                 data-venue-ids="{{ recipe.venue_ids or '' }}">
                 <div class="p-6">
                     <div class="flex items-start justify-between mb-3">
                         <div>
@@ -104,6 +113,13 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
                             </svg>
                             {{ recipe.ingredient_count }} ingredients
+                        </div>
+                        <div class="text-xs text-stone-500">
+                            {% if recipe.venue_names %}
+                            Venues: {{ recipe.venue_names }}
+                            {% else %}
+                            Venues: All
+                            {% endif %}
                         </div>
                     </div>
                     
@@ -145,6 +161,7 @@
 <script>
 const recipeSearch = document.getElementById('recipeSearch');
 const categoryFilter = document.getElementById('categoryFilter');
+const venueFilter = document.getElementById('venueFilter');
 
 function normalizeCategory(value) {
     return (value || '').trim().toLowerCase();
@@ -153,17 +170,25 @@ function normalizeCategory(value) {
 function filterRecipes() {
     const query = (recipeSearch?.value || '').trim().toLowerCase();
     const category = normalizeCategory(categoryFilter?.value);
+    const venue = (venueFilter?.value || '').trim();
     const cards = document.querySelectorAll('.recipe-card');
     cards.forEach(card => {
         const name = card.dataset.name || '';
         const cardCategory = card.dataset.category || '';
+        const cardVenueIds = (card.dataset.venueIds || '')
+            .split(',')
+            .map(v => v.trim())
+            .filter(Boolean);
         const matchesQuery = !query || name.includes(query);
         const matchesCategory = !category || category === 'all categories' || cardCategory === category;
-        card.style.display = (matchesQuery && matchesCategory) ? '' : 'none';
+        const matchesVenue = !venue || cardVenueIds.length === 0 || cardVenueIds.includes(venue);
+        card.style.display = (matchesQuery && matchesCategory && matchesVenue) ? '' : 'none';
     });
 }
 
 if (recipeSearch) recipeSearch.addEventListener('input', filterRecipes);
 if (categoryFilter) categoryFilter.addEventListener('change', filterRecipes);
+if (venueFilter) venueFilter.addEventListener('change', filterRecipes);
+filterRecipes();
 </script>
 {% endblock %}

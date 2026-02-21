@@ -174,7 +174,7 @@
                         </div>
                     </div>
 
-                    {% if recipe.menu_descriptor or recipe.source_venue or recipe.equipment %}
+                    {% if recipe.menu_descriptor or recipe.source_venue or recipe.equipment or recipe_venues %}
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {% if recipe.menu_descriptor %}
                         <div class="bg-stone-50 border border-stone-200 rounded-xl p-4">
@@ -192,6 +192,16 @@
                         <div class="bg-stone-50 border border-stone-200 rounded-xl p-4">
                             <div class="text-sm text-stone-600 mb-1">Equipment</div>
                             <div class="text-base font-semibold text-foxtown-ink">{{ recipe.equipment }}</div>
+                        </div>
+                        {% endif %}
+                        {% if recipe_venues %}
+                        <div class="bg-stone-50 border border-stone-200 rounded-xl p-4 md:col-span-2">
+                            <div class="text-sm text-stone-600 mb-1">Assigned Venues</div>
+                            <div class="flex flex-wrap gap-2">
+                                {% for venue in recipe_venues %}
+                                <span class="inline-block px-2 py-1 text-xs font-semibold rounded bg-slate-200 text-slate-700">{{ venue.name }}</span>
+                                {% endfor %}
+                            </div>
                         </div>
                         {% endif %}
                     </div>

@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block title %}Banquet Packet Print - Foxtown HQ{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6" id="printRoot">
+    <div class="print:hidden flex justify-between items-center">
+        <div>
+            <h1 class="text-3xl font-display text-foxtown-ink">Banquet Planning Packet</h1>
+            <p class="text-stone-600">{{ venue_name }} · {{ start_date }} to {{ end_date }} · Generated {{ generated_at }}</p>
+        </div>
+        <button onclick="window.print()" class="bg-foxtown-ember hover:bg-orange-700 text-white px-4 py-2 rounded-xl font-semibold">Print / Save PDF</button>
+    </div>
+
+    <div class="bg-white border border-stone-200 rounded-xl p-5">
+        <h2 class="text-2xl font-display text-foxtown-ink mb-3">Event Summary</h2>
+        <div class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+                <thead class="text-xs uppercase text-stone-500 border-b border-stone-200">
+                    <tr>
+                        <th class="text-left py-2 pr-3">Date</th>
+                        <th class="text-left py-2 pr-3">Event</th>
+                        <th class="text-left py-2 pr-3">Venue</th>
+                        <th class="text-left py-2 pr-3">Guests</th>
+                        <th class="text-left py-2">Lines</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-stone-100">
+                    {% for event in datasets.events %}
+                    <tr>
+                        <td class="py-2 pr-3">{{ event.event_date }}</td>
+                        <td class="py-2 pr-3 font-medium text-foxtown-ink">{{ event.name }}</td>
+                        <td class="py-2 pr-3">{{ event.venue_name }}</td>
+                        <td class="py-2 pr-3">{{ event.guests or '—' }}</td>
+                        <td class="py-2">{{ event.line_count }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="bg-white border border-stone-200 rounded-xl p-5">
+        <h2 class="text-2xl font-display text-foxtown-ink mb-3">Shopping List</h2>
+        <div class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+                <thead class="text-xs uppercase text-stone-500 border-b border-stone-200">
+                    <tr>
+                        <th class="text-left py-2 pr-3">Ingredient</th>
+                        <th class="text-left py-2 pr-3">Qty</th>
+                        <th class="text-left py-2 pr-3">Unit</th>
+                        <th class="text-left py-2 pr-3">Vendor</th>
+                        <th class="text-left py-2 pr-3">Vendor Code</th>
+                        <th class="text-left py-2">G-Code</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-stone-100">
+                    {% for item in datasets.shopping_ingredients %}
+                    <tr>
+                        <td class="py-2 pr-3 font-medium text-foxtown-ink">{{ item.name }}</td>
+                        <td class="py-2 pr-3">{{ item.display_quantity }}</td>
+                        <td class="py-2 pr-3">{{ item.display_unit }}</td>
+                        <td class="py-2 pr-3">{{ item.vendor or '—' }}</td>
+                        <td class="py-2 pr-3">{{ item.vendor_code or '—' }}</td>
+                        <td class="py-2">{{ item.g_code or '—' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="bg-white border border-stone-200 rounded-xl p-5">
+        <h2 class="text-2xl font-display text-foxtown-ink mb-3">Weekly Prep</h2>
+        {% for prep in datasets.weekly_prep %}
+        <div class="mb-4 border border-stone-200 rounded-lg p-4 break-inside-avoid">
+            <div class="flex justify-between gap-3 mb-2">
+                <div class="font-semibold text-foxtown-ink">{{ prep.recipe_name }}</div>
+                <div class="text-sm text-stone-600">{{ prep.display_required.quantity }} {{ prep.display_required.unit }}</div>
+            </div>
+            <div class="text-xs text-stone-500 mb-3">Used in: {{ prep.used_in_menu_items|join(', ') }}</div>
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
+                {% for ing in prep.ingredient_rows %}
+                <div>{{ ing.name }} — {{ ing.display_quantity }} {{ ing.display_unit }}</div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="bg-white border border-stone-200 rounded-xl p-5">
+        <h2 class="text-2xl font-display text-foxtown-ink mb-3">Daily Prep</h2>
+        {% for day in datasets.daily_groups %}
+        <div class="mb-5 break-inside-avoid">
+            <h3 class="text-lg font-display text-foxtown-ink mb-2">{{ day.date }}</h3>
+            {% for event in day.events %}
+            <div class="mb-3 border border-stone-200 rounded-lg p-3">
+                <div class="font-semibold text-foxtown-ink">{{ event.name }}{% if event.guests %} ({{ event.guests }} guests){% endif %}</div>
+                <div class="text-xs text-stone-500 mb-2">{{ event.venue_name }}</div>
+                <ul class="list-disc pl-5 text-sm">
+                    {% for line in event.lines %}
+                    <li>{{ line.menu_item_name }} — {{ line.quantity }} {{ line.quantity_unit }} ({{ line.recipe.name }})</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endfor %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+@media print {
+    nav, .print\:hidden { display: none !important; }
+    body { background: #fff !important; }
+    .break-inside-avoid { break-inside: avoid; }
+}
+</style>
+{% endblock %}

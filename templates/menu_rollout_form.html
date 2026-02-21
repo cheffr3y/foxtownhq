@@ -436,13 +436,9 @@
 </datalist>
 
 <datalist id="venueOptions">
-    <option value="Foxtown Brewing"></option>
-    <option value="Renard's"></option>
-    <option value="Interurban"></option>
-    <option value="Heritage Meats"></option>
-    <option value="11's Lounge"></option>
-    <option value="Banquets"></option>
-    <option value="Foxtown Landing"></option>
+    {% for venue in (venue_options or []) %}
+    <option value="{{ venue.name }}"></option>
+    {% endfor %}
 </datalist>
 
 <script>
