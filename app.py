@@ -1085,6 +1085,28 @@ def clean_menu_text(value):
     text = text.replace('  ', ' ')
     return text
 
+def split_instruction_steps(instructions):
+    raw = (instructions or '').strip()
+    if not raw:
+        return []
+    normalized = raw.replace('\r\n', '\n').replace('\r', '\n')
+    numbered_chunks = re.split(r'(?:^|\s+)(?=\d+\.\s+)', normalized.strip())
+    parts = []
+    if len(numbered_chunks) > 1:
+        for chunk in numbered_chunks:
+            text = re.sub(r'^\d+\.\s*', '', chunk.strip())
+            if text:
+                parts.append(text)
+        if parts:
+            return parts
+    for line in normalized.split('\n'):
+        text = re.sub(r'^\d+\.\s*', '', line.strip())
+        if text:
+            parts.append(text)
+    if parts:
+        return parts
+    return [raw]
+
 def normalize_match_key(value):
     text = clean_menu_text(value).lower()
     text = re.sub(r'^(rm|rb)\s+', '', text)
@@ -4170,14 +4192,19 @@ def banquet_packet_print():
     banquet_venue = resolve_banquet_venue(venues)
     selected_venue = banquet_venue.get('id') or ''
     start_date, end_date = get_banquet_date_window(request.args.get('start_date'), request.args.get('end_date'))
+    include_shopping = (request.args.get('include_shopping') or '').strip().lower() in ('1', 'true', 'yes', 'on')
     datasets = build_banquet_datasets(cur, start_date, end_date, selected_venue, get_unit_system())
+    for prep in datasets.get('weekly_prep', []):
+        prep['instruction_steps'] = split_instruction_steps(prep.get('instructions'))
     cur.close()
     venue_name = banquet_venue.get('name') if banquet_venue else 'Banquets'
     return render_template(
         'banquet_packet_print.html',
+        selected_venue=selected_venue,
         venue_name=venue_name,
         start_date=start_date.isoformat(),
         end_date=end_date.isoformat(),
+        include_shopping=include_shopping,
         generated_at=datetime.now().strftime('%b %d, %Y %I:%M %p'),
         datasets=datasets
     )
