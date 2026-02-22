@@ -1406,6 +1406,53 @@ def collect_banquet_recipe_components(cur, menu_item_ids):
         grouped[row['menu_item_id']].append(row)
     return grouped
 
+def get_banquet_menu_item_component_summaries(cur, menu_item_ids):
+    if not menu_item_ids:
+        return {}
+    summaries = {menu_item_id: {'recipes': [], 'ingredients': []} for menu_item_id in menu_item_ids}
+
+    cur.execute("""
+        SELECT mr.menu_item_id,
+               mr.recipe_id,
+               mr.quantity,
+               mr.unit,
+               r.name AS recipe_name
+        FROM banquet_menu_item_recipes mr
+        JOIN recipes r ON r.id = mr.recipe_id
+        WHERE mr.menu_item_id = ANY(%s)
+        ORDER BY mr.menu_item_id, mr.id
+    """, (menu_item_ids,))
+    for row in cur.fetchall():
+        summaries.setdefault(row['menu_item_id'], {'recipes': [], 'ingredients': []})
+        summaries[row['menu_item_id']]['recipes'].append({
+            'id': row.get('recipe_id'),
+            'name': row.get('recipe_name'),
+            'quantity': to_float(row.get('quantity')),
+            'unit': row.get('unit') or ''
+        })
+
+    cur.execute("""
+        SELECT ai.menu_item_id,
+               ai.ingredient_id,
+               ai.quantity,
+               ai.unit,
+               i.name AS ingredient_name
+        FROM banquet_menu_item_ingredients ai
+        JOIN ingredients i ON i.id = ai.ingredient_id
+        WHERE ai.menu_item_id = ANY(%s)
+        ORDER BY ai.menu_item_id, ai.id
+    """, (menu_item_ids,))
+    for row in cur.fetchall():
+        summaries.setdefault(row['menu_item_id'], {'recipes': [], 'ingredients': []})
+        summaries[row['menu_item_id']]['ingredients'].append({
+            'id': row.get('ingredient_id'),
+            'name': row.get('ingredient_name'),
+            'quantity': to_float(row.get('quantity')),
+            'unit': row.get('unit') or ''
+        })
+
+    return summaries
+
 def get_banquet_menu_item_ingredients(cur, menu_item_id):
     if not banquet_tables_ready(cur):
         return []
@@ -2996,6 +3043,13 @@ def banquet_template_import():
                     flash('Error saving imported menu catalog.', 'error')
 
     menu_items = list_banquet_menu_items(cur)
+    menu_item_ids = [row.get('id') for row in menu_items if row.get('id')]
+    summaries = get_banquet_menu_item_component_summaries(cur, menu_item_ids)
+    for item in menu_items:
+        summary = summaries.get(item.get('id'), {'recipes': [], 'ingredients': []})
+        item['recipe_components'] = summary.get('recipes', [])
+        item['ingredient_components'] = summary.get('ingredients', [])
+        item['yield_display'] = f"{format_number(to_float(item.get('base_yield_qty')) or 1)} {item.get('base_yield_unit') or 'each'}"
     cur.close()
     return render_template(
         'banquet_template_import.html',

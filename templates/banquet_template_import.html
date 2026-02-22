@@ -48,40 +48,85 @@
         </div>
 
         <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-6">
-            <h2 class="text-xl font-display text-foxtown-ink mb-4">Saved Menu Items</h2>
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+                <h2 class="text-xl font-display text-foxtown-ink">Saved Menu Items</h2>
+                <div class="text-sm text-stone-600">{{ menu_items|length }} items</div>
+            </div>
             {% if menu_items %}
-            <div class="overflow-x-auto">
-                <table class="min-w-full text-sm">
-                    <thead class="text-xs uppercase text-stone-500 border-b border-stone-200">
-                        <tr>
-                            <th class="text-left py-2 pr-3">Menu Item</th>
-                            <th class="text-left py-2 pr-3">Sold As</th>
-                            <th class="text-left py-2 pr-3">Section</th>
-                            <th class="text-left py-2 pr-3">Recipes</th>
-                            <th class="text-left py-2 pr-3">Raw Extras</th>
-                            <th class="text-left py-2 pr-3">Descriptor</th>
-                            <th class="text-left py-2">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-stone-100">
-                        {% for item in menu_items %}
-                        <tr>
-                            <td class="py-2 pr-3 font-medium text-foxtown-ink">{{ item.name }}</td>
-                            <td class="py-2 pr-3">{{ item.base_yield_qty or 1 }} {{ item.base_yield_unit or 'each' }}</td>
-                            <td class="py-2 pr-3">{{ item.menu_section or '—' }}</td>
-                            <td class="py-2 pr-3">{{ item.recipe_count or 0 }}</td>
-                            <td class="py-2 pr-3">{{ item.extra_count or 0 }}</td>
-                            <td class="py-2 pr-3">{{ item.menu_descriptor or '—' }}</td>
-                            <td class="py-2 space-x-3 whitespace-nowrap">
-                                <a href="{{ url_for('banquet_menu_item_edit', menu_item_id=item.id) }}" class="text-foxtown-ember hover:text-orange-700 font-semibold">Edit</a>
-                                <form method="POST" action="{{ url_for('banquet_menu_item_delete', menu_item_id=item.id) }}" onsubmit="return confirm('Delete menu item?');" class="inline-block">
-                                    <button class="text-red-600 hover:text-red-800 font-semibold">Delete</button>
+            <div class="mb-4">
+                <input
+                    id="menuItemSearch"
+                    type="text"
+                    placeholder="Search menu items, descriptors, recipes, ingredients..."
+                    class="w-full px-4 py-3 border border-stone-300 rounded-xl"
+                >
+            </div>
+
+            <div id="menuItemList" class="space-y-4">
+                {% set section_state = namespace(current='') %}
+                {% for item in menu_items %}
+                {% set section_name = item.menu_section or 'Uncategorized' %}
+                {% if section_name != section_state.current %}
+                <div class="pt-2 section-header" data-section="{{ section_name|lower }}">
+                    <h3 class="text-sm uppercase tracking-widest text-stone-500 border-b border-stone-200 pb-2">{{ section_name }}</h3>
+                </div>
+                {% set section_state.current = section_name %}
+                {% endif %}
+                {% set recipe_names = item.recipe_components | map(attribute='name') | join(' ') %}
+                {% set ingredient_names = item.ingredient_components | map(attribute='name') | join(' ') %}
+                <article
+                    class="menu-item-card border border-stone-200 rounded-xl p-4 border-l-4 border-l-cyan-500 bg-white"
+                    data-search="{{ (item.name ~ ' ' ~ (item.menu_descriptor or '') ~ ' ' ~ section_name ~ ' ' ~ recipe_names ~ ' ' ~ ingredient_names)|lower }}"
+                >
+                    <div class="flex flex-col gap-3">
+                        <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-2">
+                            <div>
+                                <h4 class="text-2xl font-display text-foxtown-ink">{{ item.name }}</h4>
+                                <p class="text-sm text-stone-500 mt-1">Sold as: {{ item.yield_display }}</p>
+                            </div>
+                            <div class="flex items-center gap-3 text-sm">
+                                <a href="{{ url_for('banquet_menu_item_edit', menu_item_id=item.id) }}" class="px-3 py-1.5 border border-stone-300 rounded-lg text-stone-700 hover:bg-stone-50">Edit</a>
+                                <form method="POST" action="{{ url_for('banquet_menu_item_delete', menu_item_id=item.id) }}" onsubmit="return confirm('Delete menu item?');">
+                                    <button class="px-3 py-1.5 border border-red-200 rounded-lg text-red-700 hover:bg-red-50">Delete</button>
                                 </form>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                            </div>
+                        </div>
+
+                        {% if item.menu_descriptor %}
+                        <div class="text-sm text-stone-700">{{ item.menu_descriptor }}</div>
+                        {% endif %}
+
+                        <div>
+                            <div class="text-sm font-semibold text-stone-700 mb-2">Recipes (per {{ item.base_yield_unit or 'each' }}):</div>
+                            {% if item.recipe_components %}
+                            <div class="flex flex-wrap gap-2">
+                                {% for rc in item.recipe_components %}
+                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-sky-100 text-sky-800">
+                                    {{ rc.name }} ({{ "%.4f"|format(rc.quantity or 0)|replace('.0000', '')|replace('.000', '')|replace('.00', '')|replace('.0', '') }} {{ rc.unit or 'each' }})
+                                </span>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <div class="text-sm text-stone-500">No recipe components linked.</div>
+                            {% endif %}
+                        </div>
+
+                        {% if item.ingredient_components %}
+                        <div>
+                            <div class="text-sm font-semibold text-stone-700 mb-2">Raw Extras:</div>
+                            <div class="flex flex-wrap gap-2">
+                                {% for ing in item.ingredient_components %}
+                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
+                                    {{ ing.name }} ({{ "%.4f"|format(ing.quantity or 0)|replace('.0000', '')|replace('.000', '')|replace('.00', '')|replace('.0', '') }} {{ ing.unit or '' }})
+                                </span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </article>
+                {% endfor %}
+                <div id="menuItemNoResults" class="hidden text-sm text-stone-500 py-2">No menu items match your search.</div>
             </div>
             {% else %}
             <p class="text-sm text-stone-500">No menu items in catalog yet.</p>
@@ -89,4 +134,45 @@
         </div>
     </div>
 </div>
+
+<script>
+(function () {
+    const searchInput = document.getElementById('menuItemSearch');
+    const cards = Array.from(document.querySelectorAll('.menu-item-card'));
+    const headers = Array.from(document.querySelectorAll('.section-header'));
+    const noResults = document.getElementById('menuItemNoResults');
+    if (!searchInput || !cards.length) return;
+
+    function applyFilter() {
+        const q = (searchInput.value || '').trim().toLowerCase();
+        let visibleCount = 0;
+
+        cards.forEach((card) => {
+            const haystack = card.dataset.search || '';
+            const visible = !q || haystack.includes(q);
+            card.classList.toggle('hidden', !visible);
+            if (visible) visibleCount += 1;
+        });
+
+        headers.forEach((header) => {
+            let hasVisibleInSection = false;
+            let next = header.nextElementSibling;
+            while (next && !next.classList.contains('section-header')) {
+                if (next.classList.contains('menu-item-card') && !next.classList.contains('hidden')) {
+                    hasVisibleInSection = true;
+                    break;
+                }
+                next = next.nextElementSibling;
+            }
+            header.classList.toggle('hidden', !hasVisibleInSection);
+        });
+
+        if (noResults) {
+            noResults.classList.toggle('hidden', visibleCount > 0);
+        }
+    }
+
+    searchInput.addEventListener('input', applyFilter);
+})();
+</script>
 {% endblock %}
