@@ -1367,12 +1367,17 @@ def get_banquet_menu_item(cur, menu_item_id):
 def get_banquet_menu_item_recipe_components(cur, menu_item_id):
     if not banquet_tables_ready(cur):
         return []
-    cur.execute("""
+    has_choice_columns = db_column_exists(cur, 'public.banquet_menu_item_recipes', 'choice_group') and db_column_exists(cur, 'public.banquet_menu_item_recipes', 'choice_weight_percent')
+    choice_group_sql = "mr.choice_group AS choice_group" if has_choice_columns else "NULL::text AS choice_group"
+    choice_weight_sql = "mr.choice_weight_percent AS choice_weight_percent" if has_choice_columns else "NULL::numeric AS choice_weight_percent"
+    cur.execute(f"""
         SELECT mr.id,
                mr.menu_item_id,
                mr.recipe_id,
                mr.quantity,
                mr.unit,
+               {choice_group_sql},
+               {choice_weight_sql},
                r.name AS recipe_name,
                r.yield_qty,
                r.yield_unit,
@@ -1387,11 +1392,16 @@ def get_banquet_menu_item_recipe_components(cur, menu_item_id):
 def collect_banquet_recipe_components(cur, menu_item_ids):
     if not menu_item_ids:
         return {}
-    cur.execute("""
+    has_choice_columns = db_column_exists(cur, 'public.banquet_menu_item_recipes', 'choice_group') and db_column_exists(cur, 'public.banquet_menu_item_recipes', 'choice_weight_percent')
+    choice_group_sql = "mr.choice_group AS choice_group" if has_choice_columns else "NULL::text AS choice_group"
+    choice_weight_sql = "mr.choice_weight_percent AS choice_weight_percent" if has_choice_columns else "NULL::numeric AS choice_weight_percent"
+    cur.execute(f"""
         SELECT mr.menu_item_id,
                mr.recipe_id,
                mr.quantity,
                mr.unit,
+               {choice_group_sql},
+               {choice_weight_sql},
                r.name AS recipe_name,
                r.yield_qty,
                r.yield_unit,
@@ -1411,11 +1421,16 @@ def get_banquet_menu_item_component_summaries(cur, menu_item_ids):
         return {}
     summaries = {menu_item_id: {'recipes': [], 'ingredients': []} for menu_item_id in menu_item_ids}
 
-    cur.execute("""
+    has_choice_columns = db_column_exists(cur, 'public.banquet_menu_item_recipes', 'choice_group') and db_column_exists(cur, 'public.banquet_menu_item_recipes', 'choice_weight_percent')
+    choice_group_sql = "mr.choice_group AS choice_group" if has_choice_columns else "NULL::text AS choice_group"
+    choice_weight_sql = "mr.choice_weight_percent AS choice_weight_percent" if has_choice_columns else "NULL::numeric AS choice_weight_percent"
+    cur.execute(f"""
         SELECT mr.menu_item_id,
                mr.recipe_id,
                mr.quantity,
                mr.unit,
+               {choice_group_sql},
+               {choice_weight_sql},
                r.name AS recipe_name
         FROM banquet_menu_item_recipes mr
         JOIN recipes r ON r.id = mr.recipe_id
@@ -1428,7 +1443,9 @@ def get_banquet_menu_item_component_summaries(cur, menu_item_ids):
             'id': row.get('recipe_id'),
             'name': row.get('recipe_name'),
             'quantity': to_float(row.get('quantity')),
-            'unit': row.get('unit') or ''
+            'unit': row.get('unit') or '',
+            'choice_group': row.get('choice_group'),
+            'choice_weight_percent': to_float(row.get('choice_weight_percent'))
         })
 
     cur.execute("""
@@ -1649,16 +1666,30 @@ def clone_banquet_menu_item(cur, source_menu_item_id, venue_id, clone_label='Cus
             source_item.get('notes')
         ))
 
+    has_choice_columns = db_column_exists(cur, 'public.banquet_menu_item_recipes', 'choice_group') and db_column_exists(cur, 'public.banquet_menu_item_recipes', 'choice_weight_percent')
     for row in get_banquet_menu_item_recipe_components(cur, source_menu_item_id):
-        cur.execute("""
-            INSERT INTO banquet_menu_item_recipes (menu_item_id, recipe_id, quantity, unit)
-            VALUES (%s, %s, %s, %s)
-        """, (
-            clone_id,
-            row.get('recipe_id'),
-            row.get('quantity') or 1,
-            row.get('unit') or 'each'
-        ))
+        if has_choice_columns:
+            cur.execute("""
+                INSERT INTO banquet_menu_item_recipes (menu_item_id, recipe_id, quantity, unit, choice_group, choice_weight_percent)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (
+                clone_id,
+                row.get('recipe_id'),
+                row.get('quantity') or 1,
+                row.get('unit') or 'each',
+                row.get('choice_group'),
+                row.get('choice_weight_percent')
+            ))
+        else:
+            cur.execute("""
+                INSERT INTO banquet_menu_item_recipes (menu_item_id, recipe_id, quantity, unit)
+                VALUES (%s, %s, %s, %s)
+            """, (
+                clone_id,
+                row.get('recipe_id'),
+                row.get('quantity') or 1,
+                row.get('unit') or 'each'
+            ))
 
     for row in get_banquet_menu_item_ingredients(cur, source_menu_item_id):
         cur.execute("""
@@ -1758,15 +1789,20 @@ def parse_menu_item_recipe_lines(request, valid_recipe_ids):
     recipe_ids = request.form.getlist('component_recipe_id[]')
     quantities = request.form.getlist('component_qty[]')
     units = request.form.getlist('component_unit[]')
+    choice_groups = request.form.getlist('component_choice_group[]')
+    choice_weights = request.form.getlist('component_choice_weight[]')
 
-    max_len = max(len(recipe_ids), len(quantities), len(units), 0)
+    max_len = max(len(recipe_ids), len(quantities), len(units), len(choice_groups), len(choice_weights), 0)
     rows = []
     errors = []
     for idx in range(max_len):
         recipe_id = (recipe_ids[idx] if idx < len(recipe_ids) else '').strip()
         quantity_raw = (quantities[idx] if idx < len(quantities) else '').strip()
         unit = clean_menu_text(units[idx] if idx < len(units) else '')
-        if not any([recipe_id, quantity_raw, unit]):
+        choice_group = clean_menu_text(choice_groups[idx] if idx < len(choice_groups) else '')
+        choice_weight_raw = (choice_weights[idx] if idx < len(choice_weights) else '').strip()
+
+        if not any([recipe_id, quantity_raw, unit, choice_group, choice_weight_raw]):
             continue
         if recipe_id not in valid_recipe_ids:
             errors.append('Recipe component row has an invalid recipe.')
@@ -1780,11 +1816,58 @@ def parse_menu_item_recipe_lines(request, valid_recipe_ids):
         )
         if quantity is None:
             continue
+
+        choice_weight = None
+        if choice_weight_raw:
+            choice_weight = parse_float_field(
+                choice_weight_raw,
+                'Choice weight percent',
+                errors,
+                required=False,
+                min_value=0
+            )
+            if choice_weight is not None and choice_weight > 100:
+                errors.append('Choice weight percent cannot exceed 100.')
+
         rows.append({
             'recipe_id': recipe_id,
             'quantity': quantity,
-            'unit': normalize_unit(unit) or unit
+            'unit': normalize_unit(unit) or unit,
+            'choice_group': choice_group or None,
+            'choice_weight_percent': choice_weight if choice_group else None
         })
+
+    grouped_choice_rows = defaultdict(list)
+    for row in rows:
+        group = (row.get('choice_group') or '').strip()
+        if group:
+            grouped_choice_rows[group].append(row)
+
+    for group_name, group_rows in grouped_choice_rows.items():
+        if not group_rows:
+            continue
+        explicit = [row for row in group_rows if row.get('choice_weight_percent') is not None]
+        if not explicit:
+            equal = 100.0 / len(group_rows)
+            for row in group_rows:
+                row['choice_weight_percent'] = equal
+            continue
+
+        explicit_total = sum(to_float(row.get('choice_weight_percent')) for row in explicit)
+        if explicit_total > 100.0001:
+            errors.append(f'Choice group "{group_name}" exceeds 100%.')
+            continue
+
+        missing = [row for row in group_rows if row.get('choice_weight_percent') is None]
+        if missing:
+            remaining = max(0.0, 100.0 - explicit_total)
+            each = remaining / len(missing)
+            for row in missing:
+                row['choice_weight_percent'] = each
+        elif 0 < explicit_total < 100:
+            scale = 100.0 / explicit_total
+            for row in explicit:
+                row['choice_weight_percent'] = to_float(row.get('choice_weight_percent')) * scale
     return rows, errors
 
 def ratio_from_line_quantity(line, recipe):
@@ -2047,10 +2130,29 @@ def build_banquet_datasets(cur, start_date, end_date, venue_id='', unit_system='
                 'yield_unit': component.get('yield_unit'),
                 'quantity': to_float(component.get('quantity')),
                 'unit': component.get('unit') or component.get('yield_unit'),
-                'recipe_type': component.get('recipe_type')
+                'recipe_type': component.get('recipe_type'),
+                'choice_group': component.get('choice_group'),
+                'choice_weight_percent': to_float(component.get('choice_weight_percent'))
             })
         if not line_recipes and recipe:
             line_recipes = [dict(recipe)]
+
+        choice_group_rows = defaultdict(list)
+        for line_recipe in line_recipes:
+            group_name = clean_menu_text(line_recipe.get('choice_group') or '')
+            if group_name:
+                choice_group_rows[group_name].append(line_recipe)
+
+        choice_multipliers = {}
+        for group_name, group_rows in choice_group_rows.items():
+            total_weight = sum(max(0.0, to_float(item.get('choice_weight_percent'))) for item in group_rows)
+            if total_weight <= 0:
+                equal_share = 1.0 / len(group_rows) if group_rows else 0
+                for item in group_rows:
+                    choice_multipliers[id(item)] = equal_share
+            else:
+                for item in group_rows:
+                    choice_multipliers[id(item)] = max(0.0, to_float(item.get('choice_weight_percent'))) / total_weight
 
         line = {
             'id': row.get('line_id'),
@@ -2089,7 +2191,8 @@ def build_banquet_datasets(cur, start_date, end_date, venue_id='', unit_system='
                 },
                 line_recipe
             )
-            total_ratio = ratio_per_menu_unit * line_multiplier
+            group_multiplier = choice_multipliers.get(id(line_recipe), 1.0)
+            total_ratio = ratio_per_menu_unit * line_multiplier * group_multiplier
             line_cost_total += get_recipe_total_cost(cur, line_recipe['id'], unit_system, apply_q_factor=True) * total_ratio
 
             recipe_yield_qty = to_float(line_recipe.get('yield_qty'))
@@ -3299,6 +3402,7 @@ def banquet_template_import():
 
 def save_banquet_menu_item(cur, menu_item_id, form_state, ingredient_rows):
     has_base_yield = db_column_exists(cur, 'public.banquet_menu_items', 'base_yield_qty') and db_column_exists(cur, 'public.banquet_menu_items', 'base_yield_unit')
+    has_choice_columns = db_column_exists(cur, 'public.banquet_menu_item_recipes', 'choice_group') and db_column_exists(cur, 'public.banquet_menu_item_recipes', 'choice_weight_percent')
     if menu_item_id:
         if has_base_yield:
             cur.execute("""
@@ -3377,15 +3481,28 @@ def save_banquet_menu_item(cur, menu_item_id, form_state, ingredient_rows):
     cur.execute("DELETE FROM banquet_menu_item_ingredients WHERE menu_item_id = %s", (menu_item_id,))
 
     for component in form_state.get('recipe_components', []):
-        cur.execute("""
-            INSERT INTO banquet_menu_item_recipes (menu_item_id, recipe_id, quantity, unit)
-            VALUES (%s, %s, %s, %s)
-        """, (
-            menu_item_id,
-            component['recipe_id'],
-            component['quantity'],
-            component['unit']
-        ))
+        if has_choice_columns:
+            cur.execute("""
+                INSERT INTO banquet_menu_item_recipes (menu_item_id, recipe_id, quantity, unit, choice_group, choice_weight_percent)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (
+                menu_item_id,
+                component['recipe_id'],
+                component['quantity'],
+                component['unit'],
+                component.get('choice_group'),
+                component.get('choice_weight_percent')
+            ))
+        else:
+            cur.execute("""
+                INSERT INTO banquet_menu_item_recipes (menu_item_id, recipe_id, quantity, unit)
+                VALUES (%s, %s, %s, %s)
+            """, (
+                menu_item_id,
+                component['recipe_id'],
+                component['quantity'],
+                component['unit']
+            ))
 
     for row in ingredient_rows:
         cur.execute("""

@@ -152,6 +152,8 @@ MIGRATIONS = [
     "CREATE INDEX IF NOT EXISTS idx_banquet_events_status ON banquet_events (status)",
     "CREATE INDEX IF NOT EXISTS idx_banquet_event_menu_items_event_id ON banquet_event_menu_items (event_id)",
     "CREATE INDEX IF NOT EXISTS idx_banquet_event_menu_items_menu_item_id ON banquet_event_menu_items (menu_item_id)",
+    "ALTER TABLE banquet_menu_item_recipes ADD COLUMN IF NOT EXISTS choice_group TEXT",
+    "ALTER TABLE banquet_menu_item_recipes ADD COLUMN IF NOT EXISTS choice_weight_percent NUMERIC",
     "ALTER TABLE banquet_events ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'planning'",
     "ALTER TABLE banquet_menu_items ADD COLUMN IF NOT EXISTS venue_id TEXT",
     "ALTER TABLE banquet_menu_items ADD COLUMN IF NOT EXISTS menu_section TEXT",

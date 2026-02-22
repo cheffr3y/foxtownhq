@@ -44,7 +44,7 @@
                     <input type="text" value="{{ banquet_venue_name }}" class="w-full px-4 py-3 border border-stone-300 rounded-xl bg-stone-100 text-stone-600" readonly>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-stone-700 mb-1">Section</label>
+                    <label class="block text-sm font-medium text-stone-700 mb-1">Section <span class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-stone-200 text-stone-700 text-[10px] cursor-help align-middle" title="Menu section for sorting in BEO/event forms.">?</span></label>
                     <select name="menu_section" class="w-full px-4 py-3 border border-stone-300 rounded-xl">
                         <option value="">Select section</option>
                         {% for sec in section_options %}
@@ -53,11 +53,11 @@
                     </select>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-stone-700 mb-1">Sold As Qty</label>
+                    <label class="block text-sm font-medium text-stone-700 mb-1">Sold As Qty <span class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-stone-200 text-stone-700 text-[10px] cursor-help align-middle" title="How many units this menu item definition represents (usually 1 each).">?</span></label>
                     <input type="number" step="0.0001" min="0" name="base_yield_qty" value="{{ form_state.base_yield_qty or 1 }}" class="w-full px-4 py-3 border border-stone-300 rounded-xl">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-stone-700 mb-1">Sold As Unit</label>
+                    <label class="block text-sm font-medium text-stone-700 mb-1">Sold As Unit <span class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-stone-200 text-stone-700 text-[10px] cursor-help align-middle" title="Serving unit used in events (each, serving, dozen, etc.).">?</span></label>
                     <input type="text" name="base_yield_unit" value="{{ form_state.base_yield_unit or 'each' }}" class="w-full px-4 py-3 border border-stone-300 rounded-xl" placeholder="each / serving / dozen">
                 </div>
                 <div class="md:col-span-2">
@@ -76,7 +76,7 @@
                 <h2 class="text-xl font-display text-foxtown-ink">Recipe Components (Sub-Assemblies)</h2>
                 <button type="button" id="addRecipeComponentBtn" class="text-foxtown-ember font-semibold hover:text-orange-700">+ Add recipe</button>
             </div>
-            <p class="text-sm text-stone-500 mb-4">Add one or many RM/RB recipes that make up this menu item.</p>
+            <p class="text-sm text-stone-500 mb-4">Add one or many RM/RB recipes that make up this menu item. For optional choices (example: wing sauce), set the same Choice Group name and weights. They auto-normalize to 100%.</p>
             <div class="overflow-x-auto">
                 <table class="min-w-full text-sm">
                     <thead class="text-xs uppercase text-stone-500 border-b border-stone-200">
@@ -84,6 +84,14 @@
                             <th class="text-left py-2 pr-2 min-w-[280px]">Recipe</th>
                             <th class="text-left py-2 pr-2 min-w-[140px]">Qty</th>
                             <th class="text-left py-2 pr-2 min-w-[140px]">Unit</th>
+                            <th class="text-left py-2 pr-2 min-w-[180px]">
+                                Choice Group
+                                <span class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-stone-200 text-stone-700 text-[10px] cursor-help align-middle ml-1" title="Use the same group name for mutually exclusive options. Example: Wing Sauce Choice.">?</span>
+                            </th>
+                            <th class="text-left py-2 pr-2 min-w-[130px]">
+                                Weight %
+                                <span class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-stone-200 text-stone-700 text-[10px] cursor-help align-middle ml-1" title="Expected mix in that group. Example: Ranch 70, Buffalo 20, BBQ 10. Leave blank to auto-split evenly.">?</span>
+                            </th>
                             <th class="text-left py-2 pr-2">Remove</th>
                         </tr>
                     </thead>
@@ -96,6 +104,8 @@
                             </td>
                             <td class="py-2 pr-2"><input type="number" step="0.0001" min="0" name="component_qty[]" value="{{ row.quantity or '' }}" class="w-full px-3 py-2 border border-stone-300 rounded-lg"></td>
                             <td class="py-2 pr-2"><input name="component_unit[]" value="{{ row.unit or '' }}" class="w-full px-3 py-2 border border-stone-300 rounded-lg"></td>
+                            <td class="py-2 pr-2"><input name="component_choice_group[]" value="{{ row.choice_group or '' }}" class="w-full px-3 py-2 border border-stone-300 rounded-lg" placeholder="Wing Sauce Choice" title="Same group name = choose one from this set."></td>
+                            <td class="py-2 pr-2"><input type="number" step="0.01" min="0" max="100" name="component_choice_weight[]" value="{{ row.choice_weight_percent if row.choice_weight_percent is not none else '' }}" class="w-full px-3 py-2 border border-stone-300 rounded-lg" placeholder="33.33" title="Percent share inside this choice group. Blank values auto-split."></td>
                             <td class="py-2 pr-2"><button type="button" class="removeRecipeComponent text-red-600 hover:text-red-800 font-semibold">Remove</button></td>
                         </tr>
                         {% endfor %}
@@ -178,6 +188,8 @@
     </td>
     <td class="py-2 pr-2"><input type="number" step="0.0001" min="0" name="component_qty[]" class="w-full px-3 py-2 border border-stone-300 rounded-lg"></td>
     <td class="py-2 pr-2"><input name="component_unit[]" class="w-full px-3 py-2 border border-stone-300 rounded-lg"></td>
+    <td class="py-2 pr-2"><input name="component_choice_group[]" class="w-full px-3 py-2 border border-stone-300 rounded-lg" placeholder="Choice group" title="Same group name = choose one from this set."></td>
+    <td class="py-2 pr-2"><input type="number" step="0.01" min="0" max="100" name="component_choice_weight[]" class="w-full px-3 py-2 border border-stone-300 rounded-lg" placeholder="%" title="Percent share inside this choice group. Blank values auto-split."></td>
     <td class="py-2 pr-2"><button type="button" class="removeRecipeComponent text-red-600 hover:text-red-800 font-semibold">Remove</button></td>
 </tr>
 </template>
