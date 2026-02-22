@@ -91,7 +91,13 @@
     <div class="page-break"></div>
     <h2>2. RM Build Sheets</h2>
     {% for rm in rm_component_sets %}
-    <h3>{{ rm.menu_item }} <span class="small">({{ rm.recipe_name }}) · Total: ${{ "%.4f"|format(rm.total_cost) }}</span></h3>
+    <h3>
+        {{ rm.menu_name }}
+        <span class="small">
+            {% if rm.menu_descriptor %}({{ rm.menu_descriptor }}) · {% endif %}
+            Total: ${{ "%.4f"|format(rm.total_cost) }}
+        </span>
+    </h3>
     <table>
         <thead>
             <tr>

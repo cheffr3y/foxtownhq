@@ -5310,11 +5310,15 @@ def menu_rollout_packet_export(rollout_id):
     subrecipe_ids = set()
     for item in menu_items:
         components, total_cost, _ = build_component_tree(cur, item['recipe_id'], item.get('batches') or 1, 0, set(), unit_system)
+        recipe_name = item['recipe']['name']
         menu_descriptor = item.get('menu_descriptor') or ''
-        usage_label = menu_descriptor or item['recipe']['name']
+        usage_label = recipe_name
+        if menu_descriptor and normalize_match_key(menu_descriptor) != normalize_match_key(recipe_name):
+            usage_label = f"{recipe_name} ({menu_descriptor})"
         rm_component_sets.append({
-            'menu_item': menu_descriptor,
-            'recipe_name': item['recipe']['name'],
+            'menu_name': recipe_name,
+            'menu_descriptor': menu_descriptor,
+            'recipe_name': recipe_name,
             'components': components,
             'total_cost': total_cost
         })
@@ -5395,15 +5399,15 @@ def menu_rollout_packet_export(rollout_id):
     # 2) RM builds
     ws_rm = wb.create_sheet("02 RM Builds")
     ws_rm.append([
-        "Menu Descriptor", "RM Recipe", "Type", "Component", "Qty", "Unit", "Ext Cost", "G-Code", "Vendor", "Vendor SKU", "Notes"
+        "Menu Name", "Menu Descriptor", "Type", "Component", "Qty", "Unit", "Ext Cost", "G-Code", "Vendor", "Vendor SKU", "Notes"
     ])
     style_headers(ws_rm)
     for rm in rm_component_sets:
-        ws_rm.append([rm['menu_item'], rm['recipe_name'], "RM", rm['recipe_name'], '', '', round(to_float(rm['total_cost']), 4), '', '', '', 'Total plated cost'])
+        ws_rm.append([rm['menu_name'], rm.get('menu_descriptor') or '', "RM", rm['recipe_name'], '', '', round(to_float(rm['total_cost']), 4), '', '', '', 'Total plated cost'])
         for row in flatten_components_for_packet(rm['components'], ingredient_map, explode_subrecipes=False):
             ws_rm.append([
-                rm['menu_item'],
-                rm['recipe_name'],
+                rm['menu_name'],
+                rm.get('menu_descriptor') or '',
                 row.get('type'),
                 row.get('name'),
                 row.get('quantity'),
@@ -5575,11 +5579,15 @@ def menu_rollout_packet_print(rollout_id):
     subrecipe_ids = set()
     for item in menu_items:
         components, total_cost, _ = build_component_tree(cur, item['recipe_id'], item.get('batches') or 1, 0, set(), unit_system)
+        recipe_name = item['recipe']['name']
         menu_descriptor = item.get('menu_descriptor') or ''
-        usage_label = menu_descriptor or item['recipe']['name']
+        usage_label = recipe_name
+        if menu_descriptor and normalize_match_key(menu_descriptor) != normalize_match_key(recipe_name):
+            usage_label = f"{recipe_name} ({menu_descriptor})"
         rm_component_sets.append({
-            'menu_item': menu_descriptor,
-            'recipe_name': item['recipe']['name'],
+            'menu_name': recipe_name,
+            'menu_descriptor': menu_descriptor,
+            'recipe_name': recipe_name,
             'total_cost': total_cost,
             'rows': flatten_components_for_packet(components, ingredient_map, explode_subrecipes=False)
         })
