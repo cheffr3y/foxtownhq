@@ -15,7 +15,7 @@
                     </a>
                     <div>
                         <h1 class="text-2xl font-display tracking-tight">{{ page_title }}</h1>
-                        <p class="text-sm text-stone-200">Banquet lines are independent. Recipe links are optional and used only for costing/planning math.</p>
+                        <p class="text-sm text-stone-200">Select menu items from your banquet catalog. Linked recipes and raw ingredients roll into shopping and prep automatically.</p>
                     </div>
                 </div>
             </div>
@@ -87,10 +87,9 @@
                 <table class="min-w-full text-sm" id="linesTable">
                     <thead class="text-xs uppercase text-stone-500 border-b border-stone-200">
                         <tr>
-                            <th class="text-left py-2 pr-2 min-w-[220px]">Recipe Link (Optional)</th>
-                            <th class="text-left py-2 pr-2 min-w-[180px]">Menu Item</th>
-                            <th class="text-left py-2 pr-2 min-w-[220px]">Descriptor</th>
-                            <th class="text-left py-2 pr-2 min-w-[160px]">Section</th>
+                            <th class="text-left py-2 pr-2 min-w-[260px]">Menu Item</th>
+                            <th class="text-left py-2 pr-2 min-w-[320px]">Descriptor</th>
+                            <th class="text-left py-2 pr-2 min-w-[170px]">Section</th>
                             <th class="text-left py-2 pr-2 min-w-[120px]">Qty</th>
                             <th class="text-left py-2 pr-2 min-w-[100px]">Unit</th>
                             <th class="text-left py-2 pr-2 min-w-[160px]">Notes</th>
@@ -101,22 +100,31 @@
                         {% for line in lines %}
                         <tr>
                             <td class="py-2 pr-2">
-                                <select name="line_recipe_id[]" class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm">
-                                    <option value="">Unlinked (menu item only)</option>
-                                    {% for recipe in plated_recipes %}
-                                    <option value="{{ recipe.id }}" {% if line.recipe_id == recipe.id %}selected{% endif %}>{{ recipe.name }}</option>
+                                <select name="line_menu_item_id[]" data-role="menu-item-select" class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm">
+                                    <option value="">Select menu item</option>
+                                    {% for item in menu_items %}
+                                    <option
+                                        value="{{ item.id }}"
+                                        data-name="{{ item.name|e }}"
+                                        data-descriptor="{{ (item.menu_descriptor or '')|e }}"
+                                        data-section="{{ (item.menu_section or '')|e }}"
+                                        data-recipe-id="{{ item.linked_recipe_id or '' }}"
+                                        {% if line.menu_item_id == item.id %}selected{% endif %}
+                                    >
+                                        {{ item.name }}{% if item.menu_section %} ({{ item.menu_section }}){% endif %}
+                                    </option>
                                     {% endfor %}
                                 </select>
+                                <input type="hidden" name="line_recipe_id[]" data-role="recipe-id" value="{{ line.recipe_id or '' }}">
+                                <input type="hidden" name="line_menu_item_name[]" data-role="menu-item-name" value="{{ line.menu_item_name or '' }}">
+                                <input type="hidden" name="line_menu_descriptor[]" data-role="menu-descriptor" value="{{ line.menu_descriptor or '' }}">
+                                <input type="hidden" name="line_menu_section[]" data-role="menu-section" value="{{ line.menu_section or '' }}">
                             </td>
-                            <td class="py-2 pr-2"><input name="line_menu_item_name[]" value="{{ line.menu_item_name or '' }}" class="w-full px-3 py-2 border border-stone-300 rounded-lg" placeholder="Buffalo Chicken Slider"></td>
-                            <td class="py-2 pr-2"><input name="line_menu_descriptor[]" value="{{ line.menu_descriptor or '' }}" class="w-full px-3 py-2 border border-stone-300 rounded-lg" placeholder="House ranch + pickles"></td>
                             <td class="py-2 pr-2">
-                                <select name="line_menu_section[]" class="w-full px-3 py-2 border border-stone-300 rounded-lg">
-                                    <option value="">Select</option>
-                                    {% for sec in section_options %}
-                                    <option value="{{ sec }}" {% if line.menu_section == sec %}selected{% endif %}>{{ sec }}</option>
-                                    {% endfor %}
-                                </select>
+                                <div data-role="descriptor-label" class="px-3 py-2 min-h-[42px] border border-stone-200 rounded-lg bg-stone-50 text-stone-700">{{ line.menu_descriptor or '—' }}</div>
+                            </td>
+                            <td class="py-2 pr-2">
+                                <div data-role="section-label" class="px-3 py-2 min-h-[42px] border border-stone-200 rounded-lg bg-stone-50 text-stone-700">{{ line.menu_section or '—' }}</div>
                             </td>
                             <td class="py-2 pr-2"><input type="number" step="0.01" min="0" name="line_qty[]" value="{{ line.quantity or '' }}" class="w-full px-3 py-2 border border-stone-300 rounded-lg"></td>
                             <td class="py-2 pr-2"><input name="line_unit[]" value="{{ line.quantity_unit or line.yield_unit or 'each' }}" class="w-full px-3 py-2 border border-stone-300 rounded-lg"></td>
@@ -128,7 +136,7 @@
                 </table>
             </div>
             {% if not lines %}
-            <p class="text-sm text-stone-500 mt-4">Start by adding at least one plated menu line.</p>
+            <p class="text-sm text-stone-500 mt-4">Start by adding at least one menu item line.</p>
             {% endif %}
         </div>
 
@@ -153,24 +161,32 @@
 <template id="lineRowTemplate">
 <tr>
     <td class="py-2 pr-2">
-        <select name="line_recipe_id[]" class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm">
-            <option value="">Unlinked (menu item only)</option>
-            {% for recipe in plated_recipes %}
-            <option value="{{ recipe.id }}">{{ recipe.name }}</option>
+        <select name="line_menu_item_id[]" data-role="menu-item-select" class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm">
+            <option value="">Select menu item</option>
+            {% for item in menu_items %}
+            <option
+                value="{{ item.id }}"
+                data-name="{{ item.name|e }}"
+                data-descriptor="{{ (item.menu_descriptor or '')|e }}"
+                data-section="{{ (item.menu_section or '')|e }}"
+                data-recipe-id="{{ item.linked_recipe_id or '' }}"
+            >
+                {{ item.name }}{% if item.menu_section %} ({{ item.menu_section }}){% endif %}
+            </option>
             {% endfor %}
         </select>
+        <input type="hidden" name="line_recipe_id[]" data-role="recipe-id" value="">
+        <input type="hidden" name="line_menu_item_name[]" data-role="menu-item-name" value="">
+        <input type="hidden" name="line_menu_descriptor[]" data-role="menu-descriptor" value="">
+        <input type="hidden" name="line_menu_section[]" data-role="menu-section" value="">
     </td>
-    <td class="py-2 pr-2"><input name="line_menu_item_name[]" class="w-full px-3 py-2 border border-stone-300 rounded-lg" placeholder="Menu item"></td>
-    <td class="py-2 pr-2"><input name="line_menu_descriptor[]" class="w-full px-3 py-2 border border-stone-300 rounded-lg" placeholder="Descriptor"></td>
     <td class="py-2 pr-2">
-        <select name="line_menu_section[]" class="w-full px-3 py-2 border border-stone-300 rounded-lg">
-            <option value="">Select</option>
-            {% for sec in section_options %}
-            <option value="{{ sec }}">{{ sec }}</option>
-            {% endfor %}
-        </select>
+        <div data-role="descriptor-label" class="px-3 py-2 min-h-[42px] border border-stone-200 rounded-lg bg-stone-50 text-stone-700">—</div>
     </td>
-    <td class="py-2 pr-2"><input type="number" step="0.01" min="0" name="line_qty[]" class="w-full px-3 py-2 border border-stone-300 rounded-lg"></td>
+    <td class="py-2 pr-2">
+        <div data-role="section-label" class="px-3 py-2 min-h-[42px] border border-stone-200 rounded-lg bg-stone-50 text-stone-700">—</div>
+    </td>
+    <td class="py-2 pr-2"><input type="number" step="0.01" min="0" name="line_qty[]" value="1" class="w-full px-3 py-2 border border-stone-300 rounded-lg"></td>
     <td class="py-2 pr-2"><input name="line_unit[]" value="each" class="w-full px-3 py-2 border border-stone-300 rounded-lg"></td>
     <td class="py-2 pr-2"><input name="line_notes[]" class="w-full px-3 py-2 border border-stone-300 rounded-lg" placeholder="Notes"></td>
     <td class="py-2 pr-2"><button type="button" class="removeRow text-red-600 hover:text-red-800 font-semibold">Remove</button></td>
@@ -183,22 +199,55 @@
     const addLineBtn = document.getElementById('addLineBtn');
     const template = document.getElementById('lineRowTemplate');
 
-    function bindRemoveButtons() {
-        document.querySelectorAll('.removeRow').forEach((btn) => {
-            btn.onclick = () => {
-                const row = btn.closest('tr');
-                if (row) row.remove();
-            };
-        });
+    function syncRow(row) {
+        if (!row) return;
+        const select = row.querySelector('[data-role="menu-item-select"]');
+        const recipeIdInput = row.querySelector('[data-role="recipe-id"]');
+        const menuNameInput = row.querySelector('[data-role="menu-item-name"]');
+        const descriptorInput = row.querySelector('[data-role="menu-descriptor"]');
+        const sectionInput = row.querySelector('[data-role="menu-section"]');
+        const descriptorLabel = row.querySelector('[data-role="descriptor-label"]');
+        const sectionLabel = row.querySelector('[data-role="section-label"]');
+        if (!select) return;
+
+        const selected = select.options[select.selectedIndex];
+        const selectedId = select.value;
+        const menuName = selectedId ? (selected.dataset.name || selected.textContent.trim()) : '';
+        const menuDescriptor = selectedId ? (selected.dataset.descriptor || '') : '';
+        const menuSection = selectedId ? (selected.dataset.section || '') : '';
+        const recipeId = selectedId ? (selected.dataset.recipeId || '') : '';
+
+        if (menuNameInput) menuNameInput.value = menuName;
+        if (descriptorInput) descriptorInput.value = menuDescriptor;
+        if (sectionInput) sectionInput.value = menuSection;
+        if (recipeIdInput) recipeIdInput.value = recipeId;
+        if (descriptorLabel) descriptorLabel.textContent = menuDescriptor || '—';
+        if (sectionLabel) sectionLabel.textContent = menuSection || '—';
+    }
+
+    function bindRow(row) {
+        if (!row) return;
+        const select = row.querySelector('[data-role="menu-item-select"]');
+        const removeBtn = row.querySelector('.removeRow');
+        if (select) {
+            select.addEventListener('change', () => syncRow(row));
+        }
+        if (removeBtn) {
+            removeBtn.addEventListener('click', () => row.remove());
+        }
+        syncRow(row);
     }
 
     addLineBtn.addEventListener('click', () => {
         const clone = template.content.cloneNode(true);
         lineRows.appendChild(clone);
-        bindRemoveButtons();
+        bindRow(lineRows.lastElementChild);
     });
 
-    bindRemoveButtons();
+    Array.from(lineRows.querySelectorAll('tr')).forEach((row) => bindRow(row));
+    if (!lineRows.querySelector('tr')) {
+        addLineBtn.click();
+    }
 })();
 </script>
 {% endblock %}

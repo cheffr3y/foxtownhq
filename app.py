@@ -1376,6 +1376,7 @@ def upsert_menu_item_recipe_link(cur, menu_item_id, recipe_id):
     """, (menu_item_id, recipe_id))
 
 def parse_event_recipe_lines(request):
+    menu_item_ids = request.form.getlist('line_menu_item_id[]')
     recipe_ids = request.form.getlist('line_recipe_id[]')
     names = request.form.getlist('line_menu_item_name[]')
     descriptors = request.form.getlist('line_menu_descriptor[]')
@@ -1385,12 +1386,13 @@ def parse_event_recipe_lines(request):
     notes = request.form.getlist('line_notes[]')
 
     max_len = max(
-        len(recipe_ids), len(names), len(descriptors), len(sections),
+        len(menu_item_ids), len(recipe_ids), len(names), len(descriptors), len(sections),
         len(quantities), len(quantity_units), len(notes), 0
     )
     rows = []
     errors = []
     for idx in range(max_len):
+        menu_item_id = (menu_item_ids[idx] if idx < len(menu_item_ids) else '').strip()
         recipe_id = (recipe_ids[idx] if idx < len(recipe_ids) else '').strip()
         menu_name = clean_menu_text(names[idx] if idx < len(names) else '')
         descriptor = clean_menu_text(descriptors[idx] if idx < len(descriptors) else '')
@@ -1399,12 +1401,13 @@ def parse_event_recipe_lines(request):
         qty_unit = clean_menu_text(quantity_units[idx] if idx < len(quantity_units) else '')
         note = clean_menu_text(notes[idx] if idx < len(notes) else '')
 
-        if not any([recipe_id, menu_name, descriptor, section, qty_raw, qty_unit, note]):
+        if not any([menu_item_id, recipe_id, menu_name, descriptor, section, qty_raw, qty_unit, note]):
             continue
         qty = parse_float_field(qty_raw, 'Menu quantity', errors, required=True, min_value=0.0001)
-        if not menu_name:
+        if not menu_name and not menu_item_id:
             errors.append('Each banquet line needs a menu item name.')
         rows.append({
+            'menu_item_id': menu_item_id or None,
             'recipe_id': recipe_id or None,
             'menu_item_name': menu_name,
             'menu_descriptor': descriptor or None,
@@ -2182,18 +2185,6 @@ def banquet_event_new():
     if requested_venue_id and requested_venue_id in venue_ids:
         event['venue_id'] = requested_venue_id
 
-    def default_catalog_lines(venue_id):
-        menu_items = list_banquet_menu_items(cur, venue_id)
-        return [{
-            'recipe_id': item.get('linked_recipe_id'),
-            'menu_item_name': item.get('name') or '',
-            'menu_descriptor': item.get('menu_descriptor'),
-            'menu_section': item.get('menu_section'),
-            'quantity': 1,
-            'quantity_unit': 'each',
-            'notes': ''
-        } for item in menu_items]
-
     if request.method == 'POST':
         errors = []
         event_name = clean_menu_text(request.form.get('name'))
@@ -2216,8 +2207,6 @@ def banquet_event_new():
 
         lines, line_errors = parse_event_recipe_lines(request)
         errors.extend(line_errors)
-        if not lines:
-            lines = default_catalog_lines(venue_id)
         if not lines:
             errors.append('Add at least one menu line for the event.')
         if not event_name:
@@ -2260,10 +2249,40 @@ def banquet_event_new():
                 ))
 
                 for idx, line in enumerate(lines):
-                    menu_item_id = resolve_or_create_banquet_menu_item(cur, line, venue_id)
-                    if not menu_item_id:
-                        continue
-                    upsert_menu_item_recipe_link(cur, menu_item_id, line['recipe_id'])
+                    menu_item_id = line.get('menu_item_id')
+                    line_name = line.get('menu_item_name') or ''
+                    line_section = line.get('menu_section')
+                    line_descriptor = line.get('menu_descriptor')
+                    recipe_id = line.get('recipe_id')
+
+                    if menu_item_id:
+                        cur.execute("""
+                            SELECT id, name, menu_section, menu_descriptor
+                            FROM banquet_menu_items
+                            WHERE id = %s
+                        """, (menu_item_id,))
+                        menu_item = cur.fetchone()
+                        if not menu_item:
+                            continue
+                        line_name = line_name or menu_item.get('name') or line_name
+                        line_section = line_section or menu_item.get('menu_section')
+                        line_descriptor = line_descriptor or menu_item.get('menu_descriptor')
+                        if not recipe_id:
+                            cur.execute("""
+                                SELECT recipe_id
+                                FROM banquet_menu_item_recipes
+                                WHERE menu_item_id = %s
+                                ORDER BY id
+                                LIMIT 1
+                            """, (menu_item_id,))
+                            match = cur.fetchone()
+                            recipe_id = match.get('recipe_id') if match else None
+                    else:
+                        menu_item_id = resolve_or_create_banquet_menu_item(cur, line, venue_id)
+                        if not menu_item_id:
+                            continue
+                        upsert_menu_item_recipe_link(cur, menu_item_id, recipe_id)
+
                     cur.execute("""
                         INSERT INTO banquet_event_menu_items (
                             event_id, menu_item_id, menu_item_name, recipe_id, quantity, quantity_unit,
@@ -2272,12 +2291,12 @@ def banquet_event_new():
                     """, (
                         event_id,
                         menu_item_id,
-                        line['menu_item_name'],
-                        line['recipe_id'],
+                        line_name,
+                        recipe_id,
                         line['quantity'],
                         line['quantity_unit'] or 'each',
-                        line['menu_section'] or None,
-                        line['menu_descriptor'] or None,
+                        line_section or None,
+                        line_descriptor or None,
                         line['notes'] or None,
                         idx
                     ))
@@ -2292,8 +2311,9 @@ def banquet_event_new():
 
         lines = lines or []
     else:
-        lines = default_catalog_lines(event.get('venue_id') or '')
+        lines = []
 
+    menu_items = list_banquet_menu_items(cur, event.get('venue_id') or '')
     plated_recipes = get_plated_recipes_for_venue(cur, event.get('venue_id') or '', include_unassigned=False)
     cur.close()
     return render_template(
@@ -2301,6 +2321,7 @@ def banquet_event_new():
         page_title='New Banquet Event',
         event=event,
         lines=lines,
+        menu_items=menu_items,
         venues=venues,
         plated_recipes=plated_recipes,
         section_options=BANQUET_MENU_SECTION_OPTIONS,
@@ -2400,10 +2421,40 @@ def banquet_event_edit(event_id):
 
                 cur.execute("DELETE FROM banquet_event_menu_items WHERE event_id = %s", (event_id,))
                 for idx, line in enumerate(lines):
-                    menu_item_id = resolve_or_create_banquet_menu_item(cur, line, venue_id)
-                    if not menu_item_id:
-                        continue
-                    upsert_menu_item_recipe_link(cur, menu_item_id, line['recipe_id'])
+                    menu_item_id = line.get('menu_item_id')
+                    line_name = line.get('menu_item_name') or ''
+                    line_section = line.get('menu_section')
+                    line_descriptor = line.get('menu_descriptor')
+                    recipe_id = line.get('recipe_id')
+
+                    if menu_item_id:
+                        cur.execute("""
+                            SELECT id, name, menu_section, menu_descriptor
+                            FROM banquet_menu_items
+                            WHERE id = %s
+                        """, (menu_item_id,))
+                        menu_item = cur.fetchone()
+                        if not menu_item:
+                            continue
+                        line_name = line_name or menu_item.get('name') or line_name
+                        line_section = line_section or menu_item.get('menu_section')
+                        line_descriptor = line_descriptor or menu_item.get('menu_descriptor')
+                        if not recipe_id:
+                            cur.execute("""
+                                SELECT recipe_id
+                                FROM banquet_menu_item_recipes
+                                WHERE menu_item_id = %s
+                                ORDER BY id
+                                LIMIT 1
+                            """, (menu_item_id,))
+                            match = cur.fetchone()
+                            recipe_id = match.get('recipe_id') if match else None
+                    else:
+                        menu_item_id = resolve_or_create_banquet_menu_item(cur, line, venue_id)
+                        if not menu_item_id:
+                            continue
+                        upsert_menu_item_recipe_link(cur, menu_item_id, recipe_id)
+
                     cur.execute("""
                         INSERT INTO banquet_event_menu_items (
                             event_id, menu_item_id, menu_item_name, recipe_id, quantity, quantity_unit,
@@ -2412,12 +2463,12 @@ def banquet_event_edit(event_id):
                     """, (
                         event_id,
                         menu_item_id,
-                        line['menu_item_name'],
-                        line['recipe_id'],
+                        line_name,
+                        recipe_id,
                         line['quantity'],
                         line['quantity_unit'] or 'each',
-                        line['menu_section'] or None,
-                        line['menu_descriptor'] or None,
+                        line_section or None,
+                        line_descriptor or None,
                         line['notes'] or None,
                         idx
                     ))
@@ -2438,6 +2489,7 @@ def banquet_event_edit(event_id):
         if 'notes' not in line:
             line['notes'] = line.get('line_notes')
 
+    menu_items = list_banquet_menu_items(cur, event.get('venue_id') or '')
     plated_recipes = get_plated_recipes_for_venue(cur, event.get('venue_id') or '', include_unassigned=False)
     cur.close()
     return render_template(
@@ -2445,6 +2497,7 @@ def banquet_event_edit(event_id):
         page_title='Edit Banquet Event',
         event=event,
         lines=lines,
+        menu_items=menu_items,
         venues=venues,
         plated_recipes=plated_recipes,
         section_options=BANQUET_MENU_SECTION_OPTIONS,
