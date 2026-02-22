@@ -1178,12 +1178,21 @@ def get_plated_recipes_for_venue(cur, venue_id='', include_unassigned=True):
     return cur.fetchall()
 
 BANQUET_ACTIVE_STATUSES = ('planning', 'confirmed')
+BANQUET_VENUE_ID = 'ven_banquets'
 BANQUET_STATUS_CHOICES = [
     ('planning', 'Planning'),
     ('confirmed', 'Confirmed'),
     ('completed', 'Completed'),
     ('cancelled', 'Cancelled')
 ]
+
+def resolve_banquet_venue(venues):
+    for venue in venues:
+        if venue.get('id') == BANQUET_VENUE_ID:
+            return venue
+    if venues:
+        return venues[0]
+    return {'id': '', 'name': 'Banquets'}
 
 def banquet_tables_ready(cur):
     required = (
@@ -1257,6 +1266,49 @@ def list_banquet_menu_items(cur, venue_id=''):
             ) extra ON extra.menu_item_id = mi.id
             ORDER BY COALESCE(mi.menu_section, 'zzzz'), mi.name
         """)
+    return cur.fetchall()
+
+def get_banquet_menu_item(cur, menu_item_id):
+    if not banquet_tables_ready(cur):
+        return None
+    cur.execute("""
+        SELECT mi.id,
+               mi.name,
+               mi.venue_id,
+               mi.menu_section,
+               mi.menu_descriptor,
+               mi.notes,
+               pr.recipe_id AS linked_recipe_id,
+               pr.quantity AS linked_recipe_qty,
+               pr.unit AS linked_recipe_unit
+        FROM banquet_menu_items mi
+        LEFT JOIN LATERAL (
+            SELECT recipe_id, quantity, unit
+            FROM banquet_menu_item_recipes
+            WHERE menu_item_id = mi.id
+            ORDER BY id
+            LIMIT 1
+        ) pr ON TRUE
+        WHERE mi.id = %s
+        LIMIT 1
+    """, (menu_item_id,))
+    return cur.fetchone()
+
+def get_banquet_menu_item_ingredients(cur, menu_item_id):
+    if not banquet_tables_ready(cur):
+        return []
+    cur.execute("""
+        SELECT ai.id,
+               ai.menu_item_id,
+               ai.ingredient_id,
+               ai.quantity,
+               ai.unit,
+               i.name AS ingredient_name
+        FROM banquet_menu_item_ingredients ai
+        JOIN ingredients i ON i.id = ai.ingredient_id
+        WHERE ai.menu_item_id = %s
+        ORDER BY i.name
+    """, (menu_item_id,))
     return cur.fetchall()
 
 def get_banquet_event(cur, event_id):
@@ -1415,6 +1467,39 @@ def parse_event_recipe_lines(request):
             'quantity': qty,
             'quantity_unit': normalize_unit(qty_unit) or qty_unit or None,
             'notes': note or None
+        })
+    return rows, errors
+
+def parse_menu_item_ingredient_lines(request, valid_ingredient_ids):
+    ingredient_ids = request.form.getlist('ingredient_id[]')
+    quantities = request.form.getlist('ingredient_qty[]')
+    units = request.form.getlist('ingredient_unit[]')
+
+    max_len = max(len(ingredient_ids), len(quantities), len(units), 0)
+    rows = []
+    errors = []
+    for idx in range(max_len):
+        ingredient_id = (ingredient_ids[idx] if idx < len(ingredient_ids) else '').strip()
+        quantity_raw = (quantities[idx] if idx < len(quantities) else '').strip()
+        unit = clean_menu_text(units[idx] if idx < len(units) else '')
+        if not any([ingredient_id, quantity_raw, unit]):
+            continue
+        if ingredient_id not in valid_ingredient_ids:
+            errors.append('Additional ingredient row has an invalid ingredient.')
+            continue
+        quantity = parse_float_field(
+            quantity_raw,
+            'Additional ingredient quantity',
+            errors,
+            required=True,
+            min_value=0.0001
+        )
+        if quantity is None:
+            continue
+        rows.append({
+            'ingredient_id': ingredient_id,
+            'quantity': quantity,
+            'unit': normalize_unit(unit) or unit
         })
     return rows, errors
 
@@ -2085,10 +2170,8 @@ def banquet_planner():
     cur = conn.cursor(cursor_factory=RealDictCursor)
 
     venues = get_active_venues(cur)
-    selected_venue = (request.args.get('venue') or '').strip()
-    valid_venue_ids = {row['id'] for row in venues}
-    if selected_venue and selected_venue not in valid_venue_ids:
-        selected_venue = ''
+    banquet_venue = resolve_banquet_venue(venues)
+    selected_venue = banquet_venue.get('id') or ''
 
     start_date, end_date = get_banquet_date_window(request.args.get('start_date'), request.args.get('end_date'))
     if not banquet_tables_ready(cur):
@@ -2166,8 +2249,9 @@ def banquet_event_new():
         return redirect(url_for('banquet_planner'))
 
     venues = get_active_venues(cur)
-    venue_ids = {row['id'] for row in venues}
-    default_venue_id = 'ven_banquets' if 'ven_banquets' in venue_ids else (venues[0]['id'] if venues else '')
+    banquet_venue = resolve_banquet_venue(venues)
+    default_venue_id = banquet_venue.get('id') or ''
+    banquet_venue_name = banquet_venue.get('name') or 'Banquets'
 
     event = {
         'name': '',
@@ -2181,18 +2265,12 @@ def banquet_event_new():
         'notes': '',
         'status': 'planning'
     }
-    requested_venue_id = (request.args.get('venue_id') or '').strip()
-    if requested_venue_id and requested_venue_id in venue_ids:
-        event['venue_id'] = requested_venue_id
 
     if request.method == 'POST':
         errors = []
         event_name = clean_menu_text(request.form.get('name'))
         event_date_raw = (request.form.get('event_date') or '').strip()
-        venue_id = (request.form.get('venue_id') or '').strip()
-        if venue_id and venue_id not in venue_ids:
-            errors.append('Selected venue is invalid.')
-            venue_id = ''
+        venue_id = default_venue_id
 
         status = (request.form.get('status') or 'planning').strip().lower()
         if status not in {choice[0] for choice in BANQUET_STATUS_CHOICES}:
@@ -2323,6 +2401,7 @@ def banquet_event_new():
         lines=lines,
         menu_items=menu_items,
         venues=venues,
+        banquet_venue_name=banquet_venue_name,
         plated_recipes=plated_recipes,
         section_options=BANQUET_MENU_SECTION_OPTIONS,
         status_options=BANQUET_STATUS_CHOICES
@@ -2345,16 +2424,17 @@ def banquet_event_edit(event_id):
         return redirect(url_for('banquet_planner'))
 
     venues = get_active_venues(cur)
-    venue_ids = {row['id'] for row in venues}
+    banquet_venue = resolve_banquet_venue(venues)
+    banquet_venue_id = banquet_venue.get('id') or ''
+    banquet_venue_name = banquet_venue.get('name') or 'Banquets'
+    if banquet_venue_id:
+        event['venue_id'] = banquet_venue_id
 
     if request.method == 'POST':
         errors = []
         event_name = clean_menu_text(request.form.get('name'))
         event_date_raw = (request.form.get('event_date') or '').strip()
-        venue_id = (request.form.get('venue_id') or '').strip()
-        if venue_id and venue_id not in venue_ids:
-            errors.append('Selected venue is invalid.')
-            venue_id = ''
+        venue_id = banquet_venue_id
 
         status = (request.form.get('status') or 'planning').strip().lower()
         if status not in {choice[0] for choice in BANQUET_STATUS_CHOICES}:
@@ -2499,6 +2579,7 @@ def banquet_event_edit(event_id):
         lines=lines,
         menu_items=menu_items,
         venues=venues,
+        banquet_venue_name=banquet_venue_name,
         plated_recipes=plated_recipes,
         section_options=BANQUET_MENU_SECTION_OPTIONS,
         status_options=BANQUET_STATUS_CHOICES
@@ -2605,12 +2686,12 @@ def banquet_template_import():
         flash('Banquet tables are missing. Run migrations first.', 'error')
         return redirect(url_for('banquet_planner'))
     venues = get_active_venues(cur)
-    venue_ids = {row['id'] for row in venues}
+    banquet_venue = resolve_banquet_venue(venues)
+    banquet_venue_id = banquet_venue.get('id') or ''
+    banquet_venue_name = banquet_venue.get('name') or 'Banquets'
 
     if request.method == 'POST':
-        venue_id = (request.form.get('venue_id') or '').strip()
-        if venue_id and venue_id not in venue_ids:
-            venue_id = ''
+        venue_id = banquet_venue_id
         source_pdf = request.files.get('menu_pdf')
         if not source_pdf or not source_pdf.filename.lower().endswith('.pdf'):
             flash('Upload a PDF menu file.', 'error')
@@ -2677,7 +2758,7 @@ def banquet_template_import():
                     conn.commit()
                     flash(f'Imported menu catalog: {created_count} created, {updated_count} updated.', 'success')
                     cur.close()
-                    return redirect(url_for('banquet_planner', venue=venue_id))
+                    return redirect(url_for('banquet_planner'))
                 except Exception:
                     conn.rollback()
                     flash('Error saving imported menu catalog.', 'error')
@@ -2687,8 +2768,284 @@ def banquet_template_import():
     return render_template(
         'banquet_template_import.html',
         venues=venues,
-        menu_items=menu_items
+        menu_items=menu_items,
+        banquet_venue_name=banquet_venue_name
     )
+
+def save_banquet_menu_item(cur, menu_item_id, form_state, ingredient_rows):
+    if menu_item_id:
+        cur.execute("""
+            UPDATE banquet_menu_items
+            SET name = %s,
+                venue_id = %s,
+                menu_section = %s,
+                menu_descriptor = %s,
+                notes = %s,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = %s
+        """, (
+            form_state['name'],
+            form_state['venue_id'],
+            form_state['menu_section'],
+            form_state['menu_descriptor'],
+            form_state['notes'],
+            menu_item_id
+        ))
+    else:
+        menu_item_id = generate_id('bmi_')
+        cur.execute("""
+            INSERT INTO banquet_menu_items (id, name, venue_id, menu_section, menu_descriptor, notes)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (
+            menu_item_id,
+            form_state['name'],
+            form_state['venue_id'],
+            form_state['menu_section'],
+            form_state['menu_descriptor'],
+            form_state['notes']
+        ))
+
+    cur.execute("DELETE FROM banquet_menu_item_recipes WHERE menu_item_id = %s", (menu_item_id,))
+    cur.execute("DELETE FROM banquet_menu_item_ingredients WHERE menu_item_id = %s", (menu_item_id,))
+
+    if form_state.get('linked_recipe_id'):
+        cur.execute("""
+            INSERT INTO banquet_menu_item_recipes (menu_item_id, recipe_id, quantity, unit)
+            VALUES (%s, %s, %s, %s)
+        """, (
+            menu_item_id,
+            form_state['linked_recipe_id'],
+            form_state['linked_recipe_qty'],
+            form_state['linked_recipe_unit']
+        ))
+
+    for row in ingredient_rows:
+        cur.execute("""
+            INSERT INTO banquet_menu_item_ingredients (menu_item_id, ingredient_id, quantity, unit)
+            VALUES (%s, %s, %s, %s)
+        """, (
+            menu_item_id,
+            row['ingredient_id'],
+            row['quantity'],
+            row['unit'] or None
+        ))
+    return menu_item_id
+
+def render_banquet_menu_item_form(cur, mode='new', menu_item_id=None, form_state=None, ingredient_rows=None, errors=None):
+    venues = get_active_venues(cur)
+    banquet_venue = resolve_banquet_venue(venues)
+    banquet_venue_id = banquet_venue.get('id') or ''
+    banquet_venue_name = banquet_venue.get('name') or 'Banquets'
+
+    if form_state is None:
+        form_state = {
+            'name': '',
+            'venue_id': banquet_venue_id or None,
+            'menu_section': '',
+            'menu_descriptor': '',
+            'notes': '',
+            'linked_recipe_id': '',
+            'linked_recipe_qty': 1,
+            'linked_recipe_unit': 'serving'
+        }
+        if menu_item_id:
+            existing = get_banquet_menu_item(cur, menu_item_id)
+            if existing:
+                form_state.update({
+                    'name': existing.get('name') or '',
+                    'venue_id': existing.get('venue_id') or banquet_venue_id or None,
+                    'menu_section': existing.get('menu_section') or '',
+                    'menu_descriptor': existing.get('menu_descriptor') or '',
+                    'notes': existing.get('notes') or '',
+                    'linked_recipe_id': existing.get('linked_recipe_id') or '',
+                    'linked_recipe_qty': to_float(existing.get('linked_recipe_qty')) or 1,
+                    'linked_recipe_unit': existing.get('linked_recipe_unit') or 'serving'
+                })
+    if ingredient_rows is None:
+        ingredient_rows = get_banquet_menu_item_ingredients(cur, menu_item_id) if menu_item_id else []
+
+    plated_recipes = get_plated_recipes_for_venue(cur, banquet_venue_id, include_unassigned=True)
+    cur.execute("SELECT id, name, unit, category FROM ingredients ORDER BY name")
+    ingredients = cur.fetchall()
+
+    return render_template(
+        'banquet_menu_item_form.html',
+        mode=mode,
+        menu_item_id=menu_item_id,
+        form_state=form_state,
+        ingredient_rows=ingredient_rows,
+        plated_recipes=plated_recipes,
+        ingredients=ingredients,
+        section_options=BANQUET_MENU_SECTION_OPTIONS,
+        banquet_venue_name=banquet_venue_name,
+        errors=errors or []
+    )
+
+@app.route('/banquet-planner/menu-items/new', methods=['GET', 'POST'])
+@login_required
+def banquet_menu_item_new():
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    if not banquet_tables_ready(cur):
+        cur.close()
+        flash('Banquet tables are missing. Run migrations first.', 'error')
+        return redirect(url_for('banquet_planner'))
+
+    venues = get_active_venues(cur)
+    banquet_venue_id = (resolve_banquet_venue(venues) or {}).get('id') or ''
+    plated_recipes = get_plated_recipes_for_venue(cur, banquet_venue_id, include_unassigned=True)
+    valid_recipe_ids = {row['id'] for row in plated_recipes}
+    cur.execute("SELECT id FROM ingredients")
+    valid_ingredient_ids = {row['id'] for row in cur.fetchall()}
+
+    if request.method == 'POST':
+        errors = []
+        form_state = {
+            'name': clean_menu_text(request.form.get('name')),
+            'venue_id': banquet_venue_id or None,
+            'menu_section': clean_menu_text(request.form.get('menu_section')) or None,
+            'menu_descriptor': clean_menu_text(request.form.get('menu_descriptor')) or None,
+            'notes': clean_menu_text(request.form.get('notes')) or None,
+            'linked_recipe_id': (request.form.get('linked_recipe_id') or '').strip(),
+            'linked_recipe_qty': 1,
+            'linked_recipe_unit': normalize_unit(clean_menu_text(request.form.get('linked_recipe_unit'))) or 'serving'
+        }
+        if not form_state['name']:
+            errors.append('Menu item name is required.')
+        if form_state['linked_recipe_id'] and form_state['linked_recipe_id'] not in valid_recipe_ids:
+            errors.append('Selected recipe link is invalid.')
+        recipe_qty = parse_float_field(
+            request.form.get('linked_recipe_qty'),
+            'Recipe quantity',
+            errors,
+            required=bool(form_state['linked_recipe_id']),
+            min_value=0.0001
+        )
+        form_state['linked_recipe_qty'] = recipe_qty if recipe_qty is not None else 1
+
+        ingredient_rows, ingredient_errors = parse_menu_item_ingredient_lines(request, valid_ingredient_ids)
+        errors.extend(ingredient_errors)
+
+        if errors:
+            response = render_banquet_menu_item_form(
+                cur,
+                mode='new',
+                menu_item_id=None,
+                form_state=form_state,
+                ingredient_rows=ingredient_rows,
+                errors=sorted(set(errors))
+            )
+            cur.close()
+            return response
+
+        try:
+            save_banquet_menu_item(cur, None, form_state, ingredient_rows)
+            conn.commit()
+            flash('Banquet menu item created.', 'success')
+            cur.close()
+            return redirect(url_for('banquet_template_import'))
+        except Exception:
+            conn.rollback()
+            response = render_banquet_menu_item_form(
+                cur,
+                mode='new',
+                menu_item_id=None,
+                form_state=form_state,
+                ingredient_rows=ingredient_rows,
+                errors=['Error saving menu item.']
+            )
+            cur.close()
+            return response
+
+    response = render_banquet_menu_item_form(cur, mode='new', menu_item_id=None)
+    cur.close()
+    return response
+
+@app.route('/banquet-planner/menu-items/<menu_item_id>/edit', methods=['GET', 'POST'])
+@login_required
+def banquet_menu_item_edit(menu_item_id):
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    if not banquet_tables_ready(cur):
+        cur.close()
+        flash('Banquet tables are missing. Run migrations first.', 'error')
+        return redirect(url_for('banquet_planner'))
+
+    existing = get_banquet_menu_item(cur, menu_item_id)
+    if not existing:
+        cur.close()
+        flash('Menu item not found.', 'error')
+        return redirect(url_for('banquet_template_import'))
+
+    venues = get_active_venues(cur)
+    banquet_venue_id = (resolve_banquet_venue(venues) or {}).get('id') or existing.get('venue_id') or ''
+    plated_recipes = get_plated_recipes_for_venue(cur, banquet_venue_id, include_unassigned=True)
+    valid_recipe_ids = {row['id'] for row in plated_recipes}
+    cur.execute("SELECT id FROM ingredients")
+    valid_ingredient_ids = {row['id'] for row in cur.fetchall()}
+
+    if request.method == 'POST':
+        errors = []
+        form_state = {
+            'name': clean_menu_text(request.form.get('name')),
+            'venue_id': banquet_venue_id or None,
+            'menu_section': clean_menu_text(request.form.get('menu_section')) or None,
+            'menu_descriptor': clean_menu_text(request.form.get('menu_descriptor')) or None,
+            'notes': clean_menu_text(request.form.get('notes')) or None,
+            'linked_recipe_id': (request.form.get('linked_recipe_id') or '').strip(),
+            'linked_recipe_qty': 1,
+            'linked_recipe_unit': normalize_unit(clean_menu_text(request.form.get('linked_recipe_unit'))) or 'serving'
+        }
+        if not form_state['name']:
+            errors.append('Menu item name is required.')
+        if form_state['linked_recipe_id'] and form_state['linked_recipe_id'] not in valid_recipe_ids:
+            errors.append('Selected recipe link is invalid.')
+        recipe_qty = parse_float_field(
+            request.form.get('linked_recipe_qty'),
+            'Recipe quantity',
+            errors,
+            required=bool(form_state['linked_recipe_id']),
+            min_value=0.0001
+        )
+        form_state['linked_recipe_qty'] = recipe_qty if recipe_qty is not None else 1
+
+        ingredient_rows, ingredient_errors = parse_menu_item_ingredient_lines(request, valid_ingredient_ids)
+        errors.extend(ingredient_errors)
+
+        if errors:
+            response = render_banquet_menu_item_form(
+                cur,
+                mode='edit',
+                menu_item_id=menu_item_id,
+                form_state=form_state,
+                ingredient_rows=ingredient_rows,
+                errors=sorted(set(errors))
+            )
+            cur.close()
+            return response
+
+        try:
+            save_banquet_menu_item(cur, menu_item_id, form_state, ingredient_rows)
+            conn.commit()
+            flash('Banquet menu item updated.', 'success')
+            cur.close()
+            return redirect(url_for('banquet_template_import'))
+        except Exception:
+            conn.rollback()
+            response = render_banquet_menu_item_form(
+                cur,
+                mode='edit',
+                menu_item_id=menu_item_id,
+                form_state=form_state,
+                ingredient_rows=ingredient_rows,
+                errors=['Error saving menu item.']
+            )
+            cur.close()
+            return response
+
+    response = render_banquet_menu_item_form(cur, mode='edit', menu_item_id=menu_item_id)
+    cur.close()
+    return response
 
 @app.route('/banquet-planner/menu-items/<menu_item_id>/delete', methods=['POST'])
 @login_required
