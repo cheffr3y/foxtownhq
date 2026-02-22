@@ -1931,10 +1931,9 @@ def ratio_from_line_quantity(line, recipe):
     return qty_in_yield / recipe_yield
 
 def normalize_count_unit(unit):
-    token = normalize_unit(unit)
-    if token in ('', None):
+    token = clean_menu_text(unit).lower().replace('.', '')
+    if not token:
         return ''
-    token = token.strip().lower()
     aliases = {
         'ea': 'each',
         'each': 'each',
@@ -1949,7 +1948,12 @@ def normalize_count_unit(unit):
         'dozen': 'dozen',
         'doz': 'dozen'
     }
-    return aliases.get(token, token)
+    if token in aliases:
+        return aliases[token]
+    canonical = normalize_unit(token)
+    if canonical in ('each', 'dozen'):
+        return canonical
+    return ''
 
 def convert_count_units(quantity, from_unit, to_unit):
     qty = to_float(quantity)
@@ -3716,21 +3720,26 @@ def banquet_menu_item_new():
 
     if request.method == 'POST':
         errors = []
+        base_yield_qty_raw = (request.form.get('base_yield_qty') or '').strip()
         base_yield_qty = parse_float_field(
-            request.form.get('base_yield_qty'),
+            base_yield_qty_raw,
             'Menu yield quantity',
             errors,
             required=True,
             min_value=0.0001
         )
-        base_yield_unit = normalize_unit(clean_menu_text(request.form.get('base_yield_unit'))) or 'each'
+        base_yield_unit_raw = clean_menu_text(request.form.get('base_yield_unit'))
+        base_yield_unit = normalize_count_unit(base_yield_unit_raw)
+        if base_yield_unit_raw and not base_yield_unit:
+            errors.append('Sold As Unit must be "each" or "dozen".')
+        base_yield_unit = base_yield_unit or 'each'
         form_state = {
             'name': clean_menu_text(request.form.get('name')),
             'venue_id': banquet_venue_id or None,
             'menu_section': clean_menu_text(request.form.get('menu_section')) or None,
             'menu_descriptor': clean_menu_text(request.form.get('menu_descriptor')) or None,
-            'base_yield_qty': base_yield_qty if base_yield_qty is not None else 1,
-            'base_yield_unit': base_yield_unit,
+            'base_yield_qty': base_yield_qty if base_yield_qty is not None else (base_yield_qty_raw or 1),
+            'base_yield_unit': base_yield_unit if base_yield_unit else (base_yield_unit_raw or 'each'),
             'notes': clean_menu_text(request.form.get('notes')) or None,
             'recipe_components': []
         }
@@ -3807,21 +3816,26 @@ def banquet_menu_item_edit(menu_item_id):
 
     if request.method == 'POST':
         errors = []
+        base_yield_qty_raw = (request.form.get('base_yield_qty') or '').strip()
         base_yield_qty = parse_float_field(
-            request.form.get('base_yield_qty'),
+            base_yield_qty_raw,
             'Menu yield quantity',
             errors,
             required=True,
             min_value=0.0001
         )
-        base_yield_unit = normalize_unit(clean_menu_text(request.form.get('base_yield_unit'))) or 'each'
+        base_yield_unit_raw = clean_menu_text(request.form.get('base_yield_unit'))
+        base_yield_unit = normalize_count_unit(base_yield_unit_raw)
+        if base_yield_unit_raw and not base_yield_unit:
+            errors.append('Sold As Unit must be "each" or "dozen".')
+        base_yield_unit = base_yield_unit or 'each'
         form_state = {
             'name': clean_menu_text(request.form.get('name')),
             'venue_id': banquet_venue_id or None,
             'menu_section': clean_menu_text(request.form.get('menu_section')) or None,
             'menu_descriptor': clean_menu_text(request.form.get('menu_descriptor')) or None,
-            'base_yield_qty': base_yield_qty if base_yield_qty is not None else 1,
-            'base_yield_unit': base_yield_unit,
+            'base_yield_qty': base_yield_qty if base_yield_qty is not None else (base_yield_qty_raw or 1),
+            'base_yield_unit': base_yield_unit if base_yield_unit else (base_yield_unit_raw or 'each'),
             'notes': clean_menu_text(request.form.get('notes')) or None,
             'recipe_components': []
         }
