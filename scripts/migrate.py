@@ -86,6 +86,8 @@ MIGRATIONS = [
         venue_id TEXT REFERENCES venues(id) ON DELETE SET NULL,
         menu_section TEXT,
         menu_descriptor TEXT,
+        base_yield_qty NUMERIC DEFAULT 1,
+        base_yield_unit TEXT DEFAULT 'each',
         notes TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -154,6 +156,8 @@ MIGRATIONS = [
     "ALTER TABLE banquet_menu_items ADD COLUMN IF NOT EXISTS venue_id TEXT",
     "ALTER TABLE banquet_menu_items ADD COLUMN IF NOT EXISTS menu_section TEXT",
     "ALTER TABLE banquet_menu_items ADD COLUMN IF NOT EXISTS menu_descriptor TEXT",
+    "ALTER TABLE banquet_menu_items ADD COLUMN IF NOT EXISTS base_yield_qty NUMERIC DEFAULT 1",
+    "ALTER TABLE banquet_menu_items ADD COLUMN IF NOT EXISTS base_yield_unit TEXT DEFAULT 'each'",
     "ALTER TABLE banquet_menu_items ADD COLUMN IF NOT EXISTS notes TEXT",
     "ALTER TABLE banquet_menu_items ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
     "ALTER TABLE banquet_event_menu_items ADD COLUMN IF NOT EXISTS quantity_unit TEXT DEFAULT 'each'",

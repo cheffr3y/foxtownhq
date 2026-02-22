@@ -49,6 +49,14 @@
                         {% endfor %}
                     </select>
                 </div>
+                <div>
+                    <label class="block text-sm font-medium text-stone-700 mb-1">Sold As Qty</label>
+                    <input type="number" step="0.0001" min="0" name="base_yield_qty" value="{{ form_state.base_yield_qty or 1 }}" class="w-full px-4 py-3 border border-stone-300 rounded-xl">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-stone-700 mb-1">Sold As Unit</label>
+                    <input type="text" name="base_yield_unit" value="{{ form_state.base_yield_unit or 'each' }}" class="w-full px-4 py-3 border border-stone-300 rounded-xl" placeholder="each / serving / dozen">
+                </div>
                 <div class="md:col-span-2">
                     <label class="block text-sm font-medium text-stone-700 mb-1">Menu Descriptor</label>
                     <input type="text" name="menu_descriptor" value="{{ form_state.menu_descriptor or '' }}" class="w-full px-4 py-3 border border-stone-300 rounded-xl" placeholder="What guest sees on menu / BEO">
@@ -61,26 +69,39 @@
         </div>
 
         <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-6">
-            <h2 class="text-xl font-display text-foxtown-ink mb-4">Recipe Link</h2>
-            <p class="text-sm text-stone-500 mb-4">Use one plated RM recipe as the primary cost/planning driver. Sub-recipes remain managed in the recipe itself.</p>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div class="md:col-span-2">
-                    <label class="block text-sm font-medium text-stone-700 mb-1">Linked RM Recipe (optional)</label>
-                    <select name="linked_recipe_id" class="w-full px-4 py-3 border border-stone-300 rounded-xl">
-                        <option value="">Unlinked (menu item only)</option>
-                        {% for recipe in plated_recipes %}
-                        <option value="{{ recipe.id }}" {% if (form_state.linked_recipe_id or '') == recipe.id %}selected{% endif %}>{{ recipe.name }}</option>
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-xl font-display text-foxtown-ink">Recipe Components (Sub-Assemblies)</h2>
+                <button type="button" id="addRecipeComponentBtn" class="text-foxtown-ember font-semibold hover:text-orange-700">+ Add recipe</button>
+            </div>
+            <p class="text-sm text-stone-500 mb-4">Add one or many RM/RB recipes that make up this menu item.</p>
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-sm">
+                    <thead class="text-xs uppercase text-stone-500 border-b border-stone-200">
+                        <tr>
+                            <th class="text-left py-2 pr-2 min-w-[280px]">Recipe</th>
+                            <th class="text-left py-2 pr-2 min-w-[140px]">Qty</th>
+                            <th class="text-left py-2 pr-2 min-w-[140px]">Unit</th>
+                            <th class="text-left py-2 pr-2">Remove</th>
+                        </tr>
+                    </thead>
+                    <tbody id="recipeComponentRows" class="divide-y divide-stone-100">
+                        {% for row in form_state.recipe_components or [] %}
+                        <tr>
+                            <td class="py-2 pr-2">
+                                <select name="component_recipe_id[]" class="w-full px-3 py-2 border border-stone-300 rounded-lg">
+                                    <option value="">Select recipe</option>
+                                    {% for recipe in component_recipes %}
+                                    <option value="{{ recipe.id }}" {% if row.recipe_id == recipe.id %}selected{% endif %}>{{ recipe.name }}{% if recipe.recipe_type %} ({{ recipe.recipe_type|upper }}){% endif %}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td class="py-2 pr-2"><input type="number" step="0.0001" min="0" name="component_qty[]" value="{{ row.quantity or '' }}" class="w-full px-3 py-2 border border-stone-300 rounded-lg"></td>
+                            <td class="py-2 pr-2"><input name="component_unit[]" value="{{ row.unit or '' }}" class="w-full px-3 py-2 border border-stone-300 rounded-lg"></td>
+                            <td class="py-2 pr-2"><button type="button" class="removeRecipeComponent text-red-600 hover:text-red-800 font-semibold">Remove</button></td>
+                        </tr>
                         {% endfor %}
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-stone-700 mb-1">Recipe Qty</label>
-                    <input type="number" step="0.0001" min="0" name="linked_recipe_qty" value="{{ form_state.linked_recipe_qty or 1 }}" class="w-full px-4 py-3 border border-stone-300 rounded-xl">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-stone-700 mb-1">Recipe Unit</label>
-                    <input type="text" name="linked_recipe_unit" value="{{ form_state.linked_recipe_unit or 'serving' }}" class="w-full px-4 py-3 border border-stone-300 rounded-xl">
-                </div>
+                    </tbody>
+                </table>
             </div>
         </div>
 
@@ -146,11 +167,30 @@
 </tr>
 </template>
 
+<template id="recipeComponentRowTemplate">
+<tr>
+    <td class="py-2 pr-2">
+        <select name="component_recipe_id[]" class="w-full px-3 py-2 border border-stone-300 rounded-lg">
+            <option value="">Select recipe</option>
+            {% for recipe in component_recipes %}
+            <option value="{{ recipe.id }}">{{ recipe.name }}{% if recipe.recipe_type %} ({{ recipe.recipe_type|upper }}){% endif %}</option>
+            {% endfor %}
+        </select>
+    </td>
+    <td class="py-2 pr-2"><input type="number" step="0.0001" min="0" name="component_qty[]" class="w-full px-3 py-2 border border-stone-300 rounded-lg"></td>
+    <td class="py-2 pr-2"><input name="component_unit[]" class="w-full px-3 py-2 border border-stone-300 rounded-lg"></td>
+    <td class="py-2 pr-2"><button type="button" class="removeRecipeComponent text-red-600 hover:text-red-800 font-semibold">Remove</button></td>
+</tr>
+</template>
+
 <script>
 (function () {
     const ingredientRows = document.getElementById('ingredientRows');
     const addIngredientBtn = document.getElementById('addIngredientBtn');
-    const template = document.getElementById('ingredientRowTemplate');
+    const ingredientTemplate = document.getElementById('ingredientRowTemplate');
+    const recipeComponentRows = document.getElementById('recipeComponentRows');
+    const addRecipeComponentBtn = document.getElementById('addRecipeComponentBtn');
+    const recipeComponentTemplate = document.getElementById('recipeComponentRowTemplate');
 
     function bindRemove(row) {
         const btn = row.querySelector('.removeIngredient');
@@ -159,12 +199,29 @@
     }
 
     addIngredientBtn.addEventListener('click', () => {
-        const clone = template.content.cloneNode(true);
+        const clone = ingredientTemplate.content.cloneNode(true);
         ingredientRows.appendChild(clone);
         bindRemove(ingredientRows.lastElementChild);
     });
 
     Array.from(ingredientRows.querySelectorAll('tr')).forEach((row) => bindRemove(row));
+
+    function bindRecipeRemove(row) {
+        const btn = row.querySelector('.removeRecipeComponent');
+        if (!btn) return;
+        btn.addEventListener('click', () => row.remove());
+    }
+
+    addRecipeComponentBtn.addEventListener('click', () => {
+        const clone = recipeComponentTemplate.content.cloneNode(true);
+        recipeComponentRows.appendChild(clone);
+        bindRecipeRemove(recipeComponentRows.lastElementChild);
+    });
+
+    Array.from(recipeComponentRows.querySelectorAll('tr')).forEach((row) => bindRecipeRemove(row));
+    if (!recipeComponentRows.querySelector('tr')) {
+        addRecipeComponentBtn.click();
+    }
 })();
 </script>
 {% endblock %}

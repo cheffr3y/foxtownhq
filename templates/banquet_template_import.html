@@ -55,8 +55,10 @@
                     <thead class="text-xs uppercase text-stone-500 border-b border-stone-200">
                         <tr>
                             <th class="text-left py-2 pr-3">Menu Item</th>
+                            <th class="text-left py-2 pr-3">Sold As</th>
                             <th class="text-left py-2 pr-3">Section</th>
-                            <th class="text-left py-2 pr-3">Recipe Link</th>
+                            <th class="text-left py-2 pr-3">Recipes</th>
+                            <th class="text-left py-2 pr-3">Raw Extras</th>
                             <th class="text-left py-2 pr-3">Descriptor</th>
                             <th class="text-left py-2">Actions</th>
                         </tr>
@@ -65,8 +67,10 @@
                         {% for item in menu_items %}
                         <tr>
                             <td class="py-2 pr-3 font-medium text-foxtown-ink">{{ item.name }}</td>
+                            <td class="py-2 pr-3">{{ item.base_yield_qty or 1 }} {{ item.base_yield_unit or 'each' }}</td>
                             <td class="py-2 pr-3">{{ item.menu_section or '—' }}</td>
-                            <td class="py-2 pr-3">{{ item.recipe_name or 'Unlinked' }}</td>
+                            <td class="py-2 pr-3">{{ item.recipe_count or 0 }}</td>
+                            <td class="py-2 pr-3">{{ item.extra_count or 0 }}</td>
                             <td class="py-2 pr-3">{{ item.menu_descriptor or '—' }}</td>
                             <td class="py-2 space-x-3 whitespace-nowrap">
                                 <a href="{{ url_for('banquet_menu_item_edit', menu_item_id=item.id) }}" class="text-foxtown-ember hover:text-orange-700 font-semibold">Edit</a>

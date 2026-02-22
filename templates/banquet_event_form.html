@@ -105,6 +105,7 @@
                                         data-descriptor="{{ (item.menu_descriptor or '')|e }}"
                                         data-section="{{ (item.menu_section or '')|e }}"
                                         data-recipe-id="{{ item.linked_recipe_id or '' }}"
+                                        data-base-unit="{{ item.base_yield_unit or 'each' }}"
                                         {% if line.menu_item_id == item.id %}selected{% endif %}
                                     >
                                         {{ item.name }}{% if item.menu_section %} ({{ item.menu_section }}){% endif %}
@@ -166,6 +167,7 @@
                 data-descriptor="{{ (item.menu_descriptor or '')|e }}"
                 data-section="{{ (item.menu_section or '')|e }}"
                 data-recipe-id="{{ item.linked_recipe_id or '' }}"
+                data-base-unit="{{ item.base_yield_unit or 'each' }}"
             >
                 {{ item.name }}{% if item.menu_section %} ({{ item.menu_section }}){% endif %}
             </option>
@@ -202,6 +204,7 @@
         const menuNameInput = row.querySelector('[data-role="menu-item-name"]');
         const descriptorInput = row.querySelector('[data-role="menu-descriptor"]');
         const sectionInput = row.querySelector('[data-role="menu-section"]');
+        const lineUnitInput = row.querySelector('input[name="line_unit[]"]');
         const descriptorLabel = row.querySelector('[data-role="descriptor-label"]');
         const sectionLabel = row.querySelector('[data-role="section-label"]');
         if (!select) return;
@@ -212,11 +215,13 @@
         const menuDescriptor = selectedId ? (selected.dataset.descriptor || '') : '';
         const menuSection = selectedId ? (selected.dataset.section || '') : '';
         const recipeId = selectedId ? (selected.dataset.recipeId || '') : '';
+        const defaultUnit = selectedId ? (selected.dataset.baseUnit || 'each') : '';
 
         if (menuNameInput) menuNameInput.value = menuName;
         if (descriptorInput) descriptorInput.value = menuDescriptor;
         if (sectionInput) sectionInput.value = menuSection;
         if (recipeIdInput) recipeIdInput.value = recipeId;
+        if (lineUnitInput && defaultUnit) lineUnitInput.value = defaultUnit;
         if (descriptorLabel) descriptorLabel.textContent = menuDescriptor || '—';
         if (sectionLabel) sectionLabel.textContent = menuSection || '—';
     }

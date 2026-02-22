@@ -99,7 +99,14 @@
                 <div class="text-xs text-stone-500 mb-2">{{ event.venue_name }}</div>
                 <ul class="list-disc pl-5 text-sm">
                     {% for line in event.lines %}
-                    <li>{{ line.menu_item_name }} — {{ line.quantity }} {{ line.quantity_unit }}{% if line.recipe %} ({{ line.recipe.name }}){% endif %}</li>
+                    <li>
+                        {{ line.menu_item_name }} — {{ line.quantity }} {{ line.quantity_unit }}
+                        {% if line.recipes %}
+                        ({{ line.recipes | map(attribute='name') | join(', ') }})
+                        {% elif line.recipe %}
+                        ({{ line.recipe.name }})
+                        {% endif %}
+                    </li>
                     {% endfor %}
                 </ul>
             </div>

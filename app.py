@@ -1177,6 +1177,52 @@ def get_plated_recipes_for_venue(cur, venue_id='', include_unassigned=True):
         """)
     return cur.fetchall()
 
+def get_component_recipes_for_venue(cur, venue_id=''):
+    has_recipe_venues = db_table_exists(cur, 'public.recipe_venues') and db_table_exists(cur, 'public.venues')
+    if has_recipe_venues:
+        cur.execute("""
+            SELECT r.id,
+                   r.name,
+                   r.recipe_type,
+                   r.category,
+                   r.yield_qty,
+                   r.yield_unit,
+                   r.menu_descriptor,
+                   COALESCE(string_agg(DISTINCT v.name, ', ' ORDER BY v.name), '') AS venue_names
+            FROM recipes r
+            LEFT JOIN recipe_venues rv ON rv.recipe_id = r.id
+            LEFT JOIN venues v ON v.id = rv.venue_id AND v.active = TRUE
+            WHERE (
+                %s = '' OR
+                EXISTS (
+                    SELECT 1
+                    FROM recipe_venues rvf
+                    WHERE rvf.recipe_id = r.id AND rvf.venue_id = %s
+                ) OR
+                NOT EXISTS (
+                    SELECT 1
+                    FROM recipe_venues rvn
+                    WHERE rvn.recipe_id = r.id
+                )
+            )
+            GROUP BY r.id
+            ORDER BY CASE WHEN r.recipe_type = 'menu' THEN 0 WHEN r.recipe_type = 'batch' THEN 1 ELSE 2 END, r.name
+        """, (venue_id, venue_id))
+    else:
+        cur.execute("""
+            SELECT r.id,
+                   r.name,
+                   r.recipe_type,
+                   r.category,
+                   r.yield_qty,
+                   r.yield_unit,
+                   r.menu_descriptor,
+                   '' AS venue_names
+            FROM recipes r
+            ORDER BY CASE WHEN r.recipe_type = 'menu' THEN 0 WHEN r.recipe_type = 'batch' THEN 1 ELSE 2 END, r.name
+        """)
+    return cur.fetchall()
+
 BANQUET_ACTIVE_STATUSES = ('planning', 'confirmed')
 BANQUET_VENUE_ID = 'ven_banquets'
 BANQUET_STATUS_CHOICES = [
@@ -1207,6 +1253,9 @@ def banquet_tables_ready(cur):
 def list_banquet_menu_items(cur, venue_id=''):
     if not banquet_tables_ready(cur):
         return []
+    has_base_yield = db_column_exists(cur, 'public.banquet_menu_items', 'base_yield_qty') and db_column_exists(cur, 'public.banquet_menu_items', 'base_yield_unit')
+    base_yield_qty_sql = "mi.base_yield_qty" if has_base_yield else "1::numeric"
+    base_yield_unit_sql = "mi.base_yield_unit" if has_base_yield else "'each'"
     if venue_id:
         cur.execute("""
             SELECT mi.id,
@@ -1216,8 +1265,11 @@ def list_banquet_menu_items(cur, venue_id=''):
                    mi.menu_section,
                    mi.menu_descriptor,
                    mi.notes,
+                   {base_yield_qty_sql} AS base_yield_qty,
+                   {base_yield_unit_sql} AS base_yield_unit,
                    pr.recipe_id AS linked_recipe_id,
                    r.name AS recipe_name,
+                   COALESCE(rc.recipe_count, 0) AS recipe_count,
                    COALESCE(extra.extra_count, 0) AS extra_count
             FROM banquet_menu_items mi
             LEFT JOIN venues v ON v.id = mi.venue_id
@@ -1230,13 +1282,18 @@ def list_banquet_menu_items(cur, venue_id=''):
             ) pr ON TRUE
             LEFT JOIN recipes r ON r.id = pr.recipe_id
             LEFT JOIN (
+                SELECT menu_item_id, COUNT(*) AS recipe_count
+                FROM banquet_menu_item_recipes
+                GROUP BY menu_item_id
+            ) rc ON rc.menu_item_id = mi.id
+            LEFT JOIN (
                 SELECT menu_item_id, COUNT(*) AS extra_count
                 FROM banquet_menu_item_ingredients
                 GROUP BY menu_item_id
             ) extra ON extra.menu_item_id = mi.id
             WHERE mi.venue_id = %s OR mi.venue_id IS NULL
             ORDER BY COALESCE(mi.menu_section, 'zzzz'), mi.name
-        """, (venue_id,))
+        """.format(base_yield_qty_sql=base_yield_qty_sql, base_yield_unit_sql=base_yield_unit_sql), (venue_id,))
     else:
         cur.execute("""
             SELECT mi.id,
@@ -1246,8 +1303,11 @@ def list_banquet_menu_items(cur, venue_id=''):
                    mi.menu_section,
                    mi.menu_descriptor,
                    mi.notes,
+                   {base_yield_qty_sql} AS base_yield_qty,
+                   {base_yield_unit_sql} AS base_yield_unit,
                    pr.recipe_id AS linked_recipe_id,
                    r.name AS recipe_name,
+                   COALESCE(rc.recipe_count, 0) AS recipe_count,
                    COALESCE(extra.extra_count, 0) AS extra_count
             FROM banquet_menu_items mi
             LEFT JOIN venues v ON v.id = mi.venue_id
@@ -1260,17 +1320,25 @@ def list_banquet_menu_items(cur, venue_id=''):
             ) pr ON TRUE
             LEFT JOIN recipes r ON r.id = pr.recipe_id
             LEFT JOIN (
+                SELECT menu_item_id, COUNT(*) AS recipe_count
+                FROM banquet_menu_item_recipes
+                GROUP BY menu_item_id
+            ) rc ON rc.menu_item_id = mi.id
+            LEFT JOIN (
                 SELECT menu_item_id, COUNT(*) AS extra_count
                 FROM banquet_menu_item_ingredients
                 GROUP BY menu_item_id
             ) extra ON extra.menu_item_id = mi.id
             ORDER BY COALESCE(mi.menu_section, 'zzzz'), mi.name
-        """)
+        """.format(base_yield_qty_sql=base_yield_qty_sql, base_yield_unit_sql=base_yield_unit_sql))
     return cur.fetchall()
 
 def get_banquet_menu_item(cur, menu_item_id):
     if not banquet_tables_ready(cur):
         return None
+    has_base_yield = db_column_exists(cur, 'public.banquet_menu_items', 'base_yield_qty') and db_column_exists(cur, 'public.banquet_menu_items', 'base_yield_unit')
+    base_yield_qty_sql = "mi.base_yield_qty" if has_base_yield else "1::numeric"
+    base_yield_unit_sql = "mi.base_yield_unit" if has_base_yield else "'each'"
     cur.execute("""
         SELECT mi.id,
                mi.name,
@@ -1278,6 +1346,8 @@ def get_banquet_menu_item(cur, menu_item_id):
                mi.menu_section,
                mi.menu_descriptor,
                mi.notes,
+               {base_yield_qty_sql} AS base_yield_qty,
+               {base_yield_unit_sql} AS base_yield_unit,
                pr.recipe_id AS linked_recipe_id,
                pr.quantity AS linked_recipe_qty,
                pr.unit AS linked_recipe_unit
@@ -1291,8 +1361,50 @@ def get_banquet_menu_item(cur, menu_item_id):
         ) pr ON TRUE
         WHERE mi.id = %s
         LIMIT 1
-    """, (menu_item_id,))
+    """.format(base_yield_qty_sql=base_yield_qty_sql, base_yield_unit_sql=base_yield_unit_sql), (menu_item_id,))
     return cur.fetchone()
+
+def get_banquet_menu_item_recipe_components(cur, menu_item_id):
+    if not banquet_tables_ready(cur):
+        return []
+    cur.execute("""
+        SELECT mr.id,
+               mr.menu_item_id,
+               mr.recipe_id,
+               mr.quantity,
+               mr.unit,
+               r.name AS recipe_name,
+               r.yield_qty,
+               r.yield_unit,
+               r.recipe_type
+        FROM banquet_menu_item_recipes mr
+        JOIN recipes r ON r.id = mr.recipe_id
+        WHERE mr.menu_item_id = %s
+        ORDER BY mr.id
+    """, (menu_item_id,))
+    return cur.fetchall()
+
+def collect_banquet_recipe_components(cur, menu_item_ids):
+    if not menu_item_ids:
+        return {}
+    cur.execute("""
+        SELECT mr.menu_item_id,
+               mr.recipe_id,
+               mr.quantity,
+               mr.unit,
+               r.name AS recipe_name,
+               r.yield_qty,
+               r.yield_unit,
+               r.recipe_type
+        FROM banquet_menu_item_recipes mr
+        JOIN recipes r ON r.id = mr.recipe_id
+        WHERE mr.menu_item_id = ANY(%s)
+        ORDER BY mr.menu_item_id, mr.id
+    """, (menu_item_ids,))
+    grouped = defaultdict(list)
+    for row in cur.fetchall():
+        grouped[row['menu_item_id']].append(row)
+    return grouped
 
 def get_banquet_menu_item_ingredients(cur, menu_item_id):
     if not banquet_tables_ready(cur):
@@ -1503,6 +1615,39 @@ def parse_menu_item_ingredient_lines(request, valid_ingredient_ids):
         })
     return rows, errors
 
+def parse_menu_item_recipe_lines(request, valid_recipe_ids):
+    recipe_ids = request.form.getlist('component_recipe_id[]')
+    quantities = request.form.getlist('component_qty[]')
+    units = request.form.getlist('component_unit[]')
+
+    max_len = max(len(recipe_ids), len(quantities), len(units), 0)
+    rows = []
+    errors = []
+    for idx in range(max_len):
+        recipe_id = (recipe_ids[idx] if idx < len(recipe_ids) else '').strip()
+        quantity_raw = (quantities[idx] if idx < len(quantities) else '').strip()
+        unit = clean_menu_text(units[idx] if idx < len(units) else '')
+        if not any([recipe_id, quantity_raw, unit]):
+            continue
+        if recipe_id not in valid_recipe_ids:
+            errors.append('Recipe component row has an invalid recipe.')
+            continue
+        quantity = parse_float_field(
+            quantity_raw,
+            'Recipe component quantity',
+            errors,
+            required=True,
+            min_value=0.0001
+        )
+        if quantity is None:
+            continue
+        rows.append({
+            'recipe_id': recipe_id,
+            'quantity': quantity,
+            'unit': normalize_unit(unit) or unit
+        })
+    return rows, errors
+
 def ratio_from_line_quantity(line, recipe):
     qty = to_float(line.get('quantity'))
     recipe_yield = to_float(recipe.get('yield_qty'))
@@ -1519,6 +1664,55 @@ def ratio_from_line_quantity(line, recipe):
         if converted is not None:
             qty_in_yield = converted
     return qty_in_yield / recipe_yield
+
+def normalize_count_unit(unit):
+    token = normalize_unit(unit)
+    if token in ('', None):
+        return ''
+    token = token.strip().lower()
+    aliases = {
+        'ea': 'each',
+        'each': 'each',
+        'serving': 'each',
+        'servings': 'each',
+        'plate': 'each',
+        'plates': 'each',
+        'person': 'each',
+        'people': 'each',
+        'guest': 'each',
+        'guests': 'each',
+        'dozen': 'dozen',
+        'doz': 'dozen'
+    }
+    return aliases.get(token, token)
+
+def convert_count_units(quantity, from_unit, to_unit):
+    qty = to_float(quantity)
+    from_norm = normalize_count_unit(from_unit)
+    to_norm = normalize_count_unit(to_unit)
+    if qty <= 0:
+        return 0
+    if not from_norm or not to_norm:
+        return None
+    if from_norm == to_norm:
+        return qty
+    if from_norm == 'dozen' and to_norm == 'each':
+        return qty * 12
+    if from_norm == 'each' and to_norm == 'dozen':
+        return qty / 12
+    return None
+
+def menu_line_base_multiplier(line_quantity, line_unit, base_yield_qty, base_yield_unit):
+    qty = to_float(line_quantity)
+    if qty <= 0:
+        return 0
+    base_qty = to_float(base_yield_qty)
+    if base_qty <= 0:
+        base_qty = 1
+
+    converted = convert_count_units(qty, line_unit, base_yield_unit)
+    base_requested = converted if converted is not None else qty
+    return base_requested / base_qty
 
 def collect_banquet_additional_ingredients(cur, menu_item_ids):
     if not menu_item_ids:
@@ -1604,6 +1798,9 @@ def collect_subrecipes_from_components(components, subrecipes):
 def fetch_banquet_event_lines(cur, start_date, end_date, venue_id=''):
     if not banquet_tables_ready(cur):
         return []
+    has_base_yield = db_column_exists(cur, 'public.banquet_menu_items', 'base_yield_qty') and db_column_exists(cur, 'public.banquet_menu_items', 'base_yield_unit')
+    base_yield_qty_sql = "mi.base_yield_qty" if has_base_yield else "1::numeric"
+    base_yield_unit_sql = "mi.base_yield_unit" if has_base_yield else "'each'"
     params = [start_date, end_date, list(BANQUET_ACTIVE_STATUSES)]
     venue_filter_sql = ""
     if venue_id:
@@ -1628,6 +1825,8 @@ def fetch_banquet_event_lines(cur, start_date, end_date, venue_id=''):
                COALESCE(NULLIF(TRIM(emi.menu_item_name), ''), mi.name) AS menu_item_name,
                COALESCE(emi.menu_descriptor, mi.menu_descriptor) AS menu_descriptor,
                COALESCE(emi.menu_section, mi.menu_section) AS menu_section,
+               {base_yield_qty_sql} AS base_yield_qty,
+               {base_yield_unit_sql} AS base_yield_unit,
                COALESCE(emi.recipe_id, primary_recipe.recipe_id) AS recipe_id,
                emi.quantity,
                emi.quantity_unit,
@@ -1653,7 +1852,7 @@ def fetch_banquet_event_lines(cur, start_date, end_date, venue_id=''):
           AND e.status = ANY(%s)
           {venue_filter_sql}
         ORDER BY e.event_date, e.name, COALESCE(emi.sort_order, 0), emi.id
-    """, params)
+    """.format(base_yield_qty_sql=base_yield_qty_sql, base_yield_unit_sql=base_yield_unit_sql, venue_filter_sql=venue_filter_sql), params)
     return cur.fetchall()
 
 def build_banquet_datasets(cur, start_date, end_date, venue_id='', unit_system='imperial'):
@@ -1668,6 +1867,7 @@ def build_banquet_datasets(cur, start_date, end_date, venue_id='', unit_system='
 
     menu_item_ids = list({row.get('menu_item_id') for row in rows if row.get('menu_item_id')})
     additional_ingredients = collect_banquet_additional_ingredients(cur, menu_item_ids)
+    menu_item_recipe_components = collect_banquet_recipe_components(cur, menu_item_ids)
 
     for row in rows:
         event_id = row['event_id']
@@ -1699,6 +1899,21 @@ def build_banquet_datasets(cur, start_date, end_date, venue_id='', unit_system='
                 'yield_qty': row.get('yield_qty'),
                 'yield_unit': row.get('yield_unit')
             }
+
+        line_recipes = []
+        for component in menu_item_recipe_components.get(row.get('menu_item_id'), []):
+            line_recipes.append({
+                'id': component.get('recipe_id'),
+                'name': component.get('recipe_name'),
+                'yield_qty': component.get('yield_qty'),
+                'yield_unit': component.get('yield_unit'),
+                'quantity': to_float(component.get('quantity')),
+                'unit': component.get('unit') or component.get('yield_unit'),
+                'recipe_type': component.get('recipe_type')
+            })
+        if not line_recipes and recipe:
+            line_recipes = [dict(recipe)]
+
         line = {
             'id': row.get('line_id'),
             'menu_item_name': row.get('menu_item_name') or row.get('recipe_name') or 'Menu Item',
@@ -1706,8 +1921,11 @@ def build_banquet_datasets(cur, start_date, end_date, venue_id='', unit_system='
             'menu_section': row.get('menu_section') or 'Uncategorized',
             'quantity': to_float(row.get('quantity')),
             'quantity_unit': row.get('quantity_unit') or row.get('yield_unit') or 'each',
+            'base_yield_qty': to_float(row.get('base_yield_qty')) or 1,
+            'base_yield_unit': row.get('base_yield_unit') or 'each',
             'notes': row.get('line_notes'),
-            'recipe': recipe
+            'recipe': line_recipes[0] if line_recipes else recipe,
+            'recipes': line_recipes
         }
         line['ratio'] = None
         line['estimated_cost_total'] = None
@@ -1717,13 +1935,28 @@ def build_banquet_datasets(cur, start_date, end_date, venue_id='', unit_system='
         line['additional_ingredient_cost'] = 0
 
         line_cost_total = 0
-        if recipe:
-            ratio = ratio_from_line_quantity(line, recipe)
-            line['ratio'] = ratio
-            line_cost_total += get_recipe_total_cost(cur, recipe['id'], unit_system, apply_q_factor=True) * ratio
+        line_multiplier = menu_line_base_multiplier(
+            line.get('quantity'),
+            line.get('quantity_unit'),
+            line.get('base_yield_qty'),
+            line.get('base_yield_unit')
+        )
+        line['ratio'] = line_multiplier
 
-            components, _, _ = build_component_tree(cur, recipe['id'], ratio, 0, set(), unit_system, apply_q_factor=False)
-            line['components'] = components
+        for line_recipe in line_recipes:
+            ratio_per_menu_unit = ratio_from_line_quantity(
+                {
+                    'quantity': line_recipe.get('quantity', line.get('base_yield_qty')),
+                    'quantity_unit': line_recipe.get('unit', line_recipe.get('yield_unit'))
+                },
+                line_recipe
+            )
+            total_ratio = ratio_per_menu_unit * line_multiplier
+            line_cost_total += get_recipe_total_cost(cur, line_recipe['id'], unit_system, apply_q_factor=True) * total_ratio
+
+            components, _, _ = build_component_tree(cur, line_recipe['id'], total_ratio, 0, set(), unit_system, apply_q_factor=False)
+            if components:
+                line['components'].extend(components)
             collect_ingredients_from_components(components, ingredient_totals)
             collect_ingredients_from_components(components, event_daily_ingredients[event_id])
             collect_batch_recipe_usage_from_components(
@@ -1743,7 +1976,7 @@ def build_banquet_datasets(cur, start_date, end_date, venue_id='', unit_system='
             if not ingredient_id:
                 continue
             per_unit_qty = to_float(extra.get('quantity'))
-            extra_qty = per_unit_qty * to_float(line.get('quantity'))
+            extra_qty = per_unit_qty * line_multiplier
             unit = (extra.get('unit') or extra.get('ingredient_unit') or '').strip()
             key = (ingredient_id, unit)
             ingredient_totals[key] = ingredient_totals.get(key, 0) + extra_qty
@@ -2172,6 +2405,7 @@ def banquet_planner():
     venues = get_active_venues(cur)
     banquet_venue = resolve_banquet_venue(venues)
     selected_venue = banquet_venue.get('id') or ''
+    banquet_venue_name = banquet_venue.get('name') or 'Banquets'
 
     start_date, end_date = get_banquet_date_window(request.args.get('start_date'), request.args.get('end_date'))
     if not banquet_tables_ready(cur):
@@ -2179,7 +2413,8 @@ def banquet_planner():
         flash('Banquet tables are missing. Run migrations first.', 'error')
         return render_template(
             'banquet_planner.html',
-            venues=venues,
+            venues=[banquet_venue] if selected_venue else venues,
+            banquet_venue_name=banquet_venue_name,
             selected_venue=selected_venue,
             start_date=start_date.isoformat(),
             end_date=end_date.isoformat(),
@@ -2226,7 +2461,8 @@ def banquet_planner():
 
     return render_template(
         'banquet_planner.html',
-        venues=venues,
+        venues=[banquet_venue] if selected_venue else venues,
+        banquet_venue_name=banquet_venue_name,
         selected_venue=selected_venue,
         start_date=start_date.isoformat(),
         end_date=end_date.isoformat(),
@@ -2392,7 +2628,6 @@ def banquet_event_new():
         lines = []
 
     menu_items = list_banquet_menu_items(cur, event.get('venue_id') or '')
-    plated_recipes = get_plated_recipes_for_venue(cur, event.get('venue_id') or '', include_unassigned=False)
     cur.close()
     return render_template(
         'banquet_event_form.html',
@@ -2402,7 +2637,6 @@ def banquet_event_new():
         menu_items=menu_items,
         venues=venues,
         banquet_venue_name=banquet_venue_name,
-        plated_recipes=plated_recipes,
         section_options=BANQUET_MENU_SECTION_OPTIONS,
         status_options=BANQUET_STATUS_CHOICES
     )
@@ -2570,7 +2804,6 @@ def banquet_event_edit(event_id):
             line['notes'] = line.get('line_notes')
 
     menu_items = list_banquet_menu_items(cur, event.get('venue_id') or '')
-    plated_recipes = get_plated_recipes_for_venue(cur, event.get('venue_id') or '', include_unassigned=False)
     cur.close()
     return render_template(
         'banquet_event_form.html',
@@ -2580,7 +2813,6 @@ def banquet_event_edit(event_id):
         menu_items=menu_items,
         venues=venues,
         banquet_venue_name=banquet_venue_name,
-        plated_recipes=plated_recipes,
         section_options=BANQUET_MENU_SECTION_OPTIONS,
         status_options=BANQUET_STATUS_CHOICES
     )
@@ -2773,50 +3005,93 @@ def banquet_template_import():
     )
 
 def save_banquet_menu_item(cur, menu_item_id, form_state, ingredient_rows):
+    has_base_yield = db_column_exists(cur, 'public.banquet_menu_items', 'base_yield_qty') and db_column_exists(cur, 'public.banquet_menu_items', 'base_yield_unit')
     if menu_item_id:
-        cur.execute("""
-            UPDATE banquet_menu_items
-            SET name = %s,
-                venue_id = %s,
-                menu_section = %s,
-                menu_descriptor = %s,
-                notes = %s,
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id = %s
-        """, (
-            form_state['name'],
-            form_state['venue_id'],
-            form_state['menu_section'],
-            form_state['menu_descriptor'],
-            form_state['notes'],
-            menu_item_id
-        ))
+        if has_base_yield:
+            cur.execute("""
+                UPDATE banquet_menu_items
+                SET name = %s,
+                    venue_id = %s,
+                    menu_section = %s,
+                    menu_descriptor = %s,
+                    base_yield_qty = %s,
+                    base_yield_unit = %s,
+                    notes = %s,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = %s
+            """, (
+                form_state['name'],
+                form_state['venue_id'],
+                form_state['menu_section'],
+                form_state['menu_descriptor'],
+                form_state['base_yield_qty'],
+                form_state['base_yield_unit'],
+                form_state['notes'],
+                menu_item_id
+            ))
+        else:
+            cur.execute("""
+                UPDATE banquet_menu_items
+                SET name = %s,
+                    venue_id = %s,
+                    menu_section = %s,
+                    menu_descriptor = %s,
+                    notes = %s,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = %s
+            """, (
+                form_state['name'],
+                form_state['venue_id'],
+                form_state['menu_section'],
+                form_state['menu_descriptor'],
+                form_state['notes'],
+                menu_item_id
+            ))
     else:
         menu_item_id = generate_id('bmi_')
-        cur.execute("""
-            INSERT INTO banquet_menu_items (id, name, venue_id, menu_section, menu_descriptor, notes)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """, (
-            menu_item_id,
-            form_state['name'],
-            form_state['venue_id'],
-            form_state['menu_section'],
-            form_state['menu_descriptor'],
-            form_state['notes']
-        ))
+        if has_base_yield:
+            cur.execute("""
+                INSERT INTO banquet_menu_items (
+                    id, name, venue_id, menu_section, menu_descriptor, base_yield_qty, base_yield_unit, notes
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            """, (
+                menu_item_id,
+                form_state['name'],
+                form_state['venue_id'],
+                form_state['menu_section'],
+                form_state['menu_descriptor'],
+                form_state['base_yield_qty'],
+                form_state['base_yield_unit'],
+                form_state['notes']
+            ))
+        else:
+            cur.execute("""
+                INSERT INTO banquet_menu_items (
+                    id, name, venue_id, menu_section, menu_descriptor, notes
+                )
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (
+                menu_item_id,
+                form_state['name'],
+                form_state['venue_id'],
+                form_state['menu_section'],
+                form_state['menu_descriptor'],
+                form_state['notes']
+            ))
 
     cur.execute("DELETE FROM banquet_menu_item_recipes WHERE menu_item_id = %s", (menu_item_id,))
     cur.execute("DELETE FROM banquet_menu_item_ingredients WHERE menu_item_id = %s", (menu_item_id,))
 
-    if form_state.get('linked_recipe_id'):
+    for component in form_state.get('recipe_components', []):
         cur.execute("""
             INSERT INTO banquet_menu_item_recipes (menu_item_id, recipe_id, quantity, unit)
             VALUES (%s, %s, %s, %s)
         """, (
             menu_item_id,
-            form_state['linked_recipe_id'],
-            form_state['linked_recipe_qty'],
-            form_state['linked_recipe_unit']
+            component['recipe_id'],
+            component['quantity'],
+            component['unit']
         ))
 
     for row in ingredient_rows:
@@ -2843,10 +3118,10 @@ def render_banquet_menu_item_form(cur, mode='new', menu_item_id=None, form_state
             'venue_id': banquet_venue_id or None,
             'menu_section': '',
             'menu_descriptor': '',
+            'base_yield_qty': 1,
+            'base_yield_unit': 'each',
             'notes': '',
-            'linked_recipe_id': '',
-            'linked_recipe_qty': 1,
-            'linked_recipe_unit': 'serving'
+            'recipe_components': []
         }
         if menu_item_id:
             existing = get_banquet_menu_item(cur, menu_item_id)
@@ -2856,15 +3131,15 @@ def render_banquet_menu_item_form(cur, mode='new', menu_item_id=None, form_state
                     'venue_id': existing.get('venue_id') or banquet_venue_id or None,
                     'menu_section': existing.get('menu_section') or '',
                     'menu_descriptor': existing.get('menu_descriptor') or '',
+                    'base_yield_qty': to_float(existing.get('base_yield_qty')) or 1,
+                    'base_yield_unit': existing.get('base_yield_unit') or 'each',
                     'notes': existing.get('notes') or '',
-                    'linked_recipe_id': existing.get('linked_recipe_id') or '',
-                    'linked_recipe_qty': to_float(existing.get('linked_recipe_qty')) or 1,
-                    'linked_recipe_unit': existing.get('linked_recipe_unit') or 'serving'
+                    'recipe_components': get_banquet_menu_item_recipe_components(cur, menu_item_id)
                 })
     if ingredient_rows is None:
         ingredient_rows = get_banquet_menu_item_ingredients(cur, menu_item_id) if menu_item_id else []
 
-    plated_recipes = get_plated_recipes_for_venue(cur, banquet_venue_id, include_unassigned=True)
+    component_recipes = get_component_recipes_for_venue(cur, banquet_venue_id)
     cur.execute("SELECT id, name, unit, category FROM ingredients ORDER BY name")
     ingredients = cur.fetchall()
 
@@ -2874,7 +3149,7 @@ def render_banquet_menu_item_form(cur, mode='new', menu_item_id=None, form_state
         menu_item_id=menu_item_id,
         form_state=form_state,
         ingredient_rows=ingredient_rows,
-        plated_recipes=plated_recipes,
+        component_recipes=component_recipes,
         ingredients=ingredients,
         section_options=BANQUET_MENU_SECTION_OPTIONS,
         banquet_venue_name=banquet_venue_name,
@@ -2893,35 +3168,37 @@ def banquet_menu_item_new():
 
     venues = get_active_venues(cur)
     banquet_venue_id = (resolve_banquet_venue(venues) or {}).get('id') or ''
-    plated_recipes = get_plated_recipes_for_venue(cur, banquet_venue_id, include_unassigned=True)
-    valid_recipe_ids = {row['id'] for row in plated_recipes}
+    component_recipes = get_component_recipes_for_venue(cur, banquet_venue_id)
+    valid_recipe_ids = {row['id'] for row in component_recipes}
     cur.execute("SELECT id FROM ingredients")
     valid_ingredient_ids = {row['id'] for row in cur.fetchall()}
 
     if request.method == 'POST':
         errors = []
+        base_yield_qty = parse_float_field(
+            request.form.get('base_yield_qty'),
+            'Menu yield quantity',
+            errors,
+            required=True,
+            min_value=0.0001
+        )
+        base_yield_unit = normalize_unit(clean_menu_text(request.form.get('base_yield_unit'))) or 'each'
         form_state = {
             'name': clean_menu_text(request.form.get('name')),
             'venue_id': banquet_venue_id or None,
             'menu_section': clean_menu_text(request.form.get('menu_section')) or None,
             'menu_descriptor': clean_menu_text(request.form.get('menu_descriptor')) or None,
+            'base_yield_qty': base_yield_qty if base_yield_qty is not None else 1,
+            'base_yield_unit': base_yield_unit,
             'notes': clean_menu_text(request.form.get('notes')) or None,
-            'linked_recipe_id': (request.form.get('linked_recipe_id') or '').strip(),
-            'linked_recipe_qty': 1,
-            'linked_recipe_unit': normalize_unit(clean_menu_text(request.form.get('linked_recipe_unit'))) or 'serving'
+            'recipe_components': []
         }
         if not form_state['name']:
             errors.append('Menu item name is required.')
-        if form_state['linked_recipe_id'] and form_state['linked_recipe_id'] not in valid_recipe_ids:
-            errors.append('Selected recipe link is invalid.')
-        recipe_qty = parse_float_field(
-            request.form.get('linked_recipe_qty'),
-            'Recipe quantity',
-            errors,
-            required=bool(form_state['linked_recipe_id']),
-            min_value=0.0001
-        )
-        form_state['linked_recipe_qty'] = recipe_qty if recipe_qty is not None else 1
+
+        recipe_components, component_errors = parse_menu_item_recipe_lines(request, valid_recipe_ids)
+        form_state['recipe_components'] = recipe_components
+        errors.extend(component_errors)
 
         ingredient_rows, ingredient_errors = parse_menu_item_ingredient_lines(request, valid_ingredient_ids)
         errors.extend(ingredient_errors)
@@ -2979,35 +3256,37 @@ def banquet_menu_item_edit(menu_item_id):
 
     venues = get_active_venues(cur)
     banquet_venue_id = (resolve_banquet_venue(venues) or {}).get('id') or existing.get('venue_id') or ''
-    plated_recipes = get_plated_recipes_for_venue(cur, banquet_venue_id, include_unassigned=True)
-    valid_recipe_ids = {row['id'] for row in plated_recipes}
+    component_recipes = get_component_recipes_for_venue(cur, banquet_venue_id)
+    valid_recipe_ids = {row['id'] for row in component_recipes}
     cur.execute("SELECT id FROM ingredients")
     valid_ingredient_ids = {row['id'] for row in cur.fetchall()}
 
     if request.method == 'POST':
         errors = []
+        base_yield_qty = parse_float_field(
+            request.form.get('base_yield_qty'),
+            'Menu yield quantity',
+            errors,
+            required=True,
+            min_value=0.0001
+        )
+        base_yield_unit = normalize_unit(clean_menu_text(request.form.get('base_yield_unit'))) or 'each'
         form_state = {
             'name': clean_menu_text(request.form.get('name')),
             'venue_id': banquet_venue_id or None,
             'menu_section': clean_menu_text(request.form.get('menu_section')) or None,
             'menu_descriptor': clean_menu_text(request.form.get('menu_descriptor')) or None,
+            'base_yield_qty': base_yield_qty if base_yield_qty is not None else 1,
+            'base_yield_unit': base_yield_unit,
             'notes': clean_menu_text(request.form.get('notes')) or None,
-            'linked_recipe_id': (request.form.get('linked_recipe_id') or '').strip(),
-            'linked_recipe_qty': 1,
-            'linked_recipe_unit': normalize_unit(clean_menu_text(request.form.get('linked_recipe_unit'))) or 'serving'
+            'recipe_components': []
         }
         if not form_state['name']:
             errors.append('Menu item name is required.')
-        if form_state['linked_recipe_id'] and form_state['linked_recipe_id'] not in valid_recipe_ids:
-            errors.append('Selected recipe link is invalid.')
-        recipe_qty = parse_float_field(
-            request.form.get('linked_recipe_qty'),
-            'Recipe quantity',
-            errors,
-            required=bool(form_state['linked_recipe_id']),
-            min_value=0.0001
-        )
-        form_state['linked_recipe_qty'] = recipe_qty if recipe_qty is not None else 1
+
+        recipe_components, component_errors = parse_menu_item_recipe_lines(request, valid_recipe_ids)
+        form_state['recipe_components'] = recipe_components
+        errors.extend(component_errors)
 
         ingredient_rows, ingredient_errors = parse_menu_item_ingredient_lines(request, valid_ingredient_ids)
         errors.extend(ingredient_errors)
@@ -3085,9 +3364,8 @@ def banquet_shopping():
     conn = get_db()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     venues = get_active_venues(cur)
-    selected_venue = (request.args.get('venue') or '').strip()
-    if selected_venue and selected_venue not in {row['id'] for row in venues}:
-        selected_venue = ''
+    banquet_venue = resolve_banquet_venue(venues)
+    selected_venue = banquet_venue.get('id') or ''
     start_date, end_date = get_banquet_date_window(request.args.get('start_date'), request.args.get('end_date'))
     datasets = build_banquet_datasets(cur, start_date, end_date, selected_venue, get_unit_system())
     grouped = defaultdict(lambda: defaultdict(list))
@@ -3098,7 +3376,7 @@ def banquet_shopping():
     cur.close()
     return render_template(
         'banquet_shopping.html',
-        venues=venues,
+        venues=[banquet_venue] if selected_venue else venues,
         selected_venue=selected_venue,
         start_date=start_date.isoformat(),
         end_date=end_date.isoformat(),
@@ -3113,9 +3391,8 @@ def banquet_prep_weekly():
     conn = get_db()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     venues = get_active_venues(cur)
-    selected_venue = (request.args.get('venue') or '').strip()
-    if selected_venue and selected_venue not in {row['id'] for row in venues}:
-        selected_venue = ''
+    banquet_venue = resolve_banquet_venue(venues)
+    selected_venue = banquet_venue.get('id') or ''
     start_date, end_date = get_banquet_date_window(request.args.get('start_date'), request.args.get('end_date'))
     datasets = build_banquet_datasets(cur, start_date, end_date, selected_venue, get_unit_system())
     event_names = {event['id']: event['name'] for event in datasets['events']}
@@ -3124,7 +3401,7 @@ def banquet_prep_weekly():
     cur.close()
     return render_template(
         'banquet_prep_weekly.html',
-        venues=venues,
+        venues=[banquet_venue] if selected_venue else venues,
         selected_venue=selected_venue,
         start_date=start_date.isoformat(),
         end_date=end_date.isoformat(),
@@ -3137,15 +3414,14 @@ def banquet_prep_daily():
     conn = get_db()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     venues = get_active_venues(cur)
-    selected_venue = (request.args.get('venue') or '').strip()
-    if selected_venue and selected_venue not in {row['id'] for row in venues}:
-        selected_venue = ''
+    banquet_venue = resolve_banquet_venue(venues)
+    selected_venue = banquet_venue.get('id') or ''
     start_date, end_date = get_banquet_date_window(request.args.get('start_date'), request.args.get('end_date'))
     datasets = build_banquet_datasets(cur, start_date, end_date, selected_venue, get_unit_system())
     cur.close()
     return render_template(
         'banquet_prep_daily.html',
-        venues=venues,
+        venues=[banquet_venue] if selected_venue else venues,
         selected_venue=selected_venue,
         start_date=start_date.isoformat(),
         end_date=end_date.isoformat(),
@@ -3158,9 +3434,8 @@ def banquet_export_excel():
     conn = get_db()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     venues = get_active_venues(cur)
-    selected_venue = (request.args.get('venue') or '').strip()
-    if selected_venue and selected_venue not in {row['id'] for row in venues}:
-        selected_venue = ''
+    banquet_venue = resolve_banquet_venue(venues)
+    selected_venue = banquet_venue.get('id') or ''
     start_date, end_date = get_banquet_date_window(request.args.get('start_date'), request.args.get('end_date'))
     datasets = build_banquet_datasets(cur, start_date, end_date, selected_venue, get_unit_system())
 
@@ -3181,7 +3456,7 @@ def banquet_export_excel():
                 event.get('guests'),
                 line.get('menu_item_name'),
                 line.get('menu_section'),
-                (line.get('recipe') or {}).get('name'),
+                ', '.join(r.get('name') for r in line.get('recipes', []) if r.get('name')) or (line.get('recipe') or {}).get('name'),
                 line.get('quantity'),
                 line.get('quantity_unit'),
                 line.get('menu_descriptor'),
@@ -3238,7 +3513,7 @@ def banquet_export_excel():
                     line.get('menu_item_name'),
                     line.get('quantity'),
                     line.get('quantity_unit'),
-                    (line.get('recipe') or {}).get('name')
+                    ', '.join(r.get('name') for r in line.get('recipes', []) if r.get('name')) or (line.get('recipe') or {}).get('name')
                 ])
 
     for ws in [ws_summary, ws_shopping, ws_weekly, ws_daily]:
@@ -3254,7 +3529,7 @@ def banquet_export_excel():
     output = BytesIO()
     wb.save(output)
     output.seek(0)
-    venue_name = next((v['name'] for v in venues if v['id'] == selected_venue), 'all_venues')
+    venue_name = banquet_venue.get('name') if banquet_venue else 'banquets'
     filename = f"{make_safe_filename(venue_name)}_{start_date.isoformat()}_{end_date.isoformat()}_banquet_planner.xlsx"
 
     cur.close()
@@ -3271,13 +3546,12 @@ def banquet_packet_print():
     conn = get_db()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     venues = get_active_venues(cur)
-    selected_venue = (request.args.get('venue') or '').strip()
-    if selected_venue and selected_venue not in {row['id'] for row in venues}:
-        selected_venue = ''
+    banquet_venue = resolve_banquet_venue(venues)
+    selected_venue = banquet_venue.get('id') or ''
     start_date, end_date = get_banquet_date_window(request.args.get('start_date'), request.args.get('end_date'))
     datasets = build_banquet_datasets(cur, start_date, end_date, selected_venue, get_unit_system())
     cur.close()
-    venue_name = next((v['name'] for v in venues if v['id'] == selected_venue), 'All Venues')
+    venue_name = banquet_venue.get('name') if banquet_venue else 'Banquets'
     return render_template(
         'banquet_packet_print.html',
         venue_name=venue_name,
@@ -3551,6 +3825,21 @@ def db_table_exists(cur, table_name):
     cur.execute("SELECT to_regclass(%s) AS table_ref", (table_name,))
     row = cur.fetchone() or {}
     return bool(row.get('table_ref'))
+
+def db_column_exists(cur, table_name, column_name):
+    if '.' in table_name:
+        schema_name, plain_table = table_name.split('.', 1)
+    else:
+        schema_name, plain_table = 'public', table_name
+    cur.execute("""
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = %s
+          AND table_name = %s
+          AND column_name = %s
+        LIMIT 1
+    """, (schema_name, plain_table, column_name))
+    return cur.fetchone() is not None
 
 def get_active_venues(cur):
     if not db_table_exists(cur, 'public.venues'):
