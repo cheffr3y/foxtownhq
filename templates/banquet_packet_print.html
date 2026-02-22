@@ -42,32 +42,37 @@
 
     <div class="bg-white border border-stone-200 rounded-xl p-5">
         <h2 class="text-2xl font-display text-foxtown-ink mb-3">Shopping List</h2>
-        <div class="overflow-x-auto">
-            <table class="min-w-full text-sm">
-                <thead class="text-xs uppercase text-stone-500 border-b border-stone-200">
-                    <tr>
-                        <th class="text-left py-2 pr-3">Ingredient</th>
-                        <th class="text-left py-2 pr-3">Qty</th>
-                        <th class="text-left py-2 pr-3">Unit</th>
-                        <th class="text-left py-2 pr-3">Vendor</th>
-                        <th class="text-left py-2 pr-3">Vendor Code</th>
-                        <th class="text-left py-2">G-Code</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-stone-100">
-                    {% for item in datasets.shopping_ingredients %}
-                    <tr>
-                        <td class="py-2 pr-3 font-medium text-foxtown-ink">{{ item.name }}</td>
-                        <td class="py-2 pr-3">{{ item.display_quantity }}</td>
-                        <td class="py-2 pr-3">{{ item.display_unit }}</td>
-                        <td class="py-2 pr-3">{{ item.vendor or '—' }}</td>
-                        <td class="py-2 pr-3">{{ item.vendor_code or '—' }}</td>
-                        <td class="py-2">{{ item.g_code or '—' }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        {% for vendor_group in datasets.shopping_ingredients|groupby('vendor') %}
+        <div class="mb-5 last:mb-0">
+            <div class="text-sm uppercase tracking-widest text-stone-500 mb-2">{{ vendor_group.grouper or 'Unassigned Vendor' }}</div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-sm">
+                    <thead class="text-xs uppercase text-stone-500 border-b border-stone-200">
+                        <tr>
+                            <th class="text-left py-2 pr-3">Ingredient</th>
+                            <th class="text-left py-2 pr-3">Qty</th>
+                            <th class="text-left py-2 pr-3">Unit</th>
+                            <th class="text-left py-2 pr-3">Category</th>
+                            <th class="text-left py-2 pr-3">Vendor Code</th>
+                            <th class="text-left py-2">G-Code</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-stone-100">
+                        {% for item in vendor_group.list %}
+                        <tr>
+                            <td class="py-2 pr-3 font-medium text-foxtown-ink">{{ item.name }}</td>
+                            <td class="py-2 pr-3">{{ item.display_quantity }}</td>
+                            <td class="py-2 pr-3">{{ item.display_unit }}</td>
+                            <td class="py-2 pr-3">{{ item.category or 'Uncategorized' }}</td>
+                            <td class="py-2 pr-3">{{ item.vendor_code or '—' }}</td>
+                            <td class="py-2">{{ item.g_code or '—' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
+        {% endfor %}
     </div>
 
     <div class="bg-white border border-stone-200 rounded-xl p-5">
