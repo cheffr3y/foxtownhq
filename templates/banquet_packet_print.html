@@ -128,7 +128,33 @@
             {% endif %}
         </div>
         {% endfor %}
+        {% if not datasets.weekly_prep %}
+        <div class="text-sm text-stone-500">No scaled recipe prep cards in this date window.</div>
+        {% endif %}
     </div>
+
+    {% if datasets.weekly_menu_pulls %}
+    <div class="bg-white border border-stone-200 rounded-xl p-5 break-before-page">
+        <h2 class="text-2xl font-display text-foxtown-ink mb-3">Direct Menu Pulls</h2>
+        <p class="text-sm text-stone-500 mb-4">Raw ingredients attached directly to menu items (including custom substitutions).</p>
+        {% for pull in datasets.weekly_menu_pulls %}
+        <div class="mb-4 border border-stone-200 rounded-lg p-4 break-inside-avoid">
+            <div class="flex justify-between gap-3 mb-2">
+                <div class="font-semibold text-foxtown-ink">{{ pull.menu_item_name }}</div>
+                <div class="text-sm text-stone-600">Events: {{ pull.used_in_event_names|join(', ') if pull.used_in_event_names else '—' }}</div>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
+                {% for ing in pull.ingredient_rows %}
+                <div><span class="text-stone-400 mr-1">[ ]</span>{{ ing.name }} — {{ ing.display_quantity }} {{ ing.display_unit }}</div>
+                {% endfor %}
+            </div>
+            {% if not pull.ingredient_rows %}
+            <div class="text-sm text-stone-500">No direct raw ingredients on this menu item.</div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
 
     <div class="bg-white border border-stone-200 rounded-xl p-5 break-before-page">
         <h2 class="text-2xl font-display text-foxtown-ink mb-3">Daily Prep</h2>

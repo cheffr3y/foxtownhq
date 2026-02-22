@@ -2266,7 +2266,46 @@ def build_banquet_datasets(cur, start_date, end_date, venue_id='', unit_system='
     event_daily_ingredients = defaultdict(lambda: defaultdict(float))
     menu_item_direct_pull_totals = {}
 
-    menu_item_ids = list({row.get('menu_item_id') for row in rows if row.get('menu_item_id')})
+    # Keep prep/shopping usable for older event lines that lost menu_item_id
+    # by resolving from menu-item name within the same venue.
+    unresolved_name_keys = defaultdict(list)
+    for row in rows:
+        effective_menu_item_id = row.get('menu_item_id')
+        row['_effective_menu_item_id'] = effective_menu_item_id
+        if effective_menu_item_id:
+            continue
+        menu_name_key = clean_menu_text(row.get('menu_item_name') or '').lower()
+        if not menu_name_key:
+            continue
+        unresolved_name_keys[(row.get('venue_id') or '', menu_name_key)].append(row)
+
+    if unresolved_name_keys:
+        name_keys = sorted({name_key for _, name_key in unresolved_name_keys.keys()})
+        cur.execute("""
+            SELECT id, venue_id, LOWER(TRIM(name)) AS menu_name_key
+            FROM banquet_menu_items
+            WHERE LOWER(TRIM(name)) = ANY(%s)
+        """, (name_keys,))
+        candidates_by_name = defaultdict(list)
+        for candidate in cur.fetchall():
+            key = candidate.get('menu_name_key') or ''
+            candidates_by_name[key].append(candidate)
+
+        for (target_venue_id, menu_name_key), target_rows in unresolved_name_keys.items():
+            candidates = candidates_by_name.get(menu_name_key, [])
+            resolved = None
+            if target_venue_id:
+                resolved = next((item for item in candidates if item.get('venue_id') == target_venue_id), None)
+            if not resolved:
+                resolved = next((item for item in candidates if not item.get('venue_id')), None)
+            if not resolved and candidates:
+                resolved = candidates[0]
+            if resolved:
+                resolved_id = resolved.get('id')
+                for row in target_rows:
+                    row['_effective_menu_item_id'] = resolved_id
+
+    menu_item_ids = list({row.get('_effective_menu_item_id') for row in rows if row.get('_effective_menu_item_id')})
     additional_ingredients = collect_banquet_additional_ingredients(cur, menu_item_ids)
     menu_item_recipe_components = collect_banquet_recipe_components(cur, menu_item_ids)
 
@@ -2301,8 +2340,10 @@ def build_banquet_datasets(cur, start_date, end_date, venue_id='', unit_system='
                 'yield_unit': row.get('yield_unit')
             }
 
+        effective_menu_item_id = row.get('_effective_menu_item_id') or row.get('menu_item_id')
+
         line_recipes = []
-        for component in menu_item_recipe_components.get(row.get('menu_item_id'), []):
+        for component in menu_item_recipe_components.get(effective_menu_item_id, []):
             line_recipes.append({
                 'id': component.get('recipe_id'),
                 'name': component.get('recipe_name'),
@@ -2336,6 +2377,7 @@ def build_banquet_datasets(cur, start_date, end_date, venue_id='', unit_system='
 
         line = {
             'id': row.get('line_id'),
+            'menu_item_id': effective_menu_item_id,
             'menu_item_name': row.get('menu_item_name') or row.get('recipe_name') or 'Menu Item',
             'menu_descriptor': row.get('menu_descriptor') or row.get('recipe_descriptor'),
             'menu_section': row.get('menu_section') or 'Uncategorized',
@@ -2402,7 +2444,7 @@ def build_banquet_datasets(cur, start_date, end_date, venue_id='', unit_system='
             line_label = line['menu_item_name']
             collect_ingredient_usage_from_components(components, line_label, ingredient_usage)
 
-        for extra in additional_ingredients.get(row.get('menu_item_id'), []):
+        for extra in additional_ingredients.get(effective_menu_item_id, []):
             ingredient_id = extra.get('ingredient_id')
             if not ingredient_id:
                 continue
@@ -2429,7 +2471,7 @@ def build_banquet_datasets(cur, start_date, end_date, venue_id='', unit_system='
                 'ext_cost': ext_cost
             })
             pull_group_key = (
-                row.get('menu_item_id') or line.get('menu_item_name') or 'menu_item',
+                effective_menu_item_id or line.get('menu_item_name') or 'menu_item',
                 line.get('menu_item_name') or 'Menu Item'
             )
             if pull_group_key not in menu_item_direct_pull_totals:
@@ -4508,8 +4550,11 @@ def banquet_packet_print():
     start_date, end_date = get_banquet_date_window(request.args.get('start_date'), request.args.get('end_date'))
     include_shopping = (request.args.get('include_shopping') or '').strip().lower() in ('1', 'true', 'yes', 'on')
     datasets = build_banquet_datasets(cur, start_date, end_date, selected_venue, get_unit_system())
+    event_name_map = {event['id']: event['name'] for event in datasets.get('events', [])}
     for prep in datasets.get('weekly_prep', []):
         prep['instruction_steps'] = split_instruction_steps(prep.get('instructions'))
+    for pull in datasets.get('weekly_menu_pulls', []):
+        pull['used_in_event_names'] = [event_name_map[event_id] for event_id in pull.get('used_in_events', []) if event_id in event_name_map]
     cur.close()
     venue_name = banquet_venue.get('name') if banquet_venue else 'Banquets'
     return render_template(
