@@ -1976,6 +1976,13 @@ def ratio_from_line_quantity(line, recipe):
         converted = convert_quantity_between_units(qty, line_unit, yield_unit)
         if converted is not None:
             qty_in_yield = converted
+        else:
+            line_count_unit = normalize_count_unit(line_unit)
+            yield_count_unit = normalize_count_unit(yield_unit)
+            if line_count_unit and not yield_count_unit:
+                # If line quantity is a count unit (each/dozen) but the recipe yield
+                # is in prep units (oz/fl oz/etc), treat the line qty as direct batch pulls.
+                return qty
     return qty_in_yield / recipe_yield
 
 def normalize_count_unit(unit):
