@@ -3528,6 +3528,7 @@ def banquet_template_import():
     )
 
 def save_banquet_menu_item(cur, menu_item_id, form_state, ingredient_rows):
+    ensure_banquet_menu_item_base_yield_columns(cur)
     has_base_yield = db_column_exists(cur, 'public.banquet_menu_items', 'base_yield_qty') and db_column_exists(cur, 'public.banquet_menu_items', 'base_yield_unit')
     has_choice_columns = db_column_exists(cur, 'public.banquet_menu_item_recipes', 'choice_group') and db_column_exists(cur, 'public.banquet_menu_item_recipes', 'choice_weight_percent')
     if menu_item_id:
@@ -4512,6 +4513,31 @@ def db_column_exists(cur, table_name, column_name):
         LIMIT 1
     """, (schema_name, plain_table, column_name))
     return cur.fetchone() is not None
+
+def ensure_banquet_menu_item_base_yield_columns(cur):
+    """Backfill banquet menu item sold-as fields on older databases before save."""
+    if not db_table_exists(cur, 'public.banquet_menu_items'):
+        return False
+
+    cur.execute("""
+        ALTER TABLE banquet_menu_items
+        ADD COLUMN IF NOT EXISTS base_yield_qty NUMERIC DEFAULT 1
+    """)
+    cur.execute("""
+        ALTER TABLE banquet_menu_items
+        ADD COLUMN IF NOT EXISTS base_yield_unit TEXT DEFAULT 'each'
+    """)
+    cur.execute("""
+        UPDATE banquet_menu_items
+        SET base_yield_qty = 1
+        WHERE base_yield_qty IS NULL
+    """)
+    cur.execute("""
+        UPDATE banquet_menu_items
+        SET base_yield_unit = 'each'
+        WHERE base_yield_unit IS NULL OR TRIM(base_yield_unit) = ''
+    """)
+    return True
 
 def get_active_venues(cur):
     if not db_table_exists(cur, 'public.venues'):
