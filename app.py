@@ -74,8 +74,8 @@ SYSTEM_UNITS = {
         'volume': ['l', 'ml'],
     },
     'imperial': {
-        'weight': ['oz'],
-        'volume': ['fl oz'],
+        'weight': ['lb', 'oz'],
+        'volume': ['gal', 'qt', 'pt', 'cup', 'fl oz'],
     }
 }
 
@@ -1060,8 +1060,8 @@ def convert_quantity_between_units(quantity, from_unit, to_unit):
 
 def get_banquet_date_window(start_raw, end_raw):
     today = date.today()
-    default_start = today - timedelta(days=today.weekday())
-    default_end = default_start + timedelta(days=6)
+    default_start = today
+    default_end = default_start + timedelta(days=9)
 
     start_date = default_start
     end_date = default_end
@@ -2458,6 +2458,8 @@ def dashboard():
 def banquet_planner():
     conn = get_db()
     cur = conn.cursor(cursor_factory=RealDictCursor)
+    today = date.today()
+    ten_day_end = today + timedelta(days=9)
 
     venues = get_active_venues(cur)
     banquet_venue = resolve_banquet_venue(venues)
@@ -2480,7 +2482,14 @@ def banquet_planner():
             menu_line_count=0,
             shopping_count=0,
             weekly_prep_count=0,
-            menu_item_count=0
+            menu_item_count=0,
+            banquet_metrics={
+                'total_events': 0,
+                'completed_events': 0,
+                'active_next_10_days': 0,
+                'avg_guests_90d': 0
+            },
+            past_events=[]
         )
 
     datasets = build_banquet_datasets(cur, start_date, end_date, selected_venue, get_unit_system())
@@ -2514,6 +2523,53 @@ def banquet_planner():
         cur.execute("SELECT COUNT(*) AS count FROM banquet_menu_items")
     menu_item_count = (cur.fetchone() or {}).get('count', 0)
 
+    cur.execute("""
+        SELECT
+            COUNT(*) AS total_events,
+            COUNT(*) FILTER (WHERE status = 'completed') AS completed_events,
+            COUNT(*) FILTER (WHERE event_date BETWEEN %s AND %s AND status = ANY(%s)) AS active_next_10_days
+        FROM banquet_events e
+        WHERE (%s = '' OR e.venue_id = %s)
+    """, (today, ten_day_end, list(BANQUET_ACTIVE_STATUSES), selected_venue, selected_venue))
+    metrics_row = cur.fetchone() or {}
+
+    cur.execute("""
+        SELECT ROUND(AVG(guest_count)::numeric, 1) AS avg_guests_90d
+        FROM banquet_events e
+        WHERE guest_count IS NOT NULL
+          AND guest_count > 0
+          AND e.event_date >= %s
+          AND (%s = '' OR e.venue_id = %s)
+    """, (today - timedelta(days=90), selected_venue, selected_venue))
+    avg_row = cur.fetchone() or {}
+    avg_guests_90d = avg_row.get('avg_guests_90d')
+
+    banquet_metrics = {
+        'total_events': int(metrics_row.get('total_events') or 0),
+        'completed_events': int(metrics_row.get('completed_events') or 0),
+        'active_next_10_days': int(metrics_row.get('active_next_10_days') or 0),
+        'avg_guests_90d': float(avg_guests_90d) if avg_guests_90d is not None else 0
+    }
+
+    cur.execute("""
+        SELECT e.id,
+               e.name,
+               e.event_date,
+               e.guest_count AS guests,
+               e.status,
+               COALESCE(v.name, e.building, 'Banquet') AS venue_name,
+               COUNT(emi.id) AS recipe_lines
+        FROM banquet_events e
+        LEFT JOIN venues v ON v.id = e.venue_id
+        LEFT JOIN banquet_event_menu_items emi ON emi.event_id = e.id
+        WHERE e.event_date < %s
+          AND (%s = '' OR e.venue_id = %s)
+        GROUP BY e.id, v.name
+        ORDER BY e.event_date DESC, e.name
+        LIMIT 20
+    """, (today, selected_venue, selected_venue))
+    past_events = cur.fetchall()
+
     cur.close()
 
     return render_template(
@@ -2528,7 +2584,9 @@ def banquet_planner():
         menu_line_count=datasets['menu_line_count'],
         shopping_count=len(datasets['shopping_ingredients']),
         weekly_prep_count=len(datasets['weekly_prep']),
-        menu_item_count=menu_item_count
+        menu_item_count=menu_item_count,
+        banquet_metrics=banquet_metrics,
+        past_events=past_events
     )
 
 @app.route('/banquet-planner/events/new', methods=['GET', 'POST'])

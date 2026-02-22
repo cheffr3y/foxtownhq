@@ -84,6 +84,12 @@
                 <div>{{ ing.name }} — {{ ing.display_quantity }} {{ ing.display_unit }}</div>
                 {% endfor %}
             </div>
+            {% if prep.instructions %}
+            <div class="mt-3 p-3 rounded border border-stone-200 bg-stone-50">
+                <div class="text-xs uppercase tracking-wide text-stone-500 mb-1">Method</div>
+                <div class="text-sm text-stone-700 whitespace-pre-wrap">{{ prep.instructions }}</div>
+            </div>
+            {% endif %}
         </div>
         {% endfor %}
     </div>

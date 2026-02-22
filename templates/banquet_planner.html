@@ -49,9 +49,9 @@
             </form>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
+        <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-5">
             <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-5">
-                <div class="text-xs uppercase tracking-widest text-stone-500 mb-1">Events</div>
+                <div class="text-xs uppercase tracking-widest text-stone-500 mb-1">Events In Window</div>
                 <div class="text-3xl font-semibold text-foxtown-ink">{{ event_count }}</div>
             </div>
             <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-5">
@@ -69,6 +69,25 @@
             <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-5">
                 <div class="text-xs uppercase tracking-widest text-stone-500 mb-1">Menu Catalog Items</div>
                 <div class="text-3xl font-semibold text-foxtown-ink">{{ menu_item_count }}</div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+            <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-5">
+                <div class="text-xs uppercase tracking-widest text-stone-500 mb-1">Total Saved Events</div>
+                <div class="text-3xl font-semibold text-foxtown-ink">{{ banquet_metrics.total_events }}</div>
+            </div>
+            <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-5">
+                <div class="text-xs uppercase tracking-widest text-stone-500 mb-1">Completed Events</div>
+                <div class="text-3xl font-semibold text-foxtown-ink">{{ banquet_metrics.completed_events }}</div>
+            </div>
+            <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-5">
+                <div class="text-xs uppercase tracking-widest text-stone-500 mb-1">Active Next 10 Days</div>
+                <div class="text-3xl font-semibold text-foxtown-ink">{{ banquet_metrics.active_next_10_days }}</div>
+            </div>
+            <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-5">
+                <div class="text-xs uppercase tracking-widest text-stone-500 mb-1">Avg Guests (90 Days)</div>
+                <div class="text-3xl font-semibold text-foxtown-ink">{{ "%.1f"|format(banquet_metrics.avg_guests_90d or 0) }}</div>
             </div>
         </div>
 
@@ -131,6 +150,42 @@
                 </div>
                 {% else %}
                 <p class="text-sm text-stone-500">No events in the selected window.</p>
+                {% endif %}
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-xl font-display text-foxtown-ink">Recent Event History</h2>
+                </div>
+                {% if past_events %}
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-sm">
+                        <thead class="text-xs uppercase text-stone-500 border-b border-stone-200">
+                            <tr>
+                                <th class="text-left py-2 pr-3">Date</th>
+                                <th class="text-left py-2 pr-3">Event</th>
+                                <th class="text-left py-2 pr-3">Status</th>
+                                <th class="text-left py-2 pr-3">Guests</th>
+                                <th class="text-left py-2 pr-3">Lines</th>
+                                <th class="text-left py-2">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-stone-100">
+                            {% for event in past_events %}
+                            <tr>
+                                <td class="py-2 pr-3">{{ event.event_date }}</td>
+                                <td class="py-2 pr-3 font-medium text-foxtown-ink">{{ event.name }}</td>
+                                <td class="py-2 pr-3">{{ event.status|title }}</td>
+                                <td class="py-2 pr-3">{{ event.guests or '—' }}</td>
+                                <td class="py-2 pr-3">{{ event.recipe_lines }}</td>
+                                <td class="py-2"><a href="{{ url_for('banquet_event_edit', event_id=event.id) }}" class="text-foxtown-ember hover:text-orange-700 font-semibold">Open</a></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-sm text-stone-500">No prior events found yet.</p>
                 {% endif %}
             </div>
         </div>
