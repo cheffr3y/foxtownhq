@@ -1258,6 +1258,8 @@ def get_component_recipes_for_venue(cur, venue_id=''):
         option['option_source'] = 'recipe'
         option['menu_item_name'] = None
         option['menu_item_base_yield_unit'] = None
+        option['source_menu_item_id'] = None
+        option['menu_item_base_yield_qty'] = None
         option['default_component_unit'] = (option.get('yield_unit') or 'each')
 
     has_banquet_menu_tables = db_table_exists(cur, 'public.banquet_menu_items') and db_table_exists(cur, 'public.banquet_menu_item_recipes')
@@ -1271,7 +1273,9 @@ def get_component_recipes_for_venue(cur, venue_id=''):
                    r.yield_unit,
                    r.menu_descriptor,
                    '' AS venue_names,
+                   mi.id AS source_menu_item_id,
                    mi.name AS menu_item_name,
+                   mi.base_yield_qty AS menu_item_base_yield_qty,
                    mi.base_yield_unit AS menu_item_base_yield_unit
             FROM banquet_menu_items mi
             JOIN LATERAL (
@@ -1876,27 +1880,33 @@ def parse_menu_item_ingredient_lines(request, valid_ingredient_ids):
         })
     return rows, errors
 
-def parse_menu_item_recipe_lines(request, valid_recipe_ids):
+def parse_menu_item_recipe_lines(request, valid_recipe_ids, valid_source_menu_item_ids=None):
     recipe_ids = request.form.getlist('component_recipe_id[]')
+    source_menu_item_ids = request.form.getlist('component_source_menu_item_id[]')
     quantities = request.form.getlist('component_qty[]')
     units = request.form.getlist('component_unit[]')
     choice_groups = request.form.getlist('component_choice_group[]')
     choice_weights = request.form.getlist('component_choice_weight[]')
 
-    max_len = max(len(recipe_ids), len(quantities), len(units), len(choice_groups), len(choice_weights), 0)
+    max_len = max(len(recipe_ids), len(source_menu_item_ids), len(quantities), len(units), len(choice_groups), len(choice_weights), 0)
     rows = []
     errors = []
+    valid_source_ids = set(valid_source_menu_item_ids or set())
     for idx in range(max_len):
         recipe_id = (recipe_ids[idx] if idx < len(recipe_ids) else '').strip()
+        source_menu_item_id = (source_menu_item_ids[idx] if idx < len(source_menu_item_ids) else '').strip()
         quantity_raw = (quantities[idx] if idx < len(quantities) else '').strip()
         unit = clean_menu_text(units[idx] if idx < len(units) else '')
         choice_group = clean_menu_text(choice_groups[idx] if idx < len(choice_groups) else '')
         choice_weight_raw = (choice_weights[idx] if idx < len(choice_weights) else '').strip()
 
-        if not any([recipe_id, quantity_raw, unit, choice_group, choice_weight_raw]):
+        if not any([recipe_id, source_menu_item_id, quantity_raw, unit, choice_group, choice_weight_raw]):
             continue
         if recipe_id not in valid_recipe_ids:
             errors.append('Recipe component row has an invalid recipe.')
+            continue
+        if source_menu_item_id and source_menu_item_id not in valid_source_ids:
+            errors.append('Recipe component row has an invalid menu-item source.')
             continue
         quantity = parse_float_field(
             quantity_raw,
@@ -1922,6 +1932,7 @@ def parse_menu_item_recipe_lines(request, valid_recipe_ids):
 
         rows.append({
             'recipe_id': recipe_id,
+            'source_menu_item_id': source_menu_item_id or None,
             'quantity': quantity,
             'unit': normalize_unit(unit) or unit,
             'choice_group': choice_group or None,
@@ -3653,7 +3664,104 @@ def save_banquet_menu_item(cur, menu_item_id, form_state, ingredient_rows):
     cur.execute("DELETE FROM banquet_menu_item_recipes WHERE menu_item_id = %s", (menu_item_id,))
     cur.execute("DELETE FROM banquet_menu_item_ingredients WHERE menu_item_id = %s", (menu_item_id,))
 
+    resolved_recipe_components = []
+    resolved_ingredient_rows = list(ingredient_rows or [])
+
     for component in form_state.get('recipe_components', []):
+        source_menu_item_id = component.get('source_menu_item_id')
+        if source_menu_item_id:
+            source_item = get_banquet_menu_item(cur, source_menu_item_id)
+            if source_item:
+                source_multiplier = menu_line_base_multiplier(
+                    component.get('quantity'),
+                    component.get('unit'),
+                    source_item.get('base_yield_qty') or 1,
+                    source_item.get('base_yield_unit') or 'each'
+                )
+                if source_multiplier > 0:
+                    source_recipe_components = get_banquet_menu_item_recipe_components(cur, source_menu_item_id)
+                    apply_parent_choice = bool(component.get('choice_group')) and len(source_recipe_components) == 1
+                    for source_component in source_recipe_components:
+                        source_qty = to_float(source_component.get('quantity'))
+                        expanded_qty = source_qty * source_multiplier
+                        if expanded_qty <= 0:
+                            continue
+                        source_choice_group = source_component.get('choice_group')
+                        parent_choice_group = component.get('choice_group') if apply_parent_choice else None
+                        choice_group = source_choice_group or parent_choice_group
+                        source_choice_weight = source_component.get('choice_weight_percent')
+                        parent_choice_weight = component.get('choice_weight_percent') if apply_parent_choice else None
+                        choice_weight = source_choice_weight if source_choice_group else parent_choice_weight
+                        resolved_recipe_components.append({
+                            'recipe_id': source_component.get('recipe_id'),
+                            'quantity': expanded_qty,
+                            'unit': source_component.get('unit') or source_component.get('yield_unit') or component.get('unit') or 'each',
+                            'choice_group': choice_group or None,
+                            'choice_weight_percent': choice_weight if choice_group else None
+                        })
+
+                    for source_ingredient in get_banquet_menu_item_ingredients(cur, source_menu_item_id):
+                        source_ing_qty = to_float(source_ingredient.get('quantity'))
+                        expanded_ing_qty = source_ing_qty * source_multiplier
+                        if expanded_ing_qty <= 0:
+                            continue
+                        resolved_ingredient_rows.append({
+                            'ingredient_id': source_ingredient.get('ingredient_id'),
+                            'quantity': expanded_ing_qty,
+                            'unit': source_ingredient.get('unit') or None
+                        })
+                    continue
+
+        resolved_recipe_components.append({
+            'recipe_id': component.get('recipe_id'),
+            'quantity': to_float(component.get('quantity')),
+            'unit': component.get('unit'),
+            'choice_group': component.get('choice_group'),
+            'choice_weight_percent': component.get('choice_weight_percent')
+        })
+
+    recipe_component_totals = {}
+    for component in resolved_recipe_components:
+        recipe_id = component.get('recipe_id')
+        qty = to_float(component.get('quantity'))
+        if not recipe_id or qty <= 0:
+            continue
+        unit = component.get('unit') or ''
+        choice_group = component.get('choice_group') or ''
+        choice_weight = component.get('choice_weight_percent')
+        key = (
+            recipe_id,
+            unit,
+            choice_group,
+            round(to_float(choice_weight), 6) if choice_weight is not None else None
+        )
+        if key not in recipe_component_totals:
+            recipe_component_totals[key] = dict(component)
+            recipe_component_totals[key]['quantity'] = qty
+        else:
+            recipe_component_totals[key]['quantity'] = to_float(recipe_component_totals[key].get('quantity')) + qty
+
+    final_recipe_components = list(recipe_component_totals.values())
+    ingredient_totals = {}
+    for row in resolved_ingredient_rows:
+        ingredient_id = row.get('ingredient_id')
+        qty = to_float(row.get('quantity'))
+        if not ingredient_id or qty <= 0:
+            continue
+        unit = row.get('unit') or ''
+        key = (ingredient_id, unit)
+        ingredient_totals[key] = ingredient_totals.get(key, 0) + qty
+
+    final_ingredient_rows = [
+        {
+            'ingredient_id': ingredient_id,
+            'quantity': qty,
+            'unit': unit or None
+        }
+        for (ingredient_id, unit), qty in ingredient_totals.items()
+    ]
+
+    for component in final_recipe_components:
         if has_choice_columns:
             cur.execute("""
                 INSERT INTO banquet_menu_item_recipes (menu_item_id, recipe_id, quantity, unit, choice_group, choice_weight_percent)
@@ -3677,7 +3785,7 @@ def save_banquet_menu_item(cur, menu_item_id, form_state, ingredient_rows):
                 component['unit']
             ))
 
-    for row in ingredient_rows:
+    for row in final_ingredient_rows:
         cur.execute("""
             INSERT INTO banquet_menu_item_ingredients (menu_item_id, ingredient_id, quantity, unit)
             VALUES (%s, %s, %s, %s)
@@ -3789,6 +3897,7 @@ def banquet_menu_item_new():
     banquet_venue_id = (resolve_banquet_venue(venues) or {}).get('id') or ''
     component_recipes = get_component_recipes_for_venue(cur, banquet_venue_id)
     valid_recipe_ids = {row['id'] for row in component_recipes}
+    valid_source_menu_item_ids = {row.get('source_menu_item_id') for row in component_recipes if row.get('source_menu_item_id')}
     cur.execute("SELECT id FROM ingredients")
     valid_ingredient_ids = {row['id'] for row in cur.fetchall()}
 
@@ -3820,7 +3929,11 @@ def banquet_menu_item_new():
         if not form_state['name']:
             errors.append('Menu item name is required.')
 
-        recipe_components, component_errors = parse_menu_item_recipe_lines(request, valid_recipe_ids)
+        recipe_components, component_errors = parse_menu_item_recipe_lines(
+            request,
+            valid_recipe_ids,
+            valid_source_menu_item_ids
+        )
         form_state['recipe_components'] = recipe_components
         errors.extend(component_errors)
 
@@ -3885,6 +3998,7 @@ def banquet_menu_item_edit(menu_item_id):
     banquet_venue_id = (resolve_banquet_venue(venues) or {}).get('id') or existing.get('venue_id') or ''
     component_recipes = get_component_recipes_for_venue(cur, banquet_venue_id)
     valid_recipe_ids = {row['id'] for row in component_recipes}
+    valid_source_menu_item_ids = {row.get('source_menu_item_id') for row in component_recipes if row.get('source_menu_item_id')}
     cur.execute("SELECT id FROM ingredients")
     valid_ingredient_ids = {row['id'] for row in cur.fetchall()}
 
@@ -3916,7 +4030,11 @@ def banquet_menu_item_edit(menu_item_id):
         if not form_state['name']:
             errors.append('Menu item name is required.')
 
-        recipe_components, component_errors = parse_menu_item_recipe_lines(request, valid_recipe_ids)
+        recipe_components, component_errors = parse_menu_item_recipe_lines(
+            request,
+            valid_recipe_ids,
+            valid_source_menu_item_ids
+        )
         form_state['recipe_components'] = recipe_components
         errors.extend(component_errors)
 
