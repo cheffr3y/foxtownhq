@@ -1975,6 +1975,45 @@ def collect_ingredients_from_components(components, totals, multiplier=1.0):
         if item.get('children'):
             collect_ingredients_from_components(item['children'], totals, current_multiplier)
 
+def collect_direct_ingredients_for_prep(components, totals, multiplier=1.0):
+    """Collect only direct raw ingredients for a recipe prep card (exclude nested sub-recipe leaves)."""
+    for item in components:
+        current_multiplier = multiplier
+        if item.get('weight_percent') is not None:
+            current_multiplier = current_multiplier * (to_float(item.get('weight_percent')) / 100.0)
+
+        item_type = item.get('type')
+        if item_type == 'ingredient':
+            ing_id = item.get('item_id')
+            unit = (item.get('unit') or '').strip()
+            qty = to_float(item.get('scaled_quantity')) * current_multiplier
+            if ing_id:
+                key = (ing_id, unit)
+                totals[key] = totals.get(key, 0) + qty
+            continue
+
+        # Weighted option groups may include direct ingredient options; recurse into those.
+        if item_type == 'option_group' and item.get('children'):
+            collect_direct_ingredients_for_prep(item['children'], totals, current_multiplier)
+
+def collect_direct_subrecipes_for_prep(components, totals, multiplier=1.0):
+    """Collect only direct sub-recipe pulls for a recipe prep card (exclude deeper nesting)."""
+    for item in components:
+        current_multiplier = multiplier
+        if item.get('weight_percent') is not None:
+            current_multiplier = current_multiplier * (to_float(item.get('weight_percent')) / 100.0)
+
+        item_type = item.get('type')
+        if item_type == 'recipe' and item.get('sub_recipe'):
+            sub_recipe = item.get('sub_recipe') or {}
+            key = (sub_recipe.get('id'), item.get('unit') or sub_recipe.get('yield_unit') or '')
+            totals[key] = totals.get(key, 0) + (to_float(item.get('scaled_quantity')) * current_multiplier)
+            continue
+
+        # Weighted option groups may include recipe options; recurse into those.
+        if item_type == 'option_group' and item.get('children'):
+            collect_direct_subrecipes_for_prep(item['children'], totals, current_multiplier)
+
 def collect_batch_recipe_usage_from_components(
     components,
     usage_map,
@@ -2324,7 +2363,9 @@ def build_banquet_datasets(cur, start_date, end_date, venue_id='', unit_system='
             required_batches = (required_qty_in_yield / yield_qty) if yield_qty > 0 else required_qty_in_yield
             components, total_cost, _ = build_component_tree(cur, recipe_id, required_batches, 0, set(), unit_system, apply_q_factor=False)
             ingredient_totals_for_batch = {}
-            collect_ingredients_from_components(components, ingredient_totals_for_batch)
+            collect_direct_ingredients_for_prep(components, ingredient_totals_for_batch)
+            subrecipe_totals_for_batch = {}
+            collect_direct_subrecipes_for_prep(components, subrecipe_totals_for_batch)
             ingredient_rows = []
             for (ing_id, unit), qty in ingredient_totals_for_batch.items():
                 display = smart_quantity(qty, unit, unit_system)
@@ -2338,6 +2379,34 @@ def build_banquet_datasets(cur, start_date, end_date, venue_id='', unit_system='
                 })
             ingredient_rows.sort(key=lambda item: (item.get('name') or '').lower())
 
+            subrecipe_rows = []
+            for (sub_recipe_id, sub_unit), sub_qty in subrecipe_totals_for_batch.items():
+                sub_recipe = recipe_map.get(sub_recipe_id)
+                if not sub_recipe:
+                    sub_recipe = get_recipe_by_id(cur, sub_recipe_id)
+                if not sub_recipe:
+                    continue
+                sub_yield_qty = to_float(sub_recipe.get('yield_qty'))
+                sub_yield_unit = sub_recipe.get('yield_unit') or sub_unit
+                sub_required_qty_in_yield = sub_qty
+                if sub_unit and sub_yield_unit and sub_unit != sub_yield_unit:
+                    converted = convert_quantity_between_units(sub_qty, sub_unit, sub_yield_unit)
+                    if converted is not None:
+                        sub_required_qty_in_yield = converted
+                sub_required_batches = (sub_required_qty_in_yield / sub_yield_qty) if sub_yield_qty > 0 else sub_required_qty_in_yield
+                display = smart_quantity(sub_qty, sub_unit, unit_system)
+                subrecipe_rows.append({
+                    'recipe_id': sub_recipe_id,
+                    'recipe_name': sub_recipe.get('name') or 'Sub-recipe',
+                    'required_qty': sub_qty,
+                    'required_unit': sub_unit,
+                    'display_required': display,
+                    'required_batches': sub_required_batches,
+                    'yield_qty': sub_yield_qty,
+                    'yield_unit': sub_yield_unit
+                })
+            subrecipe_rows.sort(key=lambda item: (item.get('recipe_name') or '').lower())
+
             weekly_prep.append({
                 'recipe_id': recipe_id,
                 'recipe_name': recipe.get('name'),
@@ -2350,6 +2419,7 @@ def build_banquet_datasets(cur, start_date, end_date, venue_id='', unit_system='
                 'yield_qty': yield_qty,
                 'yield_unit': yield_unit,
                 'ingredient_rows': ingredient_rows,
+                'subrecipe_rows': subrecipe_rows,
                 'instructions': recipe.get('instructions'),
                 'used_in_events': sorted(batch_usage_events.get(recipe_id, set())),
                 'used_in_menu_items': sorted(batch_usage_menu_items.get(recipe_id, set())),

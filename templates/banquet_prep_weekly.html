@@ -94,6 +94,24 @@
                         </tbody>
                     </table>
                 </div>
+                {% if not row.ingredient_rows %}
+                <div class="mt-3 text-xs text-stone-500">No direct raw ingredients. This recipe is built from sub-recipes listed below.</div>
+                {% endif %}
+
+                {% if row.subrecipe_rows %}
+                <div class="mt-4 p-4 bg-stone-50 rounded-xl border border-stone-200">
+                    <div class="text-xs uppercase tracking-wide text-stone-500 mb-2">Sub-Recipe Pulls</div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-stone-700">
+                        {% for sub in row.subrecipe_rows %}
+                        <div>
+                            <span class="font-medium text-foxtown-ink">{{ sub.recipe_name }}</span>
+                            — {{ sub.display_required.quantity }} {{ sub.display_required.unit }}
+                            <span class="text-stone-500">({{ "%.2f"|format(sub.required_batches or 0) }} batches)</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
 
                 {% if row.instructions %}
                 <div class="mt-4 p-4 bg-stone-50 rounded-xl border border-stone-200 text-sm text-stone-700 whitespace-pre-wrap">{{ row.instructions }}</div>
