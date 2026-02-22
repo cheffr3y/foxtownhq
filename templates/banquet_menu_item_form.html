@@ -158,7 +158,7 @@
 
 <datalist id="recipeComponentOptions">
     {% for recipe in component_recipes %}
-    <option value="{{ recipe.display_label|e }}" data-id="{{ recipe.id }}" data-default-unit="{{ recipe.yield_unit or 'each' }}"></option>
+    <option value="{{ recipe.display_label|e }}" data-id="{{ recipe.id }}" data-default-unit="{{ recipe.default_component_unit or recipe.yield_unit or 'each' }}"></option>
     {% endfor %}
 </datalist>
 

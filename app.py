@@ -1257,6 +1257,8 @@ def get_component_recipes_for_venue(cur, venue_id=''):
     for option in options:
         option['option_source'] = 'recipe'
         option['menu_item_name'] = None
+        option['menu_item_base_yield_unit'] = None
+        option['default_component_unit'] = (option.get('yield_unit') or 'each')
 
     has_banquet_menu_tables = db_table_exists(cur, 'public.banquet_menu_items') and db_table_exists(cur, 'public.banquet_menu_item_recipes')
     if has_banquet_menu_tables:
@@ -1269,7 +1271,8 @@ def get_component_recipes_for_venue(cur, venue_id=''):
                    r.yield_unit,
                    r.menu_descriptor,
                    '' AS venue_names,
-                   mi.name AS menu_item_name
+                   mi.name AS menu_item_name,
+                   mi.base_yield_unit AS menu_item_base_yield_unit
             FROM banquet_menu_items mi
             JOIN LATERAL (
                 SELECT recipe_id
@@ -1285,6 +1288,7 @@ def get_component_recipes_for_venue(cur, venue_id=''):
         for row in cur.fetchall():
             option = dict(row)
             option['option_source'] = 'menu_item'
+            option['default_component_unit'] = normalize_count_unit(option.get('menu_item_base_yield_unit')) or 'each'
             options.append(option)
 
     return options
