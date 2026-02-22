@@ -3,9 +3,30 @@
 {% block title %}{{ page_title }} - Foxtown HQ{% endblock %}
 
 {% block content %}
+<style>
+    .menu-lines-table th.sticky-col-1,
+    .menu-lines-table td.sticky-col-1 {
+        position: sticky;
+        left: 0;
+        z-index: 20;
+        background: #ffffff;
+    }
+    .menu-lines-table th.sticky-col-2,
+    .menu-lines-table td.sticky-col-2 {
+        position: sticky;
+        left: 220px;
+        z-index: 19;
+        background: #ffffff;
+    }
+    .menu-lines-table thead th.sticky-col-1,
+    .menu-lines-table thead th.sticky-col-2 {
+        z-index: 30;
+        background: #f8fafc;
+    }
+</style>
 <div class="min-h-screen">
     <nav class="bg-foxtown-charcoal text-white border-b border-slate-800/60">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="max-w-[96rem] mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between py-4">
                 <div class="flex items-center space-x-3">
                     <a href="{{ url_for('banquet_planner') }}" class="text-amber-200 hover:text-white">
@@ -22,7 +43,7 @@
         </div>
     </nav>
 
-    <form method="POST" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <form method="POST" class="max-w-[96rem] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-6">
             <h2 class="text-xl font-display text-foxtown-ink mb-4">Event Details</h2>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -80,24 +101,25 @@
                 <button type="button" id="addLineBtn" class="text-foxtown-ember font-semibold hover:text-orange-700">+ Add line</button>
             </div>
             <p class="text-sm text-stone-500 mb-4">Catalog selection drives recipe rollups. You can override event menu name, descriptor, section, and custom mods on each line.</p>
+            <p class="text-sm text-stone-500 mb-4">Use <strong>Customize Recipes</strong> when an item needs real recipe swaps for this event only (example: change salad, swap side, swap dessert). It creates a private copy, opens the editor, then returns to this event.</p>
             <div class="overflow-x-auto">
-                <table class="min-w-full text-sm" id="linesTable">
+                <table class="menu-lines-table min-w-[1460px] text-sm" id="linesTable">
                     <thead class="text-xs uppercase text-stone-500 border-b border-stone-200">
                         <tr>
-                            <th class="text-left py-2 pr-2 min-w-[260px]">Catalog Item</th>
-                            <th class="text-left py-2 pr-2 min-w-[240px]">Event Menu Name</th>
+                            <th class="text-left py-2 pr-2 w-[220px] min-w-[220px] sticky-col-1">Catalog Item</th>
+                            <th class="text-left py-2 pr-2 w-[220px] min-w-[220px] sticky-col-2">Event Menu Name</th>
                             <th class="text-left py-2 pr-2 min-w-[320px]">Descriptor</th>
                             <th class="text-left py-2 pr-2 min-w-[170px]">Section</th>
                             <th class="text-left py-2 pr-2 min-w-[120px]">Qty</th>
                             <th class="text-left py-2 pr-2 min-w-[100px]">Unit</th>
                             <th class="text-left py-2 pr-2 min-w-[220px]">Custom Mods</th>
-                            <th class="text-left py-2 pr-2">Remove</th>
+                            <th class="text-left py-2 pr-2 min-w-[170px]">Actions</th>
                         </tr>
                     </thead>
                     <tbody id="lineRows" class="divide-y divide-stone-100">
                         {% for line in lines %}
                         <tr>
-                            <td class="py-2 pr-2">
+                            <td class="py-2 pr-2 w-[220px] min-w-[220px] sticky-col-1">
                                 <select name="line_menu_item_id[]" data-role="menu-item-select" class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm">
                                     <option value="">Select menu item</option>
                                     {% for item in menu_items %}
@@ -116,7 +138,7 @@
                                 </select>
                                 <input type="hidden" name="line_recipe_id[]" data-role="recipe-id" value="{{ line.recipe_id or '' }}">
                             </td>
-                            <td class="py-2 pr-2">
+                            <td class="py-2 pr-2 w-[220px] min-w-[220px] sticky-col-2">
                                 <input name="line_menu_item_name[]" data-role="menu-item-name" value="{{ line.menu_item_name or '' }}" class="w-full px-3 py-2 border border-stone-300 rounded-lg" placeholder="Event menu name">
                             </td>
                             <td class="py-2 pr-2">
@@ -135,9 +157,9 @@
                                         type="button"
                                         class="cloneRow text-foxtown-ember hover:text-orange-700 font-semibold"
                                         data-line-id="{{ line.line_id or line.id }}"
-                                        title="Clone catalog item for event-specific changes"
+                                        title="Create event-only copy and edit recipe components"
                                     >
-                                        Clone Custom
+                                        Customize Recipes
                                     </button>
                                     {% else %}
                                     <span class="text-stone-400 text-xs">Save event first</span>
@@ -175,7 +197,7 @@
 
 <template id="lineRowTemplate">
 <tr data-line-id="">
-    <td class="py-2 pr-2">
+    <td class="py-2 pr-2 w-[220px] min-w-[220px] sticky-col-1">
         <select name="line_menu_item_id[]" data-role="menu-item-select" class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm">
             <option value="">Select menu item</option>
             {% for item in menu_items %}
@@ -193,7 +215,7 @@
         </select>
         <input type="hidden" name="line_recipe_id[]" data-role="recipe-id" value="">
     </td>
-    <td class="py-2 pr-2">
+    <td class="py-2 pr-2 w-[220px] min-w-[220px] sticky-col-2">
         <input name="line_menu_item_name[]" data-role="menu-item-name" class="w-full px-3 py-2 border border-stone-300 rounded-lg" placeholder="Event menu name">
     </td>
     <td class="py-2 pr-2">
@@ -261,11 +283,21 @@
                 const lineId = cloneBtn.dataset.lineId;
                 const eventId = "{{ event.id or '' }}";
                 if (!lineId || !eventId) return;
-                const ok = confirm('Create a custom copy of this menu item for this event? You can then edit recipe components just for this event.');
-                if (!ok) return;
+                const rowMenuName = row.querySelector('[data-role="menu-item-name"]');
+                const defaultLabel = `Custom ${((rowMenuName && rowMenuName.value) || 'Menu Item').trim()}`;
+                const cloneLabel = window.prompt(
+                    'Name this event-only custom copy (optional):',
+                    defaultLabel
+                );
+                if (cloneLabel === null) return;
                 const form = document.createElement('form');
                 form.method = 'POST';
                 form.action = `/banquet-planner/events/${eventId}/lines/${lineId}/clone-menu-item`;
+                const cloneLabelInput = document.createElement('input');
+                cloneLabelInput.type = 'hidden';
+                cloneLabelInput.name = 'clone_label';
+                cloneLabelInput.value = (cloneLabel || '').trim();
+                form.appendChild(cloneLabelInput);
                 document.body.appendChild(form);
                 form.submit();
             });
