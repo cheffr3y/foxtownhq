@@ -1586,6 +1586,98 @@ def upsert_menu_item_recipe_link(cur, menu_item_id, recipe_id):
         VALUES (%s, %s, 1, 'serving')
     """, (menu_item_id, recipe_id))
 
+def normalize_return_path(value):
+    path = (value or '').strip()
+    if not path:
+        return None
+    if not path.startswith('/') or path.startswith('//'):
+        return None
+    return path
+
+def make_unique_banquet_menu_item_name(cur, base_name, venue_id):
+    candidate = clean_menu_text(base_name) or 'Custom Menu Item'
+    suffix = 2
+    while True:
+        cur.execute("""
+            SELECT 1
+            FROM banquet_menu_items
+            WHERE LOWER(name) = LOWER(%s)
+              AND (venue_id = %s OR venue_id IS NULL)
+            LIMIT 1
+        """, (candidate, venue_id or None))
+        if not cur.fetchone():
+            return candidate
+        candidate = f"{base_name} {suffix}"
+        suffix += 1
+
+def clone_banquet_menu_item(cur, source_menu_item_id, venue_id, clone_label='Custom'):
+    source_item = get_banquet_menu_item(cur, source_menu_item_id)
+    if not source_item:
+        return None
+
+    base_name = f"{source_item.get('name') or 'Menu Item'} ({clone_label})"
+    clone_name = make_unique_banquet_menu_item_name(cur, base_name, venue_id)
+    clone_id = generate_id('bmi_')
+
+    has_base_yield = db_column_exists(cur, 'public.banquet_menu_items', 'base_yield_qty') and db_column_exists(cur, 'public.banquet_menu_items', 'base_yield_unit')
+    if has_base_yield:
+        cur.execute("""
+            INSERT INTO banquet_menu_items (
+                id, name, venue_id, menu_section, menu_descriptor, base_yield_qty, base_yield_unit, notes
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        """, (
+            clone_id,
+            clone_name,
+            venue_id or source_item.get('venue_id'),
+            source_item.get('menu_section'),
+            source_item.get('menu_descriptor'),
+            source_item.get('base_yield_qty') or 1,
+            source_item.get('base_yield_unit') or 'each',
+            source_item.get('notes')
+        ))
+    else:
+        cur.execute("""
+            INSERT INTO banquet_menu_items (
+                id, name, venue_id, menu_section, menu_descriptor, notes
+            ) VALUES (%s, %s, %s, %s, %s, %s)
+        """, (
+            clone_id,
+            clone_name,
+            venue_id or source_item.get('venue_id'),
+            source_item.get('menu_section'),
+            source_item.get('menu_descriptor'),
+            source_item.get('notes')
+        ))
+
+    for row in get_banquet_menu_item_recipe_components(cur, source_menu_item_id):
+        cur.execute("""
+            INSERT INTO banquet_menu_item_recipes (menu_item_id, recipe_id, quantity, unit)
+            VALUES (%s, %s, %s, %s)
+        """, (
+            clone_id,
+            row.get('recipe_id'),
+            row.get('quantity') or 1,
+            row.get('unit') or 'each'
+        ))
+
+    for row in get_banquet_menu_item_ingredients(cur, source_menu_item_id):
+        cur.execute("""
+            INSERT INTO banquet_menu_item_ingredients (menu_item_id, ingredient_id, quantity, unit)
+            VALUES (%s, %s, %s, %s)
+        """, (
+            clone_id,
+            row.get('ingredient_id'),
+            row.get('quantity') or 0,
+            row.get('unit')
+        ))
+
+    return {
+        'id': clone_id,
+        'name': clone_name,
+        'menu_section': source_item.get('menu_section'),
+        'menu_descriptor': source_item.get('menu_descriptor')
+    }
+
 def parse_event_recipe_lines(request):
     menu_item_ids = request.form.getlist('line_menu_item_id[]')
     recipe_ids = request.form.getlist('line_recipe_id[]')
@@ -3023,6 +3115,85 @@ def banquet_event_apply_template(event_id):
     cur.close()
     return redirect(url_for('banquet_event_edit', event_id=event_id))
 
+@app.route('/banquet-planner/events/<event_id>/lines/<int:line_id>/clone-menu-item', methods=['POST'])
+@login_required
+def banquet_event_line_clone_menu_item(event_id, line_id):
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    if not banquet_tables_ready(cur):
+        cur.close()
+        flash('Banquet tables are missing. Run migrations first.', 'error')
+        return redirect(url_for('banquet_planner'))
+
+    cur.execute("""
+        SELECT e.id,
+               e.name,
+               e.venue_id,
+               emi.id AS line_id,
+               emi.menu_item_id
+        FROM banquet_events e
+        JOIN banquet_event_menu_items emi ON emi.event_id = e.id
+        WHERE e.id = %s AND emi.id = %s
+    """, (event_id, line_id))
+    row = cur.fetchone()
+    if not row or not row.get('menu_item_id'):
+        cur.close()
+        flash('Could not find the selected menu line to clone.', 'error')
+        return redirect(url_for('banquet_event_edit', event_id=event_id))
+
+    try:
+        clone_label = clean_menu_text(request.form.get('clone_label')) or f"Custom {row.get('name') or 'Event'}"
+        clone_item = clone_banquet_menu_item(
+            cur,
+            row.get('menu_item_id'),
+            row.get('venue_id'),
+            clone_label=clone_label
+        )
+        if not clone_item:
+            conn.rollback()
+            cur.close()
+            flash('Unable to clone menu item.', 'error')
+            return redirect(url_for('banquet_event_edit', event_id=event_id))
+
+        cur.execute("""
+            SELECT recipe_id
+            FROM banquet_menu_item_recipes
+            WHERE menu_item_id = %s
+            ORDER BY id
+            LIMIT 1
+        """, (clone_item['id'],))
+        primary = cur.fetchone()
+        recipe_id = primary.get('recipe_id') if primary else None
+
+        cur.execute("""
+            UPDATE banquet_event_menu_items
+            SET menu_item_id = %s,
+                menu_item_name = %s,
+                menu_section = %s,
+                menu_descriptor = %s,
+                recipe_id = %s
+            WHERE id = %s AND event_id = %s
+        """, (
+            clone_item['id'],
+            clone_item.get('name'),
+            clone_item.get('menu_section'),
+            clone_item.get('menu_descriptor'),
+            recipe_id,
+            line_id,
+            event_id
+        ))
+        conn.commit()
+
+        return_to = url_for('banquet_event_edit', event_id=event_id)
+        flash('Created custom copy. Update components, then return to event.', 'success')
+        cur.close()
+        return redirect(url_for('banquet_menu_item_edit', menu_item_id=clone_item['id'], return_to=return_to))
+    except Exception:
+        conn.rollback()
+        flash('Error creating custom menu copy.', 'error')
+        cur.close()
+        return redirect(url_for('banquet_event_edit', event_id=event_id))
+
 @app.route('/banquet-planner/templates/import', methods=['GET', 'POST'])
 @login_required
 def banquet_template_import():
@@ -3228,7 +3399,7 @@ def save_banquet_menu_item(cur, menu_item_id, form_state, ingredient_rows):
         ))
     return menu_item_id
 
-def render_banquet_menu_item_form(cur, mode='new', menu_item_id=None, form_state=None, ingredient_rows=None, errors=None):
+def render_banquet_menu_item_form(cur, mode='new', menu_item_id=None, form_state=None, ingredient_rows=None, errors=None, return_to=None):
     venues = get_active_venues(cur)
     banquet_venue = resolve_banquet_venue(venues)
     banquet_venue_id = banquet_venue.get('id') or ''
@@ -3291,7 +3462,8 @@ def render_banquet_menu_item_form(cur, mode='new', menu_item_id=None, form_state
         ingredients=ingredients,
         section_options=BANQUET_MENU_SECTION_OPTIONS,
         banquet_venue_name=banquet_venue_name,
-        errors=errors or []
+        errors=errors or [],
+        return_to=return_to
     )
 
 @app.route('/banquet-planner/menu-items/new', methods=['GET', 'POST'])
@@ -3303,6 +3475,7 @@ def banquet_menu_item_new():
         cur.close()
         flash('Banquet tables are missing. Run migrations first.', 'error')
         return redirect(url_for('banquet_planner'))
+    return_to = normalize_return_path(request.values.get('return_to'))
 
     venues = get_active_venues(cur)
     banquet_venue_id = (resolve_banquet_venue(venues) or {}).get('id') or ''
@@ -3348,7 +3521,8 @@ def banquet_menu_item_new():
                 menu_item_id=None,
                 form_state=form_state,
                 ingredient_rows=ingredient_rows,
-                errors=sorted(set(errors))
+                errors=sorted(set(errors)),
+                return_to=return_to
             )
             cur.close()
             return response
@@ -3358,7 +3532,7 @@ def banquet_menu_item_new():
             conn.commit()
             flash('Banquet menu item created.', 'success')
             cur.close()
-            return redirect(url_for('banquet_template_import'))
+            return redirect(return_to or url_for('banquet_template_import'))
         except Exception:
             conn.rollback()
             response = render_banquet_menu_item_form(
@@ -3367,12 +3541,13 @@ def banquet_menu_item_new():
                 menu_item_id=None,
                 form_state=form_state,
                 ingredient_rows=ingredient_rows,
-                errors=['Error saving menu item.']
+                errors=['Error saving menu item.'],
+                return_to=return_to
             )
             cur.close()
             return response
 
-    response = render_banquet_menu_item_form(cur, mode='new', menu_item_id=None)
+    response = render_banquet_menu_item_form(cur, mode='new', menu_item_id=None, return_to=return_to)
     cur.close()
     return response
 
@@ -3385,6 +3560,7 @@ def banquet_menu_item_edit(menu_item_id):
         cur.close()
         flash('Banquet tables are missing. Run migrations first.', 'error')
         return redirect(url_for('banquet_planner'))
+    return_to = normalize_return_path(request.values.get('return_to'))
 
     existing = get_banquet_menu_item(cur, menu_item_id)
     if not existing:
@@ -3436,7 +3612,8 @@ def banquet_menu_item_edit(menu_item_id):
                 menu_item_id=menu_item_id,
                 form_state=form_state,
                 ingredient_rows=ingredient_rows,
-                errors=sorted(set(errors))
+                errors=sorted(set(errors)),
+                return_to=return_to
             )
             cur.close()
             return response
@@ -3446,7 +3623,7 @@ def banquet_menu_item_edit(menu_item_id):
             conn.commit()
             flash('Banquet menu item updated.', 'success')
             cur.close()
-            return redirect(url_for('banquet_template_import'))
+            return redirect(return_to or url_for('banquet_template_import'))
         except Exception:
             conn.rollback()
             response = render_banquet_menu_item_form(
@@ -3455,12 +3632,13 @@ def banquet_menu_item_edit(menu_item_id):
                 menu_item_id=menu_item_id,
                 form_state=form_state,
                 ingredient_rows=ingredient_rows,
-                errors=['Error saving menu item.']
+                errors=['Error saving menu item.'],
+                return_to=return_to
             )
             cur.close()
             return response
 
-    response = render_banquet_menu_item_form(cur, mode='edit', menu_item_id=menu_item_id)
+    response = render_banquet_menu_item_form(cur, mode='edit', menu_item_id=menu_item_id, return_to=return_to)
     cur.close()
     return response
 

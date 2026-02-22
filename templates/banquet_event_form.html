@@ -83,7 +83,7 @@
             <div class="overflow-x-auto">
                 <table class="min-w-full text-sm" id="linesTable">
                     <thead class="text-xs uppercase text-stone-500 border-b border-stone-200">
-                        <tr>
+                        <tr data-line-id="{{ line.line_id or line.id or '' }}">
                             <th class="text-left py-2 pr-2 min-w-[260px]">Catalog Item</th>
                             <th class="text-left py-2 pr-2 min-w-[240px]">Event Menu Name</th>
                             <th class="text-left py-2 pr-2 min-w-[320px]">Descriptor</th>
@@ -128,7 +128,23 @@
                             <td class="py-2 pr-2"><input type="number" step="0.01" min="0" name="line_qty[]" value="{{ line.quantity or '' }}" class="w-full px-3 py-2 border border-stone-300 rounded-lg"></td>
                             <td class="py-2 pr-2"><input name="line_unit[]" value="{{ line.quantity_unit or line.yield_unit or 'each' }}" class="w-full px-3 py-2 border border-stone-300 rounded-lg"></td>
                             <td class="py-2 pr-2"><input name="line_notes[]" value="{{ line.notes or '' }}" class="w-full px-3 py-2 border border-stone-300 rounded-lg" placeholder="No nuts, sauce on side"></td>
-                            <td class="py-2 pr-2"><button type="button" class="removeRow text-red-600 hover:text-red-800 font-semibold">Remove</button></td>
+                            <td class="py-2 pr-2">
+                                <div class="flex items-center gap-3 whitespace-nowrap">
+                                    {% if event.id and (line.line_id or line.id) %}
+                                    <button
+                                        type="button"
+                                        class="cloneRow text-foxtown-ember hover:text-orange-700 font-semibold"
+                                        data-line-id="{{ line.line_id or line.id }}"
+                                        title="Clone catalog item for event-specific changes"
+                                    >
+                                        Clone Custom
+                                    </button>
+                                    {% else %}
+                                    <span class="text-stone-400 text-xs">Save event first</span>
+                                    {% endif %}
+                                    <button type="button" class="removeRow text-red-600 hover:text-red-800 font-semibold">Remove</button>
+                                </div>
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -158,7 +174,7 @@
 </div>
 
 <template id="lineRowTemplate">
-<tr>
+<tr data-line-id="">
     <td class="py-2 pr-2">
         <select name="line_menu_item_id[]" data-role="menu-item-select" class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm">
             <option value="">Select menu item</option>
@@ -189,7 +205,12 @@
     <td class="py-2 pr-2"><input type="number" step="0.01" min="0" name="line_qty[]" value="1" class="w-full px-3 py-2 border border-stone-300 rounded-lg"></td>
     <td class="py-2 pr-2"><input name="line_unit[]" value="each" class="w-full px-3 py-2 border border-stone-300 rounded-lg"></td>
     <td class="py-2 pr-2"><input name="line_notes[]" class="w-full px-3 py-2 border border-stone-300 rounded-lg" placeholder="Custom modifications"></td>
-    <td class="py-2 pr-2"><button type="button" class="removeRow text-red-600 hover:text-red-800 font-semibold">Remove</button></td>
+    <td class="py-2 pr-2">
+        <div class="flex items-center gap-3 whitespace-nowrap">
+            <span class="text-stone-400 text-xs">Save event first</span>
+            <button type="button" class="removeRow text-red-600 hover:text-red-800 font-semibold">Remove</button>
+        </div>
+    </td>
 </tr>
 </template>
 
@@ -228,11 +249,26 @@
         if (!row) return;
         const select = row.querySelector('[data-role="menu-item-select"]');
         const removeBtn = row.querySelector('.removeRow');
+        const cloneBtn = row.querySelector('.cloneRow');
         if (select) {
             select.addEventListener('change', () => syncRow(row, true));
         }
         if (removeBtn) {
             removeBtn.addEventListener('click', () => row.remove());
+        }
+        if (cloneBtn) {
+            cloneBtn.addEventListener('click', () => {
+                const lineId = cloneBtn.dataset.lineId;
+                const eventId = "{{ event.id or '' }}";
+                if (!lineId || !eventId) return;
+                const ok = confirm('Create a custom copy of this menu item for this event? You can then edit recipe components just for this event.');
+                if (!ok) return;
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = `/banquet-planner/events/${eventId}/lines/${lineId}/clone-menu-item`;
+                document.body.appendChild(form);
+                form.submit();
+            });
         }
         syncRow(row, false);
     }
