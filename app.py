@@ -1253,7 +1253,41 @@ def get_component_recipes_for_venue(cur, venue_id=''):
             FROM recipes r
             ORDER BY CASE WHEN r.recipe_type = 'menu' THEN 0 WHEN r.recipe_type = 'batch' THEN 1 ELSE 2 END, r.name
         """)
-    return cur.fetchall()
+    options = [dict(row) for row in cur.fetchall()]
+    for option in options:
+        option['option_source'] = 'recipe'
+        option['menu_item_name'] = None
+
+    has_banquet_menu_tables = db_table_exists(cur, 'public.banquet_menu_items') and db_table_exists(cur, 'public.banquet_menu_item_recipes')
+    if has_banquet_menu_tables:
+        cur.execute("""
+            SELECT r.id,
+                   r.name,
+                   r.recipe_type,
+                   r.category,
+                   r.yield_qty,
+                   r.yield_unit,
+                   r.menu_descriptor,
+                   '' AS venue_names,
+                   mi.name AS menu_item_name
+            FROM banquet_menu_items mi
+            JOIN LATERAL (
+                SELECT recipe_id
+                FROM banquet_menu_item_recipes
+                WHERE menu_item_id = mi.id
+                ORDER BY id
+                LIMIT 1
+            ) pr ON TRUE
+            JOIN recipes r ON r.id = pr.recipe_id
+            WHERE (%s = '' OR mi.venue_id = %s OR mi.venue_id IS NULL)
+            ORDER BY mi.name, r.name
+        """, (venue_id, venue_id))
+        for row in cur.fetchall():
+            option = dict(row)
+            option['option_source'] = 'menu_item'
+            options.append(option)
+
+    return options
 
 BANQUET_ACTIVE_STATUSES = ('planning', 'confirmed')
 BANQUET_VENUE_ID = 'ven_banquets'
@@ -3678,16 +3712,34 @@ def render_banquet_menu_item_form(cur, mode='new', menu_item_id=None, form_state
         ingredient_rows = get_banquet_menu_item_ingredients(cur, menu_item_id) if menu_item_id else []
 
     component_recipes = get_component_recipes_for_venue(cur, banquet_venue_id)
+    seen_component_labels = set()
     for recipe in component_recipes:
         recipe_type = (recipe.get('recipe_type') or '').upper()
-        recipe['display_label'] = f"{recipe.get('name')}{f' ({recipe_type})' if recipe_type else ''}"
+        if recipe.get('option_source') == 'menu_item' and recipe.get('menu_item_name'):
+            base_label = f"{recipe.get('menu_item_name')} [Menu Item] -> {recipe.get('name')}{f' ({recipe_type})' if recipe_type else ''}"
+        else:
+            base_label = f"{recipe.get('name')}{f' ({recipe_type})' if recipe_type else ''}"
+        candidate = base_label
+        suffix = 2
+        while candidate.lower() in seen_component_labels:
+            candidate = f"{base_label} [{suffix}]"
+            suffix += 1
+        seen_component_labels.add(candidate.lower())
+        recipe['display_label'] = candidate
     cur.execute("SELECT id, name, unit, category FROM ingredients ORDER BY name")
     ingredients = cur.fetchall()
     for ingredient in ingredients:
         unit_label = ingredient.get('unit')
         ingredient['display_label'] = f"{ingredient.get('name')}{f' ({unit_label})' if unit_label else ''}"
 
-    recipe_label_map = {row['id']: row.get('display_label') or row.get('name') for row in component_recipes}
+    recipe_label_map = {}
+    for row in component_recipes:
+        recipe_id = row.get('id')
+        if not recipe_id:
+            continue
+        row_label = row.get('display_label') or row.get('name') or ''
+        if recipe_id not in recipe_label_map or row.get('option_source') == 'recipe':
+            recipe_label_map[recipe_id] = row_label
     ingredient_label_map = {row['id']: row.get('display_label') or row.get('name') for row in ingredients}
 
     for row in form_state.get('recipe_components', []):
