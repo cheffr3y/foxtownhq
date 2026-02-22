@@ -80,6 +80,90 @@ MIGRATIONS = [
     """,
     "CREATE INDEX IF NOT EXISTS idx_banquet_template_items_template_id ON banquet_menu_template_items (template_id)",
     """
+    CREATE TABLE IF NOT EXISTS banquet_menu_items (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        venue_id TEXT REFERENCES venues(id) ON DELETE SET NULL,
+        menu_section TEXT,
+        menu_descriptor TEXT,
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS banquet_menu_item_recipes (
+        id BIGSERIAL PRIMARY KEY,
+        menu_item_id TEXT NOT NULL REFERENCES banquet_menu_items(id) ON DELETE CASCADE,
+        recipe_id TEXT NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
+        quantity NUMERIC NOT NULL DEFAULT 1,
+        unit TEXT DEFAULT 'batch',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS banquet_menu_item_ingredients (
+        id BIGSERIAL PRIMARY KEY,
+        menu_item_id TEXT NOT NULL REFERENCES banquet_menu_items(id) ON DELETE CASCADE,
+        ingredient_id TEXT NOT NULL REFERENCES ingredients(id) ON DELETE CASCADE,
+        quantity NUMERIC NOT NULL,
+        unit TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS banquet_events (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        event_date DATE NOT NULL,
+        guest_count INTEGER,
+        venue_id TEXT REFERENCES venues(id) ON DELETE SET NULL,
+        building TEXT,
+        room TEXT,
+        service_timing TEXT,
+        dietary_notes TEXT,
+        notes TEXT,
+        status TEXT NOT NULL DEFAULT 'planning',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS banquet_event_menu_items (
+        id BIGSERIAL PRIMARY KEY,
+        event_id TEXT NOT NULL REFERENCES banquet_events(id) ON DELETE CASCADE,
+        menu_item_id TEXT NOT NULL REFERENCES banquet_menu_items(id) ON DELETE CASCADE,
+        menu_item_name TEXT,
+        quantity NUMERIC NOT NULL DEFAULT 1,
+        quantity_unit TEXT DEFAULT 'each',
+        recipe_id TEXT REFERENCES recipes(id) ON DELETE SET NULL,
+        menu_section TEXT,
+        menu_descriptor TEXT,
+        notes TEXT,
+        sort_order INTEGER DEFAULT 0
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_banquet_menu_items_venue_id ON banquet_menu_items (venue_id)",
+    "CREATE INDEX IF NOT EXISTS idx_banquet_menu_item_recipes_item_id ON banquet_menu_item_recipes (menu_item_id)",
+    "CREATE INDEX IF NOT EXISTS idx_banquet_menu_item_ingredients_item_id ON banquet_menu_item_ingredients (menu_item_id)",
+    "CREATE INDEX IF NOT EXISTS idx_banquet_events_event_date ON banquet_events (event_date)",
+    "CREATE INDEX IF NOT EXISTS idx_banquet_events_status ON banquet_events (status)",
+    "CREATE INDEX IF NOT EXISTS idx_banquet_event_menu_items_event_id ON banquet_event_menu_items (event_id)",
+    "CREATE INDEX IF NOT EXISTS idx_banquet_event_menu_items_menu_item_id ON banquet_event_menu_items (menu_item_id)",
+    "ALTER TABLE banquet_events ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'planning'",
+    "ALTER TABLE banquet_menu_items ADD COLUMN IF NOT EXISTS venue_id TEXT",
+    "ALTER TABLE banquet_menu_items ADD COLUMN IF NOT EXISTS menu_section TEXT",
+    "ALTER TABLE banquet_menu_items ADD COLUMN IF NOT EXISTS menu_descriptor TEXT",
+    "ALTER TABLE banquet_menu_items ADD COLUMN IF NOT EXISTS notes TEXT",
+    "ALTER TABLE banquet_menu_items ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+    "ALTER TABLE banquet_event_menu_items ADD COLUMN IF NOT EXISTS quantity_unit TEXT DEFAULT 'each'",
+    "ALTER TABLE banquet_event_menu_items ADD COLUMN IF NOT EXISTS menu_item_name TEXT",
+    "ALTER TABLE banquet_event_menu_items ADD COLUMN IF NOT EXISTS recipe_id TEXT",
+    "ALTER TABLE banquet_event_menu_items ADD COLUMN IF NOT EXISTS menu_section TEXT",
+    "ALTER TABLE banquet_event_menu_items ADD COLUMN IF NOT EXISTS menu_descriptor TEXT",
+    "ALTER TABLE banquet_event_menu_items ADD COLUMN IF NOT EXISTS notes TEXT",
+    "ALTER TABLE banquet_event_menu_items ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0",
+    """
     INSERT INTO venues (id, name, sort_order) VALUES
         ('ven_foxtown_brewing', 'Foxtown Brewing', 10),
         ('ven_renards', 'Renard''s', 20),

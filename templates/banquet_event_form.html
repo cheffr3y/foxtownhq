@@ -22,48 +22,7 @@
         </div>
     </nav>
 
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
-        {% if (not event.id) and templates %}
-        <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-6 mb-6">
-            <h2 class="text-xl font-display text-foxtown-ink mb-1">Menu Catalog</h2>
-            <p class="text-sm text-stone-600 mb-3">Auto-loaded by default. Change only if you want a different menu set.</p>
-            <form method="GET" action="{{ url_for('banquet_event_new') }}" class="flex flex-col sm:flex-row gap-3 items-end">
-                <div class="flex-1">
-                    <label class="block text-sm font-medium text-stone-700 mb-1">Template</label>
-                    <select name="template_id" class="w-full px-4 py-3 border border-stone-300 rounded-xl">
-                        <option value="">Select template</option>
-                        {% for template in templates %}
-                        <option value="{{ template.id }}" {% if selected_template_id == template.id %}selected{% endif %}>{{ template.name }}{% if template.venue_name %} · {{ template.venue_name }}{% endif %}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <input type="hidden" name="venue_id" value="{{ event.venue_id or '' }}">
-                <button type="submit" class="bg-slate-800 hover:bg-slate-900 text-white px-5 py-3 rounded-xl font-semibold">Switch Catalog</button>
-            </form>
-        </div>
-        {% endif %}
-
-        {% if event.id and templates %}
-        <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-6">
-            <h2 class="text-xl font-display text-foxtown-ink mb-3">Apply Imported Template</h2>
-            <form method="POST" action="{{ url_for('banquet_event_apply_template', event_id=event.id) }}" class="flex flex-col sm:flex-row gap-3 items-end">
-                <div class="flex-1">
-                    <label class="block text-sm font-medium text-stone-700 mb-1">Template</label>
-                    <select name="template_id" class="w-full px-4 py-3 border border-stone-300 rounded-xl">
-                        <option value="">Select template</option>
-                        {% for template in templates %}
-                        <option value="{{ template.id }}">{{ template.name }}{% if template.venue_name %} · {{ template.venue_name }}{% endif %}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <button type="submit" class="bg-slate-800 hover:bg-slate-900 text-white px-5 py-3 rounded-xl font-semibold">Apply Template to Event</button>
-            </form>
-        </div>
-        {% endif %}
-    </div>
-
     <form method="POST" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        <input type="hidden" name="template_id" value="{{ selected_template_id or '' }}">
         <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-6">
             <h2 class="text-xl font-display text-foxtown-ink mb-4">Event Details</h2>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -87,6 +46,14 @@
                 <div>
                     <label class="block text-sm font-medium text-stone-700 mb-1">Guests</label>
                     <input type="number" name="guests" min="1" value="{{ event.guests or '' }}" class="w-full px-4 py-3 border border-stone-300 rounded-xl">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-stone-700 mb-1">Status</label>
+                    <select name="status" class="w-full px-4 py-3 border border-stone-300 rounded-xl">
+                        {% for value, label in status_options %}
+                        <option value="{{ value }}" {% if (event.status or 'planning') == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-stone-700 mb-1">Service Timing</label>

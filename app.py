@@ -1177,107 +1177,203 @@ def get_plated_recipes_for_venue(cur, venue_id='', include_unassigned=True):
         """)
     return cur.fetchall()
 
-def list_banquet_templates(cur, venue_id=''):
-    if not db_table_exists(cur, 'public.banquet_menu_templates'):
+BANQUET_ACTIVE_STATUSES = ('planning', 'confirmed')
+BANQUET_STATUS_CHOICES = [
+    ('planning', 'Planning'),
+    ('confirmed', 'Confirmed'),
+    ('completed', 'Completed'),
+    ('cancelled', 'Cancelled')
+]
+
+def banquet_tables_ready(cur):
+    required = (
+        'public.banquet_menu_items',
+        'public.banquet_menu_item_recipes',
+        'public.banquet_menu_item_ingredients',
+        'public.banquet_events',
+        'public.banquet_event_menu_items'
+    )
+    return all(db_table_exists(cur, table_name) for table_name in required)
+
+def list_banquet_menu_items(cur, venue_id=''):
+    if not banquet_tables_ready(cur):
         return []
     if venue_id:
         cur.execute("""
-            SELECT t.*,
+            SELECT mi.id,
+                   mi.name,
+                   mi.venue_id,
                    COALESCE(v.name, '') AS venue_name,
-                   COALESCE(item_counts.item_count, 0) AS item_count
-            FROM banquet_menu_templates t
-            LEFT JOIN venues v ON v.id = t.venue_id
+                   mi.menu_section,
+                   mi.menu_descriptor,
+                   mi.notes,
+                   pr.recipe_id AS linked_recipe_id,
+                   r.name AS recipe_name,
+                   COALESCE(extra.extra_count, 0) AS extra_count
+            FROM banquet_menu_items mi
+            LEFT JOIN venues v ON v.id = mi.venue_id
+            LEFT JOIN LATERAL (
+                SELECT recipe_id
+                FROM banquet_menu_item_recipes
+                WHERE menu_item_id = mi.id
+                ORDER BY id
+                LIMIT 1
+            ) pr ON TRUE
+            LEFT JOIN recipes r ON r.id = pr.recipe_id
             LEFT JOIN (
-                SELECT template_id, COUNT(*) AS item_count
-                FROM banquet_menu_template_items
-                GROUP BY template_id
-            ) item_counts ON item_counts.template_id = t.id
-            WHERE t.venue_id = %s OR t.venue_id IS NULL
-            ORDER BY t.created_at DESC, t.name
+                SELECT menu_item_id, COUNT(*) AS extra_count
+                FROM banquet_menu_item_ingredients
+                GROUP BY menu_item_id
+            ) extra ON extra.menu_item_id = mi.id
+            WHERE mi.venue_id = %s OR mi.venue_id IS NULL
+            ORDER BY COALESCE(mi.menu_section, 'zzzz'), mi.name
         """, (venue_id,))
     else:
         cur.execute("""
-            SELECT t.*,
+            SELECT mi.id,
+                   mi.name,
+                   mi.venue_id,
                    COALESCE(v.name, '') AS venue_name,
-                   COALESCE(item_counts.item_count, 0) AS item_count
-            FROM banquet_menu_templates t
-            LEFT JOIN venues v ON v.id = t.venue_id
+                   mi.menu_section,
+                   mi.menu_descriptor,
+                   mi.notes,
+                   pr.recipe_id AS linked_recipe_id,
+                   r.name AS recipe_name,
+                   COALESCE(extra.extra_count, 0) AS extra_count
+            FROM banquet_menu_items mi
+            LEFT JOIN venues v ON v.id = mi.venue_id
+            LEFT JOIN LATERAL (
+                SELECT recipe_id
+                FROM banquet_menu_item_recipes
+                WHERE menu_item_id = mi.id
+                ORDER BY id
+                LIMIT 1
+            ) pr ON TRUE
+            LEFT JOIN recipes r ON r.id = pr.recipe_id
             LEFT JOIN (
-                SELECT template_id, COUNT(*) AS item_count
-                FROM banquet_menu_template_items
-                GROUP BY template_id
-            ) item_counts ON item_counts.template_id = t.id
-            ORDER BY t.created_at DESC, t.name
+                SELECT menu_item_id, COUNT(*) AS extra_count
+                FROM banquet_menu_item_ingredients
+                GROUP BY menu_item_id
+            ) extra ON extra.menu_item_id = mi.id
+            ORDER BY COALESCE(mi.menu_section, 'zzzz'), mi.name
         """)
     return cur.fetchall()
 
-def get_default_banquet_template_id(cur, venue_id=''):
-    if not db_table_exists(cur, 'public.banquet_menu_templates'):
-        return None
-    if venue_id:
-        cur.execute("""
-            SELECT id
-            FROM banquet_menu_templates
-            WHERE venue_id = %s
-            ORDER BY created_at DESC, name
-            LIMIT 1
-        """, (venue_id,))
-        row = cur.fetchone()
-        if row:
-            return row['id']
-    cur.execute("""
-        SELECT id
-        FROM banquet_menu_templates
-        ORDER BY created_at DESC, name
-        LIMIT 1
-    """)
-    row = cur.fetchone()
-    return row['id'] if row else None
-
 def get_banquet_event(cur, event_id):
+    if not banquet_tables_ready(cur):
+        return None
     cur.execute("""
-        SELECT e.*,
+        SELECT e.id,
+               e.name,
+               e.event_date,
+               e.guest_count AS guests,
+               e.guest_count,
+               e.venue_id,
+               e.building,
+               e.room,
+               e.service_timing,
+               e.dietary_notes,
+               e.notes,
+               e.status,
                COALESCE(v.name, '') AS venue_name
-        FROM events e
+        FROM banquet_events e
         LEFT JOIN venues v ON v.id = e.venue_id
         WHERE e.id = %s
     """, (event_id,))
     return cur.fetchone()
 
 def get_banquet_event_lines(cur, event_id):
+    if not banquet_tables_ready(cur):
+        return []
     cur.execute("""
-        SELECT emr.*,
+        SELECT emi.id AS line_id,
+               emi.event_id,
+               emi.menu_item_id,
+               COALESCE(NULLIF(TRIM(emi.menu_item_name), ''), mi.name) AS menu_item_name,
+               COALESCE(emi.menu_descriptor, mi.menu_descriptor) AS menu_descriptor,
+               COALESCE(emi.menu_section, mi.menu_section) AS menu_section,
+               COALESCE(emi.recipe_id, primary_recipe.recipe_id) AS recipe_id,
+               emi.quantity,
+               emi.quantity_unit,
+               emi.notes AS line_notes,
                r.name AS recipe_name,
                r.yield_qty,
                r.yield_unit,
                r.menu_descriptor AS recipe_descriptor
-        FROM event_menu_recipes emr
-        LEFT JOIN recipes r ON r.id = emr.recipe_id
-        WHERE emr.event_id = %s
-        ORDER BY COALESCE(emr.sort_order, 0), emr.id
+        FROM banquet_event_menu_items emi
+        JOIN banquet_menu_items mi ON mi.id = emi.menu_item_id
+        LEFT JOIN LATERAL (
+            SELECT recipe_id
+            FROM banquet_menu_item_recipes
+            WHERE menu_item_id = mi.id
+            ORDER BY id
+            LIMIT 1
+        ) primary_recipe ON TRUE
+        LEFT JOIN recipes r ON r.id = COALESCE(emi.recipe_id, primary_recipe.recipe_id)
+        WHERE emi.event_id = %s
+        ORDER BY COALESCE(emi.sort_order, 0), emi.id
     """, (event_id,))
     return cur.fetchall()
 
-def get_banquet_template_items(cur, template_id):
+def resolve_or_create_banquet_menu_item(cur, line, venue_id=''):
+    name = clean_menu_text(line.get('menu_item_name'))
+    if not name:
+        return None
+
     cur.execute("""
-        SELECT i.id,
-               i.template_id,
-               i.menu_section,
-               i.item_name,
-               i.menu_descriptor,
-               i.recipe_id,
-               i.default_quantity,
-               i.price_text,
-               i.sort_order,
-               r.name AS recipe_name,
-               r.yield_qty,
-               r.yield_unit
-        FROM banquet_menu_template_items i
-        LEFT JOIN recipes r ON r.id = i.recipe_id
-        WHERE i.template_id = %s
-        ORDER BY i.sort_order, i.id
-    """, (template_id,))
-    return cur.fetchall()
+        SELECT id, menu_section, menu_descriptor
+        FROM banquet_menu_items
+        WHERE LOWER(name) = LOWER(%s)
+          AND (venue_id = %s OR venue_id IS NULL)
+        ORDER BY CASE WHEN venue_id = %s THEN 0 ELSE 1 END, created_at
+        LIMIT 1
+    """, (name, venue_id or None, venue_id or None))
+    existing = cur.fetchone()
+    if existing:
+        updates = []
+        params = []
+        if line.get('menu_section') and not existing.get('menu_section'):
+            updates.append('menu_section = %s')
+            params.append(line.get('menu_section'))
+        if line.get('menu_descriptor') and not existing.get('menu_descriptor'):
+            updates.append('menu_descriptor = %s')
+            params.append(line.get('menu_descriptor'))
+        if updates:
+            updates.append('updated_at = CURRENT_TIMESTAMP')
+            params.append(existing['id'])
+            cur.execute(f"UPDATE banquet_menu_items SET {', '.join(updates)} WHERE id = %s", params)
+        return existing['id']
+
+    menu_item_id = generate_id('bmi_')
+    cur.execute("""
+        INSERT INTO banquet_menu_items (id, name, venue_id, menu_section, menu_descriptor, notes)
+        VALUES (%s, %s, %s, %s, %s, %s)
+    """, (
+        menu_item_id,
+        name,
+        venue_id or None,
+        line.get('menu_section') or None,
+        line.get('menu_descriptor') or None,
+        None
+    ))
+    return menu_item_id
+
+def upsert_menu_item_recipe_link(cur, menu_item_id, recipe_id):
+    if not menu_item_id or not recipe_id:
+        return
+    cur.execute("""
+        SELECT id
+        FROM banquet_menu_item_recipes
+        WHERE menu_item_id = %s
+          AND recipe_id = %s
+        LIMIT 1
+    """, (menu_item_id, recipe_id))
+    if cur.fetchone():
+        return
+    cur.execute("""
+        INSERT INTO banquet_menu_item_recipes (menu_item_id, recipe_id, quantity, unit)
+        VALUES (%s, %s, 1, 'serving')
+    """, (menu_item_id, recipe_id))
 
 def parse_event_recipe_lines(request):
     recipe_ids = request.form.getlist('line_recipe_id[]')
@@ -1335,6 +1431,30 @@ def ratio_from_line_quantity(line, recipe):
         if converted is not None:
             qty_in_yield = converted
     return qty_in_yield / recipe_yield
+
+def collect_banquet_additional_ingredients(cur, menu_item_ids):
+    if not menu_item_ids:
+        return {}
+    cur.execute("""
+        SELECT ai.menu_item_id,
+               ai.ingredient_id,
+               ai.quantity,
+               ai.unit,
+               i.name AS ingredient_name,
+               i.unit AS ingredient_unit,
+               i.cost_per_unit,
+               i.category,
+               i.vendor,
+               i.vendor_code,
+               i.g_code
+        FROM banquet_menu_item_ingredients ai
+        JOIN ingredients i ON i.id = ai.ingredient_id
+        WHERE ai.menu_item_id = ANY(%s)
+    """, (menu_item_ids,))
+    grouped = defaultdict(list)
+    for row in cur.fetchall():
+        grouped[row['menu_item_id']].append(row)
+    return grouped
 
 def collect_ingredients_from_components(components, totals, multiplier=1.0):
     for item in components:
@@ -1394,73 +1514,58 @@ def collect_subrecipes_from_components(components, subrecipes):
             collect_subrecipes_from_components(item['children'], subrecipes)
 
 def fetch_banquet_event_lines(cur, start_date, end_date, venue_id=''):
+    if not banquet_tables_ready(cur):
+        return []
+    params = [start_date, end_date, list(BANQUET_ACTIVE_STATUSES)]
+    venue_filter_sql = ""
     if venue_id:
-        cur.execute("""
-            SELECT e.id AS event_id,
-                   e.name AS event_name,
-                   e.event_date,
-                   e.guests,
-                   e.venue_id,
-                   COALESCE(v.name, e.building, 'Banquet') AS venue_name,
-                   e.building,
-                   e.room,
-                   e.service_timing,
-                   e.dietary_notes,
-                   e.notes AS event_notes,
-                   emr.id AS line_id,
-                   emr.menu_item_name,
-                   emr.menu_descriptor,
-                   emr.menu_section,
-                   emr.recipe_id,
-                   emr.quantity,
-                   emr.quantity_unit,
-                   emr.notes AS line_notes,
-                   r.name AS recipe_name,
-                   r.category AS recipe_category,
-                   r.yield_qty,
-                   r.yield_unit,
-                   r.menu_descriptor AS recipe_descriptor
-            FROM events e
-            LEFT JOIN venues v ON v.id = e.venue_id
-            LEFT JOIN event_menu_recipes emr ON emr.event_id = e.id
-            LEFT JOIN recipes r ON r.id = emr.recipe_id
-            WHERE e.event_date BETWEEN %s AND %s
-              AND (%s = '' OR e.venue_id = %s)
-            ORDER BY e.event_date, e.name, COALESCE(emr.sort_order, 0), emr.id
-        """, (start_date, end_date, venue_id, venue_id))
-    else:
-        cur.execute("""
-            SELECT e.id AS event_id,
-                   e.name AS event_name,
-                   e.event_date,
-                   e.guests,
-                   e.venue_id,
-                   COALESCE(v.name, e.building, 'Banquet') AS venue_name,
-                   e.building,
-                   e.room,
-                   e.service_timing,
-                   e.dietary_notes,
-                   e.notes AS event_notes,
-                   emr.id AS line_id,
-                   emr.menu_item_name,
-                   emr.menu_descriptor,
-                   emr.menu_section,
-                   emr.recipe_id,
-                   emr.quantity,
-                   emr.quantity_unit,
-                   emr.notes AS line_notes,
-                   r.name AS recipe_name,
-                   r.category AS recipe_category,
-                   r.yield_qty,
-                   r.yield_unit,
-                   r.menu_descriptor AS recipe_descriptor
-            FROM events e
-            LEFT JOIN venues v ON v.id = e.venue_id
-            LEFT JOIN event_menu_recipes emr ON emr.event_id = e.id
-            LEFT JOIN recipes r ON r.id = emr.recipe_id
-            WHERE e.event_date BETWEEN %s AND %s
-            ORDER BY e.event_date, e.name, COALESCE(emr.sort_order, 0), emr.id
-        """, (start_date, end_date))
+        venue_filter_sql = " AND e.venue_id = %s"
+        params.append(venue_id)
+
+    cur.execute(f"""
+        SELECT e.id AS event_id,
+               e.name AS event_name,
+               e.event_date,
+               e.guest_count AS guests,
+               e.venue_id,
+               e.status,
+               COALESCE(v.name, e.building, 'Banquet') AS venue_name,
+               e.building,
+               e.room,
+               e.service_timing,
+               e.dietary_notes,
+               e.notes AS event_notes,
+               emi.id AS line_id,
+               emi.menu_item_id,
+               COALESCE(NULLIF(TRIM(emi.menu_item_name), ''), mi.name) AS menu_item_name,
+               COALESCE(emi.menu_descriptor, mi.menu_descriptor) AS menu_descriptor,
+               COALESCE(emi.menu_section, mi.menu_section) AS menu_section,
+               COALESCE(emi.recipe_id, primary_recipe.recipe_id) AS recipe_id,
+               emi.quantity,
+               emi.quantity_unit,
+               emi.notes AS line_notes,
+               r.name AS recipe_name,
+               r.category AS recipe_category,
+               r.yield_qty,
+               r.yield_unit,
+               r.menu_descriptor AS recipe_descriptor
+        FROM banquet_events e
+        LEFT JOIN venues v ON v.id = e.venue_id
+        LEFT JOIN banquet_event_menu_items emi ON emi.event_id = e.id
+        LEFT JOIN banquet_menu_items mi ON mi.id = emi.menu_item_id
+        LEFT JOIN LATERAL (
+            SELECT recipe_id
+            FROM banquet_menu_item_recipes
+            WHERE menu_item_id = mi.id
+            ORDER BY id
+            LIMIT 1
+        ) primary_recipe ON TRUE
+        LEFT JOIN recipes r ON r.id = COALESCE(emi.recipe_id, primary_recipe.recipe_id)
+        WHERE e.event_date BETWEEN %s AND %s
+          AND e.status = ANY(%s)
+          {venue_filter_sql}
+        ORDER BY e.event_date, e.name, COALESCE(emi.sort_order, 0), emi.id
+    """, params)
     return cur.fetchall()
 
 def build_banquet_datasets(cur, start_date, end_date, venue_id='', unit_system='imperial'):
@@ -1472,6 +1577,9 @@ def build_banquet_datasets(cur, start_date, end_date, venue_id='', unit_system='
     batch_usage_events = defaultdict(set)
     batch_usage_menu_items = defaultdict(set)
     event_daily_ingredients = defaultdict(lambda: defaultdict(float))
+
+    menu_item_ids = list({row.get('menu_item_id') for row in rows if row.get('menu_item_id')})
+    additional_ingredients = collect_banquet_additional_ingredients(cur, menu_item_ids)
 
     for row in rows:
         event_id = row['event_id']
@@ -1487,6 +1595,7 @@ def build_banquet_datasets(cur, start_date, end_date, venue_id='', unit_system='
                 'service_timing': row.get('service_timing'),
                 'dietary_notes': row.get('dietary_notes'),
                 'notes': row.get('event_notes'),
+                'status': row.get('status') or 'planning',
                 'lines': [],
                 'line_count': 0
             }
@@ -1516,13 +1625,14 @@ def build_banquet_datasets(cur, start_date, end_date, venue_id='', unit_system='
         line['estimated_cost_total'] = None
         line['estimated_cost_per_unit'] = None
         line['components'] = []
+        line['additional_ingredients'] = []
+        line['additional_ingredient_cost'] = 0
 
+        line_cost_total = 0
         if recipe:
             ratio = ratio_from_line_quantity(line, recipe)
             line['ratio'] = ratio
-            line_cost_total = get_recipe_total_cost(cur, recipe['id'], unit_system, apply_q_factor=True) * ratio
-            line['estimated_cost_total'] = line_cost_total
-            line['estimated_cost_per_unit'] = line_cost_total / line['quantity'] if line['quantity'] > 0 else None
+            line_cost_total += get_recipe_total_cost(cur, recipe['id'], unit_system, apply_q_factor=True) * ratio
 
             components, _, _ = build_component_tree(cur, recipe['id'], ratio, 0, set(), unit_system, apply_q_factor=False)
             line['components'] = components
@@ -1539,6 +1649,36 @@ def build_banquet_datasets(cur, start_date, end_date, venue_id='', unit_system='
 
             line_label = line['menu_item_name']
             collect_ingredient_usage_from_components(components, line_label, ingredient_usage)
+
+        for extra in additional_ingredients.get(row.get('menu_item_id'), []):
+            ingredient_id = extra.get('ingredient_id')
+            if not ingredient_id:
+                continue
+            per_unit_qty = to_float(extra.get('quantity'))
+            extra_qty = per_unit_qty * to_float(line.get('quantity'))
+            unit = (extra.get('unit') or extra.get('ingredient_unit') or '').strip()
+            key = (ingredient_id, unit)
+            ingredient_totals[key] = ingredient_totals.get(key, 0) + extra_qty
+            event_daily_ingredients[event_id][key] += extra_qty
+            ingredient_usage[ingredient_id].add(line.get('menu_item_name') or 'Menu Item')
+            converted_cost = convert_cost_per_unit(
+                extra.get('cost_per_unit'),
+                extra.get('ingredient_unit'),
+                unit
+            )
+            ext_cost = extra_qty * converted_cost if converted_cost else 0
+            line_cost_total += ext_cost
+            line['additional_ingredient_cost'] += ext_cost
+            line['additional_ingredients'].append({
+                'ingredient_id': ingredient_id,
+                'name': extra.get('ingredient_name'),
+                'quantity': extra_qty,
+                'unit': unit,
+                'ext_cost': ext_cost
+            })
+
+        line['estimated_cost_total'] = line_cost_total
+        line['estimated_cost_per_unit'] = line_cost_total / line['quantity'] if line['quantity'] > 0 else None
 
         events_map[event_id]['lines'].append(line)
         events_map[event_id]['line_count'] += 1
@@ -1948,28 +2088,53 @@ def banquet_planner():
         selected_venue = ''
 
     start_date, end_date = get_banquet_date_window(request.args.get('start_date'), request.args.get('end_date'))
+    if not banquet_tables_ready(cur):
+        cur.close()
+        flash('Banquet tables are missing. Run migrations first.', 'error')
+        return render_template(
+            'banquet_planner.html',
+            venues=venues,
+            selected_venue=selected_venue,
+            start_date=start_date.isoformat(),
+            end_date=end_date.isoformat(),
+            upcoming_events=[],
+            event_count=0,
+            menu_line_count=0,
+            shopping_count=0,
+            weekly_prep_count=0,
+            menu_item_count=0
+        )
+
     datasets = build_banquet_datasets(cur, start_date, end_date, selected_venue, get_unit_system())
-    templates = list_banquet_templates(cur, selected_venue)
 
     cur.execute("""
         SELECT e.id,
                e.name,
                e.event_date,
-               e.guests,
+               e.guest_count AS guests,
+               e.status,
                COALESCE(v.name, e.building, 'Banquet') AS venue_name,
-               COUNT(emr.id) AS recipe_lines
-        FROM events e
+               COUNT(emi.id) AS recipe_lines
+        FROM banquet_events e
         LEFT JOIN venues v ON v.id = e.venue_id
-        LEFT JOIN event_menu_recipes emr ON emr.event_id = e.id
+        LEFT JOIN banquet_event_menu_items emi ON emi.event_id = e.id
         WHERE e.event_date BETWEEN %s AND %s
           AND (%s = '' OR e.venue_id = %s)
         GROUP BY e.id, v.name
         ORDER BY e.event_date, e.name
-        LIMIT 40
+        LIMIT 60
     """, (start_date, end_date, selected_venue, selected_venue))
     upcoming_events = cur.fetchall()
 
-    plated_recipes = get_plated_recipes_for_venue(cur, selected_venue, include_unassigned=False)
+    if selected_venue:
+        cur.execute("""
+            SELECT COUNT(*) AS count
+            FROM banquet_menu_items
+            WHERE venue_id = %s OR venue_id IS NULL
+        """, (selected_venue,))
+    else:
+        cur.execute("SELECT COUNT(*) AS count FROM banquet_menu_items")
+    menu_item_count = (cur.fetchone() or {}).get('count', 0)
 
     cur.close()
 
@@ -1979,13 +2144,12 @@ def banquet_planner():
         selected_venue=selected_venue,
         start_date=start_date.isoformat(),
         end_date=end_date.isoformat(),
-        templates=templates,
         upcoming_events=upcoming_events,
-        plated_recipes=plated_recipes,
         event_count=datasets['event_count'],
         menu_line_count=datasets['menu_line_count'],
         shopping_count=len(datasets['shopping_ingredients']),
-        weekly_prep_count=len(datasets['weekly_prep'])
+        weekly_prep_count=len(datasets['weekly_prep']),
+        menu_item_count=menu_item_count
     )
 
 @app.route('/banquet-planner/events/new', methods=['GET', 'POST'])
@@ -1993,6 +2157,11 @@ def banquet_planner():
 def banquet_event_new():
     conn = get_db()
     cur = conn.cursor(cursor_factory=RealDictCursor)
+    if not banquet_tables_ready(cur):
+        cur.close()
+        flash('Banquet tables are missing. Run migrations first.', 'error')
+        return redirect(url_for('banquet_planner'))
+
     venues = get_active_venues(cur)
     venue_ids = {row['id'] for row in venues}
     default_venue_id = 'ven_banquets' if 'ven_banquets' in venue_ids else (venues[0]['id'] if venues else '')
@@ -2006,25 +2175,37 @@ def banquet_event_new():
         'room': '',
         'service_timing': '',
         'dietary_notes': '',
-        'notes': ''
+        'notes': '',
+        'status': 'planning'
     }
-    lines = []
-    selected_template_id = (request.args.get('template_id') or '').strip()
     requested_venue_id = (request.args.get('venue_id') or '').strip()
     if requested_venue_id and requested_venue_id in venue_ids:
         event['venue_id'] = requested_venue_id
-    if not selected_template_id:
-        selected_template_id = get_default_banquet_template_id(cur, event.get('venue_id') or '')
+
+    def default_catalog_lines(venue_id):
+        menu_items = list_banquet_menu_items(cur, venue_id)
+        return [{
+            'recipe_id': item.get('linked_recipe_id'),
+            'menu_item_name': item.get('name') or '',
+            'menu_descriptor': item.get('menu_descriptor'),
+            'menu_section': item.get('menu_section'),
+            'quantity': 1,
+            'quantity_unit': 'each',
+            'notes': ''
+        } for item in menu_items]
 
     if request.method == 'POST':
         errors = []
-        selected_template_id = (request.form.get('template_id') or '').strip()
         event_name = clean_menu_text(request.form.get('name'))
         event_date_raw = (request.form.get('event_date') or '').strip()
         venue_id = (request.form.get('venue_id') or '').strip()
         if venue_id and venue_id not in venue_ids:
             errors.append('Selected venue is invalid.')
             venue_id = ''
+
+        status = (request.form.get('status') or 'planning').strip().lower()
+        if status not in {choice[0] for choice in BANQUET_STATUS_CHOICES}:
+            status = 'planning'
 
         guests = parse_float_field(request.form.get('guests'), 'Guests', errors, required=False, min_value=1)
         event_date = None
@@ -2035,18 +2216,8 @@ def banquet_event_new():
 
         lines, line_errors = parse_event_recipe_lines(request)
         errors.extend(line_errors)
-        if not lines and selected_template_id:
-            template_lines = get_banquet_template_items(cur, selected_template_id)
-            for row in template_lines:
-                lines.append({
-                    'recipe_id': row.get('recipe_id'),
-                    'menu_item_name': row.get('item_name') or '',
-                    'menu_descriptor': row.get('menu_descriptor'),
-                    'menu_section': row.get('menu_section'),
-                    'quantity': to_float(row.get('default_quantity')) or 1,
-                    'quantity_unit': 'each',
-                    'notes': 'Imported from template'
-                })
+        if not lines:
+            lines = default_catalog_lines(venue_id)
         if not lines:
             errors.append('Add at least one menu line for the event.')
         if not event_name:
@@ -2061,17 +2232,19 @@ def banquet_event_new():
             'room': clean_menu_text(request.form.get('room')),
             'service_timing': clean_menu_text(request.form.get('service_timing')),
             'dietary_notes': clean_menu_text(request.form.get('dietary_notes')),
-            'notes': clean_menu_text(request.form.get('notes'))
+            'notes': clean_menu_text(request.form.get('notes')),
+            'status': status
         }
 
         if errors:
             flash(' '.join(sorted(set(errors))), 'error')
         else:
-            event_id = generate_id('evt_')
+            event_id = generate_id('bev_')
             try:
                 cur.execute("""
-                    INSERT INTO events (id, name, event_date, guests, venue_id, building, room, service_timing, dietary_notes, notes)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    INSERT INTO banquet_events (
+                        id, name, event_date, guest_count, venue_id, building, room, service_timing, dietary_notes, notes, status
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, (
                     event_id,
                     event_name,
@@ -2082,21 +2255,27 @@ def banquet_event_new():
                     event['room'] or None,
                     event['service_timing'] or None,
                     event['dietary_notes'] or None,
-                    event['notes'] or None
+                    event['notes'] or None,
+                    status
                 ))
 
                 for idx, line in enumerate(lines):
+                    menu_item_id = resolve_or_create_banquet_menu_item(cur, line, venue_id)
+                    if not menu_item_id:
+                        continue
+                    upsert_menu_item_recipe_link(cur, menu_item_id, line['recipe_id'])
                     cur.execute("""
-                        INSERT INTO event_menu_recipes (
-                            event_id, menu_item_name, recipe_id, quantity, quantity_unit,
+                        INSERT INTO banquet_event_menu_items (
+                            event_id, menu_item_id, menu_item_name, recipe_id, quantity, quantity_unit,
                             menu_section, menu_descriptor, notes, sort_order
-                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """, (
                         event_id,
+                        menu_item_id,
                         line['menu_item_name'],
                         line['recipe_id'],
                         line['quantity'],
-                        line['quantity_unit'] or None,
+                        line['quantity_unit'] or 'each',
                         line['menu_section'] or None,
                         line['menu_descriptor'] or None,
                         line['notes'] or None,
@@ -2110,25 +2289,12 @@ def banquet_event_new():
             except Exception:
                 conn.rollback()
                 flash('Error creating event.', 'error')
-    else:
-        venue_id = requested_venue_id
-        if venue_id and venue_id in venue_ids:
-            event['venue_id'] = venue_id
-        if selected_template_id:
-            template_lines = get_banquet_template_items(cur, selected_template_id)
-            lines = [{
-                'recipe_id': row.get('recipe_id'),
-                'menu_item_name': row.get('item_name') or '',
-                'menu_descriptor': row.get('menu_descriptor'),
-                'menu_section': row.get('menu_section'),
-                'quantity': to_float(row.get('default_quantity')) or 1,
-                'quantity_unit': 'each',
-                'notes': ''
-            } for row in template_lines]
 
-    venue_filter = event.get('venue_id') or ''
-    plated_recipes = get_plated_recipes_for_venue(cur, venue_filter, include_unassigned=False)
-    templates = list_banquet_templates(cur, venue_filter)
+        lines = lines or []
+    else:
+        lines = default_catalog_lines(event.get('venue_id') or '')
+
+    plated_recipes = get_plated_recipes_for_venue(cur, event.get('venue_id') or '', include_unassigned=False)
     cur.close()
     return render_template(
         'banquet_event_form.html',
@@ -2136,10 +2302,9 @@ def banquet_event_new():
         event=event,
         lines=lines,
         venues=venues,
-        templates=templates,
-        selected_template_id=selected_template_id,
         plated_recipes=plated_recipes,
-        section_options=BANQUET_MENU_SECTION_OPTIONS
+        section_options=BANQUET_MENU_SECTION_OPTIONS,
+        status_options=BANQUET_STATUS_CHOICES
     )
 
 @app.route('/banquet-planner/events/<event_id>/edit', methods=['GET', 'POST'])
@@ -2147,6 +2312,11 @@ def banquet_event_new():
 def banquet_event_edit(event_id):
     conn = get_db()
     cur = conn.cursor(cursor_factory=RealDictCursor)
+    if not banquet_tables_ready(cur):
+        cur.close()
+        flash('Banquet tables are missing. Run migrations first.', 'error')
+        return redirect(url_for('banquet_planner'))
+
     event = get_banquet_event(cur, event_id)
     if not event:
         cur.close()
@@ -2164,12 +2334,18 @@ def banquet_event_edit(event_id):
         if venue_id and venue_id not in venue_ids:
             errors.append('Selected venue is invalid.')
             venue_id = ''
+
+        status = (request.form.get('status') or 'planning').strip().lower()
+        if status not in {choice[0] for choice in BANQUET_STATUS_CHOICES}:
+            status = 'planning'
+
         guests = parse_float_field(request.form.get('guests'), 'Guests', errors, required=False, min_value=1)
         event_date = None
         try:
             event_date = datetime.strptime(event_date_raw, '%Y-%m-%d').date()
         except ValueError:
             errors.append('Event date is required.')
+
         lines, line_errors = parse_event_recipe_lines(request)
         errors.extend(line_errors)
         if not lines:
@@ -2189,21 +2365,24 @@ def banquet_event_edit(event_id):
                 'room': clean_menu_text(request.form.get('room')),
                 'service_timing': clean_menu_text(request.form.get('service_timing')),
                 'dietary_notes': clean_menu_text(request.form.get('dietary_notes')),
-                'notes': clean_menu_text(request.form.get('notes'))
+                'notes': clean_menu_text(request.form.get('notes')),
+                'status': status
             }
         else:
             try:
                 cur.execute("""
-                    UPDATE events
+                    UPDATE banquet_events
                     SET name = %s,
                         event_date = %s,
-                        guests = %s,
+                        guest_count = %s,
                         venue_id = %s,
                         building = %s,
                         room = %s,
                         service_timing = %s,
                         dietary_notes = %s,
-                        notes = %s
+                        notes = %s,
+                        status = %s,
+                        updated_at = CURRENT_TIMESTAMP
                     WHERE id = %s
                 """, (
                     event_name,
@@ -2215,21 +2394,28 @@ def banquet_event_edit(event_id):
                     clean_menu_text(request.form.get('service_timing')) or None,
                     clean_menu_text(request.form.get('dietary_notes')) or None,
                     clean_menu_text(request.form.get('notes')) or None,
+                    status,
                     event_id
                 ))
-                cur.execute("DELETE FROM event_menu_recipes WHERE event_id = %s", (event_id,))
+
+                cur.execute("DELETE FROM banquet_event_menu_items WHERE event_id = %s", (event_id,))
                 for idx, line in enumerate(lines):
+                    menu_item_id = resolve_or_create_banquet_menu_item(cur, line, venue_id)
+                    if not menu_item_id:
+                        continue
+                    upsert_menu_item_recipe_link(cur, menu_item_id, line['recipe_id'])
                     cur.execute("""
-                        INSERT INTO event_menu_recipes (
-                            event_id, menu_item_name, recipe_id, quantity, quantity_unit,
+                        INSERT INTO banquet_event_menu_items (
+                            event_id, menu_item_id, menu_item_name, recipe_id, quantity, quantity_unit,
                             menu_section, menu_descriptor, notes, sort_order
-                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """, (
                         event_id,
+                        menu_item_id,
                         line['menu_item_name'],
                         line['recipe_id'],
                         line['quantity'],
-                        line['quantity_unit'] or None,
+                        line['quantity_unit'] or 'each',
                         line['menu_section'] or None,
                         line['menu_descriptor'] or None,
                         line['notes'] or None,
@@ -2248,8 +2434,11 @@ def banquet_event_edit(event_id):
     else:
         lines = parse_event_recipe_lines(request)[0]
 
+    for line in lines:
+        if 'notes' not in line:
+            line['notes'] = line.get('line_notes')
+
     plated_recipes = get_plated_recipes_for_venue(cur, event.get('venue_id') or '', include_unassigned=False)
-    templates = list_banquet_templates(cur, event.get('venue_id') or '')
     cur.close()
     return render_template(
         'banquet_event_form.html',
@@ -2257,9 +2446,9 @@ def banquet_event_edit(event_id):
         event=event,
         lines=lines,
         venues=venues,
-        templates=templates,
         plated_recipes=plated_recipes,
-        section_options=BANQUET_MENU_SECTION_OPTIONS
+        section_options=BANQUET_MENU_SECTION_OPTIONS,
+        status_options=BANQUET_STATUS_CHOICES
     )
 
 @app.route('/banquet-planner/events/<event_id>/delete', methods=['POST'])
@@ -2267,16 +2456,19 @@ def banquet_event_edit(event_id):
 def banquet_event_delete(event_id):
     conn = get_db()
     cur = conn.cursor(cursor_factory=RealDictCursor)
-    cur.execute("SELECT id, name FROM events WHERE id = %s", (event_id,))
+    if not banquet_tables_ready(cur):
+        cur.close()
+        flash('Banquet tables are missing. Run migrations first.', 'error')
+        return redirect(url_for('banquet_planner'))
+
+    cur.execute("SELECT id, name FROM banquet_events WHERE id = %s", (event_id,))
     event = cur.fetchone()
     if not event:
         cur.close()
         flash('Event not found.', 'error')
         return redirect(url_for('banquet_planner'))
     try:
-        cur.execute("DELETE FROM event_menu_recipes WHERE event_id = %s", (event_id,))
-        cur.execute("DELETE FROM event_menu_items WHERE event_id = %s", (event_id,))
-        cur.execute("DELETE FROM events WHERE id = %s", (event_id,))
+        cur.execute("DELETE FROM banquet_events WHERE id = %s", (event_id,))
         conn.commit()
         flash(f"Deleted event: {event['name']}", 'success')
     except Exception:
@@ -2288,72 +2480,65 @@ def banquet_event_delete(event_id):
 @app.route('/banquet-planner/events/<event_id>/apply-template', methods=['POST'])
 @login_required
 def banquet_event_apply_template(event_id):
+    # Backwards-compatible endpoint: now applies the full menu catalog for the event venue.
     conn = get_db()
     cur = conn.cursor(cursor_factory=RealDictCursor)
-    if not db_table_exists(cur, 'public.banquet_menu_templates') or not db_table_exists(cur, 'public.banquet_menu_template_items'):
+    if not banquet_tables_ready(cur):
         cur.close()
-        flash('Template tables are not available yet. Run migrations first.', 'error')
+        flash('Banquet tables are missing. Run migrations first.', 'error')
         return redirect(url_for('banquet_event_edit', event_id=event_id))
-    template_id = (request.form.get('template_id') or '').strip()
-    if not template_id:
-        cur.close()
-        flash('Select a template first.', 'error')
-        return redirect(url_for('banquet_event_edit', event_id=event_id))
-    cur.execute("SELECT id, guests FROM events WHERE id = %s", (event_id,))
+
+    cur.execute("SELECT id, venue_id, guest_count FROM banquet_events WHERE id = %s", (event_id,))
     event = cur.fetchone()
     if not event:
         cur.close()
         flash('Event not found.', 'error')
         return redirect(url_for('banquet_planner'))
 
-    cur.execute("""
-        SELECT t.id,
-               t.name,
-               i.menu_section,
-               i.item_name,
-               i.menu_descriptor,
-               i.recipe_id,
-               i.default_quantity
-        FROM banquet_menu_templates t
-        JOIN banquet_menu_template_items i ON i.template_id = t.id
-        WHERE t.id = %s
-        ORDER BY i.sort_order, i.id
-    """, (template_id,))
-    rows = cur.fetchall()
+    rows = list_banquet_menu_items(cur, event.get('venue_id') or '')
     if not rows:
         cur.close()
-        flash('Template has no items.', 'error')
+        flash('No menu catalog items found for this venue.', 'error')
         return redirect(url_for('banquet_event_edit', event_id=event_id))
 
-    guests = int(event.get('guests') or 0)
+    guests = int(event.get('guest_count') or 0)
     try:
         existing_lines = get_banquet_event_lines(cur, event_id)
         sort_base = len(existing_lines)
         for idx, item in enumerate(rows):
-            qty = to_float(item.get('default_quantity')) or 1
+            qty = 1
             if guests > 0 and qty == 1:
                 qty = guests
+            line = {
+                'menu_item_name': item.get('name') or '',
+                'menu_section': item.get('menu_section'),
+                'menu_descriptor': item.get('menu_descriptor'),
+                'recipe_id': item.get('linked_recipe_id')
+            }
+            menu_item_id = resolve_or_create_banquet_menu_item(cur, line, event.get('venue_id') or '')
+            upsert_menu_item_recipe_link(cur, menu_item_id, line.get('recipe_id'))
             cur.execute("""
-                INSERT INTO event_menu_recipes (
-                    event_id, menu_item_name, recipe_id, quantity, quantity_unit,
+                INSERT INTO banquet_event_menu_items (
+                    event_id, menu_item_id, menu_item_name, recipe_id, quantity, quantity_unit,
                     menu_section, menu_descriptor, notes, sort_order
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, (
                 event_id,
-                item.get('item_name'),
-                item.get('recipe_id'),
+                menu_item_id,
+                line.get('menu_item_name'),
+                line.get('recipe_id'),
                 qty,
                 'each',
-                item.get('menu_section'),
-                item.get('menu_descriptor'),
-                'Imported from template',
+                line.get('menu_section'),
+                line.get('menu_descriptor'),
+                'Loaded from menu catalog',
                 sort_base + idx
             ))
         conn.commit()
-        flash(f"Applied template: {rows[0]['name']}", 'success')
+        flash('Loaded menu catalog lines to event.', 'success')
     except Exception:
         conn.rollback()
-        flash('Error applying template.', 'error')
+        flash('Error loading menu catalog.', 'error')
     cur.close()
     return redirect(url_for('banquet_event_edit', event_id=event_id))
 
@@ -2362,22 +2547,19 @@ def banquet_event_apply_template(event_id):
 def banquet_template_import():
     conn = get_db()
     cur = conn.cursor(cursor_factory=RealDictCursor)
-    if not db_table_exists(cur, 'public.banquet_menu_templates') or not db_table_exists(cur, 'public.banquet_menu_template_items'):
+    if not banquet_tables_ready(cur):
         cur.close()
-        flash('Template tables are not available yet. Run migrations first.', 'error')
+        flash('Banquet tables are missing. Run migrations first.', 'error')
         return redirect(url_for('banquet_planner'))
     venues = get_active_venues(cur)
     venue_ids = {row['id'] for row in venues}
 
     if request.method == 'POST':
-        template_name = clean_menu_text(request.form.get('template_name'))
         venue_id = (request.form.get('venue_id') or '').strip()
         if venue_id and venue_id not in venue_ids:
             venue_id = ''
         source_pdf = request.files.get('menu_pdf')
-        if not template_name:
-            flash('Template name is required.', 'error')
-        elif not source_pdf or not source_pdf.filename.lower().endswith('.pdf'):
+        if not source_pdf or not source_pdf.filename.lower().endswith('.pdf'):
             flash('Upload a PDF menu file.', 'error')
         else:
             try:
@@ -2388,76 +2570,104 @@ def banquet_template_import():
                 flash('Could not parse menu items from the PDF.', 'error')
             else:
                 recipes = get_plated_recipes_for_venue(cur, venue_id)
-                template_id = generate_id('tmpl_')
                 try:
-                    cur.execute("""
-                        INSERT INTO banquet_menu_templates (id, name, venue_id, source_filename, notes)
-                        VALUES (%s, %s, %s, %s, %s)
-                    """, (
-                        template_id,
-                        template_name,
-                        venue_id or None,
-                        source_pdf.filename,
-                        'Imported from catering menu PDF'
-                    ))
-                    for idx, item in enumerate(parsed_items):
-                        matched_recipe_id = auto_match_menu_recipe_id(item.get('item_name'), recipes)
+                    created_count = 0
+                    updated_count = 0
+                    for item in parsed_items:
+                        menu_name = clean_menu_text(item.get('item_name'))
+                        if not menu_name:
+                            continue
                         cur.execute("""
-                            INSERT INTO banquet_menu_template_items (
-                                template_id, menu_section, item_name, menu_descriptor,
-                                recipe_id, default_quantity, sort_order, price_text
-                            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                        """, (
-                            template_id,
-                            item.get('menu_section') or 'Imported',
-                            item.get('item_name'),
-                            item.get('menu_descriptor') or None,
-                            matched_recipe_id,
-                            1,
-                            idx,
-                            item.get('price_text') or None
-                        ))
+                            SELECT id
+                            FROM banquet_menu_items
+                            WHERE LOWER(name) = LOWER(%s)
+                              AND (venue_id = %s OR venue_id IS NULL)
+                            ORDER BY CASE WHEN venue_id = %s THEN 0 ELSE 1 END, created_at
+                            LIMIT 1
+                        """, (menu_name, venue_id or None, venue_id or None))
+                        existing = cur.fetchone()
+                        matched_recipe_id = auto_match_menu_recipe_id(menu_name, recipes)
+                        if existing:
+                            cur.execute("""
+                                UPDATE banquet_menu_items
+                                SET menu_section = COALESCE(NULLIF(%s, ''), menu_section),
+                                    menu_descriptor = COALESCE(NULLIF(%s, ''), menu_descriptor),
+                                    venue_id = COALESCE(venue_id, %s),
+                                    updated_at = CURRENT_TIMESTAMP
+                                WHERE id = %s
+                            """, (
+                                item.get('menu_section') or '',
+                                item.get('menu_descriptor') or '',
+                                venue_id or None,
+                                existing['id']
+                            ))
+                            menu_item_id = existing['id']
+                            updated_count += 1
+                        else:
+                            menu_item_id = generate_id('bmi_')
+                            cur.execute("""
+                                INSERT INTO banquet_menu_items (id, name, venue_id, menu_section, menu_descriptor, notes)
+                                VALUES (%s, %s, %s, %s, %s, %s)
+                            """, (
+                                menu_item_id,
+                                menu_name,
+                                venue_id or None,
+                                item.get('menu_section') or None,
+                                item.get('menu_descriptor') or None,
+                                f"Imported from {source_pdf.filename}"
+                            ))
+                            created_count += 1
+
+                        if matched_recipe_id:
+                            upsert_menu_item_recipe_link(cur, menu_item_id, matched_recipe_id)
+
                     conn.commit()
-                    flash(f'Imported template with {len(parsed_items)} items.', 'success')
+                    flash(f'Imported menu catalog: {created_count} created, {updated_count} updated.', 'success')
                     cur.close()
                     return redirect(url_for('banquet_planner', venue=venue_id))
                 except Exception:
                     conn.rollback()
-                    flash('Error saving imported template.', 'error')
+                    flash('Error saving imported menu catalog.', 'error')
 
-    templates = list_banquet_templates(cur)
+    menu_items = list_banquet_menu_items(cur)
     cur.close()
     return render_template(
         'banquet_template_import.html',
         venues=venues,
-        templates=templates
+        menu_items=menu_items
     )
+
+@app.route('/banquet-planner/menu-items/<menu_item_id>/delete', methods=['POST'])
+@login_required
+def banquet_menu_item_delete(menu_item_id):
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    if not banquet_tables_ready(cur):
+        cur.close()
+        flash('Banquet tables are missing. Run migrations first.', 'error')
+        return redirect(url_for('banquet_planner'))
+
+    cur.execute("SELECT id, name FROM banquet_menu_items WHERE id = %s", (menu_item_id,))
+    menu_item = cur.fetchone()
+    if not menu_item:
+        cur.close()
+        flash('Menu item not found.', 'error')
+        return redirect(url_for('banquet_template_import'))
+    try:
+        cur.execute("DELETE FROM banquet_menu_items WHERE id = %s", (menu_item_id,))
+        conn.commit()
+        flash(f"Deleted menu item: {menu_item['name']}", 'success')
+    except Exception:
+        conn.rollback()
+        flash('Error deleting menu item.', 'error')
+    cur.close()
+    return redirect(url_for('banquet_template_import'))
 
 @app.route('/banquet-planner/templates/<template_id>/delete', methods=['POST'])
 @login_required
 def banquet_template_delete(template_id):
-    conn = get_db()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
-    if not db_table_exists(cur, 'public.banquet_menu_templates'):
-        cur.close()
-        flash('Template tables are not available yet.', 'error')
-        return redirect(url_for('banquet_planner'))
-    cur.execute("SELECT id, name FROM banquet_menu_templates WHERE id = %s", (template_id,))
-    template = cur.fetchone()
-    if not template:
-        cur.close()
-        flash('Template not found.', 'error')
-        return redirect(url_for('banquet_template_import'))
-    try:
-        cur.execute("DELETE FROM banquet_menu_template_items WHERE template_id = %s", (template_id,))
-        cur.execute("DELETE FROM banquet_menu_templates WHERE id = %s", (template_id,))
-        conn.commit()
-        flash(f"Deleted template: {template['name']}", 'success')
-    except Exception:
-        conn.rollback()
-        flash('Error deleting template.', 'error')
-    cur.close()
-    return redirect(url_for('banquet_template_import'))
+    # Backwards-compatible alias while old UI links still exist.
+    return banquet_menu_item_delete(template_id)
 
 @app.route('/banquet-planner/shopping')
 @login_required
