@@ -23,7 +23,7 @@
         </div>
     </nav>
 
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <div id="shoppingChecklistRoot" data-checklist-scope="{{ selected_venue }}|{{ start_date }}|{{ end_date }}" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-5">
             <form method="GET" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                 <div>
@@ -42,6 +42,7 @@
                 <div class="flex gap-2">
                     <button type="submit" class="bg-foxtown-ember hover:bg-orange-700 text-white px-5 py-3 rounded-xl font-semibold">Apply</button>
                     <a href="{{ url_for('banquet_export_excel', venue=selected_venue, start_date=start_date, end_date=end_date) }}" class="px-4 py-3 rounded-xl border border-stone-300 text-stone-700 hover:bg-stone-50">Excel</a>
+                    <button type="button" id="resetChecklistBtn" class="px-4 py-3 rounded-xl border border-stone-300 text-stone-700 hover:bg-stone-50">Reset Checks</button>
                 </div>
             </form>
         </div>
@@ -57,6 +58,7 @@
                     <table class="min-w-full text-sm">
                         <thead class="text-xs uppercase text-stone-500 border-b border-stone-200">
                             <tr>
+                                <th class="text-left py-2 pr-3">Have It</th>
                                 <th class="text-left py-2 pr-3">Ingredient</th>
                                 <th class="text-left py-2 pr-3">Qty</th>
                                 <th class="text-left py-2 pr-3">Unit</th>
@@ -64,18 +66,26 @@
                                 <th class="text-left py-2 pr-3">Ext Cost</th>
                                 <th class="text-left py-2 pr-3">Vendor Code</th>
                                 <th class="text-left py-2">G-Code</th>
+                                <th class="text-left py-2">Note</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-stone-100">
                             {% for item in items %}
-                            <tr>
-                                <td class="py-2 pr-3 font-medium text-foxtown-ink">{{ item.name }}</td>
+                            {% set shopping_key = (item.id or item.name) ~ '|' ~ (item.unit or '') ~ '|' ~ (item.vendor or '') %}
+                            <tr data-shopping-key="{{ shopping_key|e }}">
+                                <td class="py-2 pr-3">
+                                    <input type="checkbox" class="shopping-check w-4 h-4 accent-orange-600">
+                                </td>
+                                <td class="py-2 pr-3 font-medium text-foxtown-ink shopping-name">{{ item.name }}</td>
                                 <td class="py-2 pr-3">{{ item.display_quantity }}</td>
                                 <td class="py-2 pr-3">{{ item.display_unit }}</td>
                                 <td class="py-2 pr-3">${{ "%.4f"|format(item.cost_per_unit or 0) }}</td>
                                 <td class="py-2 pr-3">${{ "%.2f"|format(item.ext_cost or 0) }}</td>
                                 <td class="py-2 pr-3">{{ item.vendor_code or '—' }}</td>
                                 <td class="py-2">{{ item.g_code or '—' }}</td>
+                                <td class="py-2">
+                                    <input type="text" class="shopping-note w-full min-w-[180px] px-2 py-1 border border-stone-300 rounded-lg text-xs" placeholder="Need more? vendor alt?">
+                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -90,4 +100,66 @@
         {% endif %}
     </div>
 </div>
+
+<script>
+(function () {
+    const root = document.getElementById('shoppingChecklistRoot');
+    if (!root) return;
+
+    const scope = root.dataset.checklistScope || 'default';
+    const storageKey = `banquet-shopping-checklist:${scope}`;
+    let state = {};
+    try {
+        state = JSON.parse(localStorage.getItem(storageKey) || '{}');
+    } catch (e) {
+        state = {};
+    }
+
+    function persist() {
+        localStorage.setItem(storageKey, JSON.stringify(state));
+    }
+
+    function applyRowVisual(row, checked) {
+        const nameCell = row.querySelector('.shopping-name');
+        if (!nameCell) return;
+        row.classList.toggle('opacity-60', checked);
+        nameCell.classList.toggle('line-through', checked);
+    }
+
+    document.querySelectorAll('tr[data-shopping-key]').forEach((row) => {
+        const key = row.dataset.shoppingKey;
+        const checkbox = row.querySelector('.shopping-check');
+        const noteInput = row.querySelector('.shopping-note');
+        const saved = state[key] || {};
+
+        checkbox.checked = !!saved.checked;
+        noteInput.value = saved.note || '';
+        applyRowVisual(row, checkbox.checked);
+
+        checkbox.addEventListener('change', () => {
+            state[key] = state[key] || {};
+            state[key].checked = checkbox.checked;
+            state[key].note = noteInput.value || '';
+            persist();
+            applyRowVisual(row, checkbox.checked);
+        });
+
+        noteInput.addEventListener('input', () => {
+            state[key] = state[key] || {};
+            state[key].checked = checkbox.checked;
+            state[key].note = noteInput.value || '';
+            persist();
+        });
+    });
+
+    const resetBtn = document.getElementById('resetChecklistBtn');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', () => {
+            if (!confirm('Clear all checkboxes and notes for this date range?')) return;
+            localStorage.removeItem(storageKey);
+            window.location.reload();
+        });
+    }
+})();
+</script>
 {% endblock %}
