@@ -154,6 +154,9 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
+            if (response.redirected && (response.url || '').includes('/login')) {
+                throw new Error('Session expired');
+            }
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}`);
             }
@@ -169,7 +172,12 @@
                 return;
             }
             dirtyKeys.delete(key);
-            setSyncStatus('Checklist save failed. Retry by toggling again.', true);
+            const msg = (error && error.message) || '';
+            if (msg.includes('Session expired')) {
+                setSyncStatus('Session expired. Refresh and sign in again.', true);
+            } else {
+                setSyncStatus('Checklist save failed. Retry by toggling again.', true);
+            }
         }
     }
 
@@ -183,6 +191,9 @@
             const response = await fetch(`${saveUrl}?${query.toString()}`, {
                 credentials: 'same-origin'
             });
+            if (response.redirected && (response.url || '').includes('/login')) {
+                throw new Error('Session expired');
+            }
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}`);
             }
@@ -206,7 +217,12 @@
                 applyRowVisual(row, remoteChecked);
             });
         } catch (error) {
-            setSyncStatus('Checklist sync delayed. Retrying...', true);
+            const msg = (error && error.message) || '';
+            if (msg.includes('Session expired')) {
+                setSyncStatus('Session expired. Refresh and sign in again.', true);
+            } else {
+                setSyncStatus('Checklist sync delayed. Retrying...', true);
+            }
         }
     }
 

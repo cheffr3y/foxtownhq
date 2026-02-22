@@ -1327,9 +1327,33 @@ def banquet_tables_ready(cur):
 def banquet_shopping_checks_ready(cur):
     return db_table_exists(cur, 'public.banquet_shopping_checks')
 
+def ensure_banquet_shopping_checks_table(cur):
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS banquet_shopping_checks (
+            id BIGSERIAL PRIMARY KEY,
+            venue_id TEXT NOT NULL,
+            start_date DATE NOT NULL,
+            end_date DATE NOT NULL,
+            item_key TEXT NOT NULL,
+            ingredient_id TEXT,
+            unit TEXT,
+            vendor TEXT,
+            checked BOOLEAN NOT NULL DEFAULT FALSE,
+            note TEXT,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    cur.execute("""
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_banquet_shopping_checks_unique
+        ON banquet_shopping_checks (venue_id, start_date, end_date, item_key)
+    """)
+    cur.execute("""
+        CREATE INDEX IF NOT EXISTS idx_banquet_shopping_checks_scope
+        ON banquet_shopping_checks (venue_id, start_date, end_date)
+    """)
+
 def load_banquet_shopping_checklist(cur, venue_id, start_date, end_date):
-    if not banquet_shopping_checks_ready(cur):
-        return {}
+    ensure_banquet_shopping_checks_table(cur)
     cur.execute("""
         SELECT item_key, checked, note
         FROM banquet_shopping_checks
@@ -4152,9 +4176,7 @@ def banquet_shopping_checklist_upsert():
 
         conn = get_db()
         cur = conn.cursor(cursor_factory=RealDictCursor)
-        if not banquet_shopping_checks_ready(cur):
-            cur.close()
-            return jsonify({'ok': False, 'error': 'Checklist table missing. Run migrations.'}), 503
+        ensure_banquet_shopping_checks_table(cur)
 
         state = load_banquet_shopping_checklist(cur, venue_id, start_date, end_date)
         cur.close()
@@ -4180,9 +4202,7 @@ def banquet_shopping_checklist_upsert():
 
     conn = get_db()
     cur = conn.cursor(cursor_factory=RealDictCursor)
-    if not banquet_shopping_checks_ready(cur):
-        cur.close()
-        return jsonify({'ok': False, 'error': 'Checklist table missing. Run migrations.'}), 503
+    ensure_banquet_shopping_checks_table(cur)
 
     try:
         if not checked and not note:
@@ -4229,9 +4249,7 @@ def banquet_shopping_checklist_reset():
 
     conn = get_db()
     cur = conn.cursor(cursor_factory=RealDictCursor)
-    if not banquet_shopping_checks_ready(cur):
-        cur.close()
-        return jsonify({'ok': False, 'error': 'Checklist table missing. Run migrations.'}), 503
+    ensure_banquet_shopping_checks_table(cur)
 
     try:
         cur.execute("""
