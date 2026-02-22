@@ -15,7 +15,7 @@
                     </a>
                     <div>
                         <h1 class="text-2xl font-display tracking-tight">{% if mode == 'edit' %}Edit{% else %}New{% endif %} Banquet Menu Item</h1>
-                        <p class="text-sm text-stone-200">Venue is fixed to {{ banquet_venue_name }}. Link one RM recipe and optional extra raw ingredients.</p>
+                        <p class="text-sm text-stone-200">Venue is fixed to {{ banquet_venue_name }}. Add one or more recipe components and optional raw extras.</p>
                     </div>
                 </div>
             </div>
@@ -88,12 +88,8 @@
                         {% for row in form_state.recipe_components or [] %}
                         <tr>
                             <td class="py-2 pr-2">
-                                <select name="component_recipe_id[]" class="w-full px-3 py-2 border border-stone-300 rounded-lg">
-                                    <option value="">Select recipe</option>
-                                    {% for recipe in component_recipes %}
-                                    <option value="{{ recipe.id }}" {% if row.recipe_id == recipe.id %}selected{% endif %}>{{ recipe.name }}{% if recipe.recipe_type %} ({{ recipe.recipe_type|upper }}){% endif %}</option>
-                                    {% endfor %}
-                                </select>
+                                <input type="text" name="component_recipe_search[]" list="recipeComponentOptions" value="{{ row.display_label or '' }}" placeholder="Search recipe..." class="w-full px-3 py-2 border border-stone-300 rounded-lg" data-role="recipe-search">
+                                <input type="hidden" name="component_recipe_id[]" value="{{ row.recipe_id or '' }}" data-role="recipe-id">
                             </td>
                             <td class="py-2 pr-2"><input type="number" step="0.0001" min="0" name="component_qty[]" value="{{ row.quantity or '' }}" class="w-full px-3 py-2 border border-stone-300 rounded-lg"></td>
                             <td class="py-2 pr-2"><input name="component_unit[]" value="{{ row.unit or '' }}" class="w-full px-3 py-2 border border-stone-300 rounded-lg"></td>
@@ -124,12 +120,8 @@
                         {% for row in ingredient_rows %}
                         <tr>
                             <td class="py-2 pr-2">
-                                <select name="ingredient_id[]" class="w-full px-3 py-2 border border-stone-300 rounded-lg">
-                                    <option value="">Select ingredient</option>
-                                    {% for ingredient in ingredients %}
-                                    <option value="{{ ingredient.id }}" {% if row.ingredient_id == ingredient.id %}selected{% endif %}>{{ ingredient.name }}{% if ingredient.unit %} ({{ ingredient.unit }}){% endif %}</option>
-                                    {% endfor %}
-                                </select>
+                                <input type="text" name="ingredient_search[]" list="ingredientOptions" value="{{ row.display_label or '' }}" placeholder="Search ingredient..." class="w-full px-3 py-2 border border-stone-300 rounded-lg" data-role="ingredient-search">
+                                <input type="hidden" name="ingredient_id[]" value="{{ row.ingredient_id or '' }}" data-role="ingredient-id">
                             </td>
                             <td class="py-2 pr-2"><input type="number" step="0.0001" min="0" name="ingredient_qty[]" value="{{ row.quantity or '' }}" class="w-full px-3 py-2 border border-stone-300 rounded-lg"></td>
                             <td class="py-2 pr-2"><input name="ingredient_unit[]" value="{{ row.unit or '' }}" class="w-full px-3 py-2 border border-stone-300 rounded-lg"></td>
@@ -151,15 +143,23 @@
     </form>
 </div>
 
+<datalist id="recipeComponentOptions">
+    {% for recipe in component_recipes %}
+    <option value="{{ recipe.display_label|e }}" data-id="{{ recipe.id }}" data-default-unit="{{ recipe.yield_unit or 'each' }}"></option>
+    {% endfor %}
+</datalist>
+
+<datalist id="ingredientOptions">
+    {% for ingredient in ingredients %}
+    <option value="{{ ingredient.display_label|e }}" data-id="{{ ingredient.id }}" data-default-unit="{{ ingredient.unit or '' }}"></option>
+    {% endfor %}
+</datalist>
+
 <template id="ingredientRowTemplate">
 <tr>
     <td class="py-2 pr-2">
-        <select name="ingredient_id[]" class="w-full px-3 py-2 border border-stone-300 rounded-lg">
-            <option value="">Select ingredient</option>
-            {% for ingredient in ingredients %}
-            <option value="{{ ingredient.id }}">{{ ingredient.name }}{% if ingredient.unit %} ({{ ingredient.unit }}){% endif %}</option>
-            {% endfor %}
-        </select>
+        <input type="text" name="ingredient_search[]" list="ingredientOptions" placeholder="Search ingredient..." class="w-full px-3 py-2 border border-stone-300 rounded-lg" data-role="ingredient-search">
+        <input type="hidden" name="ingredient_id[]" value="" data-role="ingredient-id">
     </td>
     <td class="py-2 pr-2"><input type="number" step="0.0001" min="0" name="ingredient_qty[]" class="w-full px-3 py-2 border border-stone-300 rounded-lg"></td>
     <td class="py-2 pr-2"><input name="ingredient_unit[]" class="w-full px-3 py-2 border border-stone-300 rounded-lg"></td>
@@ -170,12 +170,8 @@
 <template id="recipeComponentRowTemplate">
 <tr>
     <td class="py-2 pr-2">
-        <select name="component_recipe_id[]" class="w-full px-3 py-2 border border-stone-300 rounded-lg">
-            <option value="">Select recipe</option>
-            {% for recipe in component_recipes %}
-            <option value="{{ recipe.id }}">{{ recipe.name }}{% if recipe.recipe_type %} ({{ recipe.recipe_type|upper }}){% endif %}</option>
-            {% endfor %}
-        </select>
+        <input type="text" name="component_recipe_search[]" list="recipeComponentOptions" placeholder="Search recipe..." class="w-full px-3 py-2 border border-stone-300 rounded-lg" data-role="recipe-search">
+        <input type="hidden" name="component_recipe_id[]" value="" data-role="recipe-id">
     </td>
     <td class="py-2 pr-2"><input type="number" step="0.0001" min="0" name="component_qty[]" class="w-full px-3 py-2 border border-stone-300 rounded-lg"></td>
     <td class="py-2 pr-2"><input name="component_unit[]" class="w-full px-3 py-2 border border-stone-300 rounded-lg"></td>
@@ -191,6 +187,24 @@
     const recipeComponentRows = document.getElementById('recipeComponentRows');
     const addRecipeComponentBtn = document.getElementById('addRecipeComponentBtn');
     const recipeComponentTemplate = document.getElementById('recipeComponentRowTemplate');
+    const recipeLookup = new Map(
+        Array.from(document.querySelectorAll('#recipeComponentOptions option')).map((option) => [
+            (option.value || '').trim().toLowerCase(),
+            {
+                id: option.dataset.id || '',
+                defaultUnit: option.dataset.defaultUnit || ''
+            }
+        ])
+    );
+    const ingredientLookup = new Map(
+        Array.from(document.querySelectorAll('#ingredientOptions option')).map((option) => [
+            (option.value || '').trim().toLowerCase(),
+            {
+                id: option.dataset.id || '',
+                defaultUnit: option.dataset.defaultUnit || ''
+            }
+        ])
+    );
 
     function bindRemove(row) {
         const btn = row.querySelector('.removeIngredient');
@@ -198,13 +212,41 @@
         btn.addEventListener('click', () => row.remove());
     }
 
+    function bindIngredientAutocomplete(row) {
+        const searchInput = row.querySelector('[data-role="ingredient-search"]');
+        const hiddenId = row.querySelector('[data-role="ingredient-id"]');
+        const unitInput = row.querySelector('input[name="ingredient_unit[]"]');
+        if (!searchInput || !hiddenId) return;
+        const sync = () => {
+            const key = (searchInput.value || '').trim().toLowerCase();
+            const match = ingredientLookup.get(key);
+            if (match) {
+                hiddenId.value = match.id;
+                if (unitInput && !unitInput.value.trim() && match.defaultUnit) {
+                    unitInput.value = match.defaultUnit;
+                }
+            } else {
+                hiddenId.value = '';
+            }
+        };
+        searchInput.addEventListener('input', sync);
+        searchInput.addEventListener('change', sync);
+        searchInput.addEventListener('blur', sync);
+        sync();
+    }
+
     addIngredientBtn.addEventListener('click', () => {
         const clone = ingredientTemplate.content.cloneNode(true);
         ingredientRows.appendChild(clone);
-        bindRemove(ingredientRows.lastElementChild);
+        const row = ingredientRows.lastElementChild;
+        bindRemove(row);
+        bindIngredientAutocomplete(row);
     });
 
-    Array.from(ingredientRows.querySelectorAll('tr')).forEach((row) => bindRemove(row));
+    Array.from(ingredientRows.querySelectorAll('tr')).forEach((row) => {
+        bindRemove(row);
+        bindIngredientAutocomplete(row);
+    });
 
     function bindRecipeRemove(row) {
         const btn = row.querySelector('.removeRecipeComponent');
@@ -212,13 +254,41 @@
         btn.addEventListener('click', () => row.remove());
     }
 
+    function bindRecipeAutocomplete(row) {
+        const searchInput = row.querySelector('[data-role="recipe-search"]');
+        const hiddenId = row.querySelector('[data-role="recipe-id"]');
+        const unitInput = row.querySelector('input[name="component_unit[]"]');
+        if (!searchInput || !hiddenId) return;
+        const sync = () => {
+            const key = (searchInput.value || '').trim().toLowerCase();
+            const match = recipeLookup.get(key);
+            if (match) {
+                hiddenId.value = match.id;
+                if (unitInput && !unitInput.value.trim() && match.defaultUnit) {
+                    unitInput.value = match.defaultUnit;
+                }
+            } else {
+                hiddenId.value = '';
+            }
+        };
+        searchInput.addEventListener('input', sync);
+        searchInput.addEventListener('change', sync);
+        searchInput.addEventListener('blur', sync);
+        sync();
+    }
+
     addRecipeComponentBtn.addEventListener('click', () => {
         const clone = recipeComponentTemplate.content.cloneNode(true);
         recipeComponentRows.appendChild(clone);
-        bindRecipeRemove(recipeComponentRows.lastElementChild);
+        const row = recipeComponentRows.lastElementChild;
+        bindRecipeRemove(row);
+        bindRecipeAutocomplete(row);
     });
 
-    Array.from(recipeComponentRows.querySelectorAll('tr')).forEach((row) => bindRecipeRemove(row));
+    Array.from(recipeComponentRows.querySelectorAll('tr')).forEach((row) => {
+        bindRecipeRemove(row);
+        bindRecipeAutocomplete(row);
+    });
     if (!recipeComponentRows.querySelector('tr')) {
         addRecipeComponentBtn.click();
     }

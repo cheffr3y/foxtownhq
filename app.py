@@ -3194,8 +3194,24 @@ def render_banquet_menu_item_form(cur, mode='new', menu_item_id=None, form_state
         ingredient_rows = get_banquet_menu_item_ingredients(cur, menu_item_id) if menu_item_id else []
 
     component_recipes = get_component_recipes_for_venue(cur, banquet_venue_id)
+    for recipe in component_recipes:
+        recipe_type = (recipe.get('recipe_type') or '').upper()
+        recipe['display_label'] = f"{recipe.get('name')}{f' ({recipe_type})' if recipe_type else ''}"
     cur.execute("SELECT id, name, unit, category FROM ingredients ORDER BY name")
     ingredients = cur.fetchall()
+    for ingredient in ingredients:
+        unit_label = ingredient.get('unit')
+        ingredient['display_label'] = f"{ingredient.get('name')}{f' ({unit_label})' if unit_label else ''}"
+
+    recipe_label_map = {row['id']: row.get('display_label') or row.get('name') for row in component_recipes}
+    ingredient_label_map = {row['id']: row.get('display_label') or row.get('name') for row in ingredients}
+
+    for row in form_state.get('recipe_components', []):
+        if isinstance(row, dict):
+            row['display_label'] = recipe_label_map.get(row.get('recipe_id'), row.get('recipe_name') or '')
+    for row in ingredient_rows:
+        if isinstance(row, dict):
+            row['display_label'] = ingredient_label_map.get(row.get('ingredient_id'), row.get('ingredient_name') or '')
 
     return render_template(
         'banquet_menu_item_form.html',
@@ -3496,7 +3512,7 @@ def banquet_export_excel():
     wb = Workbook()
     ws_summary = wb.active
     ws_summary.title = 'Event Summary'
-    headers = ['Date', 'Event', 'Venue', 'Guests', 'Menu Item', 'Section', 'Recipe', 'Qty', 'Unit', 'Descriptor', 'Estimated Cost']
+    headers = ['Date', 'Event', 'Venue', 'Guests', 'Menu Item', 'Section', 'Recipe', 'Qty', 'Unit', 'Descriptor', 'Line Mods', 'Estimated Cost']
     ws_summary.append(headers)
     for col in ws_summary[1]:
         col.font = Font(bold=True, color='FFFFFF')
@@ -3514,6 +3530,7 @@ def banquet_export_excel():
                 line.get('quantity'),
                 line.get('quantity_unit'),
                 line.get('menu_descriptor'),
+                line.get('notes'),
                 line.get('estimated_cost_total')
             ])
 
@@ -3554,7 +3571,7 @@ def banquet_export_excel():
         ])
 
     ws_daily = wb.create_sheet('Daily Prep')
-    ws_daily.append(['Date', 'Event', 'Menu Item', 'Qty', 'Unit', 'Recipe'])
+    ws_daily.append(['Date', 'Event', 'Menu Item', 'Descriptor', 'Qty', 'Unit', 'Recipe', 'Line Mods'])
     for col in ws_daily[1]:
         col.font = Font(bold=True, color='FFFFFF')
         col.fill = PatternFill(start_color='7C3AED', end_color='7C3AED', fill_type='solid')
@@ -3565,9 +3582,11 @@ def banquet_export_excel():
                     day['date'].isoformat() if day.get('date') else '',
                     event.get('name'),
                     line.get('menu_item_name'),
+                    line.get('menu_descriptor'),
                     line.get('quantity'),
                     line.get('quantity_unit'),
-                    ', '.join(r.get('name') for r in line.get('recipes', []) if r.get('name')) or (line.get('recipe') or {}).get('name')
+                    ', '.join(r.get('name') for r in line.get('recipes', []) if r.get('name')) or (line.get('recipe') or {}).get('name'),
+                    line.get('notes')
                 ])
 
     for ws in [ws_summary, ws_shopping, ws_weekly, ws_daily]:
