@@ -45,7 +45,7 @@
             </form>
         </div>
 
-        {% if weekly_prep %}
+        {% if weekly_prep or weekly_menu_pulls %}
         <div class="space-y-5">
             {% for row in weekly_prep %}
             <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-6">
@@ -118,6 +118,45 @@
                 {% endif %}
             </div>
             {% endfor %}
+
+            {% if weekly_menu_pulls %}
+            <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-6">
+                <h2 class="text-xl font-display text-foxtown-ink mb-4">Direct Menu Pulls</h2>
+                <p class="text-sm text-stone-500 mb-4">Raw ingredients attached directly to menu items (not from a batch recipe card).</p>
+                <div class="space-y-4">
+                    {% for pull in weekly_menu_pulls %}
+                    <div class="border border-stone-200 rounded-xl p-4">
+                        <div class="flex items-center justify-between gap-2 mb-2">
+                            <div class="font-semibold text-foxtown-ink">{{ pull.menu_item_name }}</div>
+                            <div class="text-xs text-stone-500">
+                                Used in events: {{ pull.used_in_event_names|join(', ') if pull.used_in_event_names else '—' }}
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full text-sm">
+                                <thead class="text-xs uppercase text-stone-500 border-b border-stone-200">
+                                    <tr>
+                                        <th class="text-left py-2 pr-3">Ingredient</th>
+                                        <th class="text-left py-2 pr-3">Qty</th>
+                                        <th class="text-left py-2">Unit</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-stone-100">
+                                    {% for ing in pull.ingredient_rows %}
+                                    <tr>
+                                        <td class="py-2 pr-3 font-medium text-foxtown-ink">{{ ing.name }}</td>
+                                        <td class="py-2 pr-3">{{ ing.display_quantity }}</td>
+                                        <td class="py-2">{{ ing.display_unit }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
         </div>
         {% else %}
         <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-6 text-sm text-stone-500">No scaled prep recipes found in this date window.</div>

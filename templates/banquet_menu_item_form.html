@@ -105,8 +105,8 @@
                             </td>
                             <td class="py-2 pr-2"><input type="number" step="0.0001" min="0" name="component_qty[]" value="{{ row.quantity or '' }}" class="w-full px-3 py-2 border border-stone-300 rounded-lg"></td>
                             <td class="py-2 pr-2"><input name="component_unit[]" value="{{ row.unit or '' }}" class="w-full px-3 py-2 border border-stone-300 rounded-lg"></td>
-                            <td class="py-2 pr-2"><input name="component_choice_group[]" value="{{ row.choice_group or '' }}" class="w-full px-3 py-2 border border-stone-300 rounded-lg" placeholder="Wing Sauce Choice" title="Same group name = choose one from this set."></td>
-                            <td class="py-2 pr-2"><input type="number" step="0.01" min="0" max="100" name="component_choice_weight[]" value="{{ row.choice_weight_percent if row.choice_weight_percent is not none else '' }}" class="w-full px-3 py-2 border border-stone-300 rounded-lg" placeholder="33.33" title="Percent share inside this choice group. Blank values auto-split."></td>
+                            <td class="py-2 pr-2"><input name="component_choice_group[]" value="{{ row.choice_group or '' }}" autocomplete="off" class="w-full px-3 py-2 border border-stone-300 rounded-lg" placeholder="Wing Sauce Choice" title="Same group name = choose one from this set."></td>
+                            <td class="py-2 pr-2"><input type="number" step="0.01" min="0" max="100" name="component_choice_weight[]" value="{{ row.choice_weight_percent if row.choice_weight_percent is not none else '' }}" autocomplete="off" class="w-full px-3 py-2 border border-stone-300 rounded-lg" placeholder="33.33" title="Percent share inside this choice group. Blank values auto-split."></td>
                             <td class="py-2 pr-2"><button type="button" class="removeRecipeComponent text-red-600 hover:text-red-800 font-semibold">Remove</button></td>
                         </tr>
                         {% endfor %}
@@ -190,8 +190,8 @@
     </td>
     <td class="py-2 pr-2"><input type="number" step="0.0001" min="0" name="component_qty[]" class="w-full px-3 py-2 border border-stone-300 rounded-lg"></td>
     <td class="py-2 pr-2"><input name="component_unit[]" class="w-full px-3 py-2 border border-stone-300 rounded-lg"></td>
-    <td class="py-2 pr-2"><input name="component_choice_group[]" class="w-full px-3 py-2 border border-stone-300 rounded-lg" placeholder="Choice group" title="Same group name = choose one from this set."></td>
-    <td class="py-2 pr-2"><input type="number" step="0.01" min="0" max="100" name="component_choice_weight[]" class="w-full px-3 py-2 border border-stone-300 rounded-lg" placeholder="%" title="Percent share inside this choice group. Blank values auto-split."></td>
+    <td class="py-2 pr-2"><input name="component_choice_group[]" autocomplete="off" class="w-full px-3 py-2 border border-stone-300 rounded-lg" placeholder="Choice group" title="Same group name = choose one from this set."></td>
+    <td class="py-2 pr-2"><input type="number" step="0.01" min="0" max="100" name="component_choice_weight[]" autocomplete="off" class="w-full px-3 py-2 border border-stone-300 rounded-lg" placeholder="%" title="Percent share inside this choice group. Blank values auto-split."></td>
     <td class="py-2 pr-2"><button type="button" class="removeRecipeComponent text-red-600 hover:text-red-800 font-semibold">Remove</button></td>
 </tr>
 </template>

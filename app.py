@@ -1829,6 +1829,7 @@ def clone_banquet_menu_item(cur, source_menu_item_id, venue_id, clone_label='Cus
     }
 
 def parse_event_recipe_lines(request):
+    line_ids = request.form.getlist('line_id[]')
     menu_item_ids = request.form.getlist('line_menu_item_id[]')
     recipe_ids = request.form.getlist('line_recipe_id[]')
     names = request.form.getlist('line_menu_item_name[]')
@@ -1839,12 +1840,13 @@ def parse_event_recipe_lines(request):
     notes = request.form.getlist('line_notes[]')
 
     max_len = max(
-        len(menu_item_ids), len(recipe_ids), len(names), len(descriptors), len(sections),
+        len(line_ids), len(menu_item_ids), len(recipe_ids), len(names), len(descriptors), len(sections),
         len(quantities), len(quantity_units), len(notes), 0
     )
     rows = []
     errors = []
     for idx in range(max_len):
+        line_id = (line_ids[idx] if idx < len(line_ids) else '').strip()
         menu_item_id = (menu_item_ids[idx] if idx < len(menu_item_ids) else '').strip()
         recipe_id = (recipe_ids[idx] if idx < len(recipe_ids) else '').strip()
         menu_name = clean_menu_text(names[idx] if idx < len(names) else '')
@@ -1860,6 +1862,7 @@ def parse_event_recipe_lines(request):
         if not menu_name and not menu_item_id:
             errors.append('Each banquet line needs a menu item name.')
         rows.append({
+            'line_id': line_id or None,
             'menu_item_id': menu_item_id or None,
             'recipe_id': recipe_id or None,
             'menu_item_name': menu_name,
@@ -2261,6 +2264,7 @@ def build_banquet_datasets(cur, start_date, end_date, venue_id='', unit_system='
     batch_usage_events = defaultdict(set)
     batch_usage_menu_items = defaultdict(set)
     event_daily_ingredients = defaultdict(lambda: defaultdict(float))
+    menu_item_direct_pull_totals = {}
 
     menu_item_ids = list({row.get('menu_item_id') for row in rows if row.get('menu_item_id')})
     additional_ingredients = collect_banquet_additional_ingredients(cur, menu_item_ids)
@@ -2424,6 +2428,29 @@ def build_banquet_datasets(cur, start_date, end_date, venue_id='', unit_system='
                 'unit': unit,
                 'ext_cost': ext_cost
             })
+            pull_group_key = (
+                row.get('menu_item_id') or line.get('menu_item_name') or 'menu_item',
+                line.get('menu_item_name') or 'Menu Item'
+            )
+            if pull_group_key not in menu_item_direct_pull_totals:
+                menu_item_direct_pull_totals[pull_group_key] = {
+                    'menu_item_name': line.get('menu_item_name') or 'Menu Item',
+                    'ingredient_totals': {},
+                    'event_ids': set()
+                }
+            pull_group = menu_item_direct_pull_totals[pull_group_key]
+            pull_group['event_ids'].add(event_id)
+            ingredient_key = (ingredient_id, unit, extra.get('ingredient_name') or 'Unknown')
+            ingredient_row = pull_group['ingredient_totals'].get(ingredient_key)
+            if not ingredient_row:
+                ingredient_row = {
+                    'ingredient_id': ingredient_id,
+                    'name': extra.get('ingredient_name') or 'Unknown',
+                    'quantity': 0,
+                    'unit': unit
+                }
+                pull_group['ingredient_totals'][ingredient_key] = ingredient_row
+            ingredient_row['quantity'] = to_float(ingredient_row.get('quantity')) + extra_qty
 
         line['estimated_cost_total'] = line_cost_total
         line['estimated_cost_per_unit'] = line_cost_total / line['quantity'] if line['quantity'] > 0 else None
@@ -2564,6 +2591,27 @@ def build_banquet_datasets(cur, start_date, end_date, venue_id='', unit_system='
             })
     weekly_prep.sort(key=lambda item: (item.get('recipe_name') or '').lower())
 
+    weekly_menu_pulls = []
+    for group in menu_item_direct_pull_totals.values():
+        ingredient_rows = []
+        for row in group['ingredient_totals'].values():
+            display = smart_quantity(row.get('quantity'), row.get('unit'), unit_system)
+            ingredient_rows.append({
+                'ingredient_id': row.get('ingredient_id'),
+                'name': row.get('name'),
+                'quantity': row.get('quantity'),
+                'unit': row.get('unit'),
+                'display_quantity': display.get('quantity'),
+                'display_unit': display.get('unit')
+            })
+        ingredient_rows.sort(key=lambda item: (item.get('name') or '').lower())
+        weekly_menu_pulls.append({
+            'menu_item_name': group.get('menu_item_name') or 'Menu Item',
+            'ingredient_rows': ingredient_rows,
+            'used_in_events': sorted(group.get('event_ids') or set())
+        })
+    weekly_menu_pulls.sort(key=lambda item: (item.get('menu_item_name') or '').lower())
+
     daily_groups = []
     by_day = defaultdict(list)
     for event in events:
@@ -2595,6 +2643,7 @@ def build_banquet_datasets(cur, start_date, end_date, venue_id='', unit_system='
         'shopping_ingredients': ingredient_master,
         'shopping_total_cost': ingredient_total_cost,
         'weekly_prep': weekly_prep,
+        'weekly_menu_pulls': weekly_menu_pulls,
         'event_count': len(events),
         'menu_line_count': total_menu_lines,
         'total_estimated_cost': total_estimated_cost
@@ -3250,13 +3299,33 @@ def banquet_event_edit(event_id):
                     event_id
                 ))
 
+                cur.execute("""
+                    SELECT id,
+                           menu_item_id,
+                           recipe_id,
+                           menu_item_name,
+                           menu_section,
+                           menu_descriptor
+                    FROM banquet_event_menu_items
+                    WHERE event_id = %s
+                """, (event_id,))
+                existing_line_map = {str(row.get('id')): row for row in cur.fetchall() if row.get('id') is not None}
                 cur.execute("DELETE FROM banquet_event_menu_items WHERE event_id = %s", (event_id,))
                 for idx, line in enumerate(lines):
+                    line_id = str(line.get('line_id') or '').strip()
                     menu_item_id = line.get('menu_item_id')
                     line_name = line.get('menu_item_name') or ''
                     line_section = line.get('menu_section')
                     line_descriptor = line.get('menu_descriptor')
                     recipe_id = line.get('recipe_id')
+                    if not menu_item_id and line_id and line_id in existing_line_map:
+                        previous = existing_line_map[line_id]
+                        menu_item_id = previous.get('menu_item_id')
+                        if not recipe_id:
+                            recipe_id = previous.get('recipe_id')
+                        line_name = line_name or previous.get('menu_item_name') or ''
+                        line_section = line_section or previous.get('menu_section')
+                        line_descriptor = line_descriptor or previous.get('menu_descriptor')
 
                     if menu_item_id:
                         cur.execute("""
@@ -4279,6 +4348,8 @@ def banquet_prep_weekly():
     event_names = {event['id']: event['name'] for event in datasets['events']}
     for row in datasets['weekly_prep']:
         row['used_in_event_names'] = [event_names[event_id] for event_id in row['used_in_events'] if event_id in event_names]
+    for row in datasets.get('weekly_menu_pulls', []):
+        row['used_in_event_names'] = [event_names[event_id] for event_id in row.get('used_in_events', []) if event_id in event_names]
     cur.close()
     return render_template(
         'banquet_prep_weekly.html',
@@ -4286,7 +4357,8 @@ def banquet_prep_weekly():
         selected_venue=selected_venue,
         start_date=start_date.isoformat(),
         end_date=end_date.isoformat(),
-        weekly_prep=datasets['weekly_prep']
+        weekly_prep=datasets['weekly_prep'],
+        weekly_menu_pulls=datasets.get('weekly_menu_pulls', [])
     )
 
 @app.route('/banquet-planner/prep-daily')

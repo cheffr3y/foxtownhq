@@ -120,6 +120,7 @@
                         {% for line in lines %}
                         <tr>
                             <td class="py-2 pr-2 w-[220px] min-w-[220px] sticky-col-1">
+                                <input type="hidden" name="line_id[]" value="{{ line.line_id or line.id or '' }}">
                                 <select name="line_menu_item_id[]" data-role="menu-item-select" class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm">
                                     <option value="">Select menu item</option>
                                     {% for item in menu_items %}
@@ -198,6 +199,7 @@
 <template id="lineRowTemplate">
 <tr data-line-id="">
     <td class="py-2 pr-2 w-[220px] min-w-[220px] sticky-col-1">
+        <input type="hidden" name="line_id[]" value="">
         <select name="line_menu_item_id[]" data-role="menu-item-select" class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm">
             <option value="">Select menu item</option>
             {% for item in menu_items %}
