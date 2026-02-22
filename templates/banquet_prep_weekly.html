@@ -51,7 +51,14 @@
             <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-6">
                 <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3 mb-4">
                     <div>
-                        <h2 class="text-xl font-display text-foxtown-ink">{{ row.recipe_name }}</h2>
+                        <div class="flex items-center gap-2">
+                            <h2 class="text-xl font-display text-foxtown-ink">{{ row.recipe_name }}</h2>
+                            {% if row.recipe_type == 'batch' %}
+                            <span class="inline-block px-2 py-0.5 text-xs font-semibold rounded bg-slate-200 text-slate-700">RB Batch</span>
+                            {% elif row.recipe_type == 'menu' %}
+                            <span class="inline-block px-2 py-0.5 text-xs font-semibold rounded bg-foxtown-ember text-white">RM Plated</span>
+                            {% endif %}
+                        </div>
                         <div class="text-sm text-stone-600 mt-1">Output needed: {{ row.display_required.quantity }} {{ row.display_required.unit }} · Batches: {{ "%.2f"|format(row.required_batches or 0) }}</div>
                     </div>
                     <div class="text-right text-sm">
@@ -95,7 +102,7 @@
             {% endfor %}
         </div>
         {% else %}
-        <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-6 text-sm text-stone-500">No batch prep required in this window.</div>
+        <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-6 text-sm text-stone-500">No scaled prep recipes found in this date window.</div>
         {% endif %}
     </div>
 </div>

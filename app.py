@@ -1816,13 +1816,12 @@ def collect_batch_recipe_usage_from_components(
 
         if item.get('type') == 'recipe' and item.get('sub_recipe'):
             sub_recipe = item.get('sub_recipe') or {}
-            if sub_recipe.get('recipe_type') == 'batch':
-                key = (sub_recipe.get('id'), item.get('unit') or sub_recipe.get('yield_unit') or '')
-                usage_map[key] = usage_map.get(key, 0) + (to_float(item.get('scaled_quantity')) * current_multiplier)
-                if event_usage_map is not None and event_id:
-                    event_usage_map[sub_recipe.get('id')].add(event_id)
-                if menu_item_usage_map is not None and menu_item_name:
-                    menu_item_usage_map[sub_recipe.get('id')].add(menu_item_name)
+            key = (sub_recipe.get('id'), item.get('unit') or sub_recipe.get('yield_unit') or '')
+            usage_map[key] = usage_map.get(key, 0) + (to_float(item.get('scaled_quantity')) * current_multiplier)
+            if event_usage_map is not None and event_id:
+                event_usage_map[sub_recipe.get('id')].add(event_id)
+            if menu_item_usage_map is not None and menu_item_name:
+                menu_item_usage_map[sub_recipe.get('id')].add(menu_item_name)
 
         if item.get('children'):
             collect_batch_recipe_usage_from_components(
@@ -2001,6 +2000,16 @@ def build_banquet_datasets(cur, start_date, end_date, venue_id='', unit_system='
             total_ratio = ratio_per_menu_unit * line_multiplier
             line_cost_total += get_recipe_total_cost(cur, line_recipe['id'], unit_system, apply_q_factor=True) * total_ratio
 
+            recipe_yield_qty = to_float(line_recipe.get('yield_qty'))
+            required_output_qty = (recipe_yield_qty * total_ratio) if recipe_yield_qty > 0 else total_ratio
+            required_output_unit = line_recipe.get('yield_unit') or line_recipe.get('unit') or ''
+            root_key = (line_recipe.get('id'), required_output_unit)
+            batch_usage_qty[root_key] = batch_usage_qty.get(root_key, 0) + required_output_qty
+            if event_id:
+                batch_usage_events[line_recipe.get('id')].add(event_id)
+            if line.get('menu_item_name'):
+                batch_usage_menu_items[line_recipe.get('id')].add(line['menu_item_name'])
+
             components, _, _ = build_component_tree(cur, line_recipe['id'], total_ratio, 0, set(), unit_system, apply_q_factor=False)
             if components:
                 line['components'].extend(components)
@@ -2099,7 +2108,7 @@ def build_banquet_datasets(cur, start_date, end_date, venue_id='', unit_system='
         recipe_map = {}
         if batch_ids:
             cur.execute("""
-                SELECT id, name, category, yield_qty, yield_unit, instructions
+                SELECT id, name, category, yield_qty, yield_unit, instructions, recipe_type
                 FROM recipes
                 WHERE id = ANY(%s)
             """, (batch_ids,))
@@ -2138,6 +2147,7 @@ def build_banquet_datasets(cur, start_date, end_date, venue_id='', unit_system='
                 'recipe_id': recipe_id,
                 'recipe_name': recipe.get('name'),
                 'category': recipe.get('category'),
+                'recipe_type': normalize_recipe_type(recipe.get('recipe_type')),
                 'required_batches': required_batches,
                 'required_qty': required_qty_in_yield,
                 'required_unit': yield_unit or qty_unit,
@@ -3554,7 +3564,7 @@ def banquet_export_excel():
         ])
 
     ws_weekly = wb.create_sheet('Weekly Prep')
-    ws_weekly.append(['Batch Recipe', 'Required Output', 'Yield', 'Required Batches', 'Estimated Cost', 'Used In Events', 'Used In Menu Items'])
+    ws_weekly.append(['Prep Recipe', 'Type', 'Required Output', 'Yield', 'Required Batches', 'Estimated Cost', 'Used In Events', 'Used In Menu Items'])
     for col in ws_weekly[1]:
         col.font = Font(bold=True, color='FFFFFF')
         col.fill = PatternFill(start_color='0F766E', end_color='0F766E', fill_type='solid')
@@ -3562,6 +3572,7 @@ def banquet_export_excel():
     for row in datasets['weekly_prep']:
         ws_weekly.append([
             row.get('recipe_name'),
+            (row.get('recipe_type') or 'other'),
             f"{row['display_required']['quantity']} {row['display_required']['unit']}",
             f"{format_number(row.get('yield_qty'))} {row.get('yield_unit') or ''}",
             round(row.get('required_batches') or 0, 4),
