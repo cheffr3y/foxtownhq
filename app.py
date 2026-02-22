@@ -886,7 +886,7 @@ def flatten_components_for_pdf(items, level=0):
             rows.extend(flatten_components_for_pdf(item.get('children'), level + 1))
     return rows
 
-def flatten_components_for_packet(items, ingredient_map, level=0):
+def flatten_components_for_packet(items, ingredient_map, level=0, explode_subrecipes=True):
     rows = []
     for item in items:
         item_type = item.get('type') or 'component'
@@ -920,8 +920,18 @@ def flatten_components_for_packet(items, ingredient_map, level=0):
             'category': category,
             'notes': item.get('scale_note') or ''
         })
-        if item.get('children'):
-            rows.extend(flatten_components_for_packet(item['children'], ingredient_map, level + 1))
+        has_children = bool(item.get('children'))
+        if has_children and not explode_subrecipes and item_type == 'recipe':
+            has_children = False
+        if has_children:
+            rows.extend(
+                flatten_components_for_packet(
+                    item['children'],
+                    ingredient_map,
+                    level + 1,
+                    explode_subrecipes=explode_subrecipes
+                )
+            )
     return rows
 
 def collect_ingredient_usage_from_components(components, menu_label, usage_map):
@@ -5364,7 +5374,7 @@ def menu_rollout_packet_export(rollout_id):
     style_headers(ws_rm)
     for rm in rm_component_sets:
         ws_rm.append([rm['menu_item'], rm['recipe_name'], "RM", rm['recipe_name'], '', '', round(to_float(rm['total_cost']), 4), '', '', '', 'Total plated cost'])
-        for row in flatten_components_for_packet(rm['components'], ingredient_map):
+        for row in flatten_components_for_packet(rm['components'], ingredient_map, explode_subrecipes=False):
             ws_rm.append([
                 rm['menu_item'],
                 rm['recipe_name'],
@@ -5545,7 +5555,7 @@ def menu_rollout_packet_print(rollout_id):
             'menu_item': menu_descriptor,
             'recipe_name': item['recipe']['name'],
             'total_cost': total_cost,
-            'rows': flatten_components_for_packet(components, ingredient_map)
+            'rows': flatten_components_for_packet(components, ingredient_map, explode_subrecipes=False)
         })
         collect_subrecipes_from_components(components, subrecipe_ids)
         collect_ingredient_usage_from_components(components, usage_label, ingredient_usage)
