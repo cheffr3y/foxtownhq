@@ -1250,6 +1250,27 @@ def banquet_tables_ready(cur):
     )
     return all(db_table_exists(cur, table_name) for table_name in required)
 
+def banquet_shopping_checks_ready(cur):
+    return db_table_exists(cur, 'public.banquet_shopping_checks')
+
+def load_banquet_shopping_checklist(cur, venue_id, start_date, end_date):
+    if not banquet_shopping_checks_ready(cur):
+        return {}
+    cur.execute("""
+        SELECT item_key, checked, note
+        FROM banquet_shopping_checks
+        WHERE venue_id = %s
+          AND start_date = %s
+          AND end_date = %s
+    """, (venue_id, start_date, end_date))
+    return {
+        row['item_key']: {
+            'checked': bool(row.get('checked')),
+            'note': row.get('note') or ''
+        }
+        for row in cur.fetchall()
+    }
+
 def list_banquet_menu_items(cur, venue_id=''):
     if not banquet_tables_ready(cur):
         return []
@@ -3871,6 +3892,7 @@ def banquet_shopping():
     selected_venue = banquet_venue.get('id') or ''
     start_date, end_date = get_banquet_date_window(request.args.get('start_date'), request.args.get('end_date'))
     datasets = build_banquet_datasets(cur, start_date, end_date, selected_venue, get_unit_system())
+    checklist_state = load_banquet_shopping_checklist(cur, selected_venue, start_date, end_date)
     grouped = defaultdict(lambda: defaultdict(list))
     for row in datasets['shopping_ingredients']:
         vendor = row.get('vendor') or 'Unassigned Vendor'
@@ -3884,9 +3906,101 @@ def banquet_shopping():
         start_date=start_date.isoformat(),
         end_date=end_date.isoformat(),
         grouped=grouped,
+        checklist_state=checklist_state,
         ingredient_total=len(datasets['shopping_ingredients']),
         total_cost=datasets['shopping_total_cost']
     )
+
+@app.route('/banquet-planner/shopping/checklist', methods=['POST'])
+@login_required
+def banquet_shopping_checklist_upsert():
+    payload = request.get_json(silent=True) or {}
+    venue_id = (payload.get('venue_id') or BANQUET_VENUE_ID).strip() or BANQUET_VENUE_ID
+    item_key = clean_menu_text(payload.get('item_key'))
+    if not item_key:
+        return jsonify({'ok': False, 'error': 'Missing item key'}), 400
+
+    try:
+        start_date = datetime.strptime((payload.get('start_date') or '').strip(), '%Y-%m-%d').date()
+        end_date = datetime.strptime((payload.get('end_date') or '').strip(), '%Y-%m-%d').date()
+    except (ValueError, AttributeError):
+        return jsonify({'ok': False, 'error': 'Invalid date window'}), 400
+
+    checked = bool(payload.get('checked'))
+    note = clean_menu_text(payload.get('note'))
+    ingredient_id = clean_menu_text(payload.get('ingredient_id')) or None
+    unit = clean_menu_text(payload.get('unit')) or None
+    vendor = clean_menu_text(payload.get('vendor')) or None
+
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    if not banquet_shopping_checks_ready(cur):
+        cur.close()
+        return jsonify({'ok': False, 'error': 'Checklist table missing. Run migrations.'}), 503
+
+    try:
+        if not checked and not note:
+            cur.execute("""
+                DELETE FROM banquet_shopping_checks
+                WHERE venue_id = %s
+                  AND start_date = %s
+                  AND end_date = %s
+                  AND item_key = %s
+            """, (venue_id, start_date, end_date, item_key))
+        else:
+            cur.execute("""
+                INSERT INTO banquet_shopping_checks (
+                    venue_id, start_date, end_date, item_key,
+                    ingredient_id, unit, vendor, checked, note, updated_at
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                ON CONFLICT (venue_id, start_date, end_date, item_key)
+                DO UPDATE SET
+                    ingredient_id = EXCLUDED.ingredient_id,
+                    unit = EXCLUDED.unit,
+                    vendor = EXCLUDED.vendor,
+                    checked = EXCLUDED.checked,
+                    note = EXCLUDED.note,
+                    updated_at = NOW()
+            """, (venue_id, start_date, end_date, item_key, ingredient_id, unit, vendor, checked, note))
+        conn.commit()
+        cur.close()
+        return jsonify({'ok': True})
+    except Exception:
+        conn.rollback()
+        cur.close()
+        return jsonify({'ok': False, 'error': 'Failed to save checklist row'}), 500
+
+@app.route('/banquet-planner/shopping/checklist/reset', methods=['POST'])
+@login_required
+def banquet_shopping_checklist_reset():
+    payload = request.get_json(silent=True) or {}
+    venue_id = (payload.get('venue_id') or BANQUET_VENUE_ID).strip() or BANQUET_VENUE_ID
+    try:
+        start_date = datetime.strptime((payload.get('start_date') or '').strip(), '%Y-%m-%d').date()
+        end_date = datetime.strptime((payload.get('end_date') or '').strip(), '%Y-%m-%d').date()
+    except (ValueError, AttributeError):
+        return jsonify({'ok': False, 'error': 'Invalid date window'}), 400
+
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    if not banquet_shopping_checks_ready(cur):
+        cur.close()
+        return jsonify({'ok': False, 'error': 'Checklist table missing. Run migrations.'}), 503
+
+    try:
+        cur.execute("""
+            DELETE FROM banquet_shopping_checks
+            WHERE venue_id = %s
+              AND start_date = %s
+              AND end_date = %s
+        """, (venue_id, start_date, end_date))
+        conn.commit()
+        cur.close()
+        return jsonify({'ok': True})
+    except Exception:
+        conn.rollback()
+        cur.close()
+        return jsonify({'ok': False, 'error': 'Failed to reset checklist'}), 500
 
 @app.route('/banquet-planner/prep-weekly')
 @login_required

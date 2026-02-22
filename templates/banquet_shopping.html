@@ -23,7 +23,7 @@
         </div>
     </nav>
 
-    <div id="shoppingChecklistRoot" data-checklist-scope="{{ selected_venue }}|{{ start_date }}|{{ end_date }}" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <div id="shoppingChecklistRoot" data-venue-id="{{ selected_venue }}" data-start-date="{{ start_date }}" data-end-date="{{ end_date }}" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-5">
             <form method="GET" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                 <div>
@@ -72,9 +72,10 @@
                         <tbody class="divide-y divide-stone-100">
                             {% for item in items %}
                             {% set shopping_key = (item.id or item.name) ~ '|' ~ (item.unit or '') ~ '|' ~ (item.vendor or '') %}
-                            <tr data-shopping-key="{{ shopping_key|e }}">
+                            {% set saved = checklist_state.get(shopping_key, {}) %}
+                            <tr data-shopping-key="{{ shopping_key|e }}" data-ingredient-id="{{ item.id or '' }}" data-unit="{{ item.unit or '' }}" data-vendor="{{ item.vendor or '' }}">
                                 <td class="py-2 pr-3">
-                                    <input type="checkbox" class="shopping-check w-4 h-4 accent-orange-600">
+                                    <input type="checkbox" class="shopping-check w-4 h-4 accent-orange-600" {% if saved.get('checked') %}checked{% endif %}>
                                 </td>
                                 <td class="py-2 pr-3 font-medium text-foxtown-ink shopping-name">{{ item.name }}</td>
                                 <td class="py-2 pr-3">{{ item.display_quantity }}</td>
@@ -84,7 +85,7 @@
                                 <td class="py-2 pr-3">{{ item.vendor_code or '—' }}</td>
                                 <td class="py-2">{{ item.g_code or '—' }}</td>
                                 <td class="py-2">
-                                    <input type="text" class="shopping-note w-full min-w-[180px] px-2 py-1 border border-stone-300 rounded-lg text-xs" placeholder="Need more? vendor alt?">
+                                    <input type="text" class="shopping-note w-full min-w-[180px] px-2 py-1 border border-stone-300 rounded-lg text-xs" placeholder="Need more? vendor alt?" value="{{ saved.get('note', '')|e }}">
                                 </td>
                             </tr>
                             {% endfor %}
@@ -105,18 +106,32 @@
 (function () {
     const root = document.getElementById('shoppingChecklistRoot');
     if (!root) return;
+    const venueId = root.dataset.venueId || '';
+    const startDate = root.dataset.startDate || '';
+    const endDate = root.dataset.endDate || '';
+    const saveUrl = "{{ url_for('banquet_shopping_checklist_upsert') }}";
+    const resetUrl = "{{ url_for('banquet_shopping_checklist_reset') }}";
+    const saveTimers = new Map();
 
-    const scope = root.dataset.checklistScope || 'default';
-    const storageKey = `banquet-shopping-checklist:${scope}`;
-    let state = {};
-    try {
-        state = JSON.parse(localStorage.getItem(storageKey) || '{}');
-    } catch (e) {
-        state = {};
-    }
-
-    function persist() {
-        localStorage.setItem(storageKey, JSON.stringify(state));
+    function sendRowState(row, checked, note) {
+        const payload = {
+            venue_id: venueId,
+            start_date: startDate,
+            end_date: endDate,
+            item_key: row.dataset.shoppingKey || '',
+            ingredient_id: row.dataset.ingredientId || '',
+            unit: row.dataset.unit || '',
+            vendor: row.dataset.vendor || '',
+            checked: !!checked,
+            note: note || ''
+        };
+        fetch(saveUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        }).catch(() => {
+            // Keep UI responsive; user can retry by changing checkbox/note again.
+        });
     }
 
     function applyRowVisual(row, checked) {
@@ -130,25 +145,22 @@
         const key = row.dataset.shoppingKey;
         const checkbox = row.querySelector('.shopping-check');
         const noteInput = row.querySelector('.shopping-note');
-        const saved = state[key] || {};
-
-        checkbox.checked = !!saved.checked;
-        noteInput.value = saved.note || '';
         applyRowVisual(row, checkbox.checked);
 
         checkbox.addEventListener('change', () => {
-            state[key] = state[key] || {};
-            state[key].checked = checkbox.checked;
-            state[key].note = noteInput.value || '';
-            persist();
             applyRowVisual(row, checkbox.checked);
+            sendRowState(row, checkbox.checked, noteInput.value || '');
         });
 
         noteInput.addEventListener('input', () => {
-            state[key] = state[key] || {};
-            state[key].checked = checkbox.checked;
-            state[key].note = noteInput.value || '';
-            persist();
+            if (saveTimers.has(key)) {
+                clearTimeout(saveTimers.get(key));
+            }
+            const timer = setTimeout(() => {
+                sendRowState(row, checkbox.checked, noteInput.value || '');
+                saveTimers.delete(key);
+            }, 350);
+            saveTimers.set(key, timer);
         });
     });
 
@@ -156,8 +168,16 @@
     if (resetBtn) {
         resetBtn.addEventListener('click', () => {
             if (!confirm('Clear all checkboxes and notes for this date range?')) return;
-            localStorage.removeItem(storageKey);
-            window.location.reload();
+            fetch(resetUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    venue_id: venueId,
+                    start_date: startDate,
+                    end_date: endDate
+                })
+            }).then(() => window.location.reload())
+              .catch(() => alert('Could not reset checklist right now. Please try again.'));
         });
     }
 })();

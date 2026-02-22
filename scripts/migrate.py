@@ -154,6 +154,23 @@ MIGRATIONS = [
     "CREATE INDEX IF NOT EXISTS idx_banquet_event_menu_items_menu_item_id ON banquet_event_menu_items (menu_item_id)",
     "ALTER TABLE banquet_menu_item_recipes ADD COLUMN IF NOT EXISTS choice_group TEXT",
     "ALTER TABLE banquet_menu_item_recipes ADD COLUMN IF NOT EXISTS choice_weight_percent NUMERIC",
+    """
+    CREATE TABLE IF NOT EXISTS banquet_shopping_checks (
+        id BIGSERIAL PRIMARY KEY,
+        venue_id TEXT NOT NULL,
+        start_date DATE NOT NULL,
+        end_date DATE NOT NULL,
+        item_key TEXT NOT NULL,
+        ingredient_id TEXT,
+        unit TEXT,
+        vendor TEXT,
+        checked BOOLEAN NOT NULL DEFAULT FALSE,
+        note TEXT,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE (venue_id, start_date, end_date, item_key)
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_banquet_shopping_checks_scope ON banquet_shopping_checks (venue_id, start_date, end_date)",
     "ALTER TABLE banquet_events ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'planning'",
     "ALTER TABLE banquet_menu_items ADD COLUMN IF NOT EXISTS venue_id TEXT",
     "ALTER TABLE banquet_menu_items ADD COLUMN IF NOT EXISTS menu_section TEXT",
