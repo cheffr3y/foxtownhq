@@ -4139,9 +4139,27 @@ def banquet_shopping():
         total_cost=datasets['shopping_total_cost']
     )
 
-@app.route('/banquet-planner/shopping/checklist', methods=['POST'])
+@app.route('/banquet-planner/shopping/checklist', methods=['GET', 'POST'])
 @login_required
 def banquet_shopping_checklist_upsert():
+    if request.method == 'GET':
+        venue_id = (request.args.get('venue_id') or BANQUET_VENUE_ID).strip() or BANQUET_VENUE_ID
+        try:
+            start_date = datetime.strptime((request.args.get('start_date') or '').strip(), '%Y-%m-%d').date()
+            end_date = datetime.strptime((request.args.get('end_date') or '').strip(), '%Y-%m-%d').date()
+        except (ValueError, AttributeError):
+            return jsonify({'ok': False, 'error': 'Invalid date window'}), 400
+
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        if not banquet_shopping_checks_ready(cur):
+            cur.close()
+            return jsonify({'ok': False, 'error': 'Checklist table missing. Run migrations.'}), 503
+
+        state = load_banquet_shopping_checklist(cur, venue_id, start_date, end_date)
+        cur.close()
+        return jsonify({'ok': True, 'state': state})
+
     payload = request.get_json(silent=True) or {}
     venue_id = (payload.get('venue_id') or BANQUET_VENUE_ID).strip() or BANQUET_VENUE_ID
     item_key = clean_menu_text(payload.get('item_key'))

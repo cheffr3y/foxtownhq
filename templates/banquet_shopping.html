@@ -46,6 +46,7 @@
                 </div>
             </form>
         </div>
+        <div class="text-xs text-stone-500" id="checklistSyncStatus">Checklist sync ready.</div>
 
         {% if grouped %}
         {% for vendor, categories in grouped|dictsort %}
@@ -112,26 +113,15 @@
     const saveUrl = "{{ url_for('banquet_shopping_checklist_upsert') }}";
     const resetUrl = "{{ url_for('banquet_shopping_checklist_reset') }}";
     const saveTimers = new Map();
+    const dirtyKeys = new Set();
+    const rowByKey = new Map();
+    const syncStatus = document.getElementById('checklistSyncStatus');
 
-    function sendRowState(row, checked, note) {
-        const payload = {
-            venue_id: venueId,
-            start_date: startDate,
-            end_date: endDate,
-            item_key: row.dataset.shoppingKey || '',
-            ingredient_id: row.dataset.ingredientId || '',
-            unit: row.dataset.unit || '',
-            vendor: row.dataset.vendor || '',
-            checked: !!checked,
-            note: note || ''
-        };
-        fetch(saveUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        }).catch(() => {
-            // Keep UI responsive; user can retry by changing checkbox/note again.
-        });
+    function setSyncStatus(message, isError) {
+        if (!syncStatus) return;
+        syncStatus.textContent = message;
+        syncStatus.classList.toggle('text-red-600', !!isError);
+        syncStatus.classList.toggle('text-stone-500', !isError);
     }
 
     function applyRowVisual(row, checked) {
@@ -141,10 +131,93 @@
         nameCell.classList.toggle('line-through', checked);
     }
 
+    async function sendRowState(row, checked, note, attempt = 0) {
+        const key = row.dataset.shoppingKey || '';
+        if (!key) return;
+        dirtyKeys.add(key);
+        setSyncStatus('Saving checklist changes...', false);
+        const payload = {
+            venue_id: venueId,
+            start_date: startDate,
+            end_date: endDate,
+            item_key: key,
+            ingredient_id: row.dataset.ingredientId || '',
+            unit: row.dataset.unit || '',
+            vendor: row.dataset.vendor || '',
+            checked: !!checked,
+            note: note || ''
+        };
+        try {
+            const response = await fetch(saveUrl, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            const data = await response.json();
+            if (!data || !data.ok) {
+                throw new Error((data && data.error) || 'Unknown save error');
+            }
+            dirtyKeys.delete(key);
+            setSyncStatus('Checklist synced.', false);
+        } catch (error) {
+            if (attempt < 2) {
+                setTimeout(() => sendRowState(row, checked, note, attempt + 1), 700 * (attempt + 1));
+                return;
+            }
+            dirtyKeys.delete(key);
+            setSyncStatus('Checklist save failed. Retry by toggling again.', true);
+        }
+    }
+
+    async function pullChecklistState() {
+        const query = new URLSearchParams({
+            venue_id: venueId,
+            start_date: startDate,
+            end_date: endDate
+        });
+        try {
+            const response = await fetch(`${saveUrl}?${query.toString()}`, {
+                credentials: 'same-origin'
+            });
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            const payload = await response.json();
+            if (!payload || !payload.ok) {
+                throw new Error((payload && payload.error) || 'Unknown sync error');
+            }
+            const state = payload.state || {};
+            rowByKey.forEach((row, key) => {
+                if (dirtyKeys.has(key)) return;
+                const checkbox = row.querySelector('.shopping-check');
+                const noteInput = row.querySelector('.shopping-note');
+                if (!checkbox || !noteInput) return;
+                const remote = state[key] || {};
+                const remoteChecked = !!remote.checked;
+                const remoteNote = remote.note || '';
+                checkbox.checked = remoteChecked;
+                if (document.activeElement !== noteInput) {
+                    noteInput.value = remoteNote;
+                }
+                applyRowVisual(row, remoteChecked);
+            });
+        } catch (error) {
+            setSyncStatus('Checklist sync delayed. Retrying...', true);
+        }
+    }
+
     document.querySelectorAll('tr[data-shopping-key]').forEach((row) => {
-        const key = row.dataset.shoppingKey;
+        const key = row.dataset.shoppingKey || '';
         const checkbox = row.querySelector('.shopping-check');
         const noteInput = row.querySelector('.shopping-note');
+        if (!checkbox || !noteInput) return;
+        if (key) {
+            rowByKey.set(key, row);
+        }
         applyRowVisual(row, checkbox.checked);
 
         checkbox.addEventListener('change', () => {
@@ -168,8 +241,10 @@
     if (resetBtn) {
         resetBtn.addEventListener('click', () => {
             if (!confirm('Clear all checkboxes and notes for this date range?')) return;
+            setSyncStatus('Resetting checklist...', false);
             fetch(resetUrl, {
                 method: 'POST',
+                credentials: 'same-origin',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     venue_id: venueId,
@@ -180,6 +255,15 @@
               .catch(() => alert('Could not reset checklist right now. Please try again.'));
         });
     }
+
+    pullChecklistState();
+    window.setInterval(pullChecklistState, 8000);
+    window.addEventListener('focus', pullChecklistState);
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+            pullChecklistState();
+        }
+    });
 })();
 </script>
 {% endblock %}
