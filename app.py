@@ -1370,6 +1370,29 @@ def banquet_tables_ready(cur):
 def banquet_shopping_checks_ready(cur):
     return db_table_exists(cur, 'public.banquet_shopping_checks')
 
+def auto_complete_past_banquet_events(cur, venue_id=''):
+    if not banquet_tables_ready(cur):
+        return 0
+
+    params = [date.today(), list(BANQUET_ACTIVE_STATUSES)]
+    venue_filter_sql = ''
+    if venue_id:
+        venue_filter_sql = ' AND venue_id = %s'
+        params.append(venue_id)
+
+    cur.execute(f"""
+        UPDATE banquet_events
+        SET status = 'completed',
+            updated_at = CURRENT_TIMESTAMP
+        WHERE event_date < %s
+          AND status = ANY(%s)
+          {venue_filter_sql}
+    """, params)
+    updated_count = cur.rowcount or 0
+    if updated_count > 0:
+        cur.connection.commit()
+    return updated_count
+
 def banquet_event_beo_files_ready(cur):
     return db_table_exists(cur, 'public.banquet_event_beo_files')
 
@@ -3176,6 +3199,7 @@ def banquet_planner():
             past_events=[]
         )
 
+    auto_complete_past_banquet_events(cur, selected_venue)
     datasets = build_banquet_datasets(cur, start_date, end_date, selected_venue, get_unit_system())
 
     cur.execute("""
@@ -3463,6 +3487,10 @@ def banquet_event_edit(event_id):
     banquet_venue_name = banquet_venue.get('name') or 'Banquets'
     if banquet_venue_id:
         event['venue_id'] = banquet_venue_id
+
+    if request.method == 'GET':
+        auto_complete_past_banquet_events(cur, banquet_venue_id)
+        event = get_banquet_event(cur, event_id)
 
     if request.method == 'POST':
         form_action = (request.form.get('form_action') or 'save').strip().lower()
@@ -4531,6 +4559,7 @@ def banquet_shopping():
     banquet_venue = resolve_banquet_venue(venues)
     selected_venue = banquet_venue.get('id') or ''
     start_date, end_date = get_banquet_date_window(request.args.get('start_date'), request.args.get('end_date'))
+    auto_complete_past_banquet_events(cur, selected_venue)
     datasets = build_banquet_datasets(cur, start_date, end_date, selected_venue, get_unit_system())
     checklist_state = load_banquet_shopping_checklist(cur, selected_venue, start_date, end_date)
     grouped = defaultdict(lambda: defaultdict(list))
@@ -4663,6 +4692,7 @@ def banquet_prep_weekly():
     banquet_venue = resolve_banquet_venue(venues)
     selected_venue = banquet_venue.get('id') or ''
     start_date, end_date = get_banquet_date_window(request.args.get('start_date'), request.args.get('end_date'))
+    auto_complete_past_banquet_events(cur, selected_venue)
     datasets = build_banquet_datasets(cur, start_date, end_date, selected_venue, get_unit_system())
     event_names = {event['id']: event['name'] for event in datasets['events']}
     for row in datasets['weekly_prep']:
@@ -4689,6 +4719,7 @@ def banquet_prep_daily():
     banquet_venue = resolve_banquet_venue(venues)
     selected_venue = banquet_venue.get('id') or ''
     start_date, end_date = get_banquet_date_window(request.args.get('start_date'), request.args.get('end_date'))
+    auto_complete_past_banquet_events(cur, selected_venue)
     datasets = build_banquet_datasets(cur, start_date, end_date, selected_venue, get_unit_system())
     cur.close()
     return render_template(
@@ -4709,6 +4740,7 @@ def banquet_export_excel():
     banquet_venue = resolve_banquet_venue(venues)
     selected_venue = banquet_venue.get('id') or ''
     start_date, end_date = get_banquet_date_window(request.args.get('start_date'), request.args.get('end_date'))
+    auto_complete_past_banquet_events(cur, selected_venue)
     datasets = build_banquet_datasets(cur, start_date, end_date, selected_venue, get_unit_system())
 
     wb = Workbook()
@@ -4831,6 +4863,7 @@ def banquet_packet_print():
         include_beo = True
     else:
         include_beo = (include_beo_raw or '').strip().lower() in ('1', 'true', 'yes', 'on')
+    auto_complete_past_banquet_events(cur, selected_venue)
     datasets = build_banquet_datasets(cur, start_date, end_date, selected_venue, get_unit_system())
     beo_files_by_event = list_banquet_event_beo_files_by_events(cur, [event.get('id') for event in datasets.get('events', [])])
     event_name_map = {event['id']: event['name'] for event in datasets.get('events', [])}
