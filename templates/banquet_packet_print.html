@@ -57,7 +57,7 @@
         </div>
         <iframe
             class="pkt-literal-beo-frame"
-            src="{{ url_for('banquet_event_beo_download', event_id=event.id, file_id=file.id, view=1) }}#page=1&zoom=page-width"
+            src="{{ url_for('banquet_event_beo_download', event_id=event.id, file_id=file.id, view=1) }}#page=1&view=Fit&toolbar=0&navpanes=0&scrollbar=0"
             title="Literal BEO PDF"
         ></iframe>
         <div class="screen-only text-xs text-stone-500 mt-2">
@@ -994,6 +994,7 @@
         border: 0 !important;
         padding: 0 !important;
         margin: 0 !important;
+        overflow: hidden;
         break-inside: avoid;
         page-break-inside: avoid;
     }
@@ -1003,8 +1004,9 @@
     .pkt-literal-beo-frame {
         border: 0 !important;
         width: 100% !important;
-        height: 10.25in !important;
-        min-height: 10.25in !important;
+        height: 9.55in !important;
+        min-height: 9.55in !important;
+        display: block;
     }
     .break-inside-avoid { break-inside: avoid; page-break-inside: avoid; }
     .break-before-page { break-before: page; page-break-before: always; }
