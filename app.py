@@ -1,5 +1,6 @@
 import os
 import re
+import shutil
 import uuid
 from collections import defaultdict
 from io import BytesIO
@@ -1339,6 +1340,8 @@ def get_component_recipes_for_venue(cur, venue_id=''):
 
 BANQUET_ACTIVE_STATUSES = ('planning', 'confirmed')
 BANQUET_VENUE_ID = 'ven_banquets'
+BANQUET_BEO_MAX_BYTES = 25 * 1024 * 1024
+BANQUET_BEO_UPLOAD_ROOT = os.path.join(os.path.dirname(__file__), 'uploads', 'banquet_beo')
 BANQUET_STATUS_CHOICES = [
     ('planning', 'Planning'),
     ('confirmed', 'Confirmed'),
@@ -1366,6 +1369,150 @@ def banquet_tables_ready(cur):
 
 def banquet_shopping_checks_ready(cur):
     return db_table_exists(cur, 'public.banquet_shopping_checks')
+
+def banquet_event_beo_files_ready(cur):
+    return db_table_exists(cur, 'public.banquet_event_beo_files')
+
+def ensure_banquet_event_beo_files_table(cur):
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS banquet_event_beo_files (
+            id TEXT PRIMARY KEY,
+            event_id TEXT NOT NULL REFERENCES banquet_events(id) ON DELETE CASCADE,
+            original_filename TEXT NOT NULL,
+            stored_filename TEXT NOT NULL,
+            mime_type TEXT,
+            file_size_bytes BIGINT,
+            uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    cur.execute("""
+        CREATE INDEX IF NOT EXISTS idx_banquet_event_beo_files_event
+        ON banquet_event_beo_files (event_id, uploaded_at DESC)
+    """)
+
+def safe_pdf_filename(filename):
+    base = os.path.basename((filename or '').strip())
+    cleaned = re.sub(r'[^A-Za-z0-9._-]+', '_', base).strip('._')
+    if not cleaned:
+        cleaned = 'beo.pdf'
+    if not cleaned.lower().endswith('.pdf'):
+        cleaned = f"{cleaned}.pdf"
+    return cleaned
+
+def event_beo_file_path(event_id, stored_filename):
+    return os.path.join(BANQUET_BEO_UPLOAD_ROOT, event_id, stored_filename)
+
+def list_banquet_event_beo_files(cur, event_id):
+    if not event_id:
+        return []
+    ensure_banquet_event_beo_files_table(cur)
+    cur.execute("""
+        SELECT id,
+               event_id,
+               original_filename,
+               stored_filename,
+               mime_type,
+               file_size_bytes,
+               uploaded_at
+        FROM banquet_event_beo_files
+        WHERE event_id = %s
+        ORDER BY uploaded_at DESC, id DESC
+    """, (event_id,))
+    return cur.fetchall()
+
+def list_banquet_event_beo_files_by_events(cur, event_ids):
+    event_ids = [event_id for event_id in (event_ids or []) if event_id]
+    if not event_ids:
+        return {}
+    ensure_banquet_event_beo_files_table(cur)
+    cur.execute("""
+        SELECT id,
+               event_id,
+               original_filename,
+               stored_filename,
+               mime_type,
+               file_size_bytes,
+               uploaded_at
+        FROM banquet_event_beo_files
+        WHERE event_id = ANY(%s)
+        ORDER BY event_id, uploaded_at DESC, id DESC
+    """, (event_ids,))
+    grouped = defaultdict(list)
+    for row in cur.fetchall():
+        grouped[row.get('event_id')].append(row)
+    return grouped
+
+def get_banquet_event_beo_file(cur, event_id, file_id):
+    ensure_banquet_event_beo_files_table(cur)
+    cur.execute("""
+        SELECT id,
+               event_id,
+               original_filename,
+               stored_filename,
+               mime_type,
+               file_size_bytes,
+               uploaded_at
+        FROM banquet_event_beo_files
+        WHERE event_id = %s
+          AND id = %s
+        LIMIT 1
+    """, (event_id, file_id))
+    return cur.fetchone()
+
+def store_banquet_event_beo_file(cur, event_id, upload):
+    if upload is None or not upload.filename:
+        return None, 'Choose a PDF file to upload.'
+
+    original_filename = safe_pdf_filename(upload.filename)
+    if not original_filename.lower().endswith('.pdf'):
+        return None, 'Only PDF files are allowed.'
+
+    try:
+        upload.stream.seek(0, os.SEEK_END)
+        file_size = upload.stream.tell()
+        upload.stream.seek(0)
+    except Exception:
+        file_size = 0
+
+    if file_size <= 0:
+        return None, 'Uploaded file is empty.'
+    if file_size > BANQUET_BEO_MAX_BYTES:
+        max_mb = int(BANQUET_BEO_MAX_BYTES / (1024 * 1024))
+        return None, f'BEO PDF is too large. Max size is {max_mb} MB.'
+
+    header = upload.stream.read(5)
+    upload.stream.seek(0)
+    if header != b'%PDF-':
+        return None, 'File does not look like a valid PDF.'
+
+    file_id = generate_id('beo_')
+    stored_filename = f"{file_id}.pdf"
+    event_folder = os.path.join(BANQUET_BEO_UPLOAD_ROOT, event_id)
+    os.makedirs(event_folder, exist_ok=True)
+    file_path = os.path.join(event_folder, stored_filename)
+    upload.save(file_path)
+
+    ensure_banquet_event_beo_files_table(cur)
+    cur.execute("""
+        INSERT INTO banquet_event_beo_files (
+            id, event_id, original_filename, stored_filename, mime_type, file_size_bytes
+        ) VALUES (%s, %s, %s, %s, %s, %s)
+    """, (
+        file_id,
+        event_id,
+        original_filename,
+        stored_filename,
+        'application/pdf',
+        file_size
+    ))
+
+    return {
+        'id': file_id,
+        'event_id': event_id,
+        'original_filename': original_filename,
+        'stored_filename': stored_filename,
+        'file_size_bytes': file_size
+    }, None
 
 def ensure_banquet_shopping_checks_table(cur):
     cur.execute("""
@@ -3285,6 +3432,7 @@ def banquet_event_new():
         'banquet_event_form.html',
         page_title='New Banquet Event',
         event=event,
+        event_beo_files=[],
         lines=lines,
         menu_items=menu_items,
         venues=venues,
@@ -3317,6 +3465,52 @@ def banquet_event_edit(event_id):
         event['venue_id'] = banquet_venue_id
 
     if request.method == 'POST':
+        form_action = (request.form.get('form_action') or 'save').strip().lower()
+        if form_action == 'upload_beo':
+            upload = request.files.get('beo_pdf')
+            try:
+                saved_file, upload_error = store_banquet_event_beo_file(cur, event_id, upload)
+                if upload_error:
+                    flash(upload_error, 'error')
+                    conn.rollback()
+                else:
+                    conn.commit()
+                    flash(f"Attached BEO PDF: {saved_file.get('original_filename')}", 'success')
+            except Exception:
+                conn.rollback()
+                flash('Error attaching BEO PDF.', 'error')
+            cur.close()
+            return redirect(url_for('banquet_event_edit', event_id=event_id))
+
+        if form_action == 'delete_beo':
+            file_id = clean_menu_text(request.form.get('beo_file_id'))
+            if not file_id:
+                flash('Missing BEO file reference.', 'error')
+                cur.close()
+                return redirect(url_for('banquet_event_edit', event_id=event_id))
+            file_row = get_banquet_event_beo_file(cur, event_id, file_id)
+            if not file_row:
+                flash('BEO file not found.', 'error')
+                cur.close()
+                return redirect(url_for('banquet_event_edit', event_id=event_id))
+            file_path = event_beo_file_path(event_id, file_row.get('stored_filename') or '')
+            try:
+                ensure_banquet_event_beo_files_table(cur)
+                cur.execute("""
+                    DELETE FROM banquet_event_beo_files
+                    WHERE id = %s
+                      AND event_id = %s
+                """, (file_id, event_id))
+                conn.commit()
+                if file_path and os.path.exists(file_path):
+                    os.remove(file_path)
+                flash(f"Removed BEO PDF: {file_row.get('original_filename')}", 'success')
+            except Exception:
+                conn.rollback()
+                flash('Error removing BEO PDF.', 'error')
+            cur.close()
+            return redirect(url_for('banquet_event_edit', event_id=event_id))
+
         errors = []
         event_name = clean_menu_text(request.form.get('name'))
         event_date_raw = (request.form.get('event_date') or '').strip()
@@ -3476,17 +3670,54 @@ def banquet_event_edit(event_id):
             line['notes'] = line.get('line_notes')
 
     menu_items = list_banquet_menu_items(cur, event.get('venue_id') or '')
+    event_beo_files = list_banquet_event_beo_files(cur, event_id)
     cur.close()
     return render_template(
         'banquet_event_form.html',
         page_title='Edit Banquet Event',
         event=event,
+        event_beo_files=event_beo_files,
         lines=lines,
         menu_items=menu_items,
         venues=venues,
         banquet_venue_name=banquet_venue_name,
         section_options=BANQUET_MENU_SECTION_OPTIONS,
         status_options=BANQUET_STATUS_CHOICES
+    )
+
+@app.route('/banquet-planner/events/<event_id>/beo/<file_id>/download')
+@login_required
+def banquet_event_beo_download(event_id, file_id):
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    if not banquet_tables_ready(cur):
+        cur.close()
+        return ("Banquet tables are missing.", 404)
+
+    event = get_banquet_event(cur, event_id)
+    if not event:
+        cur.close()
+        return ("Event not found.", 404)
+
+    file_row = get_banquet_event_beo_file(cur, event_id, file_id)
+    if not file_row:
+        cur.close()
+        return ("BEO file not found.", 404)
+
+    file_path = event_beo_file_path(event_id, file_row.get('stored_filename') or '')
+    if not os.path.exists(file_path):
+        cur.close()
+        return ("Stored BEO file is missing.", 404)
+
+    view_raw = (request.args.get('view') or '').strip().lower()
+    as_attachment = view_raw not in ('1', 'true', 'yes', 'on')
+    download_name = file_row.get('original_filename') or f"{event_id}_beo.pdf"
+    cur.close()
+    return send_file(
+        file_path,
+        mimetype='application/pdf',
+        as_attachment=as_attachment,
+        download_name=download_name
     )
 
 @app.route('/banquet-planner/events/<event_id>/delete', methods=['POST'])
@@ -3505,9 +3736,11 @@ def banquet_event_delete(event_id):
         cur.close()
         flash('Event not found.', 'error')
         return redirect(url_for('banquet_planner'))
+    event_upload_folder = os.path.join(BANQUET_BEO_UPLOAD_ROOT, event_id)
     try:
         cur.execute("DELETE FROM banquet_events WHERE id = %s", (event_id,))
         conn.commit()
+        shutil.rmtree(event_upload_folder, ignore_errors=True)
         flash(f"Deleted event: {event['name']}", 'success')
     except Exception:
         conn.rollback()
@@ -4599,6 +4832,7 @@ def banquet_packet_print():
     else:
         include_beo = (include_beo_raw or '').strip().lower() in ('1', 'true', 'yes', 'on')
     datasets = build_banquet_datasets(cur, start_date, end_date, selected_venue, get_unit_system())
+    beo_files_by_event = list_banquet_event_beo_files_by_events(cur, [event.get('id') for event in datasets.get('events', [])])
     event_name_map = {event['id']: event['name'] for event in datasets.get('events', [])}
     for prep in datasets.get('weekly_prep', []):
         prep['instruction_steps'] = split_instruction_steps(prep.get('instructions'))
@@ -4614,6 +4848,7 @@ def banquet_packet_print():
         end_date=end_date.isoformat(),
         include_shopping=include_shopping,
         include_beo=include_beo,
+        beo_files_by_event=beo_files_by_event,
         generated_at=datetime.now().strftime('%b %d, %Y %I:%M %p'),
         datasets=datasets
     )

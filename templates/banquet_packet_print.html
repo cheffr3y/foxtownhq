@@ -90,6 +90,20 @@
                 <div class="pkt-beo-guests">{{ event.guests or '—' }} guests</div>
             </div>
 
+            {% set event_beo_files = beo_files_by_event.get(event.id, []) %}
+            {% if event_beo_files %}
+            <div class="pkt-beo-notes">
+                <div>
+                    <span class="pkt-label-inline">Attached Source BEO PDF(s)</span>
+                    {% for file in event_beo_files %}
+                    <span class="pkt-beo-file-ref">
+                        <a href="{{ url_for('banquet_event_beo_download', event_id=event.id, file_id=file.id, view=1) }}" target="_blank">{{ file.original_filename }}</a>
+                    </span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
             {% if event.dietary_notes or event.notes %}
             <div class="pkt-beo-notes">
                 {% if event.dietary_notes %}
@@ -743,6 +757,23 @@
     color: #44403c;
     display: grid;
     gap: 0.3rem;
+}
+.pkt-beo-file-ref {
+    display: inline-block;
+    margin-right: 0.4rem;
+    margin-bottom: 0.2rem;
+    padding: 0.08rem 0.35rem;
+    border: 1px solid #d6d3d1;
+    border-radius: 0.25rem;
+    background: #fafaf9;
+    font-size: 0.72rem;
+}
+.pkt-beo-file-ref a {
+    color: #1c1917;
+    text-decoration: none;
+}
+.pkt-beo-file-ref a:hover {
+    text-decoration: underline;
 }
 .pkt-label-inline {
     display: inline-block;
