@@ -109,7 +109,13 @@
             <h2>Weekly Prep Cards</h2>
         </div>
 
-        {% for prep in datasets.weekly_prep %}
+        {% for prep_family_group in datasets.weekly_prep|groupby('prep_family') %}
+        <div class="pkt-prep-family-header {% if not loop.first %}break-before-page{% endif %}">
+            <span class="pkt-prep-family-label">Prep Family</span>
+            <h3>{{ prep_family_group.grouper }}</h3>
+        </div>
+
+        {% for prep in prep_family_group.list %}
         <div class="pkt-prep-card {% if not loop.first %}break-before-page{% endif %}">
             {# ── Card header bar ── #}
             <div class="pkt-card-header">
@@ -227,6 +233,7 @@
                 <div class="pkt-packet-id">Banquet Packet · {{ venue_name }} · {{ start_date }} – {{ end_date }}</div>
             </div>
         </div>
+        {% endfor %}
         {% endfor %}
 
         {% if not datasets.weekly_prep %}
@@ -388,6 +395,32 @@
 }
 .pkt-table-ingredients tbody td {
     padding: 0.3rem 0.5rem;
+}
+
+/* ── Prep family grouping ── */
+.pkt-prep-family-header {
+    border: 1px solid #d6d3d1;
+    border-left: 6px solid #1c1917;
+    border-radius: 0.4rem;
+    background: #fafaf9;
+    padding: 0.45rem 0.75rem;
+    margin: 0.6rem 0 0.8rem 0;
+}
+.pkt-prep-family-label {
+    display: block;
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #78716c;
+    margin-bottom: 0.1rem;
+    font-weight: 700;
+}
+.pkt-prep-family-header h3 {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #1c1917;
+    letter-spacing: -0.01em;
 }
 
 /* ── Prep card ── */
@@ -720,6 +753,12 @@
         color: #fff !important;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
+    }
+    .pkt-prep-family-header {
+        border: 1px solid #000;
+        border-left: 6px solid #000;
+        border-radius: 0;
+        background: #f5f5f4 !important;
     }
     .break-inside-avoid { break-inside: avoid; page-break-inside: avoid; }
     .break-before-page { break-before: page; page-break-before: always; }

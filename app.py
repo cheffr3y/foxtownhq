@@ -1095,6 +1095,46 @@ def clean_menu_text(value):
     text = text.replace('  ', ' ')
     return text
 
+PREP_FAMILY_ADJECTIVE_STOPWORDS = {
+    'rb', 'rm', 'traditional', 'prepared', 'custom', 'house', 'signature',
+    'classic', 'style', 'the', 'a', 'an'
+}
+PREP_FAMILY_FORM_STOPWORDS = {
+    'sauce', 'dressing', 'vinaigrette', 'glaze', 'stock', 'broth',
+    'base', 'mix', 'seasoning'
+}
+
+def derive_prep_family_label(recipe_name):
+    raw = clean_menu_text(recipe_name)
+    if not raw:
+        return 'Other Prep'
+
+    text = raw.lower()
+    text = re.sub(r'^(rb|rm)\s+', '', text)
+    text = re.sub(r'\([^)]*\)', ' ', text)
+    text = text.replace('&', ' and ')
+    text = re.sub(r'[^a-z0-9 ]+', ' ', text)
+    tokens = [token for token in text.split() if token]
+    if not tokens:
+        return raw
+
+    base_tokens = [token for token in tokens if token not in PREP_FAMILY_ADJECTIVE_STOPWORDS and not token.isdigit()]
+    core_tokens = [token for token in base_tokens if token not in PREP_FAMILY_FORM_STOPWORDS]
+
+    if len(core_tokens) >= 2:
+        chosen = core_tokens
+    elif len(base_tokens) >= 2:
+        chosen = base_tokens
+    elif core_tokens:
+        chosen = core_tokens
+    elif base_tokens:
+        chosen = base_tokens
+    else:
+        chosen = tokens
+
+    label = ' '.join(chosen[:4]).strip()
+    return label.title() if label else raw
+
 def split_instruction_steps(instructions):
     raw = (instructions or '').strip()
     if not raw:
@@ -2631,7 +2671,11 @@ def build_banquet_datasets(cur, start_date, end_date, venue_id='', unit_system='
                 'used_in_menu_items': sorted(batch_usage_menu_items.get(recipe_id, set())),
                 'estimated_cost': total_cost
             })
-    weekly_prep.sort(key=lambda item: (item.get('recipe_name') or '').lower())
+    for prep in weekly_prep:
+        prep_family = derive_prep_family_label(prep.get('recipe_name'))
+        prep['prep_family'] = prep_family
+        prep['prep_family_key'] = normalize_match_key(prep_family)
+    weekly_prep.sort(key=lambda item: (item.get('prep_family_key') or '', (item.get('recipe_name') or '').lower()))
 
     weekly_menu_pulls = []
     for group in menu_item_direct_pull_totals.values():
