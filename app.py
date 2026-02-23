@@ -294,6 +294,108 @@ def get_recipe_by_id(cur, recipe_id):
     )
     return cur.fetchone()
 
+def make_unique_recipe_name(cur, base_name):
+    candidate = (base_name or '').strip() or 'Recipe Copy'
+    suffix = 2
+    while True:
+        cur.execute("""
+            SELECT 1
+            FROM recipes
+            WHERE LOWER(name) = LOWER(%s)
+            LIMIT 1
+        """, (candidate,))
+        if not cur.fetchone():
+            return candidate
+        candidate = f"{base_name} {suffix}"
+        suffix += 1
+
+def clone_recipe(cur, source_recipe_id):
+    source_recipe = get_recipe_by_id(cur, source_recipe_id)
+    if not source_recipe:
+        return None
+
+    base_name = f"Copy of {source_recipe.get('name') or 'Recipe'}"
+    clone_name = make_unique_recipe_name(cur, base_name)
+    clone_id = generate_id('rec_')
+
+    cur.execute("""
+        INSERT INTO recipes (id, name, category, yield_qty, yield_unit, instructions, recipe_type, menu_descriptor)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+    """, (
+        clone_id,
+        clone_name,
+        source_recipe.get('category'),
+        source_recipe.get('yield_qty'),
+        source_recipe.get('yield_unit'),
+        source_recipe.get('instructions'),
+        source_recipe.get('recipe_type'),
+        source_recipe.get('menu_descriptor')
+    ))
+
+    cur.execute("""
+        SELECT type, item_id, quantity, unit
+        FROM recipe_ingredients
+        WHERE recipe_id = %s
+        ORDER BY id
+    """, (source_recipe_id,))
+    for row in cur.fetchall():
+        item_id = row.get('item_id')
+        if row.get('type') == 'recipe' and item_id == source_recipe_id:
+            item_id = clone_id
+        cur.execute("""
+            INSERT INTO recipe_ingredients (id, recipe_id, type, item_id, quantity, unit)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (
+            generate_id('ri_'),
+            clone_id,
+            row.get('type'),
+            item_id,
+            row.get('quantity'),
+            row.get('unit')
+        ))
+
+    cur.execute("""
+        SELECT group_name, item_type, item_id, quantity, unit, weight_percent
+        FROM recipe_weighted_options
+        WHERE recipe_id = %s
+        ORDER BY group_name, id
+    """, (source_recipe_id,))
+    for row in cur.fetchall():
+        item_id = row.get('item_id')
+        if row.get('item_type') == 'recipe' and item_id == source_recipe_id:
+            item_id = clone_id
+        cur.execute("""
+            INSERT INTO recipe_weighted_options (id, recipe_id, group_name, item_type, item_id, quantity, unit, weight_percent)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        """, (
+            generate_id('rwo_'),
+            clone_id,
+            row.get('group_name'),
+            row.get('item_type'),
+            item_id,
+            row.get('quantity'),
+            row.get('unit'),
+            row.get('weight_percent')
+        ))
+
+    if db_table_exists(cur, 'public.recipe_venues'):
+        cur.execute("""
+            SELECT venue_id
+            FROM recipe_venues
+            WHERE recipe_id = %s
+        """, (source_recipe_id,))
+        for row in cur.fetchall():
+            cur.execute("""
+                INSERT INTO recipe_venues (recipe_id, venue_id)
+                VALUES (%s, %s)
+                ON CONFLICT (recipe_id, venue_id) DO NOTHING
+            """, (clone_id, row.get('venue_id')))
+
+    return {
+        'id': clone_id,
+        'name': clone_name
+    }
+
 def get_recipe_weighted_options(cur, recipe_id):
     cur.execute("""
         SELECT rwo.*,
@@ -6862,6 +6964,39 @@ def recipe_edit(recipe_id):
 def recipe_generator():
     flash('Recipe Generator has been merged into New Recipe.', 'info')
     return redirect(url_for('recipe_new'))
+
+@app.route('/recipes/<recipe_id>/clone', methods=['POST'])
+@login_required
+def recipe_clone(recipe_id):
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+
+    source_recipe = get_recipe_by_id(cur, recipe_id)
+    if not source_recipe:
+        cur.close()
+        conn.close()
+        flash('Recipe not found', 'error')
+        return redirect(url_for('recipes'))
+
+    try:
+        cloned = clone_recipe(cur, recipe_id)
+        if not cloned:
+            conn.rollback()
+            cur.close()
+            conn.close()
+            flash('Unable to clone recipe.', 'error')
+            return redirect(url_for('recipe_detail', recipe_id=recipe_id))
+        conn.commit()
+        cur.close()
+        conn.close()
+        flash(f"Cloned {source_recipe.get('name') or 'recipe'} as {cloned['name']}.", 'success')
+        return redirect(url_for('recipe_edit', recipe_id=cloned['id']))
+    except Exception:
+        conn.rollback()
+        cur.close()
+        conn.close()
+        flash('Error cloning recipe', 'error')
+        return redirect(url_for('recipe_detail', recipe_id=recipe_id))
 
 @app.route('/recipes/<recipe_id>/delete', methods=['POST'])
 @login_required

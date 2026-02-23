@@ -120,6 +120,13 @@
                             class="bg-white/90 hover:bg-white text-foxtown-ink px-4 py-2 rounded-xl font-semibold transition duration-200 shadow-soft">
                         Export PDF
                     </button>
+                    <form method="POST"
+                          action="{{ url_for('recipe_clone', recipe_id=recipe.id) }}">
+                        <button type="submit"
+                                class="bg-white/90 hover:bg-white text-foxtown-ink px-4 py-2 rounded-xl font-semibold transition duration-200 shadow-soft">
+                            Clone Recipe
+                        </button>
+                    </form>
                     <a href="{{ url_for('recipe_edit', recipe_id=recipe.id) }}" class="bg-foxtown-ember hover:bg-orange-700 text-white px-4 py-2 rounded-xl font-semibold transition duration-200 shadow-soft">
                         Edit Recipe
                     </a>

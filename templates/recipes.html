@@ -158,6 +158,9 @@
                             <td class="px-5 py-4 align-top text-right sticky right-0 bg-white">
                                 <div class="inline-flex items-center gap-3">
                                     <a href="{{ url_for('recipe_detail', recipe_id=recipe.id) }}" class="text-foxtown-ember hover:text-orange-700 text-sm font-semibold">View</a>
+                                    <form method="POST" action="{{ url_for('recipe_clone', recipe_id=recipe.id) }}" class="inline">
+                                        <button type="submit" class="text-stone-700 hover:text-slate-900 text-sm font-semibold">Clone</button>
+                                    </form>
                                     <a href="{{ url_for('recipe_edit', recipe_id=recipe.id) }}" class="text-stone-700 hover:text-slate-900 text-sm font-semibold">Edit</a>
                                 </div>
                             </td>
