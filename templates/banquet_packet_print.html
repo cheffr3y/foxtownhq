@@ -4,6 +4,7 @@
 
 {% block content %}
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6" id="printRoot">
+    {# ── Screen-only toolbar ── #}
     <div class="print:hidden flex justify-between items-center">
         <div>
             <h1 class="text-3xl font-display text-foxtown-ink">Banquet Planning Packet</h1>
@@ -20,31 +21,37 @@
         </div>
     </div>
 
-    <div class="bg-white border border-stone-200 rounded-xl p-5 break-inside-avoid">
-        <h2 class="text-2xl font-display text-foxtown-ink mb-3">Event Summary</h2>
+    {# ═══════════════════════════════════════════════════ #}
+    {#  SECTION 1 — EVENT SUMMARY                         #}
+    {# ═══════════════════════════════════════════════════ #}
+    <div class="pkt-section break-inside-avoid">
+        <div class="pkt-section-header">
+            <h2>Event Summary</h2>
+            <span class="pkt-date-range">{{ start_date }} – {{ end_date }}</span>
+        </div>
         <div class="overflow-x-auto">
-            <table class="min-w-full text-sm">
-                <thead class="text-xs uppercase text-stone-500 border-b border-stone-200">
+            <table class="pkt-table">
+                <thead>
                     <tr>
-                        <th class="text-left py-2 pr-3">Date</th>
-                        <th class="text-left py-2 pr-3">Event</th>
-                        <th class="text-left py-2 pr-3">Venue</th>
-                        <th class="text-left py-2 pr-3">Room</th>
-                        <th class="text-left py-2 pr-3">Service</th>
-                        <th class="text-left py-2 pr-3">Guests</th>
-                        <th class="text-left py-2">Lines</th>
+                        <th>Date</th>
+                        <th>Event</th>
+                        <th>Venue</th>
+                        <th>Room</th>
+                        <th>Service</th>
+                        <th class="text-center">Guests</th>
+                        <th class="text-center">Lines</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-stone-100">
+                <tbody>
                     {% for event in datasets.events %}
                     <tr>
-                        <td class="py-2 pr-3">{{ event.event_date }}</td>
-                        <td class="py-2 pr-3 font-medium text-foxtown-ink">{{ event.name }}</td>
-                        <td class="py-2 pr-3">{{ event.venue_name }}</td>
-                        <td class="py-2 pr-3">{{ event.room or '—' }}</td>
-                        <td class="py-2 pr-3">{{ event.service_timing or '—' }}</td>
-                        <td class="py-2 pr-3">{{ event.guests or '—' }}</td>
-                        <td class="py-2">{{ event.line_count }}</td>
+                        <td class="pkt-nowrap">{{ event.event_date }}</td>
+                        <td class="pkt-bold">{{ event.name }}</td>
+                        <td>{{ event.venue_name }}</td>
+                        <td>{{ event.room or '—' }}</td>
+                        <td>{{ event.service_timing or '—' }}</td>
+                        <td class="text-center">{{ event.guests or '—' }}</td>
+                        <td class="text-center">{{ event.line_count }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -52,137 +59,253 @@
         </div>
     </div>
 
+    {# ═══════════════════════════════════════════════════ #}
+    {#  SECTION 2 — SHOPPING LIST (optional)              #}
+    {# ═══════════════════════════════════════════════════ #}
     {% if include_shopping %}
-    <div class="bg-white border border-stone-200 rounded-xl p-5 break-before-page">
-        <h2 class="text-2xl font-display text-foxtown-ink mb-3">Shopping List</h2>
+    <div class="pkt-section break-before-page">
+        <div class="pkt-section-header">
+            <h2>Shopping List</h2>
+        </div>
         {% for vendor_group in datasets.shopping_ingredients|groupby('vendor') %}
-        <div class="mb-5 last:mb-0">
-            <div class="text-sm uppercase tracking-widest text-stone-500 mb-2">{{ vendor_group.grouper or 'Unassigned Vendor' }}</div>
-            <div class="overflow-x-auto">
-                <table class="min-w-full text-sm">
-                    <thead class="text-xs uppercase text-stone-500 border-b border-stone-200">
+        <div class="pkt-vendor-group">
+            <div class="pkt-vendor-label">{{ vendor_group.grouper or 'Unassigned Vendor' }}</div>
+            <table class="pkt-table pkt-table-compact">
+                <thead>
+                    <tr>
+                        <th style="width:3%">✓</th>
+                        <th>Ingredient</th>
+                        <th class="text-right" style="width:10%">Qty</th>
+                        <th style="width:8%">Unit</th>
+                        <th>Category</th>
+                        <th style="width:12%">Vendor Code</th>
+                        <th style="width:10%">G-Code</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in vendor_group.list %}
+                    <tr>
+                        <td class="text-center"><span class="pkt-checkbox"></span></td>
+                        <td class="pkt-bold">{{ item.name }}</td>
+                        <td class="text-right pkt-mono">{{ item.display_quantity }}</td>
+                        <td>{{ item.display_unit }}</td>
+                        <td class="pkt-muted">{{ item.category or 'Uncategorized' }}</td>
+                        <td class="pkt-mono">{{ item.vendor_code or '—' }}</td>
+                        <td class="pkt-mono">{{ item.g_code or '—' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {# ═══════════════════════════════════════════════════ #}
+    {#  SECTION 3 — WEEKLY PREP CARDS                     #}
+    {# ═══════════════════════════════════════════════════ #}
+    <div class="break-before-page">
+        <div class="pkt-section-header pkt-section-header-standalone print:hidden">
+            <h2>Weekly Prep Cards</h2>
+        </div>
+
+        {% for prep in datasets.weekly_prep %}
+        <div class="pkt-prep-card {% if not loop.first %}break-before-page{% endif %}">
+            {# ── Card header bar ── #}
+            <div class="pkt-card-header">
+                <div class="pkt-card-title">
+                    <h3>{{ prep.recipe_name }}</h3>
+                    {% if prep.recipe_type == 'batch' %}
+                    <span class="pkt-badge pkt-badge-batch">BATCH</span>
+                    {% elif prep.recipe_type == 'menu' %}
+                    <span class="pkt-badge pkt-badge-menu">PLATED</span>
+                    {% endif %}
+                </div>
+                <div class="pkt-card-yield">
+                    <div class="pkt-yield-number">{{ prep.display_required.quantity }}</div>
+                    <div class="pkt-yield-unit">{{ prep.display_required.unit }}</div>
+                </div>
+            </div>
+
+            {# ── Meta line ── #}
+            <div class="pkt-card-meta">
+                <span>Used in: {{ prep.used_in_menu_items|join(' · ') }}</span>
+                <span>Batches: {{ "%.2f"|format(prep.required_batches or 0) }}</span>
+            </div>
+
+            {# ── Ingredients table ── #}
+            {% if prep.ingredient_rows %}
+            <div class="pkt-card-body">
+                <div class="pkt-label">Ingredients</div>
+                <table class="pkt-table pkt-table-ingredients">
+                    <thead>
                         <tr>
-                            <th class="text-left py-2 pr-3">Ingredient</th>
-                            <th class="text-left py-2 pr-3">Qty</th>
-                            <th class="text-left py-2 pr-3">Unit</th>
-                            <th class="text-left py-2 pr-3">Category</th>
-                            <th class="text-left py-2 pr-3">Vendor Code</th>
-                            <th class="text-left py-2">G-Code</th>
+                            <th style="width:5%">✓</th>
+                            <th>Ingredient</th>
+                            <th class="text-right" style="width:15%">Qty</th>
+                            <th style="width:12%">Unit</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-stone-100">
-                        {% for item in vendor_group.list %}
+                    <tbody>
+                        {% for ing in prep.ingredient_rows %}
                         <tr>
-                            <td class="py-2 pr-3 font-medium text-foxtown-ink">{{ item.name }}</td>
-                            <td class="py-2 pr-3">{{ item.display_quantity }}</td>
-                            <td class="py-2 pr-3">{{ item.display_unit }}</td>
-                            <td class="py-2 pr-3">{{ item.category or 'Uncategorized' }}</td>
-                            <td class="py-2 pr-3">{{ item.vendor_code or '—' }}</td>
-                            <td class="py-2">{{ item.g_code or '—' }}</td>
+                            <td class="text-center"><span class="pkt-checkbox"></span></td>
+                            <td class="pkt-bold">{{ ing.name }}</td>
+                            <td class="text-right pkt-mono pkt-qty">{{ ing.display_quantity }}</td>
+                            <td>{{ ing.display_unit }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
-        </div>
-        {% endfor %}
-    </div>
-    {% endif %}
-
-    <div class="bg-white border border-stone-200 rounded-xl p-5 break-before-page">
-        <h2 class="text-2xl font-display text-foxtown-ink mb-3">Weekly Prep</h2>
-        {% for prep in datasets.weekly_prep %}
-        <div class="mb-4 border border-stone-200 rounded-lg p-4 break-inside-avoid">
-            <div class="flex justify-between gap-3 mb-2">
-                <div class="font-semibold text-foxtown-ink">{{ prep.recipe_name }}</div>
-                <div class="text-sm text-stone-600">{{ prep.display_required.quantity }} {{ prep.display_required.unit }}</div>
+            {% else %}
+            <div class="pkt-card-body">
+                <div class="pkt-empty-note">No direct raw ingredients — built from sub-recipes below.</div>
             </div>
-            <div class="text-xs text-stone-500 mb-3">Used in: {{ prep.used_in_menu_items|join(', ') }}</div>
-            <div class="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
-                {% for ing in prep.ingredient_rows %}
-                <div><span class="text-stone-400 mr-1">[ ]</span>{{ ing.name }} — {{ ing.display_quantity }} {{ ing.display_unit }}</div>
-                {% endfor %}
-            </div>
-            {% if not prep.ingredient_rows %}
-            <div class="text-sm text-stone-500">No direct raw ingredients. This recipe is built from sub-recipes listed below.</div>
             {% endif %}
+
+            {# ── Sub-recipe pulls ── #}
             {% if prep.subrecipe_rows %}
-            <div class="mt-3 p-3 rounded border border-stone-200 bg-stone-50">
-                <div class="text-xs uppercase tracking-wide text-stone-500 mb-1">Sub-Recipe Pulls</div>
-                <div class="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm text-stone-700">
-                    {% for sub in prep.subrecipe_rows %}
-                    <div><span class="text-stone-400 mr-1">[ ]</span>{{ sub.recipe_name }} — {{ sub.display_required.quantity }} {{ sub.display_required.unit }} ({{ "%.2f"|format(sub.required_batches or 0) }} batches)</div>
+            <div class="pkt-card-body pkt-sub-section">
+                <div class="pkt-label">Sub-Recipe Pulls</div>
+                <table class="pkt-table pkt-table-ingredients">
+                    <thead>
+                        <tr>
+                            <th style="width:5%">✓</th>
+                            <th>Sub-Recipe</th>
+                            <th class="text-right" style="width:15%">Qty</th>
+                            <th style="width:12%">Unit</th>
+                            <th class="text-right" style="width:14%">Batches</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for sub in prep.subrecipe_rows %}
+                        <tr>
+                            <td class="text-center"><span class="pkt-checkbox"></span></td>
+                            <td class="pkt-bold">{{ sub.recipe_name }}</td>
+                            <td class="text-right pkt-mono pkt-qty">{{ sub.display_required.quantity }}</td>
+                            <td>{{ sub.display_required.unit }}</td>
+                            <td class="text-right pkt-mono">{{ "%.2f"|format(sub.required_batches or 0) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+
+            {# ── Method steps ── #}
+            {% if prep.instruction_steps %}
+            <div class="pkt-card-body pkt-method-section">
+                <div class="pkt-label">Method</div>
+                <div class="pkt-steps">
+                    {% for step in prep.instruction_steps %}
+                    <div class="pkt-step">
+                        <div class="pkt-step-num">{{ loop.index }}</div>
+                        <div class="pkt-step-text">{{ step }}</div>
+                    </div>
                     {% endfor %}
                 </div>
             </div>
             {% endif %}
-            {% if prep.instruction_steps %}
-            <div class="mt-3 p-3 rounded border border-stone-200 bg-stone-50">
-                <div class="text-xs uppercase tracking-wide text-stone-500 mb-1">Method</div>
-                <ol class="list-decimal pl-5 space-y-1 text-sm text-stone-700">
-                    {% for step in prep.instruction_steps %}
-                    <li>{{ step }}</li>
-                    {% endfor %}
-                </ol>
+
+            {# ── Sign-off footer ── #}
+            <div class="pkt-card-footer">
+                <div class="pkt-signoff">
+                    <div class="pkt-signoff-field">
+                        <span class="pkt-signoff-label">Prepped by:</span>
+                        <span class="pkt-signoff-line"></span>
+                    </div>
+                    <div class="pkt-signoff-field">
+                        <span class="pkt-signoff-label">Date / Time:</span>
+                        <span class="pkt-signoff-line"></span>
+                    </div>
+                    <div class="pkt-signoff-field">
+                        <span class="pkt-signoff-label">Checked by:</span>
+                        <span class="pkt-signoff-line"></span>
+                    </div>
+                </div>
+                <div class="pkt-packet-id">Banquet Packet · {{ venue_name }} · {{ start_date }} – {{ end_date }}</div>
             </div>
-            {% endif %}
         </div>
         {% endfor %}
+
         {% if not datasets.weekly_prep %}
-        <div class="text-sm text-stone-500">No scaled recipe prep cards in this date window.</div>
+        <div class="pkt-section">
+            <div class="pkt-empty-note">No scaled recipe prep cards in this date window.</div>
+        </div>
         {% endif %}
     </div>
 
+    {# ═══════════════════════════════════════════════════ #}
+    {#  SECTION 4 — DIRECT MENU PULLS                     #}
+    {# ═══════════════════════════════════════════════════ #}
     {% if datasets.weekly_menu_pulls %}
-    <div class="bg-white border border-stone-200 rounded-xl p-5 break-before-page">
-        <h2 class="text-2xl font-display text-foxtown-ink mb-3">Direct Menu Pulls</h2>
-        <p class="text-sm text-stone-500 mb-4">Raw ingredients attached directly to menu items (including custom substitutions).</p>
+    <div class="pkt-section break-before-page">
+        <div class="pkt-section-header">
+            <h2>Direct Menu Pulls</h2>
+        </div>
+        <p class="pkt-subtitle">Raw ingredients attached directly to menu items (including custom substitutions).</p>
+
         {% for pull in datasets.weekly_menu_pulls %}
-        <div class="mb-4 border border-stone-200 rounded-lg p-4 break-inside-avoid">
-            <div class="flex justify-between gap-3 mb-2">
-                <div class="font-semibold text-foxtown-ink">{{ pull.menu_item_name }}</div>
-                <div class="text-sm text-stone-600">Events: {{ pull.used_in_event_names|join(', ') if pull.used_in_event_names else '—' }}</div>
+        <div class="pkt-pull-card break-inside-avoid">
+            <div class="pkt-pull-header">
+                <span class="pkt-bold">{{ pull.menu_item_name }}</span>
+                <span class="pkt-muted">{{ pull.used_in_event_names|join(', ') if pull.used_in_event_names else '' }}</span>
             </div>
-            <div class="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
-                {% for ing in pull.ingredient_rows %}
-                <div><span class="text-stone-400 mr-1">[ ]</span>{{ ing.name }} — {{ ing.display_quantity }} {{ ing.display_unit }}</div>
-                {% endfor %}
-            </div>
+            <table class="pkt-table pkt-table-ingredients">
+                <tbody>
+                    {% for ing in pull.ingredient_rows %}
+                    <tr>
+                        <td style="width:5%" class="text-center"><span class="pkt-checkbox"></span></td>
+                        <td class="pkt-bold">{{ ing.name }}</td>
+                        <td class="text-right pkt-mono pkt-qty" style="width:15%">{{ ing.display_quantity }}</td>
+                        <td style="width:12%">{{ ing.display_unit }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
             {% if not pull.ingredient_rows %}
-            <div class="text-sm text-stone-500">No direct raw ingredients on this menu item.</div>
+            <div class="pkt-empty-note">No direct raw ingredients on this menu item.</div>
             {% endif %}
         </div>
         {% endfor %}
     </div>
     {% endif %}
 
-    <div class="bg-white border border-stone-200 rounded-xl p-5 break-before-page">
-        <h2 class="text-2xl font-display text-foxtown-ink mb-3">Daily Prep</h2>
+    {# ═══════════════════════════════════════════════════ #}
+    {#  SECTION 5 — DAILY PREP CHECKLIST                  #}
+    {# ═══════════════════════════════════════════════════ #}
+    <div class="break-before-page">
+        <div class="pkt-section-header pkt-section-header-standalone">
+            <h2>Daily Prep</h2>
+        </div>
+
         {% for day in datasets.daily_groups %}
-        <div class="mb-5 break-inside-avoid">
-            <h3 class="text-lg font-display text-foxtown-ink mb-2">{{ day.date }}</h3>
+        <div class="pkt-day-block break-inside-avoid">
+            <div class="pkt-day-header">{{ day.date }}</div>
             {% for event in day.events %}
-            <div class="mb-3 border border-stone-200 rounded-lg p-3">
-                <div class="font-semibold text-foxtown-ink">{{ event.name }}{% if event.guests %} ({{ event.guests }} guests){% endif %}</div>
-                <div class="text-xs text-stone-500 mb-2">{{ event.venue_name }}</div>
-                <ul class="list-disc pl-5 text-sm">
+            <div class="pkt-day-event">
+                <div class="pkt-day-event-header">
+                    <span class="pkt-bold">{{ event.name }}</span>
+                    {% if event.guests %}<span class="pkt-guests">{{ event.guests }} guests</span>{% endif %}
+                    <span class="pkt-muted">{{ event.venue_name }}</span>
+                </div>
+                <div class="pkt-day-lines">
                     {% for line in event.lines %}
-                    <li>
-                        <span class="text-stone-400 mr-1">[ ]</span>{{ line.menu_item_name }} — {{ line.quantity }} {{ line.quantity_unit }}
-                        {% if line.menu_descriptor %}
-                        — {{ line.menu_descriptor }}
-                        {% endif %}
+                    <div class="pkt-day-line">
+                        <span class="pkt-checkbox"></span>
+                        <span class="pkt-bold">{{ line.menu_item_name }}</span>
+                        <span class="pkt-mono pkt-qty">{{ line.quantity }} {{ line.quantity_unit }}</span>
+                        {% if line.menu_descriptor %}<span class="pkt-muted">— {{ line.menu_descriptor }}</span>{% endif %}
                         {% if line.recipes %}
-                        ({{ line.recipes | map(attribute='name') | join(', ') }})
+                        <span class="pkt-recipe-tag">{{ line.recipes | map(attribute='name') | join(', ') }}</span>
                         {% elif line.recipe %}
-                        ({{ line.recipe.name }})
+                        <span class="pkt-recipe-tag">{{ line.recipe.name }}</span>
                         {% endif %}
-                        {% if line.notes %}
-                        [Mods: {{ line.notes }}]
-                        {% endif %}
-                    </li>
+                        {% if line.notes %}<span class="pkt-mod-tag">{{ line.notes }}</span>{% endif %}
+                    </div>
                     {% endfor %}
-                </ul>
+                </div>
             </div>
             {% endfor %}
         </div>
@@ -190,15 +313,431 @@
     </div>
 </div>
 
+{# ═══════════════════════════════════════════════════════ #}
+{#  PRINT-OPTIMIZED STYLES                                #}
+{# ═══════════════════════════════════════════════════════ #}
 <style>
+/* ── Base print packet styles ── */
+.pkt-section {
+    background: #fff;
+    border: 1px solid #d6d3d1;
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+}
+.pkt-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #1c1917;
+}
+.pkt-section-header h2 {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #1c1917;
+    margin: 0;
+    letter-spacing: -0.01em;
+}
+.pkt-section-header-standalone {
+    border: none;
+    padding: 0 0 0.5rem 0;
+    margin-bottom: 0.5rem;
+}
+.pkt-date-range {
+    font-size: 0.8rem;
+    color: #78716c;
+}
+.pkt-subtitle {
+    font-size: 0.8rem;
+    color: #78716c;
+    margin: -0.5rem 0 1rem 0;
+}
+
+/* ── Tables ── */
+.pkt-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+    line-height: 1.4;
+}
+.pkt-table thead th {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #78716c;
+    border-bottom: 1.5px solid #a8a29e;
+    padding: 0.35rem 0.5rem;
+    text-align: left;
+    font-weight: 600;
+}
+.pkt-table tbody td {
+    padding: 0.35rem 0.5rem;
+    border-bottom: 1px solid #e7e5e4;
+    vertical-align: top;
+}
+.pkt-table tbody tr:last-child td {
+    border-bottom: none;
+}
+.pkt-table-compact tbody td {
+    padding: 0.25rem 0.5rem;
+}
+.pkt-table-ingredients {
+    margin-top: 0.25rem;
+}
+.pkt-table-ingredients tbody td {
+    padding: 0.3rem 0.5rem;
+}
+
+/* ── Prep card ── */
+.pkt-prep-card {
+    background: #fff;
+    border: 2px solid #1c1917;
+    border-radius: 0.5rem;
+    margin-bottom: 1rem;
+    overflow: hidden;
+}
+.pkt-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 0.75rem 1rem;
+    background: #1c1917;
+    color: #fff;
+}
+.pkt-card-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.pkt-card-title h3 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin: 0;
+    letter-spacing: -0.01em;
+}
+.pkt-card-yield {
+    text-align: right;
+    flex-shrink: 0;
+}
+.pkt-yield-number {
+    font-size: 1.5rem;
+    font-weight: 800;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+}
+.pkt-yield-unit {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    opacity: 0.75;
+}
+.pkt-card-meta {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.4rem 1rem;
+    font-size: 0.72rem;
+    color: #78716c;
+    background: #fafaf9;
+    border-bottom: 1px solid #e7e5e4;
+}
+.pkt-card-body {
+    padding: 0.6rem 1rem;
+}
+.pkt-sub-section {
+    background: #fafaf9;
+    border-top: 1px solid #e7e5e4;
+}
+.pkt-method-section {
+    border-top: 1px solid #e7e5e4;
+}
+
+/* ── Labels ── */
+.pkt-label {
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 700;
+    color: #78716c;
+    margin-bottom: 0.25rem;
+}
+
+/* ── Badges ── */
+.pkt-badge {
+    display: inline-block;
+    padding: 0.1rem 0.45rem;
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    border-radius: 0.25rem;
+}
+.pkt-badge-batch {
+    background: rgba(255,255,255,0.2);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.3);
+}
+.pkt-badge-menu {
+    background: #ea580c;
+    color: #fff;
+}
+
+/* ── Checkboxes ── */
+.pkt-checkbox {
+    display: inline-block;
+    width: 0.85rem;
+    height: 0.85rem;
+    border: 1.5px solid #a8a29e;
+    border-radius: 0.15rem;
+    vertical-align: middle;
+    flex-shrink: 0;
+}
+
+/* ── Method steps ── */
+.pkt-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+.pkt-step {
+    display: flex;
+    gap: 0.6rem;
+    font-size: 0.82rem;
+    line-height: 1.45;
+    color: #292524;
+}
+.pkt-step-num {
+    flex-shrink: 0;
+    width: 1.4rem;
+    height: 1.4rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #1c1917;
+    color: #fff;
+    font-size: 0.68rem;
+    font-weight: 700;
+    border-radius: 50%;
+    margin-top: 0.1rem;
+}
+.pkt-step-text {
+    flex: 1;
+}
+
+/* ── Sign-off footer ── */
+.pkt-card-footer {
+    padding: 0.6rem 1rem;
+    border-top: 1px solid #d6d3d1;
+    background: #fafaf9;
+}
+.pkt-signoff {
+    display: flex;
+    gap: 1.5rem;
+    margin-bottom: 0.4rem;
+}
+.pkt-signoff-field {
+    display: flex;
+    align-items: baseline;
+    gap: 0.3rem;
+    flex: 1;
+}
+.pkt-signoff-label {
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: #78716c;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+}
+.pkt-signoff-line {
+    flex: 1;
+    border-bottom: 1px solid #a8a29e;
+    min-width: 3rem;
+    height: 1rem;
+}
+.pkt-packet-id {
+    font-size: 0.58rem;
+    color: #a8a29e;
+    text-align: right;
+}
+
+/* ── Helpers ── */
+.pkt-bold { font-weight: 600; color: #1c1917; }
+.pkt-muted { color: #78716c; font-size: 0.78rem; }
+.pkt-mono { font-variant-numeric: tabular-nums; }
+.pkt-qty { font-weight: 600; }
+.pkt-nowrap { white-space: nowrap; }
+.pkt-empty-note { font-size: 0.8rem; color: #a8a29e; padding: 0.5rem 0; }
+
+/* ── Pull cards ── */
+.pkt-pull-card {
+    border: 1px solid #d6d3d1;
+    border-radius: 0.5rem;
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.75rem;
+}
+.pkt-pull-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 0.4rem;
+    padding-bottom: 0.3rem;
+    border-bottom: 1px solid #e7e5e4;
+}
+
+/* ── Daily prep ── */
+.pkt-day-block {
+    margin-bottom: 1rem;
+}
+.pkt-day-header {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #1c1917;
+    padding: 0.3rem 0;
+    border-bottom: 2px solid #1c1917;
+    margin-bottom: 0.5rem;
+}
+.pkt-day-event {
+    border: 1px solid #d6d3d1;
+    border-radius: 0.5rem;
+    margin-bottom: 0.5rem;
+    overflow: hidden;
+}
+.pkt-day-event-header {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    padding: 0.5rem 0.75rem;
+    background: #fafaf9;
+    border-bottom: 1px solid #e7e5e4;
+    flex-wrap: wrap;
+}
+.pkt-guests {
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: #1c1917;
+    color: #fff;
+    padding: 0.08rem 0.4rem;
+    border-radius: 0.25rem;
+}
+.pkt-day-lines {
+    padding: 0.4rem 0.75rem;
+}
+.pkt-day-line {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    padding: 0.3rem 0;
+    border-bottom: 1px solid #f5f5f4;
+    font-size: 0.82rem;
+    flex-wrap: wrap;
+}
+.pkt-day-line:last-child {
+    border-bottom: none;
+}
+.pkt-recipe-tag {
+    font-size: 0.7rem;
+    color: #78716c;
+    background: #f5f5f4;
+    padding: 0.05rem 0.35rem;
+    border-radius: 0.2rem;
+    border: 1px solid #e7e5e4;
+}
+.pkt-mod-tag {
+    font-size: 0.7rem;
+    color: #ea580c;
+    font-weight: 600;
+    background: #fff7ed;
+    padding: 0.05rem 0.35rem;
+    border-radius: 0.2rem;
+    border: 1px solid #fed7aa;
+}
+
+/* ── Vendor groups ── */
+.pkt-vendor-group {
+    margin-bottom: 1.25rem;
+}
+.pkt-vendor-group:last-child {
+    margin-bottom: 0;
+}
+.pkt-vendor-label {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+    color: #fff;
+    background: #1c1917;
+    padding: 0.25rem 0.6rem;
+    border-radius: 0.25rem 0.25rem 0 0;
+    display: inline-block;
+    margin-bottom: 0;
+}
+
+/* ═══════════════════════════════════════════ */
+/*  PRINT OVERRIDES                           */
+/* ═══════════════════════════════════════════ */
 @media print {
     nav, .print\:hidden { display: none !important; }
-    body { background: #fff !important; }
-    .break-inside-avoid { break-inside: avoid; }
+    body {
+        background: #fff !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    #printRoot {
+        max-width: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+    .pkt-section {
+        border: 1px solid #999;
+        border-radius: 0;
+        box-shadow: none;
+    }
+    .pkt-prep-card {
+        border: 2px solid #000;
+        border-radius: 0;
+        page-break-inside: avoid;
+    }
+    .pkt-card-header {
+        background: #1c1917 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    .pkt-step-num {
+        background: #1c1917 !important;
+        color: #fff !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    .pkt-guests {
+        background: #1c1917 !important;
+        color: #fff !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    .pkt-vendor-label {
+        background: #1c1917 !important;
+        color: #fff !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    .break-inside-avoid { break-inside: avoid; page-break-inside: avoid; }
     .break-before-page { break-before: page; page-break-before: always; }
+    .pkt-day-block { break-inside: avoid; page-break-inside: avoid; }
+    .pkt-pull-card { break-inside: avoid; page-break-inside: avoid; }
     table { page-break-inside: auto; }
     tr { page-break-inside: avoid; page-break-after: auto; }
-    #printRoot { max-width: none !important; padding: 0 !important; }
+
+    /* Tighten for print */
+    .pkt-card-body { padding: 0.5rem 0.75rem; }
+    .pkt-card-header { padding: 0.6rem 0.75rem; }
+    .pkt-card-meta { padding: 0.3rem 0.75rem; }
+    .pkt-card-footer { padding: 0.4rem 0.75rem; }
+
+    @page {
+        margin: 0.5in;
+        size: letter;
+    }
 }
 </style>
 {% endblock %}
