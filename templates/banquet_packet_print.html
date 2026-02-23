@@ -36,6 +36,41 @@
     </div>
 
     {# ═══════════════════════════════════════════════════ #}
+    {#  SECTION 0 — LITERAL SOURCE BEO PDF (first pages)  #}
+    {# ═══════════════════════════════════════════════════ #}
+    {% if include_beo and beo_files_by_event %}
+    <div class="pkt-section pkt-literal-beo-intro screen-only">
+        <div class="pkt-section-header">
+            <h2>Literal Source BEO (Attached PDF)</h2>
+            <span class="pkt-date-range">{{ start_date }} – {{ end_date }}</span>
+        </div>
+        <p class="pkt-subtitle">This section renders the exact attached BEO PDF so page 1 is your source-of-truth document.</p>
+    </div>
+    {% set ns = namespace(first_literal=true) %}
+    {% for event in datasets.events %}
+    {% set event_beo_files = beo_files_by_event.get(event.id, []) %}
+    {% for file in event_beo_files %}
+    <div class="pkt-section pkt-literal-beo-page {% if not ns.first_literal %}break-before-page{% endif %}">
+        <div class="pkt-literal-beo-header">
+            <div class="pkt-bold">{{ event.name }}</div>
+            <div class="pkt-muted">{{ file.original_filename }}</div>
+        </div>
+        <iframe
+            class="pkt-literal-beo-frame"
+            src="{{ url_for('banquet_event_beo_download', event_id=event.id, file_id=file.id, view=1) }}#page=1&zoom=page-width"
+            title="Literal BEO PDF"
+        ></iframe>
+        <div class="screen-only text-xs text-stone-500 mt-2">
+            If your browser does not print the embedded PDF page, open it directly:
+            <a class="text-foxtown-ember hover:text-orange-700 font-semibold" href="{{ url_for('banquet_event_beo_download', event_id=event.id, file_id=file.id, view=1) }}" target="_blank">Open literal BEO PDF</a>
+        </div>
+    </div>
+    {% set ns.first_literal = false %}
+    {% endfor %}
+    {% endfor %}
+    {% endif %}
+
+    {# ═══════════════════════════════════════════════════ #}
     {#  SECTION 1 — BEO SERVICE BRIEF (optional)          #}
     {# ═══════════════════════════════════════════════════ #}
     {% if include_beo %}
@@ -47,7 +82,7 @@
         <p class="pkt-subtitle">Operational event details and line-level service counts for FOH/BOH execution.</p>
 
         {% for event in datasets.events %}
-        <div class="pkt-beo-card break-inside-avoid">
+        <div class="pkt-beo-card">
             <div class="pkt-beo-header">
                 <div>
                     <div class="pkt-beo-title">{{ event.name }}</div>
@@ -495,6 +530,23 @@
     font-size: 1.1rem;
     font-weight: 800;
 }
+.pkt-literal-beo-page {
+    padding: 0.8rem;
+}
+.pkt-literal-beo-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+.pkt-literal-beo-frame {
+    width: 100%;
+    height: 70vh;
+    min-height: 720px;
+    border: 1px solid #d6d3d1;
+    background: #fff;
+}
 
 /* ── Prep family grouping ── */
 .pkt-prep-family-header {
@@ -935,12 +987,28 @@
         border-radius: 0;
         background: #f5f5f4 !important;
     }
+    .pkt-literal-beo-page {
+        border: 0 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+    .pkt-literal-beo-header {
+        display: none !important;
+    }
+    .pkt-literal-beo-frame {
+        border: 0 !important;
+        width: 100% !important;
+        height: 10.25in !important;
+        min-height: 10.25in !important;
+    }
     .break-inside-avoid { break-inside: avoid; page-break-inside: avoid; }
     .break-before-page { break-before: page; page-break-before: always; }
     .pkt-beo-first-page { break-after: page; page-break-after: always; }
     .pkt-day-block { break-inside: avoid; page-break-inside: avoid; }
     .pkt-pull-card { break-inside: avoid; page-break-inside: avoid; }
-    .pkt-beo-card { break-inside: avoid; page-break-inside: avoid; }
+    .pkt-beo-card { break-inside: auto; page-break-inside: auto; }
     table { page-break-inside: auto; }
     tr { page-break-inside: avoid; page-break-after: auto; }
 
