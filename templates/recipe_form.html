@@ -257,7 +257,7 @@
                 <div class="flex items-center justify-between mb-4">
                     <div>
                         <h2 class="text-xl font-display text-foxtown-ink">Choice Groups (RM Averages)</h2>
-                        <p class="text-sm text-stone-500">Use this for averages like dressing choice or protein mix. Each group must total 100%.</p>
+                        <p class="text-sm text-stone-500">Use this for averages like dressing choice or protein mix. Choose RM or RB recipes; each group must total 100%.</p>
                     </div>
                     <button type="button" id="addWeightedOptionRow"
                             class="text-foxtown-ember hover:text-orange-700 text-sm font-semibold">
@@ -292,7 +292,7 @@
                                                value="{{ option.item_name or '' }}"
                                                list="weightedRecipeOptions"
                                                class="weighted-recipe-autocomplete w-full border border-stone-300 rounded-xl px-3 py-2"
-                                               placeholder="Start typing batch recipe name...">
+                                               placeholder="Start typing recipe name...">
                                         <input type="hidden" name="option_item_id[]" value="{{ option.item_id or '' }}" class="weighted-item-id">
                                     </td>
                                     <td class="py-2 pr-4">
@@ -329,7 +329,7 @@
                                         <input type="text" name="option_item_name[]"
                                                list="weightedRecipeOptions"
                                                class="weighted-recipe-autocomplete w-full border border-stone-300 rounded-xl px-3 py-2"
-                                               placeholder="Start typing batch recipe name...">
+                                               placeholder="Start typing recipe name...">
                                         <input type="hidden" name="option_item_id[]" value="" class="weighted-item-id">
                                     </td>
                                     <td class="py-2 pr-4">
@@ -430,7 +430,7 @@
             <input type="hidden" name="option_item_type[]" value="recipe">
             <input type="text" name="option_item_name[]" list="weightedRecipeOptions"
                    class="weighted-recipe-autocomplete w-full border border-stone-300 rounded-xl px-3 py-2"
-                   placeholder="Start typing batch recipe name...">
+                   placeholder="Start typing recipe name...">
             <input type="hidden" name="option_item_id[]" value="" class="weighted-item-id">
         </td>
         <td class="py-2 pr-4">
@@ -670,9 +670,9 @@ renderWeightedGroupSummary();
 </datalist>
 
 <datalist id="weightedRecipeOptions">
-    {% for rec in recipes %}
+    {% for rec in weighted_recipes %}
         <option value="{{ rec.name }}" data-id="{{ rec.id }}" data-unit="{{ rec.yield_unit or '' }}"
-                label="{{ rec.name }}{% if rec.recipe_type == 'batch' %} (RB){% elif rec.recipe_type is none %} (Unclassified){% endif %}"></option>
+                label="{{ rec.name }}{% if rec.recipe_type == 'menu' %} (RM){% elif rec.recipe_type == 'batch' %} (RB){% elif rec.recipe_type is none %} (Unclassified){% endif %}"></option>
     {% endfor %}
 </datalist>
 

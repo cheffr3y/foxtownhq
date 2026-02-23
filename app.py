@@ -6576,6 +6576,13 @@ def recipe_new():
     """)
     recipes_list = cur.fetchall()
 
+    cur.execute("""
+        SELECT id, name, yield_qty, yield_unit, recipe_type
+        FROM recipes
+        ORDER BY name
+    """)
+    weighted_recipes_list = cur.fetchall()
+
     cur.close()
     conn.close()
 
@@ -6593,6 +6600,7 @@ def recipe_new():
         },
         ingredients=ingredients_list,
         recipes=recipes_list,
+        weighted_recipes=weighted_recipes_list,
         venues=venues,
         selected_venue_ids=selected_venue_ids,
         ingredient_items=[],
@@ -6828,6 +6836,14 @@ def recipe_edit(recipe_id):
     """, (recipe_id,))
     recipes_list = cur.fetchall()
 
+    cur.execute("""
+        SELECT id, name, yield_qty, yield_unit, recipe_type
+        FROM recipes
+        WHERE id != %s
+        ORDER BY name
+    """, (recipe_id,))
+    weighted_recipes_list = cur.fetchall()
+
     cur.close()
     conn.close()
 
@@ -6837,6 +6853,7 @@ def recipe_edit(recipe_id):
         recipe=recipe,
         ingredients=ingredients_list,
         recipes=recipes_list,
+        weighted_recipes=weighted_recipes_list,
         venues=venues,
         selected_venue_ids=selected_venue_ids,
         ingredient_items=ingredient_items,
