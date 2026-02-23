@@ -5967,8 +5967,6 @@ def menu_rollout_packet_export(rollout_id):
         recipe_name = item['recipe']['name']
         menu_descriptor = item.get('menu_descriptor') or ''
         usage_label = recipe_name
-        if menu_descriptor and normalize_match_key(menu_descriptor) != normalize_match_key(recipe_name):
-            usage_label = f"{recipe_name} ({menu_descriptor})"
         rm_component_sets.append({
             'menu_name': recipe_name,
             'menu_descriptor': menu_descriptor,
@@ -6236,8 +6234,6 @@ def menu_rollout_packet_print(rollout_id):
         recipe_name = item['recipe']['name']
         menu_descriptor = item.get('menu_descriptor') or ''
         usage_label = recipe_name
-        if menu_descriptor and normalize_match_key(menu_descriptor) != normalize_match_key(recipe_name):
-            usage_label = f"{recipe_name} ({menu_descriptor})"
         rm_component_sets.append({
             'menu_name': recipe_name,
             'menu_descriptor': menu_descriptor,
