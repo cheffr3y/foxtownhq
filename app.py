@@ -5110,7 +5110,9 @@ MENU_SECTION_OPTIONS = [
     'Fish Fry Friday',
     'Entrees',
     'Sides',
-    'Desserts'
+    'Modifier',
+    'Desserts',
+    'Other'
 ]
 
 VENUE_DEFAULTS = [
