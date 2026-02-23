@@ -3,22 +3,30 @@
 {% block title %}Banquet Packet Print - Foxtown HQ{% endblock %}
 
 {% block content %}
+{% set simple_raw = (request.args.get('simple') or '').strip().lower() %}
+{% set simplified_view = simple_raw in ('1', 'true', 'yes', 'on') %}
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6" id="printRoot">
     {# ── Screen-only toolbar ── #}
-    <div class="print:hidden flex justify-between items-center">
+    <div class="print:hidden screen-only flex justify-between items-center">
         <div>
             <h1 class="text-3xl font-display text-foxtown-ink">Banquet Planning Packet</h1>
             <p class="text-stone-600">{{ venue_name }} · {{ start_date }} to {{ end_date }} · Generated {{ generated_at }}</p>
         </div>
         <div class="flex items-center gap-2 flex-wrap justify-end">
             <a
-                href="{{ url_for('banquet_packet_print', venue=selected_venue, start_date=start_date, end_date=end_date, include_shopping=include_shopping, include_beo=(0 if include_beo else 1)) }}"
+                href="{{ url_for('banquet_packet_print', venue=selected_venue, start_date=start_date, end_date=end_date, include_shopping=include_shopping, include_beo=include_beo, simple=(0 if simplified_view else 1)) }}"
+                class="px-4 py-2 rounded-xl border border-stone-300 text-stone-700 hover:bg-stone-50 font-semibold"
+            >
+                {% if simplified_view %}Full View{% else %}Simplified View{% endif %}
+            </a>
+            <a
+                href="{{ url_for('banquet_packet_print', venue=selected_venue, start_date=start_date, end_date=end_date, include_shopping=include_shopping, include_beo=(0 if include_beo else 1), simple=(1 if simplified_view else 0)) }}"
                 class="px-4 py-2 rounded-xl border border-stone-300 text-stone-700 hover:bg-stone-50 font-semibold"
             >
                 {% if include_beo %}Hide BEO{% else %}Include BEO{% endif %}
             </a>
             <a
-                href="{{ url_for('banquet_packet_print', venue=selected_venue, start_date=start_date, end_date=end_date, include_shopping=(0 if include_shopping else 1), include_beo=include_beo) }}"
+                href="{{ url_for('banquet_packet_print', venue=selected_venue, start_date=start_date, end_date=end_date, include_shopping=(0 if include_shopping else 1), include_beo=include_beo, simple=(1 if simplified_view else 0)) }}"
                 class="px-4 py-2 rounded-xl border border-stone-300 text-stone-700 hover:bg-stone-50 font-semibold"
             >
                 {% if include_shopping %}Hide Shopping{% else %}Include Shopping{% endif %}
@@ -46,8 +54,10 @@
                     <div class="pkt-muted">
                         {{ event.event_date }} · {{ event.venue_name }}
                         {% if event.room %} · {{ event.room }}{% endif %}
-                        {% if event.service_timing %} · {{ event.service_timing }}{% endif %}
                     </div>
+                    {% if event.service_timing %}
+                    <div class="pkt-beo-service"><strong>Service Timing:</strong> {{ event.service_timing }}</div>
+                    {% endif %}
                 </div>
                 <div class="pkt-beo-guests">{{ event.guests or '—' }} guests</div>
             </div>
@@ -66,14 +76,15 @@
             </div>
             {% endif %}
 
-            {% if event.dietary_notes or event.notes %}
+            {% if event.dietary_notes %}
+            <div class="pkt-beo-alert">
+                <div><span class="pkt-label-inline">Dietary / Allergy Notes</span> {{ event.dietary_notes }}</div>
+            </div>
+            {% endif %}
+
+            {% if event.notes %}
             <div class="pkt-beo-notes">
-                {% if event.dietary_notes %}
-                <div><span class="pkt-label-inline">Dietary</span> {{ event.dietary_notes }}</div>
-                {% endif %}
-                {% if event.notes %}
                 <div><span class="pkt-label-inline">General Notes</span> {{ event.notes }}</div>
-                {% endif %}
             </div>
             {% endif %}
 
@@ -81,35 +92,29 @@
                 <thead>
                     <tr>
                         <th style="width:4%">✓</th>
-                        <th style="width:14%">Section</th>
-                        <th style="width:21%">Menu Item</th>
-                        <th>Descriptor</th>
-                        <th class="text-right" style="width:9%">Qty</th>
-                        <th style="width:8%">Unit</th>
-                        <th style="width:16%">Recipe</th>
-                        <th style="width:13%">Mods</th>
+                        <th>Menu Item</th>
+                        <th class="text-right" style="width:18%">Qty</th>
+                        <th style="width:28%">Notes / Mods</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for line in event.lines %}
+                    {% for section_group in event.lines|groupby('menu_section') %}
+                    <tr class="pkt-beo-section-row">
+                        <td colspan="4">{{ section_group.grouper or 'Other' }}</td>
+                    </tr>
+                    {% for line in section_group.list %}
                     <tr>
                         <td class="text-center"><span class="pkt-checkbox"></span></td>
-                        <td>{{ line.menu_section or '—' }}</td>
-                        <td class="pkt-bold">{{ line.menu_item_name }}</td>
-                        <td>{{ line.menu_descriptor or '—' }}</td>
-                        <td class="text-right pkt-mono">{{ line.quantity }}</td>
-                        <td>{{ line.quantity_unit }}</td>
-                        <td>
-                            {% if line.recipes %}
-                            {{ line.recipes | map(attribute='name') | join(', ') }}
-                            {% elif line.recipe %}
-                            {{ line.recipe.name }}
-                            {% else %}
-                            —
+                        <td class="pkt-bold">
+                            {{ line.menu_item_name }}
+                            {% if line.menu_descriptor and not simplified_view %}
+                            <div class="pkt-muted">{{ line.menu_descriptor }}</div>
                             {% endif %}
                         </td>
+                        <td class="text-right pkt-mono pkt-qty">{{ line.quantity }} {{ line.quantity_unit }}</td>
                         <td>{{ line.notes or '—' }}</td>
                     </tr>
+                    {% endfor %}
                     {% endfor %}
                 </tbody>
             </table>
@@ -135,23 +140,17 @@
                     <tr>
                         <th>Date</th>
                         <th>Event</th>
-                        <th>Venue</th>
-                        <th>Room</th>
-                        <th>Service</th>
+                        <th>Service Timing</th>
                         <th class="text-center">Guests</th>
-                        <th class="text-center">Lines</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for event in datasets.events %}
-                    <tr>
+                    <tr class="pkt-summary-row">
                         <td class="pkt-nowrap">{{ event.event_date }}</td>
                         <td class="pkt-bold">{{ event.name }}</td>
-                        <td>{{ event.venue_name }}</td>
-                        <td>{{ event.room or '—' }}</td>
                         <td>{{ event.service_timing or '—' }}</td>
-                        <td class="text-center">{{ event.guests or '—' }}</td>
-                        <td class="text-center">{{ event.line_count }}</td>
+                        <td class="text-center pkt-summary-guests">{{ event.guests or '—' }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -177,21 +176,25 @@
                         <th>Ingredient</th>
                         <th class="text-right" style="width:10%">Qty</th>
                         <th style="width:8%">Unit</th>
-                        <th>Category</th>
-                        <th style="width:12%">Vendor Code</th>
-                        <th style="width:10%">G-Code</th>
+                        {% if not simplified_view %}
+                        <th class="screen-only">Category</th>
+                        <th class="screen-only" style="width:12%">Vendor Code</th>
+                        <th class="screen-only" style="width:10%">G-Code</th>
+                        {% endif %}
                     </tr>
                 </thead>
                 <tbody>
                     {% for item in vendor_group.list %}
                     <tr>
                         <td class="text-center"><span class="pkt-checkbox"></span></td>
-                        <td class="pkt-bold">{{ item.name }}</td>
-                        <td class="text-right pkt-mono">{{ item.display_quantity }}</td>
+                        <td class="pkt-bold pkt-ingredient-name">{{ item.name }}</td>
+                        <td class="text-right pkt-mono pkt-qty pkt-qty-strong">{{ item.display_quantity }}</td>
                         <td>{{ item.display_unit }}</td>
-                        <td class="pkt-muted">{{ item.category or 'Uncategorized' }}</td>
-                        <td class="pkt-mono">{{ item.vendor_code or '—' }}</td>
-                        <td class="pkt-mono">{{ item.g_code or '—' }}</td>
+                        {% if not simplified_view %}
+                        <td class="pkt-muted screen-only">{{ item.category or 'Uncategorized' }}</td>
+                        <td class="pkt-mono screen-only">{{ item.vendor_code or '—' }}</td>
+                        <td class="pkt-mono screen-only">{{ item.g_code or '—' }}</td>
+                        {% endif %}
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -221,11 +224,6 @@
             <div class="pkt-card-header">
                 <div class="pkt-card-title">
                     <h3>{{ prep.recipe_name }}</h3>
-                    {% if prep.recipe_type == 'batch' %}
-                    <span class="pkt-badge pkt-badge-batch">BATCH</span>
-                    {% elif prep.recipe_type == 'menu' %}
-                    <span class="pkt-badge pkt-badge-menu">PLATED</span>
-                    {% endif %}
                 </div>
                 <div class="pkt-card-yield">
                     <div class="pkt-yield-number">{{ prep.display_required.quantity }}</div>
@@ -237,6 +235,7 @@
             <div class="pkt-card-meta">
                 <span>Used in: {{ prep.used_in_menu_items|join(' · ') }}</span>
                 <span>Batches: {{ "%.2f"|format(prep.required_batches or 0) }}</span>
+                <span>Each batch makes {{ "%.2f"|format(prep.yield_qty or 0) }} {{ prep.yield_unit or '' }}</span>
             </div>
 
             {# ── Ingredients table ── #}
@@ -254,10 +253,10 @@
                     </thead>
                     <tbody>
                         {% for ing in prep.ingredient_rows %}
-                        <tr>
+                        <tr class="pkt-alt-row">
                             <td class="text-center"><span class="pkt-checkbox"></span></td>
-                            <td class="pkt-bold">{{ ing.name }}</td>
-                            <td class="text-right pkt-mono pkt-qty">{{ ing.display_quantity }}</td>
+                            <td class="pkt-bold pkt-ingredient-name">{{ ing.name }}</td>
+                            <td class="text-right pkt-mono pkt-qty pkt-qty-strong">{{ ing.display_quantity }}</td>
                             <td>{{ ing.display_unit }}</td>
                         </tr>
                         {% endfor %}
@@ -286,10 +285,10 @@
                     </thead>
                     <tbody>
                         {% for sub in prep.subrecipe_rows %}
-                        <tr>
+                        <tr class="pkt-alt-row">
                             <td class="text-center"><span class="pkt-checkbox"></span></td>
                             <td class="pkt-bold">{{ sub.recipe_name }}</td>
-                            <td class="text-right pkt-mono pkt-qty">{{ sub.display_required.quantity }}</td>
+                            <td class="text-right pkt-mono pkt-qty pkt-qty-strong">{{ sub.display_required.quantity }}</td>
                             <td>{{ sub.display_required.unit }}</td>
                             <td class="text-right pkt-mono">{{ "%.2f"|format(sub.required_batches or 0) }}</td>
                         </tr>
@@ -330,7 +329,6 @@
                         <span class="pkt-signoff-line"></span>
                     </div>
                 </div>
-                <div class="pkt-packet-id">Banquet Packet · {{ venue_name }} · {{ start_date }} – {{ end_date }}</div>
             </div>
         </div>
         {% endfor %}
@@ -364,8 +362,8 @@
                     {% for ing in pull.ingredient_rows %}
                     <tr>
                         <td style="width:5%" class="text-center"><span class="pkt-checkbox"></span></td>
-                        <td class="pkt-bold">{{ ing.name }}</td>
-                        <td class="text-right pkt-mono pkt-qty" style="width:15%">{{ ing.display_quantity }}</td>
+                        <td class="pkt-bold pkt-ingredient-name">{{ ing.name }}</td>
+                        <td class="text-right pkt-mono pkt-qty pkt-qty-strong" style="width:15%">{{ ing.display_quantity }}</td>
                         <td style="width:12%">{{ ing.display_unit }}</td>
                     </tr>
                     {% endfor %}
@@ -402,13 +400,7 @@
                     <div class="pkt-day-line">
                         <span class="pkt-checkbox"></span>
                         <span class="pkt-bold">{{ line.menu_item_name }}</span>
-                        <span class="pkt-mono pkt-qty">{{ line.quantity }} {{ line.quantity_unit }}</span>
-                        {% if line.menu_descriptor %}<span class="pkt-muted">— {{ line.menu_descriptor }}</span>{% endif %}
-                        {% if line.recipes %}
-                        <span class="pkt-recipe-tag">{{ line.recipes | map(attribute='name') | join(', ') }}</span>
-                        {% elif line.recipe %}
-                        <span class="pkt-recipe-tag">{{ line.recipe.name }}</span>
-                        {% endif %}
+                        <span class="pkt-mono pkt-qty pkt-qty-strong">{{ line.quantity }} {{ line.quantity_unit }}</span>
                         {% if line.notes %}<span class="pkt-mod-tag">{{ line.notes }}</span>{% endif %}
                     </div>
                     {% endfor %}
@@ -441,7 +433,7 @@
     border-bottom: 2px solid #1c1917;
 }
 .pkt-section-header h2 {
-    font-size: 1.35rem;
+    font-size: 1.1rem;
     font-weight: 700;
     color: #1c1917;
     margin: 0;
@@ -466,7 +458,7 @@
 .pkt-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.82rem;
+    font-size: 0.9rem;
     line-height: 1.4;
 }
 .pkt-table thead th {
@@ -495,6 +487,13 @@
 }
 .pkt-table-ingredients tbody td {
     padding: 0.3rem 0.5rem;
+}
+.pkt-summary-row td {
+    border-bottom: 2px solid #a8a29e !important;
+}
+.pkt-summary-guests {
+    font-size: 1.1rem;
+    font-weight: 800;
 }
 
 /* ── Prep family grouping ── */
@@ -545,7 +544,7 @@
     gap: 0.5rem;
 }
 .pkt-card-title h3 {
-    font-size: 1.15rem;
+    font-size: 1.35rem;
     font-weight: 700;
     margin: 0;
     letter-spacing: -0.01em;
@@ -555,7 +554,7 @@
     flex-shrink: 0;
 }
 .pkt-yield-number {
-    font-size: 1.5rem;
+    font-size: 2rem;
     font-weight: 800;
     line-height: 1;
     font-variant-numeric: tabular-nums;
@@ -568,9 +567,11 @@
 }
 .pkt-card-meta {
     display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem 1rem;
     justify-content: space-between;
     padding: 0.4rem 1rem;
-    font-size: 0.72rem;
+    font-size: 0.78rem;
     color: #78716c;
     background: #fafaf9;
     border-bottom: 1px solid #e7e5e4;
@@ -596,30 +597,11 @@
     margin-bottom: 0.25rem;
 }
 
-/* ── Badges ── */
-.pkt-badge {
-    display: inline-block;
-    padding: 0.1rem 0.45rem;
-    font-size: 0.6rem;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    border-radius: 0.25rem;
-}
-.pkt-badge-batch {
-    background: rgba(255,255,255,0.2);
-    color: #fff;
-    border: 1px solid rgba(255,255,255,0.3);
-}
-.pkt-badge-menu {
-    background: #ea580c;
-    color: #fff;
-}
-
 /* ── Checkboxes ── */
 .pkt-checkbox {
     display: inline-block;
-    width: 0.85rem;
-    height: 0.85rem;
+    width: 1rem;
+    height: 1rem;
     border: 1.5px solid #a8a29e;
     border-radius: 0.15rem;
     vertical-align: middle;
@@ -635,8 +617,8 @@
 .pkt-step {
     display: flex;
     gap: 0.6rem;
-    font-size: 0.82rem;
-    line-height: 1.45;
+    font-size: 0.95rem;
+    line-height: 1.6;
     color: #292524;
 }
 .pkt-step-num {
@@ -684,14 +666,9 @@
 }
 .pkt-signoff-line {
     flex: 1;
-    border-bottom: 1px solid #a8a29e;
-    min-width: 3rem;
-    height: 1rem;
-}
-.pkt-packet-id {
-    font-size: 0.58rem;
-    color: #a8a29e;
-    text-align: right;
+    border-bottom: 2px solid #78716c;
+    min-width: 8rem;
+    height: 1.2rem;
 }
 
 /* ── Helpers ── */
@@ -699,8 +676,18 @@
 .pkt-muted { color: #78716c; font-size: 0.78rem; }
 .pkt-mono { font-variant-numeric: tabular-nums; }
 .pkt-qty { font-weight: 600; }
+.pkt-qty-strong {
+    font-size: 1rem;
+    font-weight: 800;
+}
+.pkt-ingredient-name {
+    font-size: 0.96rem;
+}
 .pkt-nowrap { white-space: nowrap; }
 .pkt-empty-note { font-size: 0.8rem; color: #a8a29e; padding: 0.5rem 0; }
+.pkt-alt-row:nth-child(odd) td {
+    background: #fafaf9;
+}
 
 /* ── Pull cards ── */
 .pkt-pull-card {
@@ -736,12 +723,17 @@
     flex-wrap: wrap;
 }
 .pkt-beo-title {
-    font-size: 1rem;
+    font-size: 1.2rem;
     font-weight: 700;
     color: #1c1917;
 }
+.pkt-beo-service {
+    margin-top: 0.2rem;
+    font-size: 0.9rem;
+    color: #1f2937;
+}
 .pkt-beo-guests {
-    font-size: 0.75rem;
+    font-size: 0.9rem;
     font-weight: 700;
     letter-spacing: 0.05em;
     text-transform: uppercase;
@@ -753,10 +745,26 @@
 }
 .pkt-beo-notes {
     margin-bottom: 0.55rem;
-    font-size: 0.78rem;
+    font-size: 0.86rem;
     color: #44403c;
     display: grid;
     gap: 0.3rem;
+}
+.pkt-beo-alert {
+    margin-bottom: 0.6rem;
+    padding: 0.45rem 0.55rem;
+    border: 1px solid #f59e0b;
+    background: #fffbeb;
+    color: #7c2d12;
+    font-size: 0.86rem;
+}
+.pkt-beo-section-row td {
+    background: #f5f5f4 !important;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 0.72rem;
+    color: #44403c;
 }
 .pkt-beo-first-page {
     margin-top: 0.25rem;
@@ -793,11 +801,11 @@
     margin-bottom: 1rem;
 }
 .pkt-day-header {
-    font-size: 1.1rem;
+    font-size: 1.5rem;
     font-weight: 700;
     color: #1c1917;
     padding: 0.3rem 0;
-    border-bottom: 2px solid #1c1917;
+    border-bottom: 3px solid #1c1917;
     margin-bottom: 0.5rem;
 }
 .pkt-day-event {
@@ -838,14 +846,6 @@
 .pkt-day-line:last-child {
     border-bottom: none;
 }
-.pkt-recipe-tag {
-    font-size: 0.7rem;
-    color: #78716c;
-    background: #f5f5f4;
-    padding: 0.05rem 0.35rem;
-    border-radius: 0.2rem;
-    border: 1px solid #e7e5e4;
-}
 .pkt-mod-tag {
     font-size: 0.7rem;
     color: #ea580c;
@@ -880,11 +880,15 @@
 /*  PRINT OVERRIDES                           */
 /* ═══════════════════════════════════════════ */
 @media print {
-    nav, .print\:hidden { display: none !important; }
+    nav, .print\:hidden, .screen-only { display: none !important; }
     body {
         background: #fff !important;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
+    }
+    * {
+        border-radius: 0 !important;
+        box-shadow: none !important;
     }
     #printRoot {
         max-width: none !important;
@@ -898,7 +902,8 @@
     }
     .pkt-prep-card {
         border: 2px solid #000;
-        border-radius: 0;
+        break-before: page;
+        page-break-before: always;
         page-break-inside: avoid;
     }
     .pkt-card-header {
@@ -944,6 +949,15 @@
     .pkt-card-header { padding: 0.6rem 0.75rem; }
     .pkt-card-meta { padding: 0.3rem 0.75rem; }
     .pkt-card-footer { padding: 0.4rem 0.75rem; }
+    .pkt-section-header h2 { font-size: 16pt; }
+    .pkt-card-title h3 { font-size: 18pt; }
+    .pkt-yield-number { font-size: 24pt; }
+    .pkt-table thead th { font-size: 8pt; }
+    .pkt-table tbody td { font-size: 11pt; }
+    .pkt-qty-strong { font-size: 14pt; font-weight: 800; }
+    .pkt-step { font-size: 11pt; line-height: 1.6; }
+    .pkt-signoff-label { font-size: 8pt; }
+    .pkt-day-header { font-size: 20pt; }
 
     @page {
         margin: 0.5in;
