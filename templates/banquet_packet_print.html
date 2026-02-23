@@ -10,9 +10,15 @@
             <h1 class="text-3xl font-display text-foxtown-ink">Banquet Planning Packet</h1>
             <p class="text-stone-600">{{ venue_name }} · {{ start_date }} to {{ end_date }} · Generated {{ generated_at }}</p>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 flex-wrap justify-end">
             <a
-                href="{{ url_for('banquet_packet_print', venue=selected_venue, start_date=start_date, end_date=end_date, include_shopping=(0 if include_shopping else 1)) }}"
+                href="{{ url_for('banquet_packet_print', venue=selected_venue, start_date=start_date, end_date=end_date, include_shopping=include_shopping, include_beo=(0 if include_beo else 1)) }}"
+                class="px-4 py-2 rounded-xl border border-stone-300 text-stone-700 hover:bg-stone-50 font-semibold"
+            >
+                {% if include_beo %}Hide BEO{% else %}Include BEO{% endif %}
+            </a>
+            <a
+                href="{{ url_for('banquet_packet_print', venue=selected_venue, start_date=start_date, end_date=end_date, include_shopping=(0 if include_shopping else 1), include_beo=include_beo) }}"
                 class="px-4 py-2 rounded-xl border border-stone-300 text-stone-700 hover:bg-stone-50 font-semibold"
             >
                 {% if include_shopping %}Hide Shopping{% else %}Include Shopping{% endif %}
@@ -60,7 +66,87 @@
     </div>
 
     {# ═══════════════════════════════════════════════════ #}
-    {#  SECTION 2 — SHOPPING LIST (optional)              #}
+    {#  SECTION 2 — BEO SERVICE BRIEF (optional)          #}
+    {# ═══════════════════════════════════════════════════ #}
+    {% if include_beo %}
+    <div class="pkt-section break-before-page">
+        <div class="pkt-section-header">
+            <h2>BEO Service Brief</h2>
+            <span class="pkt-date-range">{{ start_date }} – {{ end_date }}</span>
+        </div>
+        <p class="pkt-subtitle">Operational event details and line-level service counts for FOH/BOH execution.</p>
+
+        {% for event in datasets.events %}
+        <div class="pkt-beo-card break-inside-avoid">
+            <div class="pkt-beo-header">
+                <div>
+                    <div class="pkt-beo-title">{{ event.name }}</div>
+                    <div class="pkt-muted">
+                        {{ event.event_date }} · {{ event.venue_name }}
+                        {% if event.room %} · {{ event.room }}{% endif %}
+                        {% if event.service_timing %} · {{ event.service_timing }}{% endif %}
+                    </div>
+                </div>
+                <div class="pkt-beo-guests">{{ event.guests or '—' }} guests</div>
+            </div>
+
+            {% if event.dietary_notes or event.notes %}
+            <div class="pkt-beo-notes">
+                {% if event.dietary_notes %}
+                <div><span class="pkt-label-inline">Dietary</span> {{ event.dietary_notes }}</div>
+                {% endif %}
+                {% if event.notes %}
+                <div><span class="pkt-label-inline">General Notes</span> {{ event.notes }}</div>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <table class="pkt-table pkt-table-compact">
+                <thead>
+                    <tr>
+                        <th style="width:4%">✓</th>
+                        <th style="width:14%">Section</th>
+                        <th style="width:21%">Menu Item</th>
+                        <th>Descriptor</th>
+                        <th class="text-right" style="width:9%">Qty</th>
+                        <th style="width:8%">Unit</th>
+                        <th style="width:16%">Recipe</th>
+                        <th style="width:13%">Mods</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for line in event.lines %}
+                    <tr>
+                        <td class="text-center"><span class="pkt-checkbox"></span></td>
+                        <td>{{ line.menu_section or '—' }}</td>
+                        <td class="pkt-bold">{{ line.menu_item_name }}</td>
+                        <td>{{ line.menu_descriptor or '—' }}</td>
+                        <td class="text-right pkt-mono">{{ line.quantity }}</td>
+                        <td>{{ line.quantity_unit }}</td>
+                        <td>
+                            {% if line.recipes %}
+                            {{ line.recipes | map(attribute='name') | join(', ') }}
+                            {% elif line.recipe %}
+                            {{ line.recipe.name }}
+                            {% else %}
+                            —
+                            {% endif %}
+                        </td>
+                        <td>{{ line.notes or '—' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endfor %}
+        {% if not datasets.events %}
+        <div class="pkt-empty-note">No events found in this date range.</div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {# ═══════════════════════════════════════════════════ #}
+    {#  SECTION 3 — SHOPPING LIST (optional)              #}
     {# ═══════════════════════════════════════════════════ #}
     {% if include_shopping %}
     <div class="pkt-section break-before-page">
@@ -102,7 +188,7 @@
     {% endif %}
 
     {# ═══════════════════════════════════════════════════ #}
-    {#  SECTION 3 — WEEKLY PREP CARDS                     #}
+    {#  SECTION 4 — WEEKLY PREP CARDS                     #}
     {# ═══════════════════════════════════════════════════ #}
     <div class="break-before-page">
         <div class="pkt-section-header pkt-section-header-standalone print:hidden">
@@ -244,7 +330,7 @@
     </div>
 
     {# ═══════════════════════════════════════════════════ #}
-    {#  SECTION 4 — DIRECT MENU PULLS                     #}
+    {#  SECTION 5 — DIRECT MENU PULLS                     #}
     {# ═══════════════════════════════════════════════════ #}
     {% if datasets.weekly_menu_pulls %}
     <div class="pkt-section break-before-page">
@@ -280,7 +366,7 @@
     {% endif %}
 
     {# ═══════════════════════════════════════════════════ #}
-    {#  SECTION 5 — DAILY PREP CHECKLIST                  #}
+    {#  SECTION 6 — DAILY PREP CHECKLIST                  #}
     {# ═══════════════════════════════════════════════════ #}
     <div class="break-before-page">
         <div class="pkt-section-header pkt-section-header-standalone">
@@ -618,6 +704,56 @@
     border-bottom: 1px solid #e7e5e4;
 }
 
+/* ── BEO brief cards ── */
+.pkt-beo-card {
+    border: 1px solid #d6d3d1;
+    border-radius: 0.5rem;
+    padding: 0.7rem 0.85rem;
+    margin-bottom: 0.8rem;
+}
+.pkt-beo-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+    border-bottom: 1px solid #e7e5e4;
+    padding-bottom: 0.4rem;
+    flex-wrap: wrap;
+}
+.pkt-beo-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #1c1917;
+}
+.pkt-beo-guests {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: #44403c;
+    background: #f5f5f4;
+    border: 1px solid #d6d3d1;
+    border-radius: 0.3rem;
+    padding: 0.15rem 0.45rem;
+}
+.pkt-beo-notes {
+    margin-bottom: 0.55rem;
+    font-size: 0.78rem;
+    color: #44403c;
+    display: grid;
+    gap: 0.3rem;
+}
+.pkt-label-inline {
+    display: inline-block;
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    font-weight: 700;
+    color: #78716c;
+    margin-right: 0.35rem;
+}
+
 /* ── Daily prep ── */
 .pkt-day-block {
     margin-bottom: 1rem;
@@ -764,6 +900,7 @@
     .break-before-page { break-before: page; page-break-before: always; }
     .pkt-day-block { break-inside: avoid; page-break-inside: avoid; }
     .pkt-pull-card { break-inside: avoid; page-break-inside: avoid; }
+    .pkt-beo-card { break-inside: avoid; page-break-inside: avoid; }
     table { page-break-inside: auto; }
     tr { page-break-inside: avoid; page-break-after: auto; }
 

@@ -4593,6 +4593,11 @@ def banquet_packet_print():
     selected_venue = banquet_venue.get('id') or ''
     start_date, end_date = get_banquet_date_window(request.args.get('start_date'), request.args.get('end_date'))
     include_shopping = (request.args.get('include_shopping') or '').strip().lower() in ('1', 'true', 'yes', 'on')
+    include_beo_raw = request.args.get('include_beo')
+    if include_beo_raw is None:
+        include_beo = True
+    else:
+        include_beo = (include_beo_raw or '').strip().lower() in ('1', 'true', 'yes', 'on')
     datasets = build_banquet_datasets(cur, start_date, end_date, selected_venue, get_unit_system())
     event_name_map = {event['id']: event['name'] for event in datasets.get('events', [])}
     for prep in datasets.get('weekly_prep', []):
@@ -4608,6 +4613,7 @@ def banquet_packet_print():
         start_date=start_date.isoformat(),
         end_date=end_date.isoformat(),
         include_shopping=include_shopping,
+        include_beo=include_beo,
         generated_at=datetime.now().strftime('%b %d, %Y %I:%M %p'),
         datasets=datasets
     )
