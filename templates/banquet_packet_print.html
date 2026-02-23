@@ -954,9 +954,12 @@
     }
     .pkt-prep-card {
         border: 2px solid #000;
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+    .pkt-prep-card.break-before-page {
         break-before: page;
         page-break-before: always;
-        page-break-inside: avoid;
     }
     .pkt-card-header {
         background: #1c1917 !important;
