@@ -28,48 +28,10 @@
     </div>
 
     {# ═══════════════════════════════════════════════════ #}
-    {#  SECTION 1 — EVENT SUMMARY                         #}
-    {# ═══════════════════════════════════════════════════ #}
-    <div class="pkt-section break-inside-avoid">
-        <div class="pkt-section-header">
-            <h2>Event Summary</h2>
-            <span class="pkt-date-range">{{ start_date }} – {{ end_date }}</span>
-        </div>
-        <div class="overflow-x-auto">
-            <table class="pkt-table">
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>Event</th>
-                        <th>Venue</th>
-                        <th>Room</th>
-                        <th>Service</th>
-                        <th class="text-center">Guests</th>
-                        <th class="text-center">Lines</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for event in datasets.events %}
-                    <tr>
-                        <td class="pkt-nowrap">{{ event.event_date }}</td>
-                        <td class="pkt-bold">{{ event.name }}</td>
-                        <td>{{ event.venue_name }}</td>
-                        <td>{{ event.room or '—' }}</td>
-                        <td>{{ event.service_timing or '—' }}</td>
-                        <td class="text-center">{{ event.guests or '—' }}</td>
-                        <td class="text-center">{{ event.line_count }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    {# ═══════════════════════════════════════════════════ #}
-    {#  SECTION 2 — BEO SERVICE BRIEF (optional)          #}
+    {#  SECTION 1 — BEO SERVICE BRIEF (optional)          #}
     {# ═══════════════════════════════════════════════════ #}
     {% if include_beo %}
-    <div class="pkt-section break-before-page">
+    <div class="pkt-section pkt-beo-first-page">
         <div class="pkt-section-header">
             <h2>BEO Service Brief</h2>
             <span class="pkt-date-range">{{ start_date }} – {{ end_date }}</span>
@@ -158,6 +120,44 @@
         {% endif %}
     </div>
     {% endif %}
+
+    {# ═══════════════════════════════════════════════════ #}
+    {#  SECTION 2 — EVENT SUMMARY                         #}
+    {# ═══════════════════════════════════════════════════ #}
+    <div class="pkt-section break-inside-avoid">
+        <div class="pkt-section-header">
+            <h2>Event Summary</h2>
+            <span class="pkt-date-range">{{ start_date }} – {{ end_date }}</span>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="pkt-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Event</th>
+                        <th>Venue</th>
+                        <th>Room</th>
+                        <th>Service</th>
+                        <th class="text-center">Guests</th>
+                        <th class="text-center">Lines</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for event in datasets.events %}
+                    <tr>
+                        <td class="pkt-nowrap">{{ event.event_date }}</td>
+                        <td class="pkt-bold">{{ event.name }}</td>
+                        <td>{{ event.venue_name }}</td>
+                        <td>{{ event.room or '—' }}</td>
+                        <td>{{ event.service_timing or '—' }}</td>
+                        <td class="text-center">{{ event.guests or '—' }}</td>
+                        <td class="text-center">{{ event.line_count }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
 
     {# ═══════════════════════════════════════════════════ #}
     {#  SECTION 3 — SHOPPING LIST (optional)              #}
@@ -758,6 +758,9 @@
     display: grid;
     gap: 0.3rem;
 }
+.pkt-beo-first-page {
+    margin-top: 0.25rem;
+}
 .pkt-beo-file-ref {
     display: inline-block;
     margin-right: 0.4rem;
@@ -929,6 +932,7 @@
     }
     .break-inside-avoid { break-inside: avoid; page-break-inside: avoid; }
     .break-before-page { break-before: page; page-break-before: always; }
+    .pkt-beo-first-page { break-after: page; page-break-after: always; }
     .pkt-day-block { break-inside: avoid; page-break-inside: avoid; }
     .pkt-pull-card { break-inside: avoid; page-break-inside: avoid; }
     .pkt-beo-card { break-inside: avoid; page-break-inside: avoid; }
