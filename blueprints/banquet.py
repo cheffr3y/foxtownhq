@@ -625,6 +625,106 @@ def banquet_event_delete(event_id):
     cur.close()
     return redirect(url_for('banquet_planner'))
 
+@bp.route('/banquet/events/<event_id>/duplicate', methods=['POST'])
+@login_required
+def banquet_event_duplicate(event_id):
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    if not banquet_tables_ready(cur):
+        cur.close()
+        flash('Banquet tables are missing. Run migrations first.', 'error')
+        return redirect(url_for('banquet_planner'))
+
+    cur.execute("""
+        SELECT id, name, event_date, guest_count, venue_id, building, room, service_timing, dietary_notes, notes
+        FROM banquet_events
+        WHERE id = %s
+    """, (event_id,))
+    source_event = cur.fetchone()
+    if not source_event:
+        cur.close()
+        flash('Event not found.', 'error')
+        return redirect(url_for('banquet_planner'))
+
+    duplicate_name = clean_menu_text(request.form.get('duplicate_name'))
+    if not duplicate_name:
+        duplicate_name = f"{source_event.get('name') or 'Event'} (Copy)"
+
+    duplicate_date_raw = (request.form.get('duplicate_event_date') or '').strip()
+    try:
+        duplicate_date = datetime.strptime(duplicate_date_raw, '%Y-%m-%d').date()
+    except ValueError:
+        cur.close()
+        flash('Duplicate date is required in YYYY-MM-DD format.', 'error')
+        return redirect(url_for('banquet_event_edit', event_id=event_id))
+
+    new_event_id = generate_id('bev_')
+    try:
+        cur.execute("""
+            INSERT INTO banquet_events (
+                id, name, event_date, guest_count, venue_id, building, room, service_timing, dietary_notes, notes, status
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (
+            new_event_id,
+            duplicate_name,
+            duplicate_date,
+            source_event.get('guest_count'),
+            source_event.get('venue_id'),
+            source_event.get('building'),
+            source_event.get('room'),
+            source_event.get('service_timing'),
+            source_event.get('dietary_notes'),
+            source_event.get('notes'),
+            'planning'
+        ))
+
+        cur.execute("""
+            SELECT
+                menu_item_id,
+                menu_item_name,
+                recipe_id,
+                quantity,
+                quantity_unit,
+                menu_section,
+                menu_descriptor,
+                notes,
+                sort_order
+            FROM banquet_event_menu_items
+            WHERE event_id = %s
+            ORDER BY sort_order, id
+        """, (event_id,))
+        source_lines = cur.fetchall()
+
+        for line in source_lines:
+            cur.execute("""
+                INSERT INTO banquet_event_menu_items (
+                    event_id, menu_item_id, menu_item_name, recipe_id, quantity, quantity_unit,
+                    menu_section, menu_descriptor, notes, sort_order
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (
+                new_event_id,
+                line.get('menu_item_id'),
+                line.get('menu_item_name'),
+                line.get('recipe_id'),
+                line.get('quantity'),
+                line.get('quantity_unit') or 'each',
+                line.get('menu_section'),
+                line.get('menu_descriptor'),
+                line.get('notes'),
+                line.get('sort_order')
+            ))
+
+        conn.commit()
+        flash(f"Duplicated event as: {duplicate_name}", 'success')
+    except Exception:
+        conn.rollback()
+        flash('Error duplicating event.', 'error')
+        cur.close()
+        return redirect(url_for('banquet_event_edit', event_id=event_id))
+
+    cur.close()
+    return redirect(url_for('banquet_event_edit', event_id=new_event_id))
+
 @bp.route('/banquet-planner/events/<event_id>/apply-template', methods=['POST'])
 @login_required
 def banquet_event_apply_template(event_id):

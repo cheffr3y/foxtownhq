@@ -241,6 +241,13 @@
         <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
                 {% if event.id %}
+                <button
+                    type="button"
+                    onclick="submitDuplicateEvent('duplicateEventForm', '{{ (event.name or '')|escape }}', '{{ event.event_date or '' }}')"
+                    class="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-xl font-semibold"
+                >
+                    Duplicate Event
+                </button>
                 <button type="button" onclick="if(confirm('Delete this event?')) document.getElementById('deleteEventForm').submit();" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl font-semibold">Delete Event</button>
                 {% endif %}
             </div>
@@ -253,8 +260,40 @@
 
     {% if event.id %}
     <form id="deleteEventForm" method="POST" action="{{ url_for('banquet_event_delete', event_id=event.id) }}"></form>
+    <form id="duplicateEventForm" method="POST" action="{{ url_for('banquet_event_duplicate', event_id=event.id) }}">
+        <input type="hidden" name="duplicate_name" value="">
+        <input type="hidden" name="duplicate_event_date" value="">
+    </form>
     {% endif %}
 </div>
+
+<script>
+function submitDuplicateEvent(formId, baseName, baseDate) {
+    const form = document.getElementById(formId);
+    if (!form) return;
+    const suggestedName = `${(baseName || 'Event').trim()} (Copy)`;
+    const nextName = window.prompt('Name for duplicated event:', suggestedName);
+    if (nextName === null) return;
+    const trimmedName = (nextName || '').trim();
+    if (!trimmedName) {
+        window.alert('Event name is required.');
+        return;
+    }
+
+    const defaultDate = (baseDate || '').trim();
+    const nextDate = window.prompt('Event date for duplicated event (YYYY-MM-DD):', defaultDate);
+    if (nextDate === null) return;
+    const trimmedDate = (nextDate || '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmedDate)) {
+        window.alert('Enter a valid date in YYYY-MM-DD format.');
+        return;
+    }
+
+    form.elements['duplicate_name'].value = trimmedName;
+    form.elements['duplicate_event_date'].value = trimmedDate;
+    form.submit();
+}
+</script>
 
 <template id="lineRowTemplate">
 <tr data-line-id="">
