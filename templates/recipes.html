@@ -126,7 +126,7 @@
                     </thead>
                     <tbody class="divide-y divide-stone-200 bg-white">
                         {% for recipe in recipes %}
-                        <tr class="hover:bg-stone-50/70 transition">
+                        <tr class="cursor-pointer hover:bg-stone-50/70 transition" onclick="if (!event.target.closest('a,button,input,select,textarea,form,label')) { window.location='{{ url_for('recipe_detail', recipe_id=recipe.id) }}'; }">
                             <td class="px-5 py-4 align-top">
                                 <div class="text-sm font-semibold text-foxtown-ink">{{ recipe.name }}</div>
                                 {% if recipe.menu_descriptor %}

@@ -119,7 +119,7 @@
                         </thead>
                         <tbody class="divide-y divide-stone-100">
                             {% for event in upcoming_events %}
-                            <tr>
+                            <tr class="cursor-pointer hover:bg-stone-50/70 transition" onclick="if (!event.target.closest('a,button,input,select,textarea,form,label')) { window.location='{{ url_for('banquet_event_edit', event_id=event.id) }}'; }">
                                 <td class="py-2 pr-3">{{ event.event_date }}</td>
                                 <td class="py-2 pr-3 font-medium text-foxtown-ink">{{ event.name }}</td>
                                 <td class="py-2 pr-3">{{ event.venue_name }}</td>
@@ -156,7 +156,7 @@
                         </thead>
                         <tbody class="divide-y divide-stone-100">
                             {% for event in past_events %}
-                            <tr>
+                            <tr class="cursor-pointer hover:bg-stone-50/70 transition" onclick="if (!event.target.closest('a,button,input,select,textarea,form,label')) { window.location='{{ url_for('banquet_event_edit', event_id=event.id) }}'; }">
                                 <td class="py-2 pr-3">{{ event.event_date }}</td>
                                 <td class="py-2 pr-3 font-medium text-foxtown-ink">{{ event.name }}</td>
                                 <td class="py-2 pr-3">{{ event.status|title }}</td>
