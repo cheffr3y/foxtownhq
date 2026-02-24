@@ -15,6 +15,17 @@
 
     <!-- Main Content -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {% if only_needs_update %}
+        <div class="mb-4 flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+            <div class="text-sm text-slate-700">
+                Showing only ingredients that need a price refresh.
+            </div>
+            <a href="{{ url_for('ingredients') }}" class="text-sm font-semibold text-foxtown-ember hover:text-orange-700">
+                Show All Ingredients
+            </a>
+        </div>
+        {% endif %}
+
         {% if needs_update_count and needs_update_count > 0 %}
         <div class="mb-6 rounded-2xl border border-amber-200 bg-foxtown-emberSoft px-5 py-4 text-foxtown-ink shadow-soft">
             <div class="flex items-start justify-between gap-4">
@@ -43,6 +54,7 @@
 
         <!-- Ingredients Table -->
         <div class="bg-white rounded-2xl shadow-soft border border-stone-200 overflow-x-auto">
+            {% if ingredients %}
             <table class="min-w-[960px] divide-y divide-stone-200">
                 <thead class="bg-stone-50">
                     <tr>
@@ -138,6 +150,12 @@
                     {% endfor %}
                 </tbody>
             </table>
+            {% else %}
+            <div class="px-6 py-10 text-center">
+                <h3 class="text-lg font-display text-foxtown-ink">No ingredients need price updates</h3>
+                <p class="mt-2 text-sm text-stone-500">Everything is current for the selected refresh window.</p>
+            </div>
+            {% endif %}
         </div>
 
     </div>

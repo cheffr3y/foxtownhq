@@ -14,6 +14,7 @@ def handle_ingredients_error(error):
 def ingredients():
     conn = get_db()
     cur = conn.cursor(cursor_factory=RealDictCursor)
+    only_needs_update = (request.args.get('needs_update') or '').strip().lower() in ('1', 'true', 'yes', 'on')
     
     # Get all ingredients
     cur.execute("""
@@ -37,6 +38,9 @@ def ingredients():
         ingredient['needs_price_update'] = (age_days is None) or (age_days >= PRICE_REFRESH_DAYS)
         if ingredient['needs_price_update']:
             needs_update_count += 1
+    if only_needs_update:
+        ingredients_list = [ingredient for ingredient in ingredients_list if ingredient.get('needs_price_update')]
+
     cur.close()
     conn.close()
     
@@ -44,7 +48,8 @@ def ingredients():
         'ingredients.html',
         ingredients=ingredients_list,
         needs_update_count=needs_update_count,
-        price_refresh_days=PRICE_REFRESH_DAYS
+        price_refresh_days=PRICE_REFRESH_DAYS,
+        only_needs_update=only_needs_update
     )
 
 @bp.route('/ingredients/new', methods=['GET', 'POST'])

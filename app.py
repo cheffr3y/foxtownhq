@@ -160,7 +160,7 @@ def dashboard():
             'title': 'Ingredient Price Refresh Needed',
             'count_text': str(stale_price_count),
             'detail': f'Ingredients are older than {PRICE_REFRESH_DAYS or 56} days.',
-            'href': url_for('ingredients'),
+            'href': url_for('ingredients', needs_update='1'),
             'tone': 'slate',
         })
 
