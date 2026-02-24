@@ -17,6 +17,8 @@
             color: #9a3412;
             background: #fff7ed;
             padding: 7px 10px;
+            padding-left: 8px;
+            border-left: 4px solid #ea580c;
             border-radius: 6px;
         }
         table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
@@ -69,9 +71,26 @@
             font-size: 13px;
             font-weight: 700;
         }
+        .print-page-number {
+            display: none;
+        }
         @media print {
-            body { margin: 8mm; }
+            @page {
+                margin: 0.4in;
+            }
+            body { margin: 0; }
             .no-print { display: none; }
+            .print-page-number {
+                display: block;
+                position: fixed;
+                bottom: 0.12in;
+                right: 0.05in;
+                font-size: 10px;
+                color: #6b7280;
+            }
+            .print-page-number::after {
+                content: "Page " counter(page);
+            }
         }
     </style>
 </head>
@@ -87,6 +106,7 @@
         {% if rollout.year %} {{ rollout.year }}{% endif %}
         · Generated {{ generated_at.strftime('%b %d, %Y %I:%M %p') }}
     </div>
+    <div class="print-page-number" aria-hidden="true"></div>
 
     {% set has_packet_items = (menu_groups and menu_groups|length) or (rm_component_sets and rm_component_sets|length) or (rb_recipes and rb_recipes|length) or (ingredient_master and ingredient_master|length) %}
     {% if has_packet_items %}
