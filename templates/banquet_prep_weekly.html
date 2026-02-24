@@ -159,7 +159,15 @@
             {% endif %}
         </div>
         {% else %}
-        <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-6 text-sm text-stone-500">No scaled prep recipes found in this date window.</div>
+        <div class="bg-white rounded-2xl shadow-soft border border-stone-200 px-6 py-12 text-center">
+            <h3 class="text-xl font-display text-foxtown-ink">No scaled prep recipes found</h3>
+            <p class="mt-2 text-stone-500">No prep cards were generated for this date window. Adjust your range or review event menu links.</p>
+            <div class="mt-6">
+                <a href="{{ url_for('banquet_planner', venue=selected_venue, start_date=start_date, end_date=end_date) }}" class="inline-flex items-center bg-foxtown-ember hover:bg-orange-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition duration-200 shadow-soft">
+                    Return to Planner
+                </a>
+            </div>
+        </div>
         {% endif %}
     </div>
 </div>

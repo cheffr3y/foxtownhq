@@ -38,6 +38,37 @@
             padding: 3px 8px;
             margin-left: 8px;
         }
+        .empty-state {
+            margin-top: 22px;
+            border: 1px solid #e7e5e4;
+            border-radius: 14px;
+            background: #ffffff;
+            padding: 32px 24px;
+            text-align: center;
+        }
+        .empty-state h2 {
+            margin: 0;
+            font-size: 28px;
+            color: #1f2937;
+        }
+        .empty-state p {
+            margin: 10px 0 0 0;
+            font-size: 14px;
+            color: #57534e;
+        }
+        .empty-state-action {
+            margin-top: 18px;
+        }
+        .empty-state-action a {
+            display: inline-block;
+            background: #ea580c;
+            color: #ffffff;
+            text-decoration: none;
+            padding: 10px 16px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 700;
+        }
         @media print {
             body { margin: 8mm; }
             .no-print { display: none; }
@@ -57,6 +88,8 @@
         · Generated {{ generated_at.strftime('%b %d, %Y %I:%M %p') }}
     </div>
 
+    {% set has_packet_items = (menu_groups and menu_groups|length) or (rm_component_sets and rm_component_sets|length) or (rb_recipes and rb_recipes|length) or (ingredient_master and ingredient_master|length) %}
+    {% if has_packet_items %}
     <h2>1. Menu Lines</h2>
     {% for group in menu_groups %}
     <div class="section-title">{{ group.section }}</div>
@@ -209,5 +242,14 @@
         <li>Apply menu prices and validate actual food cost % against targets.</li>
         <li>Final verify where-used and G-code mapping before publish.</li>
     </ol>
+    {% else %}
+    <div class="empty-state">
+        <h2>No rollout items found</h2>
+        <p>Add menu lines to this rollout before generating an Acumatica packet.</p>
+        <div class="empty-state-action no-print">
+            <a href="{{ url_for('menu_rollouts') }}">Open Menu Rollouts</a>
+        </div>
+    </div>
+    {% endif %}
 </body>
 </html>
