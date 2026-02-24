@@ -659,7 +659,8 @@ def build_component_tree(cur, recipe_id, scale_ratio, depth, path, unit_system, 
         components.append(item)
 
     # Weighted option groups are only applied to plated/menu recipes.
-    if current_recipe and current_recipe.get('recipe_type') == 'menu':
+    current_recipe_type = normalize_recipe_type(current_recipe.get('recipe_type')) if current_recipe else None
+    if current_recipe_type == 'menu':
         weighted_rows = get_recipe_weighted_options(cur, recipe_id)
         grouped_options = {}
         for row in weighted_rows:
@@ -701,8 +702,10 @@ def build_component_tree(cur, recipe_id, scale_ratio, depth, path, unit_system, 
                 opt_item = {
                     'id': option.get('id'),
                     'type': option.get('item_type'),
+                    'item_id': option.get('item_id'),
                     'item_name': option.get('item_name') or 'Unknown option',
                     'category': 'Weighted option',
+                    'unit': option.get('unit'),
                     'scaled_quantity': scaled_qty,
                     'scaled_quantity_display': format_number(scaled_qty),
                     'children': [],
