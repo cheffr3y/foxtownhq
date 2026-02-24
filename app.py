@@ -1,5 +1,5 @@
 import os
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 from dotenv import load_dotenv
 from flask import Flask, flash, redirect, render_template, url_for
@@ -13,7 +13,15 @@ from blueprints.menu import bp as menu_bp
 from blueprints.recipes import bp as recipes_bp
 from config import PRICE_REFRESH_DAYS
 from db import get_db, init_app as init_db_app
-from helpers.common import get_admin_config, inject_helpers
+from helpers.common import (
+    auto_complete_past_banquet_events,
+    build_banquet_datasets,
+    get_active_venues,
+    get_admin_config,
+    get_unit_system,
+    inject_helpers,
+    resolve_banquet_venue,
+)
 
 load_dotenv()
 
@@ -116,6 +124,46 @@ def dashboard():
     )
     recent_rollout_count = cur.fetchone()['count']
 
+    today = date.today()
+    week_end = today + timedelta(days=6)
+    venues = get_active_venues(cur)
+    banquet_venue = resolve_banquet_venue(venues)
+    selected_venue = banquet_venue.get('id') or ''
+    auto_complete_past_banquet_events(cur, selected_venue)
+    datasets = build_banquet_datasets(cur, today, week_end, selected_venue, get_unit_system())
+
+    today_events = [event for event in datasets.get('events', []) if event.get('event_date') == today]
+    upcoming_events = [
+        event for event in datasets.get('events', [])
+        if event.get('event_date') and today < event.get('event_date') <= week_end
+    ]
+
+    events_with_missing_menus = [
+        event for event in datasets.get('events', [])
+        if event.get('event_date')
+        and event.get('event_date') <= (today + timedelta(days=3))
+        and int(event.get('line_count') or 0) == 0
+    ]
+
+    attention_flags = []
+    if events_with_missing_menus:
+        first_event = events_with_missing_menus[0]
+        attention_flags.append({
+            'title': 'Events Missing Menu Items',
+            'count_text': str(len(events_with_missing_menus)),
+            'detail': 'Events within 72 hours have no menu lines attached.',
+            'href': url_for('banquet_event_edit', event_id=first_event.get('id')),
+            'tone': 'amber',
+        })
+    if stale_price_count:
+        attention_flags.append({
+            'title': 'Ingredient Price Refresh Needed',
+            'count_text': str(stale_price_count),
+            'detail': f'Ingredients are older than {PRICE_REFRESH_DAYS or 56} days.',
+            'href': url_for('ingredients'),
+            'tone': 'slate',
+        })
+
     cur.close()
 
     return render_template(
@@ -125,6 +173,39 @@ def dashboard():
         stale_price_count=stale_price_count,
         recent_rollout_count=recent_rollout_count,
         price_refresh_days=PRICE_REFRESH_DAYS,
+        today=today,
+        week_end=week_end,
+        banquet_venue_name=banquet_venue.get('name') or 'Banquets',
+        today_events=today_events,
+        upcoming_events=upcoming_events,
+        attention_flags=attention_flags,
+    )
+
+
+@app.route('/production-board')
+@login_required
+def production_board():
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+
+    today = date.today()
+    venues = get_active_venues(cur)
+    banquet_venue = resolve_banquet_venue(venues)
+    selected_venue = banquet_venue.get('id') or ''
+
+    auto_complete_past_banquet_events(cur, selected_venue)
+    datasets = build_banquet_datasets(cur, today, today, selected_venue, get_unit_system())
+    today_events = datasets.get('events', [])
+
+    cur.close()
+
+    return render_template(
+        'production_board.html',
+        today=today,
+        current_time=datetime.now(),
+        venue_name=banquet_venue.get('name') or 'Banquets',
+        today_events=today_events,
+        last_updated=datetime.now(),
     )
 
 
