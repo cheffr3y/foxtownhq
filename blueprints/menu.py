@@ -62,11 +62,19 @@ def menu_rollouts():
     cur = conn.cursor(cursor_factory=RealDictCursor)
 
     cur.execute("""
-        SELECT mr.*, COUNT(mri.id) as item_count
+        SELECT
+            mr.id,
+            mr.name,
+            mr.venue,
+            mr.year,
+            mr.quarter,
+            (
+                SELECT COUNT(*)
+                FROM menu_rollout_items mri
+                WHERE mri.rollout_id = mr.id
+            ) AS item_count
         FROM menu_rollouts mr
-        LEFT JOIN menu_rollout_items mri ON mr.id = mri.rollout_id
         WHERE mr.is_one_off = FALSE
-        GROUP BY mr.id
         ORDER BY mr.year DESC NULLS LAST, mr.quarter DESC NULLS LAST, mr.venue, mr.name
     """)
     rollouts = cur.fetchall()

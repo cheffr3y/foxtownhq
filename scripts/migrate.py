@@ -198,6 +198,8 @@ MIGRATIONS = [
         ('ven_foxtown_landing', 'Foxtown Landing', 70)
     ON CONFLICT (id) DO NOTHING
     """,
+    "CREATE INDEX IF NOT EXISTS idx_menu_rollout_items_rollout_id ON menu_rollout_items (rollout_id)",
+    "CREATE INDEX IF NOT EXISTS idx_menu_rollouts_listing ON menu_rollouts (is_one_off, year DESC, quarter DESC, venue, name)",
 ]
 
 
