@@ -1,34 +1,16 @@
 {% extends "base.html" %}
+{% from "base.html" import page_nav %}
 
 {% block title %}Menu Rollouts - Foxtown HQ{% endblock %}
 
 {% block content %}
 <div class="min-h-screen">
-    <nav class="bg-foxtown-charcoal text-white border-b border-slate-800/60">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between py-4">
-                <div class="flex items-center space-x-3">
-                    <a href="{{ url_for('dashboard') }}" class="text-amber-200 hover:text-white">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-                        </svg>
-                    </a>
-                    <div>
-                        <h1 class="text-2xl font-display tracking-tight">Menu Rollouts</h1>
-                        <p class="text-sm text-stone-200">Containers for each venue menu by quarter and year.</p>
-                    </div>
-                </div>
-                <div class="flex items-center gap-3">
-                    <a href="{{ url_for('menu_costing') }}" class="text-sm text-stone-200 hover:text-white">
-                        One-off Costing
-                    </a>
-                    <a href="{{ url_for('menu_rollout_new') }}" class="bg-foxtown-ember hover:bg-orange-700 text-white px-4 py-2 rounded-xl font-semibold transition duration-200 shadow-soft hover:shadow-lift">
-                        + New Rollout
-                    </a>
-                </div>
-            </div>
-        </div>
-    </nav>
+    {% call page_nav('Menu Rollouts', 'Containers for each venue menu by quarter and year.', url_for('dashboard')) %}
+    <a href="{{ url_for('menu_costing') }}" class="text-sm text-stone-200 hover:text-white">One-off Costing</a>
+    <a href="{{ url_for('menu_rollout_new') }}" class="bg-foxtown-ember hover:bg-orange-700 text-white px-4 py-2 rounded-xl font-semibold transition duration-200 shadow-soft hover:shadow-lift">
+        + New Rollout
+    </a>
+    {% endcall %}
 
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {% if rollouts %}

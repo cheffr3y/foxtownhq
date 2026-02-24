@@ -75,7 +75,7 @@
                 {% set recipe_names = item.recipe_components | map(attribute='name') | join(' ') %}
                 {% set ingredient_names = item.ingredient_components | map(attribute='name') | join(' ') %}
                 <article
-                    class="menu-item-card border border-stone-200 rounded-xl p-4 border-l-4 border-l-cyan-500 bg-white"
+                    class="menu-item-card border border-stone-200 rounded-xl p-4 border-l-4 border-l-foxtown-ember bg-white"
                     data-search="{{ (item.name ~ ' ' ~ (item.menu_descriptor or '') ~ ' ' ~ section_name ~ ' ' ~ recipe_names ~ ' ' ~ ingredient_names)|lower }}"
                 >
                     <div class="flex flex-col gap-3">

@@ -1,3 +1,32 @@
+{% macro page_nav(title, subtitle=None, back_url=None) %}
+<nav class="bg-foxtown-charcoal text-white border-b border-slate-800/60">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between py-4">
+            <div class="flex items-center space-x-3">
+                {% if back_url %}
+                <a href="{{ back_url }}" class="text-amber-200 hover:text-white" aria-label="Back">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                    </svg>
+                </a>
+                {% endif %}
+                <div>
+                    <h1 class="text-2xl font-display tracking-tight">{{ title }}</h1>
+                    {% if subtitle %}
+                    <p class="text-sm text-stone-200">{{ subtitle }}</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% if caller is defined %}
+            <div class="flex items-center gap-3 text-sm flex-wrap justify-end">
+                {{ caller() }}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</nav>
+{% endmacro %}
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -82,5 +111,54 @@
         {% endif %}
     {% endwith %}
     {% block content %}{% endblock %}
+    <script>
+        (function () {
+            const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            if (!prefersReducedMotion) {
+                const durationMs = 600;
+                const easeOut = (t) => 1 - Math.pow(1 - t, 3);
+                document.querySelectorAll('.fhq-countup').forEach((el) => {
+                    const source = (el.dataset.count || el.textContent || '').trim();
+                    const numeric = parseFloat(source.replace(/[^0-9.-]/g, ''));
+                    if (Number.isNaN(numeric)) return;
+                    const decimalMatch = source.match(/\.(\d+)/);
+                    const decimals = decimalMatch ? decimalMatch[1].length : 0;
+                    const start = performance.now();
+                    function tick(now) {
+                        const progress = Math.min(1, (now - start) / durationMs);
+                        const eased = easeOut(progress);
+                        const value = numeric * eased;
+                        if (decimals > 0) {
+                            el.textContent = value.toFixed(decimals);
+                        } else {
+                            el.textContent = String(Math.round(value));
+                        }
+                        if (progress < 1) requestAnimationFrame(tick);
+                    }
+                    requestAnimationFrame(tick);
+                });
+            }
+
+            document.addEventListener('submit', (event) => {
+                const form = event.target;
+                if (!(form instanceof HTMLFormElement)) return;
+                if (form.dataset.fhqSubmitting === '1') {
+                    event.preventDefault();
+                    return;
+                }
+                const submitter = event.submitter || form.querySelector('button[type=\"submit\"], input[type=\"submit\"]');
+                if (!submitter) return;
+                form.dataset.fhqSubmitting = '1';
+                submitter.disabled = true;
+                submitter.setAttribute('aria-busy', 'true');
+                const loadingText = submitter.getAttribute('data-loading-text') || 'Saving...';
+                if (submitter.tagName === 'INPUT') {
+                    submitter.value = loadingText;
+                } else {
+                    submitter.textContent = loadingText;
+                }
+            });
+        })();
+    </script>
 </body>
 </html>

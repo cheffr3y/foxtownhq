@@ -1,23 +1,14 @@
 {% extends "base.html" %}
+{% from "base.html" import page_nav %}
 
 {% block title %}Dashboard - Foxtown HQ{% endblock %}
 
 {% block content %}
 <div class="min-h-screen">
-    <nav class="bg-foxtown-charcoal text-white border-b border-slate-800/60">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between py-4">
-                <div class="flex items-center space-x-3">
-                    <h1 class="text-2xl font-display tracking-tight">Foxtown HQ</h1>
-                    <span class="text-xs uppercase tracking-widest text-stone-200 hidden sm:inline">Morning Briefing</span>
-                </div>
-                <div class="flex items-center space-x-4 text-sm">
-                    <span class="text-stone-200">Welcome, {{ current_user.username }}</span>
-                    <a href="{{ url_for('logout') }}" class="text-foxtown-ember hover:text-amber-200 font-semibold">Logout</a>
-                </div>
-            </div>
-        </div>
-    </nav>
+    {% call page_nav('Foxtown HQ', 'Morning Briefing') %}
+    <span class="text-stone-200">Welcome, {{ current_user.username }}</span>
+    <a href="{{ url_for('logout') }}" class="text-foxtown-ember hover:text-amber-200 font-semibold">Logout</a>
+    {% endcall %}
 
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 fhq-fade">
         <section class="bg-white border border-stone-200 rounded-2xl shadow-soft p-6">
@@ -40,7 +31,7 @@
                     {% for event in today_events %}
                     <div class="rounded-xl border border-stone-200 bg-stone-50 p-4">
                         <div class="text-lg font-display text-foxtown-ink">{{ event.name }}</div>
-                        <div class="mt-2 text-4xl font-semibold text-foxtown-ember leading-none">{{ event.guests or 0 }}</div>
+                        <div class="mt-2 text-4xl font-semibold text-foxtown-ember leading-none fhq-countup" data-count="{{ event.guests or 0 }}">{{ event.guests or 0 }}</div>
                         <div class="text-xs uppercase tracking-widest text-stone-500 mt-1">Guests</div>
                         <div class="mt-3 text-sm text-stone-700">{{ event.service_timing or 'Service timing not set' }}</div>
                         <div class="text-xs text-stone-500 mt-1">{{ event.venue_name }}</div>
@@ -106,7 +97,7 @@
                 {% for flag in attention_flags %}
                 <a href="{{ flag.href }}" class="block rounded-xl border {% if flag.tone == 'amber' %}border-amber-300 bg-amber-50{% else %}border-slate-300 bg-slate-50{% endif %} p-4 hover:shadow-soft transition">
                     <div class="text-xs uppercase tracking-widest {% if flag.tone == 'amber' %}text-amber-700{% else %}text-slate-600{% endif %}">{{ flag.title }}</div>
-                    <div class="text-3xl font-semibold {% if flag.tone == 'amber' %}text-amber-800{% else %}text-slate-800{% endif %} mt-2">{{ flag.count_text }}</div>
+                    <div class="text-3xl font-semibold {% if flag.tone == 'amber' %}text-amber-800{% else %}text-slate-800{% endif %} mt-2 fhq-countup" data-count="{{ flag.count_text }}">{{ flag.count_text }}</div>
                     <div class="text-sm {% if flag.tone == 'amber' %}text-amber-800{% else %}text-slate-700{% endif %} mt-1">{{ flag.detail }}</div>
                 </a>
                 {% endfor %}

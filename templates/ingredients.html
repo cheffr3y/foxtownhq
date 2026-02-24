@@ -1,33 +1,17 @@
 {% extends "base.html" %}
+{% from "base.html" import page_nav %}
 
 {% block title %}Ingredients - Foxtown HQ{% endblock %}
 
 {% block content %}
 <div class="min-h-screen">
-    <!-- Top Navigation Bar -->
-    <nav class="bg-foxtown-charcoal text-white border-b border-slate-800/60">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center h-16">
-                <div class="flex items-center space-x-3">
-                    <a href="{{ url_for('dashboard') }}" class="text-amber-200 hover:text-white">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-                        </svg>
-                    </a>
-                    <h1 class="text-2xl font-display tracking-tight">Ingredients</h1>
-                </div>
-                <div class="flex items-center space-x-4">
-                    <div class="text-sm text-stone-200">
-                        {{ ingredients|length }} ingredients
-                    </div>
-                    <a href="{{ url_for('new_ingredient') }}"
-                       class="bg-foxtown-ember hover:bg-orange-700 text-white px-4 py-2 rounded-xl font-semibold transition duration-200 shadow-soft text-sm">
-                        + New Ingredient
-                    </a>
-                </div>
-            </div>
-        </div>
-    </nav>
+    {% call page_nav('Ingredients', None, url_for('dashboard')) %}
+    <div class="text-sm text-stone-200">{{ ingredients|length }} ingredients</div>
+    <a href="{{ url_for('new_ingredient') }}"
+       class="bg-foxtown-ember hover:bg-orange-700 text-white px-4 py-2 rounded-xl font-semibold transition duration-200 shadow-soft text-sm">
+        + New Ingredient
+    </a>
+    {% endcall %}
 
     <!-- Main Content -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

@@ -1,30 +1,14 @@
 {% extends "base.html" %}
+{% from "base.html" import page_nav %}
 
 {% block title %}Banquet Planner - Foxtown HQ{% endblock %}
 
 {% block content %}
 <div class="min-h-screen">
-    <nav class="bg-foxtown-charcoal text-white border-b border-slate-800/60">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between py-4">
-                <div class="flex items-center space-x-3">
-                    <a href="{{ url_for('dashboard') }}" class="text-amber-200 hover:text-white">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-                        </svg>
-                    </a>
-                    <div>
-                        <h1 class="text-2xl font-display tracking-tight">Banquet Planner</h1>
-                        <p class="text-sm text-stone-200">Weekly prep, daily pull, and shopping lists from shared recipes + ingredients.</p>
-                    </div>
-                </div>
-                <div class="flex items-center gap-3 text-sm">
-                    <a href="{{ url_for('banquet_event_new') }}" class="bg-foxtown-ember hover:bg-orange-700 text-white px-4 py-2 rounded-xl font-semibold">+ New Event</a>
-                    <a href="{{ url_for('banquet_template_import') }}" class="bg-white/10 hover:bg-white/20 border border-white/30 px-4 py-2 rounded-xl font-semibold">Menu Catalog</a>
-                </div>
-            </div>
-        </div>
-    </nav>
+    {% call page_nav('Banquet Planner', 'Weekly prep, daily pull, and shopping lists from shared recipes + ingredients.', url_for('dashboard')) %}
+    <a href="{{ url_for('banquet_event_new') }}" class="bg-foxtown-ember hover:bg-orange-700 text-white px-4 py-2 rounded-xl font-semibold">+ New Event</a>
+    <a href="{{ url_for('banquet_template_import') }}" class="bg-white/10 hover:bg-white/20 border border-white/30 px-4 py-2 rounded-xl font-semibold">Menu Catalog</a>
+    {% endcall %}
 
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-5">
@@ -52,42 +36,42 @@
         <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-5">
             <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-5">
                 <div class="text-xs uppercase tracking-widest text-stone-500 mb-1">Events In Window</div>
-                <div class="text-3xl font-semibold text-foxtown-ink">{{ event_count }}</div>
+                <div class="text-3xl font-semibold text-foxtown-ink fhq-countup" data-count="{{ event_count }}">{{ event_count }}</div>
             </div>
             <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-5">
                 <div class="text-xs uppercase tracking-widest text-stone-500 mb-1">Menu Lines</div>
-                <div class="text-3xl font-semibold text-foxtown-ink">{{ menu_line_count }}</div>
+                <div class="text-3xl font-semibold text-foxtown-ink fhq-countup" data-count="{{ menu_line_count }}">{{ menu_line_count }}</div>
             </div>
             <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-5">
                 <div class="text-xs uppercase tracking-widest text-stone-500 mb-1">Shopping Ingredients</div>
-                <div class="text-3xl font-semibold text-foxtown-ink">{{ shopping_count }}</div>
+                <div class="text-3xl font-semibold text-foxtown-ink fhq-countup" data-count="{{ shopping_count }}">{{ shopping_count }}</div>
             </div>
             <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-5">
                 <div class="text-xs uppercase tracking-widest text-stone-500 mb-1">Batch Prep Recipes</div>
-                <div class="text-3xl font-semibold text-foxtown-ink">{{ weekly_prep_count }}</div>
+                <div class="text-3xl font-semibold text-foxtown-ink fhq-countup" data-count="{{ weekly_prep_count }}">{{ weekly_prep_count }}</div>
             </div>
             <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-5">
                 <div class="text-xs uppercase tracking-widest text-stone-500 mb-1">Menu Catalog Items</div>
-                <div class="text-3xl font-semibold text-foxtown-ink">{{ menu_item_count }}</div>
+                <div class="text-3xl font-semibold text-foxtown-ink fhq-countup" data-count="{{ menu_item_count }}">{{ menu_item_count }}</div>
             </div>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
             <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-5">
                 <div class="text-xs uppercase tracking-widest text-stone-500 mb-1">Total Saved Events</div>
-                <div class="text-3xl font-semibold text-foxtown-ink">{{ banquet_metrics.total_events }}</div>
+                <div class="text-3xl font-semibold text-foxtown-ink fhq-countup" data-count="{{ banquet_metrics.total_events }}">{{ banquet_metrics.total_events }}</div>
             </div>
             <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-5">
                 <div class="text-xs uppercase tracking-widest text-stone-500 mb-1">Completed Events</div>
-                <div class="text-3xl font-semibold text-foxtown-ink">{{ banquet_metrics.completed_events }}</div>
+                <div class="text-3xl font-semibold text-foxtown-ink fhq-countup" data-count="{{ banquet_metrics.completed_events }}">{{ banquet_metrics.completed_events }}</div>
             </div>
             <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-5">
                 <div class="text-xs uppercase tracking-widest text-stone-500 mb-1">Active Next 10 Days</div>
-                <div class="text-3xl font-semibold text-foxtown-ink">{{ banquet_metrics.active_next_10_days }}</div>
+                <div class="text-3xl font-semibold text-foxtown-ink fhq-countup" data-count="{{ banquet_metrics.active_next_10_days }}">{{ banquet_metrics.active_next_10_days }}</div>
             </div>
             <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-5">
                 <div class="text-xs uppercase tracking-widest text-stone-500 mb-1">Avg Guests (90 Days)</div>
-                <div class="text-3xl font-semibold text-foxtown-ink">{{ "%.1f"|format(banquet_metrics.avg_guests_90d or 0) }}</div>
+                <div class="text-3xl font-semibold text-foxtown-ink fhq-countup" data-count="{{ "%.1f"|format(banquet_metrics.avg_guests_90d or 0) }}">{{ "%.1f"|format(banquet_metrics.avg_guests_90d or 0) }}</div>
             </div>
         </div>
 
