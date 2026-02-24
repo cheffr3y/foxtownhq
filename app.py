@@ -989,15 +989,19 @@ def flatten_components_for_pdf(items, level=0):
             rows.extend(flatten_components_for_pdf(item.get('children'), level + 1))
     return rows
 
-def flatten_components_for_packet(items, ingredient_map, level=0, explode_subrecipes=True):
+def flatten_components_for_packet(items, ingredient_map, level=0, explode_subrecipes=True, preserve_base_units=False):
     rows = []
     for item in items:
         item_type = item.get('type') or 'component'
         name = item.get('item_name') or 'Unknown'
-        quantity = item.get('display_quantity')
-        if quantity in (None, ''):
+        if preserve_base_units:
             quantity = item.get('scaled_quantity_display') or item.get('scaled_quantity') or ''
-        unit = item.get('display_unit') or item.get('unit') or ''
+            unit = item.get('unit') or item.get('display_unit') or ''
+        else:
+            quantity = item.get('display_quantity')
+            if quantity in (None, ''):
+                quantity = item.get('scaled_quantity_display') or item.get('scaled_quantity') or ''
+            unit = item.get('display_unit') or item.get('unit') or ''
         ext_cost = to_float(item.get('cost_total'))
 
         g_code = ''
@@ -1032,7 +1036,8 @@ def flatten_components_for_packet(items, ingredient_map, level=0, explode_subrec
                     item['children'],
                     ingredient_map,
                     level + 1,
-                    explode_subrecipes=explode_subrecipes
+                    explode_subrecipes=explode_subrecipes,
+                    preserve_base_units=preserve_base_units
                 )
             )
     return rows
@@ -6158,7 +6163,7 @@ def menu_rollout_packet_export(rollout_id):
     style_headers(ws_rm)
     for rm in rm_component_sets:
         ws_rm.append([rm['menu_name'], rm.get('menu_descriptor') or '', "RM", rm['recipe_name'], '', '', round(to_float(rm['total_cost']), 4), '', '', '', 'Total plated cost'])
-        for row in flatten_components_for_packet(rm['components'], ingredient_map, explode_subrecipes=False):
+        for row in flatten_components_for_packet(rm['components'], ingredient_map, explode_subrecipes=False, preserve_base_units=True):
             ws_rm.append([
                 rm['menu_name'],
                 rm.get('menu_descriptor') or '',
@@ -6199,7 +6204,7 @@ def menu_rollout_packet_export(rollout_id):
             '',
             ''
         ])
-        for row in flatten_components_for_packet(rb['components'], ingredient_map):
+        for row in flatten_components_for_packet(rb['components'], ingredient_map, preserve_base_units=True):
             ws_rb.append([
                 recipe['name'],
                 '',
@@ -6341,7 +6346,7 @@ def menu_rollout_packet_print(rollout_id):
             'menu_descriptor': menu_descriptor,
             'recipe_name': recipe_name,
             'total_cost': total_cost,
-            'rows': flatten_components_for_packet(components, ingredient_map, explode_subrecipes=False)
+            'rows': flatten_components_for_packet(components, ingredient_map, explode_subrecipes=False, preserve_base_units=True)
         })
         collect_subrecipes_from_components(components, subrecipe_ids)
         collect_ingredient_usage_from_components(components, usage_label, ingredient_usage)
@@ -6363,7 +6368,7 @@ def menu_rollout_packet_print(rollout_id):
                 'recipe': recipe,
                 'total_cost': total_cost,
                 'cost_per_yield': (total_cost / yield_qty) if yield_qty > 0 else None,
-                'rows': flatten_components_for_packet(components, ingredient_map)
+                'rows': flatten_components_for_packet(components, ingredient_map, preserve_base_units=True)
             })
 
     ingredient_master, _, _ = build_rollout_breakdown(cur, unit_system, menu_items)
