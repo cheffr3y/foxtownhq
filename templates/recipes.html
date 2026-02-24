@@ -42,23 +42,29 @@
         </div>
     </nav>
 
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div class="rounded-2xl border border-stone-200 bg-white/90 p-4 shadow-soft">
-                <div class="text-xs uppercase tracking-wide text-stone-500 font-semibold">Plated (RM)</div>
-                <div class="mt-1 text-2xl font-display text-foxtown-ink">{{ menu_count }}</div>
-            </div>
-            <div class="rounded-2xl border border-stone-200 bg-white/90 p-4 shadow-soft">
-                <div class="text-xs uppercase tracking-wide text-stone-500 font-semibold">Batch (RB)</div>
-                <div class="mt-1 text-2xl font-display text-foxtown-ink">{{ batch_count }}</div>
-            </div>
-            <div class="rounded-2xl border border-stone-200 bg-white/90 p-4 shadow-soft">
-                <div class="text-xs uppercase tracking-wide text-stone-500 font-semibold">Active Filters</div>
-                <div class="mt-1 text-2xl font-display text-foxtown-ink">{{ active_filter_count }}</div>
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-4">
+        <div class="rounded-xl border border-stone-200/80 bg-white/85 px-4 py-2.5">
+            <div class="flex flex-wrap items-center gap-3 text-sm">
+                <div class="inline-flex items-baseline gap-2">
+                    <span class="text-xl font-display text-foxtown-ink">{{ menu_count }}</span>
+                    <span class="text-stone-500">Plated (RM)</span>
+                </div>
+                <span class="text-stone-300">|</span>
+                <div class="inline-flex items-baseline gap-2">
+                    <span class="text-xl font-display text-foxtown-ink">{{ batch_count }}</span>
+                    <span class="text-stone-500">Batch (RB)</span>
+                </div>
+                {% if active_filter_count > 0 %}
+                <span class="text-stone-300">|</span>
+                <div class="inline-flex items-baseline gap-2">
+                    <span class="text-xl font-display text-foxtown-ink">{{ active_filter_count }}</span>
+                    <span class="text-stone-500">Active Filters</span>
+                </div>
+                {% endif %}
             </div>
         </div>
 
-        <div class="bg-white/90 rounded-2xl border border-stone-200 shadow-soft p-5">
+        <div class="bg-white/90 rounded-xl border border-stone-200/70 p-4">
             <form method="GET" action="{{ url_for('recipes') }}" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3 items-end">
                 <div class="xl:col-span-2">
                     <label for="q" class="block text-xs font-semibold uppercase tracking-wide text-stone-500 mb-1">Search</label>
@@ -119,27 +125,31 @@
                             <th class="px-5 py-3 text-left text-xs font-semibold text-stone-500 uppercase tracking-wider">Type</th>
                             <th class="px-5 py-3 text-left text-xs font-semibold text-stone-500 uppercase tracking-wider">Category</th>
                             <th class="px-5 py-3 text-left text-xs font-semibold text-stone-500 uppercase tracking-wider">Yield</th>
-                            <th class="px-5 py-3 text-left text-xs font-semibold text-stone-500 uppercase tracking-wider">Ingredients</th>
+                            <th class="hidden xl:table-cell px-5 py-3 text-left text-xs font-semibold text-stone-500 uppercase tracking-wider">Ingredients</th>
                             <th class="px-5 py-3 text-left text-xs font-semibold text-stone-500 uppercase tracking-wider">Venues</th>
                             <th class="px-5 py-3 text-right text-xs font-semibold text-stone-500 uppercase tracking-wider sticky right-0 bg-stone-50">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-stone-200 bg-white">
                         {% for recipe in recipes %}
-                        <tr class="cursor-pointer hover:bg-stone-50/70 transition" onclick="if (!event.target.closest('a,button,input,select,textarea,form,label')) { window.location='{{ url_for('recipe_detail', recipe_id=recipe.id) }}'; }">
+                        <tr class="group cursor-pointer hover:bg-stone-50/70 transition" onclick="if (!event.target.closest('a,button,input,select,textarea,form,label')) { window.location='{{ url_for('recipe_detail', recipe_id=recipe.id) }}'; }">
                             <td class="px-5 py-4 align-top">
                                 <div class="text-sm font-semibold text-foxtown-ink">{{ recipe.name }}</div>
                                 {% if recipe.menu_descriptor %}
-                                <div class="mt-1 text-xs text-stone-500 max-w-[460px]">{{ recipe.menu_descriptor }}</div>
+                                <div class="mt-1 text-[11px] text-stone-400 max-w-[460px]">{{ recipe.menu_descriptor }}</div>
                                 {% endif %}
                             </td>
                             <td class="px-5 py-4 align-top">
                                 {% if recipe.recipe_type == 'menu' %}
-                                    <span class="inline-flex px-2 py-1 text-xs font-semibold rounded bg-foxtown-ember text-white">RM Plated</span>
+                                    <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-foxtown-ink">
+                                        <span class="w-2 h-2 rounded-full bg-foxtown-ember"></span>RM
+                                    </span>
                                 {% elif recipe.recipe_type == 'batch' %}
-                                    <span class="inline-flex px-2 py-1 text-xs font-semibold rounded bg-slate-200 text-slate-700">RB Batch</span>
+                                    <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700">
+                                        <span class="w-2 h-2 rounded-full bg-slate-500"></span>RB
+                                    </span>
                                 {% else %}
-                                    <span class="inline-flex px-2 py-1 text-xs font-semibold rounded bg-stone-100 text-stone-700">Unspecified</span>
+                                    <span class="text-xs text-stone-500">--</span>
                                 {% endif %}
                             </td>
                             <td class="px-5 py-4 align-top text-sm text-stone-700">{{ recipe.category or 'Uncategorized' }}</td>
@@ -147,21 +157,20 @@
                                 {% set yield_display = smart_quantity(recipe.yield_qty, recipe.yield_unit) %}
                                 {{ yield_display.quantity }} {{ yield_display.unit }}
                             </td>
-                            <td class="px-5 py-4 align-top text-sm text-stone-700">{{ recipe.ingredient_count }}</td>
+                            <td class="hidden xl:table-cell px-5 py-4 align-top text-sm text-stone-700">{{ recipe.ingredient_count }}</td>
                             <td class="px-5 py-4 align-top text-sm text-stone-600 max-w-[280px]">
                                 {% if recipe.venue_names %}
-                                    {{ recipe.venue_names }}
+                                    <span class="block truncate whitespace-nowrap" title="{{ recipe.venue_names }}">{{ recipe.venue_names }}</span>
                                 {% else %}
-                                    <span class="text-stone-500">All venues</span>
+                                    <span class="block truncate whitespace-nowrap text-stone-500" title="All venues">All venues</span>
                                 {% endif %}
                             </td>
                             <td class="px-5 py-4 align-top text-right sticky right-0 bg-white">
-                                <div class="inline-flex items-center gap-3">
-                                    <a href="{{ url_for('recipe_detail', recipe_id=recipe.id) }}" class="text-foxtown-ember hover:text-orange-700 text-sm font-semibold">View</a>
-                                    <form method="POST" action="{{ url_for('recipe_clone', recipe_id=recipe.id) }}" class="inline">
-                                        <button type="submit" class="text-stone-700 hover:text-slate-900 text-sm font-semibold">Clone</button>
+                                <div class="inline-flex items-center gap-3 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-150">
+                                    <form method="POST" action="{{ url_for('recipe_clone', recipe_id=recipe.id) }}" class="inline" onclick="event.stopPropagation();">
+                                        <button type="submit" class="text-stone-700 hover:text-slate-900 text-sm font-semibold" onclick="event.stopPropagation();">Clone</button>
                                     </form>
-                                    <a href="{{ url_for('recipe_edit', recipe_id=recipe.id) }}" class="text-stone-700 hover:text-slate-900 text-sm font-semibold">Edit</a>
+                                    <a href="{{ url_for('recipe_edit', recipe_id=recipe.id) }}" class="text-stone-700 hover:text-slate-900 text-sm font-semibold" onclick="event.stopPropagation();">Edit</a>
                                 </div>
                             </td>
                         </tr>
