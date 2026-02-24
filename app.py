@@ -2,7 +2,7 @@ import os
 from datetime import date, datetime, timedelta
 
 from dotenv import load_dotenv
-from flask import Flask, flash, redirect, render_template, url_for
+from flask import Flask, flash, redirect, render_template, request, url_for
 from flask_login import LoginManager, UserMixin, current_user, login_required, login_user, logout_user
 from psycopg2.extras import RealDictCursor
 from werkzeug.security import check_password_hash
@@ -179,6 +179,72 @@ def dashboard():
         today_events=today_events,
         upcoming_events=upcoming_events,
         attention_flags=attention_flags,
+    )
+
+
+@app.route('/search')
+@login_required
+def search():
+    query = (request.args.get('q') or '').strip()
+    recipes = []
+    ingredients = []
+    events = []
+
+    if query:
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        like_query = f'%{query}%'
+
+        cur.execute(
+            """
+            SELECT id, name, recipe_type, category
+            FROM recipes
+            WHERE name ILIKE %s
+            ORDER BY name
+            LIMIT 30
+            """,
+            (like_query,),
+        )
+        recipes = cur.fetchall()
+
+        cur.execute(
+            """
+            SELECT id, name, category, unit
+            FROM ingredients
+            WHERE name ILIKE %s
+            ORDER BY name
+            LIMIT 30
+            """,
+            (like_query,),
+        )
+        ingredients = cur.fetchall()
+
+        cur.execute(
+            """
+            SELECT
+                e.id,
+                e.name,
+                e.event_date,
+                e.guest_count AS guests,
+                e.status,
+                COALESCE(v.name, e.building, 'Banquet') AS venue_name
+            FROM banquet_events e
+            LEFT JOIN venues v ON v.id = e.venue_id
+            WHERE e.name ILIKE %s
+            ORDER BY e.event_date DESC NULLS LAST, e.name
+            LIMIT 30
+            """,
+            (like_query,),
+        )
+        events = cur.fetchall()
+        cur.close()
+
+    return render_template(
+        'search_results.html',
+        search_query=query,
+        recipes=recipes,
+        ingredients=ingredients,
+        events=events,
     )
 
 

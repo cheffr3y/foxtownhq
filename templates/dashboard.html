@@ -6,6 +6,16 @@
 {% block content %}
 <div class="min-h-screen">
     {% call page_nav('Foxtown HQ', 'Morning Briefing') %}
+    <form method="GET" action="{{ url_for('search') }}" class="w-full sm:w-[360px]">
+        <label for="dashboardSearch" class="sr-only">Global search</label>
+        <input
+            id="dashboardSearch"
+            type="search"
+            name="q"
+            placeholder="Search recipes, ingredients, events..."
+            class="w-full px-4 py-2 rounded-xl border border-white/30 bg-white/10 text-white placeholder:text-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-300"
+        >
+    </form>
     <span class="inline-flex items-center justify-center bg-foxtown-ember text-white rounded-full w-8 h-8 text-sm font-semibold" title="{{ current_user.username }}">
         {{ (current_user.username[:1] if current_user.username else '?')|upper }}
     </span>
