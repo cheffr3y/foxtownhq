@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import hashlib
 import os
 import sys
 
@@ -200,6 +201,11 @@ MIGRATIONS = [
 ]
 
 
+def migration_key(index, statement):
+    digest = hashlib.sha256(statement.strip().encode("utf-8")).hexdigest()[:12]
+    return f"{index:04d}_{digest}"
+
+
 def main():
     database_url = os.getenv("DATABASE_URL")
     if not database_url:
@@ -210,9 +216,34 @@ def main():
     try:
         with conn:
             with conn.cursor() as cur:
-                for statement in MIGRATIONS:
+                cur.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS schema_migrations (
+                        migration_key TEXT PRIMARY KEY,
+                        applied_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                    )
+                    """
+                )
+                cur.execute("SELECT migration_key FROM schema_migrations")
+                applied = {row[0] for row in cur.fetchall()}
+
+                applied_now = 0
+                skipped = 0
+                for idx, statement in enumerate(MIGRATIONS, start=1):
+                    key = migration_key(idx, statement)
+                    if key in applied:
+                        skipped += 1
+                        continue
                     cur.execute(statement)
-        print(f"Applied {len(MIGRATIONS)} migrations.")
+                    cur.execute(
+                        "INSERT INTO schema_migrations (migration_key) VALUES (%s)",
+                        (key,),
+                    )
+                    applied_now += 1
+
+        print(
+            f"Migrations complete. Applied {applied_now}, skipped {skipped}, total tracked {len(MIGRATIONS)}."
+        )
         return 0
     finally:
         conn.close()
