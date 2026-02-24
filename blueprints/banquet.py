@@ -306,6 +306,7 @@ def banquet_event_new():
         page_title='New Banquet Event',
         event=event,
         event_beo_files=[],
+        guest_count_history=[],
         lines=lines,
         menu_items=menu_items,
         venues=venues,
@@ -329,6 +330,8 @@ def banquet_event_edit(event_id):
         cur.close()
         flash('Event not found.', 'error')
         return redirect(url_for('banquet_planner'))
+    cur.execute("SELECT to_regclass('public.banquet_event_guest_log') AS table_ref")
+    guest_log_table_ready = bool((cur.fetchone() or {}).get('table_ref'))
 
     venues = get_active_venues(cur)
     banquet_venue = resolve_banquet_venue(venues)
@@ -428,6 +431,8 @@ def banquet_event_edit(event_id):
             }
         else:
             try:
+                previous_guest_count = event.get('guest_count')
+                new_guest_count = int(guests) if guests is not None else None
                 cur.execute("""
                     UPDATE banquet_events
                     SET name = %s,
@@ -445,7 +450,7 @@ def banquet_event_edit(event_id):
                 """, (
                     event_name,
                     event_date,
-                    int(guests) if guests is not None else None,
+                    new_guest_count,
                     venue_id or None,
                     clean_menu_text(request.form.get('building')) or None,
                     clean_menu_text(request.form.get('room')) or None,
@@ -529,6 +534,11 @@ def banquet_event_edit(event_id):
                         line['notes'] or None,
                         idx
                     ))
+                if guest_log_table_ready and previous_guest_count != new_guest_count:
+                    cur.execute("""
+                        INSERT INTO banquet_event_guest_log (event_id, old_count, new_count)
+                        VALUES (%s, %s, %s)
+                    """, (event_id, previous_guest_count, new_guest_count))
                 conn.commit()
                 flash('Banquet event updated.', 'success')
                 cur.close()
@@ -548,12 +558,23 @@ def banquet_event_edit(event_id):
 
     menu_items = list_banquet_menu_items(cur, event.get('venue_id') or '')
     event_beo_files = list_banquet_event_beo_files(cur, event_id)
+    guest_count_history = []
+    if guest_log_table_ready:
+        cur.execute("""
+            SELECT old_count, new_count, changed_at
+            FROM banquet_event_guest_log
+            WHERE event_id = %s
+            ORDER BY changed_at DESC
+            LIMIT 20
+        """, (event_id,))
+        guest_count_history = cur.fetchall()
     cur.close()
     return render_template(
         'banquet_event_form.html',
         page_title='Edit Banquet Event',
         event=event,
         event_beo_files=event_beo_files,
+        guest_count_history=guest_count_history,
         lines=lines,
         menu_items=menu_items,
         venues=venues,

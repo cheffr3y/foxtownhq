@@ -172,6 +172,16 @@ MIGRATIONS = [
     )
     """,
     "CREATE INDEX IF NOT EXISTS idx_banquet_shopping_checks_scope ON banquet_shopping_checks (venue_id, start_date, end_date)",
+    """
+    CREATE TABLE IF NOT EXISTS banquet_event_guest_log (
+        id BIGSERIAL PRIMARY KEY,
+        event_id TEXT NOT NULL REFERENCES banquet_events(id) ON DELETE CASCADE,
+        old_count INTEGER,
+        new_count INTEGER,
+        changed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_banquet_event_guest_log_event_id ON banquet_event_guest_log (event_id, changed_at DESC)",
     "ALTER TABLE banquet_events ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'planning'",
     "ALTER TABLE banquet_menu_items ADD COLUMN IF NOT EXISTS venue_id TEXT",
     "ALTER TABLE banquet_menu_items ADD COLUMN IF NOT EXISTS menu_section TEXT",
