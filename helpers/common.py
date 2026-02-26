@@ -1468,6 +1468,15 @@ BANQUET_STATUS_CHOICES = [
     ('completed', 'Completed'),
     ('cancelled', 'Cancelled')
 ]
+COMMISSARY_ACTIVE_STATUSES = ('pending', 'confirmed', 'in_production')
+COMMISSARY_STATUS_CHOICES = [
+    ('pending', 'Pending'),
+    ('confirmed', 'Confirmed'),
+    ('in_production', 'In Production'),
+    ('completed', 'Completed'),
+    ('cancelled', 'Cancelled')
+]
+DEFAULT_COMMISSARY_OUTLET = 'Foxtown Brewing'
 
 def resolve_banquet_venue(venues):
     for venue in venues:
@@ -1486,6 +1495,76 @@ def banquet_tables_ready(cur):
         'public.banquet_event_menu_items'
     )
     return all(db_table_exists(cur, table_name) for table_name in required)
+
+def commissary_tables_ready(cur):
+    required = (
+        'public.outlet_orders',
+        'public.outlet_order_items'
+    )
+    return all(db_table_exists(cur, table_name) for table_name in required)
+
+def ensure_commissary_tables(cur):
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS outlet_orders (
+            id TEXT PRIMARY KEY,
+            outlet TEXT NOT NULL,
+            needed_date DATE NOT NULL,
+            status TEXT DEFAULT 'pending',
+            notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS outlet_order_items (
+            id BIGSERIAL PRIMARY KEY,
+            order_id TEXT NOT NULL REFERENCES outlet_orders(id) ON DELETE CASCADE,
+            recipe_id TEXT REFERENCES recipes(id) ON DELETE SET NULL,
+            item_name TEXT,
+            quantity NUMERIC NOT NULL DEFAULT 1,
+            quantity_unit TEXT DEFAULT 'each',
+            notes TEXT,
+            sort_order INTEGER DEFAULT 0
+        )
+    """)
+    cur.execute("ALTER TABLE outlet_orders ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'pending'")
+    cur.execute("ALTER TABLE outlet_orders ADD COLUMN IF NOT EXISTS notes TEXT")
+    cur.execute("ALTER TABLE outlet_orders ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+    cur.execute("ALTER TABLE outlet_orders ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+
+    cur.execute("ALTER TABLE outlet_order_items ADD COLUMN IF NOT EXISTS item_name TEXT")
+    cur.execute("ALTER TABLE outlet_order_items ADD COLUMN IF NOT EXISTS quantity_unit TEXT DEFAULT 'each'")
+    cur.execute("ALTER TABLE outlet_order_items ADD COLUMN IF NOT EXISTS notes TEXT")
+    cur.execute("ALTER TABLE outlet_order_items ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0")
+    cur.execute("ALTER TABLE outlet_order_items ALTER COLUMN quantity SET DEFAULT 1")
+    cur.execute("""
+        UPDATE outlet_order_items
+        SET quantity_unit = 'each'
+        WHERE quantity_unit IS NULL OR TRIM(quantity_unit) = ''
+    """)
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_outlet_orders_needed_date ON outlet_orders (needed_date)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_outlet_orders_status ON outlet_orders (status)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_outlet_order_items_order_id ON outlet_order_items (order_id)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_outlet_order_items_recipe_id ON outlet_order_items (recipe_id)")
+
+def get_commissary_outlet_options(cur):
+    options = {DEFAULT_COMMISSARY_OUTLET}
+    for venue in get_active_venues(cur):
+        venue_name = clean_menu_text(venue.get('name'))
+        if venue_name:
+            options.add(venue_name)
+    if db_table_exists(cur, 'public.outlet_orders'):
+        cur.execute("""
+            SELECT DISTINCT outlet
+            FROM outlet_orders
+            WHERE outlet IS NOT NULL AND TRIM(outlet) <> ''
+            ORDER BY outlet
+        """)
+        for row in cur.fetchall():
+            outlet_name = clean_menu_text(row.get('outlet'))
+            if outlet_name:
+                options.add(outlet_name)
+    return sorted(options, key=lambda value: value.lower())
 
 def banquet_shopping_checks_ready(cur):
     return db_table_exists(cur, 'public.banquet_shopping_checks')
@@ -2157,6 +2236,94 @@ def clone_banquet_menu_item(cur, source_menu_item_id, venue_id, clone_label='Cus
         'menu_section': source_item.get('menu_section'),
         'menu_descriptor': source_item.get('menu_descriptor')
     }
+
+def get_commissary_order(cur, order_id):
+    if not commissary_tables_ready(cur):
+        return None
+    cur.execute("""
+        SELECT id,
+               outlet,
+               needed_date,
+               status,
+               notes,
+               created_at,
+               updated_at
+        FROM outlet_orders
+        WHERE id = %s
+        LIMIT 1
+    """, (order_id,))
+    return cur.fetchone()
+
+def get_commissary_order_lines(cur, order_id):
+    if not commissary_tables_ready(cur):
+        return []
+    cur.execute("""
+        SELECT oi.id AS line_id,
+               oi.order_id,
+               oi.recipe_id,
+               oi.item_name,
+               oi.quantity,
+               oi.quantity_unit,
+               oi.notes AS line_notes,
+               oi.sort_order,
+               r.name AS recipe_name,
+               r.yield_qty,
+               r.yield_unit,
+               r.recipe_type
+        FROM outlet_order_items oi
+        LEFT JOIN recipes r ON r.id = oi.recipe_id
+        WHERE oi.order_id = %s
+        ORDER BY COALESCE(oi.sort_order, 0), oi.id
+    """, (order_id,))
+    return cur.fetchall()
+
+def parse_commissary_order_lines(request, valid_recipe_ids):
+    line_ids = request.form.getlist('line_id[]')
+    recipe_ids = request.form.getlist('line_recipe_id[]')
+    item_names = request.form.getlist('line_item_name[]')
+    quantities = request.form.getlist('line_qty[]')
+    quantity_units = request.form.getlist('line_unit[]')
+    notes = request.form.getlist('line_notes[]')
+
+    max_len = max(
+        len(line_ids),
+        len(recipe_ids),
+        len(item_names),
+        len(quantities),
+        len(quantity_units),
+        len(notes),
+        0
+    )
+    rows = []
+    errors = []
+    for idx in range(max_len):
+        line_id = (line_ids[idx] if idx < len(line_ids) else '').strip()
+        recipe_id = (recipe_ids[idx] if idx < len(recipe_ids) else '').strip()
+        item_name = clean_menu_text(item_names[idx] if idx < len(item_names) else '')
+        qty_raw = (quantities[idx] if idx < len(quantities) else '').strip()
+        qty_unit_raw = clean_menu_text(quantity_units[idx] if idx < len(quantity_units) else '')
+        note = clean_menu_text(notes[idx] if idx < len(notes) else '')
+
+        if not any([recipe_id, item_name, qty_raw, qty_unit_raw, note]):
+            continue
+        if recipe_id and recipe_id not in valid_recipe_ids:
+            errors.append('One or more commissary line items reference an invalid recipe.')
+            continue
+        if not recipe_id and not item_name:
+            errors.append('Each commissary line needs a recipe or item name.')
+        qty = parse_float_field(qty_raw, 'Order quantity', errors, required=True, min_value=0.0001)
+        if qty is None:
+            continue
+        normalized_unit = normalize_unit(qty_unit_raw) or normalize_count_unit(qty_unit_raw) or qty_unit_raw or None
+        rows.append({
+            'line_id': line_id or None,
+            'recipe_id': recipe_id or None,
+            'item_name': item_name or None,
+            'quantity': qty,
+            'quantity_unit': normalized_unit,
+            'notes': note or None
+        })
+    return rows, errors
 
 def parse_event_recipe_lines(request):
     line_ids = request.form.getlist('line_id[]')
@@ -3022,6 +3189,328 @@ def build_banquet_datasets(cur, start_date, end_date, venue_id='', unit_system='
         'weekly_menu_pulls': weekly_menu_pulls,
         'event_count': len(events),
         'menu_line_count': total_menu_lines,
+        'total_estimated_cost': total_estimated_cost
+    }
+
+def fetch_commissary_order_rows(cur, start_date, end_date, outlet=''):
+    if not commissary_tables_ready(cur):
+        return []
+    params = [start_date, end_date]
+    outlet_filter_sql = ""
+    if outlet:
+        outlet_filter_sql = " AND o.outlet = %s"
+        params.append(outlet)
+
+    cur.execute(f"""
+        SELECT o.id AS order_id,
+               o.outlet,
+               o.needed_date,
+               o.status,
+               o.notes AS order_notes,
+               o.created_at,
+               o.updated_at,
+               oi.id AS line_id,
+               oi.recipe_id,
+               oi.item_name,
+               oi.quantity,
+               oi.quantity_unit,
+               oi.notes AS line_notes,
+               oi.sort_order,
+               r.name AS recipe_name,
+               r.category AS recipe_category,
+               r.yield_qty,
+               r.yield_unit,
+               r.instructions,
+               r.recipe_type
+        FROM outlet_orders o
+        LEFT JOIN outlet_order_items oi ON oi.order_id = o.id
+        LEFT JOIN recipes r ON r.id = oi.recipe_id
+        WHERE o.needed_date BETWEEN %s AND %s
+          AND COALESCE(NULLIF(TRIM(o.status), ''), 'pending') <> 'cancelled'
+          {outlet_filter_sql}
+        ORDER BY o.needed_date, o.outlet, o.created_at, COALESCE(oi.sort_order, 0), oi.id
+    """, params)
+    return cur.fetchall()
+
+def build_commissary_datasets(cur, start_date, end_date, outlet='', unit_system='imperial'):
+    rows = fetch_commissary_order_rows(cur, start_date, end_date, outlet)
+    orders_map = {}
+    ingredient_totals = {}
+    ingredient_usage = defaultdict(set)
+    batch_usage_qty = {}
+    batch_usage_orders = defaultdict(set)
+    batch_usage_items = defaultdict(set)
+    order_daily_ingredients = defaultdict(lambda: defaultdict(float))
+
+    for row in rows:
+        order_id = row.get('order_id')
+        if not order_id:
+            continue
+        if order_id not in orders_map:
+            orders_map[order_id] = {
+                'id': order_id,
+                'outlet': row.get('outlet') or DEFAULT_COMMISSARY_OUTLET,
+                'needed_date': row.get('needed_date'),
+                'status': (row.get('status') or 'pending'),
+                'notes': row.get('order_notes'),
+                'created_at': row.get('created_at'),
+                'updated_at': row.get('updated_at'),
+                'lines': [],
+                'line_count': 0
+            }
+
+        if not row.get('line_id'):
+            continue
+
+        recipe_id = row.get('recipe_id')
+        quantity = to_float(row.get('quantity'))
+        quantity_unit = row.get('quantity_unit') or row.get('yield_unit') or 'each'
+        item_name = clean_menu_text(row.get('item_name')) or row.get('recipe_name') or 'Item'
+
+        line = {
+            'id': row.get('line_id'),
+            'recipe_id': recipe_id,
+            'item_name': item_name,
+            'recipe_name': row.get('recipe_name'),
+            'recipe_type': normalize_recipe_type(row.get('recipe_type')),
+            'quantity': quantity,
+            'quantity_unit': quantity_unit,
+            'notes': row.get('line_notes'),
+            'estimated_cost_total': None,
+            'estimated_cost_per_unit': None,
+            'ratio': None,
+            'components': []
+        }
+
+        if recipe_id:
+            recipe = {
+                'id': recipe_id,
+                'name': row.get('recipe_name') or item_name,
+                'yield_qty': row.get('yield_qty'),
+                'yield_unit': row.get('yield_unit')
+            }
+            ratio = ratio_from_line_quantity(
+                {
+                    'quantity': quantity,
+                    'quantity_unit': quantity_unit
+                },
+                recipe
+            )
+            line['ratio'] = ratio
+            line_cost_total = get_recipe_total_cost(cur, recipe_id, unit_system, apply_q_factor=True) * ratio
+            line['estimated_cost_total'] = line_cost_total
+            line['estimated_cost_per_unit'] = line_cost_total / quantity if quantity > 0 else None
+
+            recipe_yield_qty = to_float(recipe.get('yield_qty'))
+            required_output_qty = (recipe_yield_qty * ratio) if recipe_yield_qty > 0 else ratio
+            required_output_unit = recipe.get('yield_unit') or quantity_unit
+            root_key = (recipe_id, required_output_unit)
+            batch_usage_qty[root_key] = batch_usage_qty.get(root_key, 0) + required_output_qty
+            batch_usage_orders[recipe_id].add(order_id)
+            batch_usage_items[recipe_id].add(item_name)
+
+            components, _, _ = build_component_tree(cur, recipe_id, ratio, 0, set(), unit_system, apply_q_factor=False)
+            line['components'] = components
+            collect_ingredients_from_components(components, ingredient_totals)
+            collect_ingredients_from_components(components, order_daily_ingredients[order_id])
+            collect_batch_recipe_usage_from_components(
+                components,
+                batch_usage_qty,
+                event_usage_map=batch_usage_orders,
+                menu_item_usage_map=batch_usage_items,
+                event_id=order_id,
+                menu_item_name=item_name
+            )
+            collect_ingredient_usage_from_components(components, item_name, ingredient_usage)
+
+        orders_map[order_id]['lines'].append(line)
+        orders_map[order_id]['line_count'] += 1
+
+    orders = sorted(
+        orders_map.values(),
+        key=lambda item: (
+            (item.get('needed_date') or date.today()),
+            (item.get('outlet') or '').lower(),
+            (item.get('id') or '')
+        )
+    )
+    order_label_map = {
+        order.get('id'): f"{order.get('outlet') or DEFAULT_COMMISSARY_OUTLET} ({order.get('needed_date')})"
+        for order in orders
+    }
+
+    ingredient_master = []
+    ingredient_total_cost = 0
+    if ingredient_totals:
+        ingredient_ids = list({ing_id for ing_id, _ in ingredient_totals.keys() if ing_id})
+        ingredient_map = {}
+        if ingredient_ids:
+            cur.execute("""
+                SELECT id, name, unit, category, cost_per_unit, vendor, vendor_code, g_code
+                FROM ingredients
+                WHERE id = ANY(%s)
+            """, (ingredient_ids,))
+            ingredient_map = {row['id']: row for row in cur.fetchall()}
+
+        for (ing_id, unit), qty in ingredient_totals.items():
+            ingredient = ingredient_map.get(ing_id, {})
+            cost_per_unit = convert_cost_per_unit(
+                ingredient.get('cost_per_unit'),
+                ingredient.get('unit'),
+                unit
+            )
+            ext_cost = qty * cost_per_unit if cost_per_unit else 0
+            ingredient_total_cost += ext_cost
+            display = smart_quantity(qty, unit, unit_system)
+            ingredient_master.append({
+                'id': ing_id,
+                'name': ingredient.get('name') or 'Unknown',
+                'category': ingredient.get('category') or 'Uncategorized',
+                'vendor': ingredient.get('vendor'),
+                'vendor_code': ingredient.get('vendor_code'),
+                'g_code': ingredient.get('g_code'),
+                'quantity': qty,
+                'unit': unit,
+                'display_quantity': display['quantity'],
+                'display_unit': display['unit'],
+                'cost_per_unit': cost_per_unit,
+                'ext_cost': ext_cost,
+                'used_in': sorted(ingredient_usage.get(ing_id, set()))
+            })
+    ingredient_master.sort(key=lambda item: ((item.get('vendor') or '').lower(), (item.get('category') or '').lower(), (item.get('name') or '').lower()))
+
+    weekly_prep = []
+    if batch_usage_qty:
+        batch_ids = list({recipe_id for recipe_id, _ in batch_usage_qty.keys() if recipe_id})
+        recipe_map = {}
+        if batch_ids:
+            cur.execute("""
+                SELECT id, name, category, yield_qty, yield_unit, instructions, recipe_type
+                FROM recipes
+                WHERE id = ANY(%s)
+            """, (batch_ids,))
+            recipe_map = {row['id']: row for row in cur.fetchall()}
+
+        for (recipe_id, qty_unit), required_qty in batch_usage_qty.items():
+            recipe = recipe_map.get(recipe_id)
+            if not recipe:
+                continue
+            yield_qty = to_float(recipe.get('yield_qty'))
+            yield_unit = recipe.get('yield_unit')
+            required_qty_in_yield = required_qty
+            if qty_unit and yield_unit and qty_unit != yield_unit:
+                converted = convert_quantity_between_units(required_qty, qty_unit, yield_unit)
+                if converted is not None:
+                    required_qty_in_yield = converted
+
+            required_batches = (required_qty_in_yield / yield_qty) if yield_qty > 0 else required_qty_in_yield
+            components, total_cost, _ = build_component_tree(cur, recipe_id, required_batches, 0, set(), unit_system, apply_q_factor=False)
+            ingredient_totals_for_batch = {}
+            collect_direct_ingredients_for_prep(components, ingredient_totals_for_batch)
+            subrecipe_totals_for_batch = {}
+            collect_direct_subrecipes_for_prep(components, subrecipe_totals_for_batch)
+            ingredient_rows = []
+            for (ing_id, unit), qty in ingredient_totals_for_batch.items():
+                display = smart_quantity(qty, unit, unit_system)
+                ingredient_rows.append({
+                    'ingredient_id': ing_id,
+                    'name': next((item['name'] for item in ingredient_master if item['id'] == ing_id), 'Unknown'),
+                    'quantity': qty,
+                    'unit': unit,
+                    'display_quantity': display['quantity'],
+                    'display_unit': display['unit']
+                })
+            ingredient_rows.sort(key=lambda item: (item.get('name') or '').lower())
+
+            subrecipe_rows = []
+            for (sub_recipe_id, sub_unit), sub_qty in subrecipe_totals_for_batch.items():
+                sub_recipe = recipe_map.get(sub_recipe_id)
+                if not sub_recipe:
+                    sub_recipe = get_recipe_by_id(cur, sub_recipe_id)
+                if not sub_recipe:
+                    continue
+                sub_yield_qty = to_float(sub_recipe.get('yield_qty'))
+                sub_yield_unit = sub_recipe.get('yield_unit') or sub_unit
+                sub_required_qty_in_yield = sub_qty
+                if sub_unit and sub_yield_unit and sub_unit != sub_yield_unit:
+                    converted = convert_quantity_between_units(sub_qty, sub_unit, sub_yield_unit)
+                    if converted is not None:
+                        sub_required_qty_in_yield = converted
+                sub_required_batches = (sub_required_qty_in_yield / sub_yield_qty) if sub_yield_qty > 0 else sub_required_qty_in_yield
+                display = smart_quantity(sub_qty, sub_unit, unit_system)
+                subrecipe_rows.append({
+                    'recipe_id': sub_recipe_id,
+                    'recipe_name': sub_recipe.get('name') or 'Sub-recipe',
+                    'required_qty': sub_qty,
+                    'required_unit': sub_unit,
+                    'display_required': display,
+                    'required_batches': sub_required_batches,
+                    'yield_qty': sub_yield_qty,
+                    'yield_unit': sub_yield_unit
+                })
+            subrecipe_rows.sort(key=lambda item: (item.get('recipe_name') or '').lower())
+
+            weekly_prep.append({
+                'recipe_id': recipe_id,
+                'recipe_name': recipe.get('name'),
+                'category': recipe.get('category'),
+                'recipe_type': normalize_recipe_type(recipe.get('recipe_type')),
+                'required_batches': required_batches,
+                'required_qty': required_qty_in_yield,
+                'required_unit': yield_unit or qty_unit,
+                'display_required': smart_quantity(required_qty_in_yield, yield_unit or qty_unit, unit_system),
+                'yield_qty': yield_qty,
+                'yield_unit': yield_unit,
+                'ingredient_rows': ingredient_rows,
+                'subrecipe_rows': subrecipe_rows,
+                'instructions': recipe.get('instructions'),
+                'used_in_orders': sorted(batch_usage_orders.get(recipe_id, set())),
+                'used_in_order_labels': [order_label_map.get(order_id, order_id) for order_id in sorted(batch_usage_orders.get(recipe_id, set()))],
+                'used_in_items': sorted(batch_usage_items.get(recipe_id, set())),
+                'estimated_cost': total_cost
+            })
+    for prep in weekly_prep:
+        prep_family = derive_prep_family_label(prep.get('recipe_name'))
+        prep['prep_family'] = prep_family
+        prep['prep_family_key'] = normalize_match_key(prep_family)
+    weekly_prep.sort(key=lambda item: (item.get('prep_family_key') or '', (item.get('recipe_name') or '').lower()))
+
+    daily_groups = []
+    by_day = defaultdict(list)
+    for order in orders:
+        by_day[order.get('needed_date')].append(order)
+    for day in sorted(by_day.keys()):
+        day_orders = by_day[day]
+        for order in day_orders:
+            ingredient_rows = []
+            for (ing_id, unit), qty in order_daily_ingredients.get(order['id'], {}).items():
+                display = smart_quantity(qty, unit, unit_system)
+                ingredient_rows.append({
+                    'ingredient_id': ing_id,
+                    'name': next((item['name'] for item in ingredient_master if item['id'] == ing_id), 'Unknown'),
+                    'quantity': qty,
+                    'unit': unit,
+                    'display_quantity': display['quantity'],
+                    'display_unit': display['unit']
+                })
+            ingredient_rows.sort(key=lambda item: (item.get('name') or '').lower())
+            order['daily_ingredients'] = ingredient_rows
+        daily_groups.append({'date': day, 'orders': day_orders})
+
+    total_lines = sum(order.get('line_count', 0) for order in orders)
+    total_estimated_cost = sum(
+        sum(line.get('estimated_cost_total', 0) or 0 for line in order.get('lines', []))
+        for order in orders
+    )
+
+    return {
+        'orders': orders,
+        'daily_groups': daily_groups,
+        'shopping_ingredients': ingredient_master,
+        'shopping_total_cost': ingredient_total_cost,
+        'weekly_prep': weekly_prep,
+        'order_count': len(orders),
+        'line_count': total_lines,
         'total_estimated_cost': total_estimated_cost
     }
 

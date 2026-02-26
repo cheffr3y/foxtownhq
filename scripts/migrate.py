@@ -210,6 +210,42 @@ MIGRATIONS = [
     """,
     "CREATE INDEX IF NOT EXISTS idx_menu_rollout_items_rollout_id ON menu_rollout_items (rollout_id)",
     "CREATE INDEX IF NOT EXISTS idx_menu_rollouts_listing ON menu_rollouts (is_one_off, year DESC, quarter DESC, venue, name)",
+    """
+    CREATE TABLE IF NOT EXISTS outlet_orders (
+        id TEXT PRIMARY KEY,
+        outlet TEXT NOT NULL,
+        needed_date DATE NOT NULL,
+        status TEXT DEFAULT 'pending',
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS outlet_order_items (
+        id BIGSERIAL PRIMARY KEY,
+        order_id TEXT NOT NULL REFERENCES outlet_orders(id) ON DELETE CASCADE,
+        recipe_id TEXT REFERENCES recipes(id) ON DELETE SET NULL,
+        item_name TEXT,
+        quantity NUMERIC NOT NULL DEFAULT 1,
+        quantity_unit TEXT DEFAULT 'each',
+        notes TEXT,
+        sort_order INTEGER DEFAULT 0
+    )
+    """,
+    "ALTER TABLE outlet_orders ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'pending'",
+    "ALTER TABLE outlet_orders ADD COLUMN IF NOT EXISTS notes TEXT",
+    "ALTER TABLE outlet_orders ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+    "ALTER TABLE outlet_orders ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+    "ALTER TABLE outlet_order_items ADD COLUMN IF NOT EXISTS item_name TEXT",
+    "ALTER TABLE outlet_order_items ADD COLUMN IF NOT EXISTS quantity_unit TEXT DEFAULT 'each'",
+    "ALTER TABLE outlet_order_items ADD COLUMN IF NOT EXISTS notes TEXT",
+    "ALTER TABLE outlet_order_items ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0",
+    "ALTER TABLE outlet_order_items ALTER COLUMN quantity SET DEFAULT 1",
+    "CREATE INDEX IF NOT EXISTS idx_outlet_orders_needed_date ON outlet_orders (needed_date)",
+    "CREATE INDEX IF NOT EXISTS idx_outlet_orders_status ON outlet_orders (status)",
+    "CREATE INDEX IF NOT EXISTS idx_outlet_order_items_order_id ON outlet_order_items (order_id)",
+    "CREATE INDEX IF NOT EXISTS idx_outlet_order_items_recipe_id ON outlet_order_items (recipe_id)",
 ]
 
 

@@ -32,6 +32,7 @@
                 </div>
                 <div class="flex gap-3 flex-wrap">
                     <a href="{{ url_for('banquet_planner') }}" class="bg-foxtown-ember hover:bg-orange-700 text-white px-4 py-2 rounded-xl font-semibold shadow-soft transition">Open Banquet Planner</a>
+                    <a href="{{ url_for('commissary_planner') }}" class="bg-foxtown-ink hover:bg-slate-900 text-white px-4 py-2 rounded-xl font-semibold shadow-soft transition">Open Commissary Planner</a>
                     <a href="{{ url_for('production_board') }}" target="_blank" rel="noopener" class="bg-slate-900 hover:bg-black text-white px-4 py-2 rounded-xl font-semibold shadow-soft transition">Open Production Board</a>
                 </div>
             </div>
@@ -164,6 +165,12 @@
                     <div class="flex items-center justify-between mb-4"><span class="text-xs text-stone-400">Open →</span></div>
                     <h3 class="text-lg font-display text-foxtown-ink">Banquet Planner</h3>
                     <p class="text-sm text-stone-600 mt-2">Events, shopping lists, and weekly/daily prep packets for banquets.</p>
+                </a>
+
+                <a href="{{ url_for('commissary_planner') }}" class="group bg-white border border-stone-200 rounded-2xl shadow-soft hover:shadow-lift transition p-6">
+                    <div class="flex items-center justify-between mb-4"><span class="text-xs text-stone-400">Open →</span></div>
+                    <h3 class="text-lg font-display text-foxtown-ink">Commissary Planner</h3>
+                    <p class="text-sm text-stone-600 mt-2">Outlet order entry and production packet for shared commissary prep.</p>
                 </a>
 
                 <a href="{{ url_for('production_board') }}" target="_blank" rel="noopener" class="group bg-slate-900 border border-slate-800 rounded-2xl shadow-soft hover:shadow-lift transition p-6 text-white">
