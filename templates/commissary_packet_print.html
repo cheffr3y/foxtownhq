@@ -52,6 +52,7 @@
                 <th class="text-right" style="width:15%">Qty</th>
                 <th style="width:12%">Unit</th>
                 <th class="text-right" style="width:14%">Batches</th>
+                <th style="width:24%">Plan</th>
             </tr>
         </thead>
         <tbody>
@@ -62,6 +63,13 @@
                 <td class="text-right pkt-mono pkt-qty">{{ sub.display_required.quantity }}</td>
                 <td>{{ sub.display_required.unit }}</td>
                 <td class="text-right pkt-mono">{{ "%.2f"|format(sub.required_batches or 0) }}</td>
+                <td>
+                    {% if sub.covered_by_stock_prep %}
+                    <span class="pkt-plan-badge pkt-plan-badge-stock">From stocked prep: {{ sub.stock_prep_recipe_name or sub.recipe_name }}</span>
+                    {% else %}
+                    <span class="pkt-plan-badge">Make here</span>
+                    {% endif %}
+                </td>
             </tr>
             {% endfor %}
         </tbody>
@@ -291,6 +299,7 @@
                             <th class="text-right" style="width:15%">Qty</th>
                             <th style="width:12%">Unit</th>
                             <th class="text-right" style="width:14%">Batches</th>
+                            <th style="width:24%">Plan</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -301,6 +310,13 @@
                             <td class="text-right pkt-mono pkt-qty pkt-qty-strong">{{ sub.display_required.quantity }}</td>
                             <td>{{ sub.display_required.unit }}</td>
                             <td class="text-right pkt-mono">{{ "%.2f"|format(sub.required_batches or 0) }}</td>
+                            <td>
+                                {% if sub.covered_by_stock_prep %}
+                                <span class="pkt-plan-badge pkt-plan-badge-stock">From stocked prep: {{ sub.stock_prep_recipe_name or sub.recipe_name }}</span>
+                                {% else %}
+                                <span class="pkt-plan-badge">Make here</span>
+                                {% endif %}
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -575,6 +591,23 @@
 }
 .pkt-sub-card-children {
     margin-top: 0.5rem;
+}
+.pkt-plan-badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    border: 1px solid #cbd5e1;
+    background: #f8fafc;
+    color: #334155;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    padding: 0.14rem 0.45rem;
+}
+.pkt-plan-badge-stock {
+    border-color: #86efac;
+    background: #f0fdf4;
+    color: #166534;
 }
 .pkt-method-section {
     border-top: 1px solid #e7e5e4;

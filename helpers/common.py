@@ -3554,6 +3554,11 @@ def build_commissary_prep_groups(cur, datasets, unit_system='imperial'):
 
     if not root_recipe_sequence:
         root_recipe_sequence = [prep.get('recipe_id') for prep in weekly_prep if prep.get('recipe_id')]
+    stocked_root_recipe_ids = {recipe_id for recipe_id in root_recipe_sequence if recipe_id}
+    root_recipe_name_map = {}
+    for recipe_id in stocked_root_recipe_ids:
+        prep_row = prep_by_recipe.get(recipe_id) or {}
+        root_recipe_name_map[recipe_id] = prep_row.get('recipe_name') or 'Main prep card'
 
     ingredient_name_map = {
         row.get('id'): row.get('name')
@@ -3569,7 +3574,7 @@ def build_commissary_prep_groups(cur, datasets, unit_system='imperial'):
             recipe_cache[recipe_id] = get_recipe_by_id(cur, recipe_id)
         return recipe_cache.get(recipe_id)
 
-    def build_sub_card(recipe_id, required_qty, required_unit, required_batches, ancestry):
+    def build_sub_card(recipe_id, required_qty, required_unit, required_batches, ancestry, group_root_recipe_id):
         if not recipe_id:
             return None
         recipe = get_recipe_cached(recipe_id)
@@ -3632,13 +3637,16 @@ def build_commissary_prep_groups(cur, datasets, unit_system='imperial'):
                 if converted is not None:
                     child_required_qty_in_yield = converted
             child_required_batches = (child_required_qty_in_yield / child_yield_qty) if child_yield_qty > 0 else child_required_qty_in_yield
+            covered_by_stock_prep = child_recipe_id in stocked_root_recipe_ids and child_recipe_id != group_root_recipe_id
             subrecipe_rows.append({
                 'recipe_id': child_recipe_id,
                 'recipe_name': child_recipe.get('name') or 'Sub-recipe',
                 'required_qty': child_qty,
                 'required_unit': child_unit,
                 'display_required': smart_quantity(child_qty, child_unit, unit_system),
-                'required_batches': child_required_batches
+                'required_batches': child_required_batches,
+                'covered_by_stock_prep': covered_by_stock_prep,
+                'stock_prep_recipe_name': root_recipe_name_map.get(child_recipe_id) if covered_by_stock_prep else None
             })
         subrecipe_rows.sort(key=lambda item: (item.get('recipe_name') or '').lower())
 
@@ -3648,12 +3656,15 @@ def build_commissary_prep_groups(cur, datasets, unit_system='imperial'):
                 child_recipe_id = sub_row.get('recipe_id')
                 if not child_recipe_id or child_recipe_id in ancestry:
                     continue
+                if sub_row.get('covered_by_stock_prep'):
+                    continue
                 child_card = build_sub_card(
                     child_recipe_id,
                     sub_row.get('required_qty'),
                     sub_row.get('required_unit'),
                     sub_row.get('required_batches'),
-                    ancestry | {child_recipe_id}
+                    ancestry | {child_recipe_id},
+                    group_root_recipe_id
                 )
                 if child_card:
                     child_cards.append(child_card)
@@ -3689,10 +3700,19 @@ def build_commissary_prep_groups(cur, datasets, unit_system='imperial'):
         main_label = main_labels[0] if main_labels else (root_prep.get('recipe_name') or 'Prep Item')
 
         sub_cards = []
+        root_subrecipe_rows = []
         for sub_row in root_prep.get('subrecipe_rows', []):
             sub_recipe_id = sub_row.get('recipe_id')
             required_batches = to_float(sub_row.get('required_batches'))
             if not sub_recipe_id or required_batches <= 0:
+                continue
+
+            covered_by_stock_prep = sub_recipe_id in stocked_root_recipe_ids and sub_recipe_id != root_recipe_id
+            enriched_row = dict(sub_row)
+            enriched_row['covered_by_stock_prep'] = covered_by_stock_prep
+            enriched_row['stock_prep_recipe_name'] = root_recipe_name_map.get(sub_recipe_id) if covered_by_stock_prep else None
+            root_subrecipe_rows.append(enriched_row)
+            if covered_by_stock_prep:
                 continue
 
             sub_card = build_sub_card(
@@ -3700,13 +3720,15 @@ def build_commissary_prep_groups(cur, datasets, unit_system='imperial'):
                 sub_row.get('required_qty'),
                 sub_row.get('required_unit'),
                 required_batches,
-                {root_recipe_id, sub_recipe_id}
+                {root_recipe_id, sub_recipe_id},
+                root_recipe_id
             )
             if not sub_card:
                 continue
             if sub_row.get('display_required'):
                 sub_card['display_required'] = sub_row.get('display_required')
             sub_cards.append(sub_card)
+        root_prep['subrecipe_rows'] = root_subrecipe_rows
 
         groups.append({
             'main_label': main_label,
