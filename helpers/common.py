@@ -3560,6 +3560,119 @@ def build_commissary_prep_groups(cur, datasets, unit_system='imperial'):
         for row in datasets.get('shopping_ingredients', [])
         if row.get('id')
     }
+    recipe_cache = {}
+
+    def get_recipe_cached(recipe_id):
+        if not recipe_id:
+            return None
+        if recipe_id not in recipe_cache:
+            recipe_cache[recipe_id] = get_recipe_by_id(cur, recipe_id)
+        return recipe_cache.get(recipe_id)
+
+    def build_sub_card(recipe_id, required_qty, required_unit, required_batches, ancestry):
+        if not recipe_id:
+            return None
+        recipe = get_recipe_cached(recipe_id)
+        if not recipe:
+            return None
+
+        batches = to_float(required_batches)
+        if batches <= 0:
+            yield_qty = to_float(recipe.get('yield_qty'))
+            if yield_qty > 0 and to_float(required_qty) > 0:
+                required_qty_in_yield = to_float(required_qty)
+                yield_unit = recipe.get('yield_unit') or required_unit
+                if required_unit and yield_unit and required_unit != yield_unit:
+                    converted = convert_quantity_between_units(required_qty_in_yield, required_unit, yield_unit)
+                    if converted is not None:
+                        required_qty_in_yield = converted
+                batches = required_qty_in_yield / yield_qty
+            else:
+                batches = to_float(required_qty)
+        if batches <= 0:
+            return None
+
+        components, _, _ = build_component_tree(
+            cur,
+            recipe_id,
+            batches,
+            0,
+            set(),
+            unit_system,
+            apply_q_factor=False
+        )
+
+        ingredient_totals = {}
+        collect_direct_ingredients_for_prep(components, ingredient_totals)
+        ingredient_rows = []
+        for (ing_id, unit), qty in ingredient_totals.items():
+            display = smart_quantity(qty, unit, unit_system)
+            ingredient_rows.append({
+                'ingredient_id': ing_id,
+                'name': ingredient_name_map.get(ing_id, 'Unknown'),
+                'quantity': qty,
+                'unit': unit,
+                'display_quantity': display.get('quantity'),
+                'display_unit': display.get('unit')
+            })
+        ingredient_rows.sort(key=lambda item: (item.get('name') or '').lower())
+
+        subrecipe_totals = {}
+        collect_direct_subrecipes_for_prep(components, subrecipe_totals)
+        subrecipe_rows = []
+        for (child_recipe_id, child_unit), child_qty in subrecipe_totals.items():
+            child_recipe = get_recipe_cached(child_recipe_id)
+            if not child_recipe:
+                continue
+            child_yield_qty = to_float(child_recipe.get('yield_qty'))
+            child_yield_unit = child_recipe.get('yield_unit') or child_unit
+            child_required_qty_in_yield = child_qty
+            if child_unit and child_yield_unit and child_unit != child_yield_unit:
+                converted = convert_quantity_between_units(child_qty, child_unit, child_yield_unit)
+                if converted is not None:
+                    child_required_qty_in_yield = converted
+            child_required_batches = (child_required_qty_in_yield / child_yield_qty) if child_yield_qty > 0 else child_required_qty_in_yield
+            subrecipe_rows.append({
+                'recipe_id': child_recipe_id,
+                'recipe_name': child_recipe.get('name') or 'Sub-recipe',
+                'required_qty': child_qty,
+                'required_unit': child_unit,
+                'display_required': smart_quantity(child_qty, child_unit, unit_system),
+                'required_batches': child_required_batches
+            })
+        subrecipe_rows.sort(key=lambda item: (item.get('recipe_name') or '').lower())
+
+        child_cards = []
+        if len(ancestry) < 3:
+            for sub_row in subrecipe_rows:
+                child_recipe_id = sub_row.get('recipe_id')
+                if not child_recipe_id or child_recipe_id in ancestry:
+                    continue
+                child_card = build_sub_card(
+                    child_recipe_id,
+                    sub_row.get('required_qty'),
+                    sub_row.get('required_unit'),
+                    sub_row.get('required_batches'),
+                    ancestry | {child_recipe_id}
+                )
+                if child_card:
+                    child_cards.append(child_card)
+
+        display_required = smart_quantity(required_qty, required_unit, unit_system)
+        if (display_required.get('quantity') in ('', '0')) and to_float(required_qty) <= 0:
+            yield_qty = to_float(recipe.get('yield_qty'))
+            display_required = smart_quantity(yield_qty * batches if yield_qty > 0 else batches, recipe.get('yield_unit') or required_unit, unit_system)
+
+        return {
+            'recipe_id': recipe_id,
+            'recipe_name': recipe.get('name') or 'Sub-recipe',
+            'display_required': display_required,
+            'required_batches': batches,
+            'ingredient_rows': ingredient_rows,
+            'subrecipe_rows': subrecipe_rows,
+            'instruction_steps': split_instruction_steps(recipe.get('instructions')),
+            'child_cards': child_cards
+        }
 
     groups = []
     for root_recipe_id in root_recipe_sequence:
@@ -3582,46 +3695,18 @@ def build_commissary_prep_groups(cur, datasets, unit_system='imperial'):
             if not sub_recipe_id or required_batches <= 0:
                 continue
 
-            sub_recipe = get_recipe_by_id(cur, sub_recipe_id)
-            if not sub_recipe:
-                continue
-
-            components, _, _ = build_component_tree(
-                cur,
+            sub_card = build_sub_card(
                 sub_recipe_id,
+                sub_row.get('required_qty'),
+                sub_row.get('required_unit'),
                 required_batches,
-                0,
-                set(),
-                unit_system,
-                apply_q_factor=False
+                {root_recipe_id, sub_recipe_id}
             )
-            ingredient_totals = {}
-            collect_direct_ingredients_for_prep(components, ingredient_totals)
-            ingredient_rows = []
-            for (ing_id, unit), qty in ingredient_totals.items():
-                display = smart_quantity(qty, unit, unit_system)
-                ingredient_rows.append({
-                    'ingredient_id': ing_id,
-                    'name': ingredient_name_map.get(ing_id, 'Unknown'),
-                    'quantity': qty,
-                    'unit': unit,
-                    'display_quantity': display.get('quantity'),
-                    'display_unit': display.get('unit')
-                })
-            ingredient_rows.sort(key=lambda item: (item.get('name') or '').lower())
-
-            sub_cards.append({
-                'recipe_id': sub_recipe_id,
-                'recipe_name': sub_recipe.get('name') or sub_row.get('recipe_name') or 'Sub-recipe',
-                'display_required': sub_row.get('display_required') or smart_quantity(
-                    sub_row.get('required_qty'),
-                    sub_row.get('required_unit'),
-                    unit_system
-                ),
-                'required_batches': required_batches,
-                'ingredient_rows': ingredient_rows,
-                'instruction_steps': split_instruction_steps(sub_recipe.get('instructions'))
-            })
+            if not sub_card:
+                continue
+            if sub_row.get('display_required'):
+                sub_card['display_required'] = sub_row.get('display_required')
+            sub_cards.append(sub_card)
 
         groups.append({
             'main_label': main_label,

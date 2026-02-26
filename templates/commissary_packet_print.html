@@ -11,6 +11,83 @@
 {% elif selected_units == 'hybrid' %}
 {% set unit_label = 'Grams + qt/gal/fl oz' %}
 {% endif %}
+{% macro render_sub_card(sub_card, level=0) %}
+<div class="pkt-sub-card{% if level > 0 %} pkt-sub-card-nested{% endif %}">
+    <div class="pkt-sub-card-header">
+        <span class="pkt-bold">{{ sub_card.recipe_name }}</span>
+        <span class="pkt-mono">{{ sub_card.display_required.quantity }} {{ sub_card.display_required.unit }} · {{ "%.2f"|format(sub_card.required_batches or 0) }} batches</span>
+    </div>
+    {% if sub_card.ingredient_rows %}
+    <table class="pkt-table pkt-table-ingredients">
+        <thead>
+            <tr>
+                <th style="width:5%">✓</th>
+                <th>Ingredient</th>
+                <th class="text-right" style="width:15%">Qty</th>
+                <th style="width:12%">Unit</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ing in sub_card.ingredient_rows %}
+            <tr class="pkt-alt-row">
+                <td class="text-center"><span class="pkt-checkbox"></span></td>
+                <td class="pkt-bold pkt-ingredient-name">{{ ing.name }}</td>
+                <td class="text-right pkt-mono pkt-qty">{{ ing.display_quantity }}</td>
+                <td>{{ ing.display_unit }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="pkt-empty-note">No direct raw ingredients on this sub-recipe.</div>
+    {% endif %}
+
+    {% if sub_card.subrecipe_rows %}
+    <div class="pkt-label mt-2">Sub-Recipe Pulls</div>
+    <table class="pkt-table pkt-table-ingredients">
+        <thead>
+            <tr>
+                <th style="width:5%">✓</th>
+                <th>Sub-Recipe</th>
+                <th class="text-right" style="width:15%">Qty</th>
+                <th style="width:12%">Unit</th>
+                <th class="text-right" style="width:14%">Batches</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for sub in sub_card.subrecipe_rows %}
+            <tr class="pkt-alt-row">
+                <td class="text-center"><span class="pkt-checkbox"></span></td>
+                <td class="pkt-bold">{{ sub.recipe_name }}</td>
+                <td class="text-right pkt-mono pkt-qty">{{ sub.display_required.quantity }}</td>
+                <td>{{ sub.display_required.unit }}</td>
+                <td class="text-right pkt-mono">{{ "%.2f"|format(sub.required_batches or 0) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+
+    {% if sub_card.instruction_steps %}
+    <div class="pkt-steps mt-2">
+        {% for step in sub_card.instruction_steps %}
+        <div class="pkt-step">
+            <div class="pkt-step-num">{{ loop.index }}</div>
+            <div class="pkt-step-text">{{ step }}</div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if sub_card.child_cards %}
+    <div class="pkt-sub-card-children">
+        {% for child in sub_card.child_cards %}
+        {{ render_sub_card(child, level + 1) }}
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endmacro %}
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6" id="printRoot">
     <div class="print:hidden screen-only flex justify-between items-center gap-3 flex-wrap">
         <div>
@@ -235,45 +312,8 @@
             <div class="pkt-card-body pkt-sub-section">
                 <div class="pkt-label">Sub-Recipe Prep Details</div>
                 {% for sub_card in group.sub_cards %}
-                <div class="pkt-sub-card {% if not loop.first %}mt-3{% endif %}">
-                    <div class="pkt-sub-card-header">
-                        <span class="pkt-bold">{{ sub_card.recipe_name }}</span>
-                        <span class="pkt-mono">{{ sub_card.display_required.quantity }} {{ sub_card.display_required.unit }} · {{ "%.2f"|format(sub_card.required_batches or 0) }} batches</span>
-                    </div>
-                    {% if sub_card.ingredient_rows %}
-                    <table class="pkt-table pkt-table-ingredients">
-                        <thead>
-                            <tr>
-                                <th style="width:5%">✓</th>
-                                <th>Ingredient</th>
-                                <th class="text-right" style="width:15%">Qty</th>
-                                <th style="width:12%">Unit</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for ing in sub_card.ingredient_rows %}
-                            <tr class="pkt-alt-row">
-                                <td class="text-center"><span class="pkt-checkbox"></span></td>
-                                <td class="pkt-bold pkt-ingredient-name">{{ ing.name }}</td>
-                                <td class="text-right pkt-mono pkt-qty">{{ ing.display_quantity }}</td>
-                                <td>{{ ing.display_unit }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                    {% else %}
-                    <div class="pkt-empty-note">No direct raw ingredients on this sub-recipe.</div>
-                    {% endif %}
-                    {% if sub_card.instruction_steps %}
-                    <div class="pkt-steps mt-2">
-                        {% for step in sub_card.instruction_steps %}
-                        <div class="pkt-step">
-                            <div class="pkt-step-num">{{ loop.index }}</div>
-                            <div class="pkt-step-text">{{ step }}</div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                    {% endif %}
+                <div class="{% if not loop.first %}mt-3{% endif %}">
+                    {{ render_sub_card(sub_card, 0) }}
                 </div>
                 {% endfor %}
             </div>
@@ -521,12 +561,20 @@
     background: #fff;
     padding: 0.5rem 0.6rem;
 }
+.pkt-sub-card-nested {
+    margin-top: 0.6rem;
+    margin-left: 1rem;
+    border-style: dashed;
+}
 .pkt-sub-card-header {
     display: flex;
     justify-content: space-between;
     align-items: baseline;
     gap: 0.75rem;
     margin-bottom: 0.35rem;
+}
+.pkt-sub-card-children {
+    margin-top: 0.5rem;
 }
 .pkt-method-section {
     border-top: 1px solid #e7e5e4;
