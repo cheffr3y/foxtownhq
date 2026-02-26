@@ -65,7 +65,7 @@
                 <td class="text-right pkt-mono">{{ "%.2f"|format(sub.required_batches or 0) }}</td>
                 <td>
                     {% if sub.covered_by_stock_prep %}
-                    <span class="pkt-plan-badge pkt-plan-badge-stock">From stocked prep: {{ sub.stock_prep_recipe_name or sub.recipe_name }}</span>
+                    <span class="pkt-plan-badge pkt-plan-badge-stock">From stocked prep (see above): {{ sub.stock_prep_recipe_name or sub.recipe_name }}</span>
                     {% else %}
                     <span class="pkt-plan-badge">Make here</span>
                     {% endif %}
@@ -312,7 +312,7 @@
                             <td class="text-right pkt-mono">{{ "%.2f"|format(sub.required_batches or 0) }}</td>
                             <td>
                                 {% if sub.covered_by_stock_prep %}
-                                <span class="pkt-plan-badge pkt-plan-badge-stock">From stocked prep: {{ sub.stock_prep_recipe_name or sub.recipe_name }}</span>
+                                <span class="pkt-plan-badge pkt-plan-badge-stock">From stocked prep (see above): {{ sub.stock_prep_recipe_name or sub.recipe_name }}</span>
                                 {% else %}
                                 <span class="pkt-plan-badge">Make here</span>
                                 {% endif %}

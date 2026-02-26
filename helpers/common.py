@@ -3555,6 +3555,43 @@ def build_commissary_prep_groups(cur, datasets, unit_system='imperial'):
     if not root_recipe_sequence:
         root_recipe_sequence = [prep.get('recipe_id') for prep in weekly_prep if prep.get('recipe_id')]
     stocked_root_recipe_ids = {recipe_id for recipe_id in root_recipe_sequence if recipe_id}
+    original_root_order = {recipe_id: idx for idx, recipe_id in enumerate(root_recipe_sequence) if recipe_id}
+
+    # Ensure stocked dependency cards appear before recipes that consume them.
+    dependency_map = {recipe_id: set() for recipe_id in stocked_root_recipe_ids}
+    for recipe_id in stocked_root_recipe_ids:
+        prep_row = prep_by_recipe.get(recipe_id) or {}
+        for sub_row in prep_row.get('subrecipe_rows', []) or []:
+            child_recipe_id = sub_row.get('recipe_id')
+            if child_recipe_id in stocked_root_recipe_ids and child_recipe_id != recipe_id:
+                dependency_map[recipe_id].add(child_recipe_id)
+
+    ordered_roots = []
+    visited = set()
+    visiting = set()
+
+    def visit(recipe_id):
+        if recipe_id in visited:
+            return
+        if recipe_id in visiting:
+            # Cycle fallback: keep original order behavior without recursion blowup.
+            return
+        visiting.add(recipe_id)
+        deps = sorted(
+            dependency_map.get(recipe_id, set()),
+            key=lambda dep_id: original_root_order.get(dep_id, 10**9)
+        )
+        for dep_id in deps:
+            visit(dep_id)
+        visiting.remove(recipe_id)
+        visited.add(recipe_id)
+        ordered_roots.append(recipe_id)
+
+    for recipe_id in root_recipe_sequence:
+        if recipe_id:
+            visit(recipe_id)
+    root_recipe_sequence = ordered_roots
+
     root_recipe_name_map = {}
     for recipe_id in stocked_root_recipe_ids:
         prep_row = prep_by_recipe.get(recipe_id) or {}
