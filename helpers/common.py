@@ -80,6 +80,11 @@ SYSTEM_UNITS = {
     'imperial': {
         'weight': ['lb', 'oz'],
         'volume': ['gal', 'qt', 'pt', 'cup', 'fl oz'],
+    },
+    # Kitchen hybrid: metric weights, imperial volume.
+    'hybrid': {
+        'weight': ['kg', 'g'],
+        'volume': ['gal', 'qt', 'pt', 'cup', 'fl oz'],
     }
 }
 
@@ -187,10 +192,19 @@ RECIPE_CATEGORIES = [
 ]
 
 def get_unit_system():
-    system = request.args.get('units')
-    if system in ('auto', 'metric', 'imperial'):
+    raw_system = (request.args.get('units') or '').strip().lower()
+    aliases = {
+        'kitchen': 'hybrid',
+        'metric_weights': 'hybrid',
+        'metric-weights': 'hybrid',
+    }
+    system = aliases.get(raw_system, raw_system)
+    if system in ('auto', 'metric', 'imperial', 'hybrid'):
         session['unit_system'] = system
-    return session.get('unit_system', 'auto')
+    selected = session.get('unit_system', 'auto')
+    if selected not in ('auto', 'metric', 'imperial', 'hybrid'):
+        return 'auto'
+    return selected
 
 def format_number(value, decimals=2):
     if value is None:
@@ -3513,6 +3527,110 @@ def build_commissary_datasets(cur, start_date, end_date, outlet='', unit_system=
         'line_count': total_lines,
         'total_estimated_cost': total_estimated_cost
     }
+
+def build_commissary_prep_groups(cur, datasets, unit_system='imperial'):
+    weekly_prep = datasets.get('weekly_prep') or []
+    if not weekly_prep:
+        return []
+
+    prep_by_recipe = {}
+    for prep in weekly_prep:
+        recipe_id = prep.get('recipe_id')
+        if recipe_id and recipe_id not in prep_by_recipe:
+            prep_by_recipe[recipe_id] = prep
+
+    root_recipe_sequence = []
+    root_recipe_labels = defaultdict(list)
+    for order in datasets.get('orders', []):
+        for line in order.get('lines', []):
+            recipe_id = line.get('recipe_id')
+            if not recipe_id:
+                continue
+            if recipe_id not in root_recipe_sequence:
+                root_recipe_sequence.append(recipe_id)
+            line_label = clean_menu_text(line.get('item_name') or line.get('recipe_name') or '')
+            if line_label and line_label not in root_recipe_labels[recipe_id]:
+                root_recipe_labels[recipe_id].append(line_label)
+
+    if not root_recipe_sequence:
+        root_recipe_sequence = [prep.get('recipe_id') for prep in weekly_prep if prep.get('recipe_id')]
+
+    ingredient_name_map = {
+        row.get('id'): row.get('name')
+        for row in datasets.get('shopping_ingredients', [])
+        if row.get('id')
+    }
+
+    groups = []
+    for root_recipe_id in root_recipe_sequence:
+        root_prep = prep_by_recipe.get(root_recipe_id)
+        if not root_prep:
+            continue
+
+        main_labels = (
+            root_recipe_labels.get(root_recipe_id)
+            or root_prep.get('used_in_items')
+            or [root_prep.get('recipe_name')]
+        )
+        main_labels = [label for label in main_labels if label]
+        main_label = main_labels[0] if main_labels else (root_prep.get('recipe_name') or 'Prep Item')
+
+        sub_cards = []
+        for sub_row in root_prep.get('subrecipe_rows', []):
+            sub_recipe_id = sub_row.get('recipe_id')
+            required_batches = to_float(sub_row.get('required_batches'))
+            if not sub_recipe_id or required_batches <= 0:
+                continue
+
+            sub_recipe = get_recipe_by_id(cur, sub_recipe_id)
+            if not sub_recipe:
+                continue
+
+            components, _, _ = build_component_tree(
+                cur,
+                sub_recipe_id,
+                required_batches,
+                0,
+                set(),
+                unit_system,
+                apply_q_factor=False
+            )
+            ingredient_totals = {}
+            collect_direct_ingredients_for_prep(components, ingredient_totals)
+            ingredient_rows = []
+            for (ing_id, unit), qty in ingredient_totals.items():
+                display = smart_quantity(qty, unit, unit_system)
+                ingredient_rows.append({
+                    'ingredient_id': ing_id,
+                    'name': ingredient_name_map.get(ing_id, 'Unknown'),
+                    'quantity': qty,
+                    'unit': unit,
+                    'display_quantity': display.get('quantity'),
+                    'display_unit': display.get('unit')
+                })
+            ingredient_rows.sort(key=lambda item: (item.get('name') or '').lower())
+
+            sub_cards.append({
+                'recipe_id': sub_recipe_id,
+                'recipe_name': sub_recipe.get('name') or sub_row.get('recipe_name') or 'Sub-recipe',
+                'display_required': sub_row.get('display_required') or smart_quantity(
+                    sub_row.get('required_qty'),
+                    sub_row.get('required_unit'),
+                    unit_system
+                ),
+                'required_batches': required_batches,
+                'ingredient_rows': ingredient_rows,
+                'instruction_steps': split_instruction_steps(sub_recipe.get('instructions'))
+            })
+
+        groups.append({
+            'main_label': main_label,
+            'main_labels': main_labels,
+            'root': root_prep,
+            'sub_cards': sub_cards
+        })
+
+    return groups
 
 def parse_catering_pdf_to_template_items(file_stream):
     reader = PdfReader(file_stream)

@@ -47,9 +47,10 @@ def commissary_planner():
     conn.commit()
     start_date, end_date = get_banquet_date_window(request.args.get('start_date'), request.args.get('end_date'))
     selected_outlet = clean_menu_text(request.args.get('outlet'))
+    selected_units = get_unit_system()
     outlet_options = get_commissary_outlet_options(cur)
 
-    datasets = build_commissary_datasets(cur, start_date, end_date, selected_outlet, get_unit_system())
+    datasets = build_commissary_datasets(cur, start_date, end_date, selected_outlet, selected_units)
     orders = datasets.get('orders', [])
     open_statuses = set(COMMISSARY_ACTIVE_STATUSES)
 
@@ -64,6 +65,7 @@ def commissary_planner():
         start_date=start_date.isoformat(),
         end_date=end_date.isoformat(),
         selected_outlet=selected_outlet,
+        selected_units=selected_units,
         outlet_options=outlet_options,
         datasets=datasets,
         orders=orders,
@@ -358,23 +360,27 @@ def commissary_packet_print():
     ensure_commissary_tables(cur)
     conn.commit()
     selected_outlet = clean_menu_text(request.args.get('outlet'))
+    selected_units = get_unit_system()
     start_date, end_date = get_banquet_date_window(request.args.get('start_date'), request.args.get('end_date'))
     include_shopping_raw = request.args.get('include_shopping')
     if include_shopping_raw is None:
         include_shopping = True
     else:
         include_shopping = (include_shopping_raw or '').strip().lower() in ('1', 'true', 'yes', 'on')
-    datasets = build_commissary_datasets(cur, start_date, end_date, selected_outlet, get_unit_system())
+    datasets = build_commissary_datasets(cur, start_date, end_date, selected_outlet, selected_units)
     for prep in datasets.get('weekly_prep', []):
         prep['instruction_steps'] = split_instruction_steps(prep.get('instructions'))
+    prep_groups = build_commissary_prep_groups(cur, datasets, selected_units)
 
     cur.close()
     return render_template(
         'commissary_packet_print.html',
         selected_outlet=selected_outlet,
+        selected_units=selected_units,
         start_date=start_date.isoformat(),
         end_date=end_date.isoformat(),
         include_shopping=include_shopping,
         generated_at=datetime.now().strftime('%b %d, %Y %I:%M %p'),
-        datasets=datasets
+        datasets=datasets,
+        prep_groups=prep_groups
     )
