@@ -9,7 +9,7 @@
 {% elif selected_units == 'metric' %}
 {% set unit_label = 'Metric' %}
 {% elif selected_units == 'hybrid' %}
-{% set unit_label = 'Metric Weights + Imperial Volume' %}
+{% set unit_label = 'Grams + qt/gal/fl oz' %}
 {% endif %}
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6" id="printRoot">
     <div class="print:hidden screen-only flex justify-between items-center gap-3 flex-wrap">
@@ -20,6 +20,30 @@
             </p>
         </div>
         <div class="flex items-center gap-2 flex-wrap justify-end">
+            <a
+                href="{{ url_for('commissary_packet_print', outlet=selected_outlet, start_date=start_date, end_date=end_date, include_shopping=include_shopping, units='auto') }}"
+                class="px-3 py-2 rounded-xl border {% if selected_units == 'auto' %}border-foxtown-ember text-foxtown-ember bg-orange-50{% else %}border-stone-300 text-stone-700 hover:bg-stone-50{% endif %} font-semibold text-sm"
+            >
+                Auto
+            </a>
+            <a
+                href="{{ url_for('commissary_packet_print', outlet=selected_outlet, start_date=start_date, end_date=end_date, include_shopping=include_shopping, units='imperial') }}"
+                class="px-3 py-2 rounded-xl border {% if selected_units == 'imperial' %}border-foxtown-ember text-foxtown-ember bg-orange-50{% else %}border-stone-300 text-stone-700 hover:bg-stone-50{% endif %} font-semibold text-sm"
+            >
+                Imperial
+            </a>
+            <a
+                href="{{ url_for('commissary_packet_print', outlet=selected_outlet, start_date=start_date, end_date=end_date, include_shopping=include_shopping, units='metric') }}"
+                class="px-3 py-2 rounded-xl border {% if selected_units == 'metric' %}border-foxtown-ember text-foxtown-ember bg-orange-50{% else %}border-stone-300 text-stone-700 hover:bg-stone-50{% endif %} font-semibold text-sm"
+            >
+                Metric
+            </a>
+            <a
+                href="{{ url_for('commissary_packet_print', outlet=selected_outlet, start_date=start_date, end_date=end_date, include_shopping=include_shopping, units='hybrid') }}"
+                class="px-3 py-2 rounded-xl border {% if selected_units == 'hybrid' %}border-foxtown-ember text-foxtown-ember bg-orange-50{% else %}border-stone-300 text-stone-700 hover:bg-stone-50{% endif %} font-semibold text-sm"
+            >
+                Grams + qt/gal
+            </a>
             <a
                 href="{{ url_for('commissary_packet_print', outlet=selected_outlet, start_date=start_date, end_date=end_date, include_shopping=(0 if include_shopping else 1), units=selected_units) }}"
                 class="px-4 py-2 rounded-xl border border-stone-300 text-stone-700 hover:bg-stone-50 font-semibold"

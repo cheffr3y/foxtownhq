@@ -59,7 +59,7 @@
                 <h2 class="text-xl font-display text-foxtown-ink">Order Items</h2>
                 <button type="button" id="addLineBtn" class="text-foxtown-ember font-semibold hover:text-orange-700">+ Add line</button>
             </div>
-            <p class="text-sm text-stone-500 mb-4">Pick a recipe from your DB, set requested output quantity, and add any line notes.</p>
+            <p class="text-sm text-stone-500 mb-4">Search recipes from your DB, set requested output quantity, and add any line notes.</p>
             <div class="overflow-x-auto">
                 <table class="min-w-[1120px] w-full text-sm" id="linesTable">
                     <thead class="text-xs uppercase text-stone-500 border-b border-stone-200">
@@ -77,19 +77,16 @@
                         <tr>
                             <td class="py-2 pr-2">
                                 <input type="hidden" name="line_id[]" value="{{ line.line_id or line.id or '' }}">
-                                <select name="line_recipe_id[]" data-role="recipe-select" class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm">
-                                    <option value="">Select recipe</option>
-                                    {% for recipe in recipe_options %}
-                                    <option
-                                        value="{{ recipe.id }}"
-                                        data-name="{{ recipe.name|e }}"
-                                        data-yield-unit="{{ recipe.yield_unit or 'each' }}"
-                                        {% if line.recipe_id == recipe.id %}selected{% endif %}
-                                    >
-                                        {{ recipe.display_label }}
-                                    </option>
-                                    {% endfor %}
-                                </select>
+                                {% set selected_recipe = (recipe_options|selectattr('id', 'equalto', line.recipe_id)|list|first) %}
+                                <input type="hidden" name="line_recipe_id[]" data-role="recipe-id" value="{{ line.recipe_id or '' }}">
+                                <input
+                                    type="text"
+                                    data-role="recipe-search"
+                                    list="recipeSearchOptions"
+                                    value="{{ selected_recipe.display_label if selected_recipe else (line.recipe_name or '') }}"
+                                    class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm"
+                                    placeholder="Search recipe..."
+                                >
                             </td>
                             <td class="py-2 pr-2">
                                 <input name="line_item_name[]" data-role="item-name" value="{{ line.item_name or line.recipe_name or '' }}" class="w-full px-3 py-2 border border-stone-300 rounded-lg" placeholder="Defaults to recipe name">
@@ -137,12 +134,14 @@
 <tr>
     <td class="py-2 pr-2">
         <input type="hidden" name="line_id[]" value="">
-        <select name="line_recipe_id[]" data-role="recipe-select" class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm">
-            <option value="">Select recipe</option>
-            {% for recipe in recipe_options %}
-            <option value="{{ recipe.id }}" data-name="{{ recipe.name|e }}" data-yield-unit="{{ recipe.yield_unit or 'each' }}">{{ recipe.display_label }}</option>
-            {% endfor %}
-        </select>
+        <input type="hidden" name="line_recipe_id[]" data-role="recipe-id" value="">
+        <input
+            type="text"
+            data-role="recipe-search"
+            list="recipeSearchOptions"
+            class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm"
+            placeholder="Search recipe..."
+        >
     </td>
     <td class="py-2 pr-2"><input name="line_item_name[]" data-role="item-name" class="w-full px-3 py-2 border border-stone-300 rounded-lg" placeholder="Defaults to recipe name"></td>
     <td class="py-2 pr-2"><input type="number" step="0.01" min="0" name="line_qty[]" value="1" class="w-full px-3 py-2 border border-stone-300 rounded-lg"></td>
@@ -152,23 +151,69 @@
 </tr>
 </template>
 
+<datalist id="recipeSearchOptions">
+    {% for recipe in recipe_options %}
+    <option value="{{ recipe.display_label }}"></option>
+    {% endfor %}
+</datalist>
+
 <script>
 (function () {
     const lineRows = document.getElementById('lineRows');
     const addLineBtn = document.getElementById('addLineBtn');
     const template = document.getElementById('lineRowTemplate');
+    const recipeOptions = {{ recipe_options|tojson }};
+    const recipeById = new Map();
+    const recipeByDisplay = new Map();
+    const recipeByName = new Map();
+
+    recipeOptions.forEach((recipe) => {
+        const id = (recipe.id || '').trim();
+        if (id) recipeById.set(id, recipe);
+
+        const displayKey = (recipe.display_label || '').trim().toLowerCase();
+        if (displayKey && !recipeByDisplay.has(displayKey)) {
+            recipeByDisplay.set(displayKey, recipe);
+        }
+
+        const nameKey = (recipe.name || '').trim().toLowerCase();
+        if (nameKey) {
+            if (!recipeByName.has(nameKey)) recipeByName.set(nameKey, []);
+            recipeByName.get(nameKey).push(recipe);
+        }
+    });
+
+    function findRecipeFromSearch(value) {
+        const key = (value || '').trim().toLowerCase();
+        if (!key) return null;
+        if (recipeByDisplay.has(key)) return recipeByDisplay.get(key);
+        const nameMatches = recipeByName.get(key) || [];
+        return nameMatches.length === 1 ? nameMatches[0] : null;
+    }
 
     function syncRow(row, forceDefaults = false) {
         if (!row) return;
-        const select = row.querySelector('[data-role="recipe-select"]');
+        const recipeSearchInput = row.querySelector('[data-role="recipe-search"]');
+        const recipeIdInput = row.querySelector('[data-role="recipe-id"]');
         const itemNameInput = row.querySelector('[data-role="item-name"]');
         const unitInput = row.querySelector('[data-role="line-unit"]');
-        if (!select) return;
+        if (!recipeSearchInput || !recipeIdInput) return;
 
-        const selected = select.options[select.selectedIndex];
-        const selectedId = select.value;
-        const recipeName = selectedId ? (selected.dataset.name || selected.textContent.trim()) : '';
-        const defaultUnit = selectedId ? (selected.dataset.yieldUnit || 'each') : '';
+        let recipe = findRecipeFromSearch(recipeSearchInput.value);
+        if (!recipe && recipeIdInput.value) {
+            recipe = recipeById.get(recipeIdInput.value) || null;
+        }
+        if (recipe) {
+            recipeIdInput.value = recipe.id || '';
+            if (forceDefaults && recipe.display_label) {
+                recipeSearchInput.value = recipe.display_label;
+            }
+        } else {
+            recipeIdInput.value = '';
+        }
+
+        const recipeName = recipe ? (recipe.name || '') : '';
+        const defaultUnit = recipe ? (recipe.yield_unit || 'each') : '';
 
         if (itemNameInput && (forceDefaults || !itemNameInput.value.trim())) {
             itemNameInput.value = recipeName;
@@ -180,10 +225,11 @@
 
     function bindRow(row) {
         if (!row) return;
-        const select = row.querySelector('[data-role="recipe-select"]');
+        const recipeSearchInput = row.querySelector('[data-role="recipe-search"]');
         const removeBtn = row.querySelector('.removeRow');
-        if (select) {
-            select.addEventListener('change', () => syncRow(row, true));
+        if (recipeSearchInput) {
+            recipeSearchInput.addEventListener('change', () => syncRow(row, true));
+            recipeSearchInput.addEventListener('blur', () => syncRow(row, false));
         }
         if (removeBtn) {
             removeBtn.addEventListener('click', () => row.remove());
