@@ -256,13 +256,65 @@ def production_board():
     cur = conn.cursor(cursor_factory=RealDictCursor)
 
     today = date.today()
+    forecast_end = today + timedelta(days=2)
     venues = get_active_venues(cur)
     banquet_venue = resolve_banquet_venue(venues)
     selected_venue = banquet_venue.get('id') or ''
 
     auto_complete_past_banquet_events(cur, selected_venue)
-    datasets = build_banquet_datasets(cur, today, today, selected_venue, get_unit_system())
-    today_events = datasets.get('events', [])
+    datasets = build_banquet_datasets(cur, today, forecast_end, selected_venue, get_unit_system())
+    forecast_events = datasets.get('events', [])
+    max_line_count = max((int(event.get('line_count') or 0) for event in forecast_events), default=0)
+    max_guest_count = max((int(event.get('guests') or 0) for event in forecast_events), default=0)
+
+    day_columns = []
+    for offset in range(3):
+        day = today + timedelta(days=offset)
+        label = 'Active Today' if offset == 0 else ('Tomorrow' if offset == 1 else 'Day +2')
+        events = [event for event in forecast_events if event.get('event_date') == day]
+
+        enriched_events = []
+        for event in events:
+            guest_count = int(event.get('guests') or 0)
+            line_count = int(event.get('line_count') or 0)
+            progress_percent = 0
+            if max_line_count > 0 and line_count > 0:
+                progress_percent = max(14, min(100, round((line_count / max_line_count) * 100)))
+
+            if guest_count >= 200:
+                volume_tone = 'critical'
+            elif guest_count >= 100:
+                volume_tone = 'high'
+            elif guest_count >= 50:
+                volume_tone = 'medium'
+            else:
+                volume_tone = 'low'
+
+            if max_guest_count > 0 and guest_count > 0:
+                guest_scale = 1 + (guest_count / max_guest_count) * 0.9
+            else:
+                guest_scale = 1
+
+            event_copy = dict(event)
+            event_copy['guest_count'] = guest_count
+            event_copy['line_count'] = line_count
+            event_copy['progress_percent'] = progress_percent
+            event_copy['volume_tone'] = volume_tone
+            event_copy['guest_scale'] = round(guest_scale, 2)
+            event_copy['line_preview'] = (event.get('lines') or [])[:4]
+            event_copy['remaining_line_count'] = max(0, line_count - 4)
+            event_copy['is_large_warning'] = offset == 2 and guest_count >= 100
+            enriched_events.append(event_copy)
+
+        day_columns.append({
+            'offset': offset,
+            'label': label,
+            'date': day,
+            'events': enriched_events,
+            'event_count': len(enriched_events),
+            'guest_total': sum(event.get('guest_count') or 0 for event in enriched_events),
+            'line_total': sum(event.get('line_count') or 0 for event in enriched_events),
+        })
 
     cur.close()
 
@@ -271,7 +323,7 @@ def production_board():
         today=today,
         current_time=datetime.now(),
         venue_name=banquet_venue.get('name') or 'Banquets',
-        today_events=today_events,
+        day_columns=day_columns,
         last_updated=datetime.now(),
     )
 

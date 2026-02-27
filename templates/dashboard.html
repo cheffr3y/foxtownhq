@@ -3,18 +3,578 @@
 
 {% block title %}Dashboard - Foxtown HQ{% endblock %}
 
+{% block extra_head %}
+<style>
+    nav h1 {
+        font-family: Inter, system-ui, sans-serif;
+        font-weight: 500;
+        letter-spacing: -0.03em;
+    }
+    .dashboard-shell {
+        padding-bottom: 3rem;
+    }
+    .dashboard-grid {
+        display: grid;
+        gap: 1.25rem;
+    }
+    @media (min-width: 1280px) {
+        .dashboard-grid {
+            grid-template-columns: minmax(0, 1.85fr) minmax(300px, 0.95fr);
+            align-items: start;
+        }
+        .attention-rail {
+            position: sticky;
+            top: 1.5rem;
+        }
+    }
+    .bento-card {
+        position: relative;
+        overflow: hidden;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.76);
+        backdrop-filter: blur(14px);
+        box-shadow: 0 14px 34px rgba(15, 23, 42, 0.08);
+    }
+    .bento-card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0));
+        pointer-events: none;
+    }
+    .section-label {
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: #64748b;
+    }
+    .briefing-hero {
+        padding: 1.5rem;
+        background:
+            radial-gradient(circle at top left, rgba(251, 191, 36, 0.22), transparent 34%),
+            linear-gradient(140deg, rgba(255, 255, 255, 0.82), rgba(241, 245, 249, 0.88));
+    }
+    .hero-header {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+    }
+    @media (min-width: 1024px) {
+        .hero-header {
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+    }
+    .hero-title {
+        margin-top: 0.45rem;
+        font-size: clamp(2rem, 5vw, 3.6rem);
+        line-height: 0.95;
+        font-weight: 500;
+        letter-spacing: -0.04em;
+        color: #0f172a;
+    }
+    .hero-subtitle {
+        margin-top: 0.8rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem 0.85rem;
+        color: #475569;
+        font-size: 0.95rem;
+    }
+    .hero-clock {
+        margin-top: 1rem;
+        font-size: clamp(2rem, 4vw, 2.9rem);
+        line-height: 1;
+        font-weight: 600;
+        letter-spacing: -0.04em;
+        color: #ea580c;
+    }
+    .hero-clock-note {
+        margin-top: 0.35rem;
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        color: #94a3b8;
+    }
+    .hero-actions {
+        display: grid;
+        gap: 0.75rem;
+        width: 100%;
+    }
+    @media (min-width: 640px) {
+        .hero-actions {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+    }
+    @media (min-width: 1024px) {
+        .hero-actions {
+            width: min(420px, 100%);
+            grid-template-columns: 1fr;
+        }
+    }
+    .hero-action {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        border-radius: 12px;
+        padding: 0.95rem 1rem;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        background: rgba(255, 255, 255, 0.78);
+        color: #0f172a;
+        transition: all 0.2s ease;
+    }
+    .hero-action:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 14px 28px rgba(15, 23, 42, 0.12);
+    }
+    .hero-action strong {
+        display: block;
+        font-weight: 500;
+    }
+    .hero-action span {
+        font-size: 0.8rem;
+        color: #64748b;
+    }
+    .hero-action--ember {
+        background: linear-gradient(140deg, rgba(234, 88, 12, 0.94), rgba(194, 65, 12, 0.92));
+        color: white;
+        border-color: rgba(234, 88, 12, 0.32);
+    }
+    .hero-action--ember span {
+        color: rgba(255, 255, 255, 0.78);
+    }
+    .hero-action--ink {
+        background: linear-gradient(140deg, rgba(15, 23, 42, 0.94), rgba(30, 41, 59, 0.92));
+        color: white;
+        border-color: rgba(15, 23, 42, 0.28);
+    }
+    .hero-action--ink span {
+        color: rgba(226, 232, 240, 0.8);
+    }
+    .hero-metrics {
+        margin-top: 1.25rem;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.9rem;
+    }
+    @media (min-width: 1024px) {
+        .hero-metrics {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+    }
+    .hero-metric {
+        position: relative;
+        border-radius: 12px;
+        padding: 1rem;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(255, 255, 255, 0.7);
+    }
+    .hero-metric-label {
+        font-size: 0.74rem;
+        font-weight: 600;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: #64748b;
+    }
+    .hero-metric-value {
+        margin-top: 0.4rem;
+        font-size: 1.8rem;
+        line-height: 1;
+        font-weight: 600;
+        letter-spacing: -0.04em;
+        color: #0f172a;
+    }
+    .hero-metric-meta {
+        margin-top: 0.45rem;
+        font-size: 0.86rem;
+        color: #64748b;
+    }
+    .timeline-card,
+    .tools-card,
+    .attention-card {
+        padding: 1.35rem;
+    }
+    .timeline-header,
+    .tools-header,
+    .attention-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        align-items: flex-end;
+    }
+    .timeline-sections {
+        display: grid;
+        gap: 1rem;
+        margin-top: 1.2rem;
+    }
+    .timeline-panel {
+        border-radius: 12px;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: rgba(248, 250, 252, 0.88);
+        padding: 1rem;
+    }
+    .timeline-panel-title {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        align-items: center;
+        margin-bottom: 0.9rem;
+    }
+    .timeline-panel-title h3 {
+        font-size: 1rem;
+        font-weight: 500;
+        color: #0f172a;
+    }
+    .today-grid {
+        display: grid;
+        gap: 0.9rem;
+    }
+    @media (min-width: 768px) {
+        .today-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+    .today-card {
+        border-radius: 12px;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: rgba(255, 255, 255, 0.82);
+        padding: 1rem;
+    }
+    .today-card-top {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+        align-items: flex-start;
+    }
+    .today-card h4 {
+        font-size: 1.05rem;
+        font-weight: 500;
+        color: #0f172a;
+    }
+    .today-card-meta {
+        margin-top: 0.7rem;
+        font-size: 0.9rem;
+        color: #475569;
+    }
+    .today-card-guests {
+        margin-top: 1rem;
+        display: flex;
+        align-items: baseline;
+        gap: 0.5rem;
+    }
+    .today-card-guests strong {
+        font-size: 2rem;
+        line-height: 1;
+        font-weight: 600;
+        letter-spacing: -0.04em;
+        color: #ea580c;
+    }
+    .today-card-footer {
+        margin-top: 1rem;
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+        align-items: center;
+        font-size: 0.86rem;
+        color: #64748b;
+    }
+    .glass-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        border-radius: 999px;
+        padding: 0.35rem 0.7rem;
+        border: 1px solid rgba(148, 163, 184, 0.25);
+        background: rgba(255, 255, 255, 0.58);
+        backdrop-filter: blur(10px);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.58);
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+    .glass-pill i {
+        display: inline-block;
+        width: 0.45rem;
+        height: 0.45rem;
+        border-radius: 999px;
+        background: currentColor;
+    }
+    .glass-pill--confirmed {
+        color: #b45309;
+    }
+    .glass-pill--executed {
+        color: #047857;
+    }
+    .glass-pill--planning {
+        color: #475569;
+    }
+    .timeline-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .timeline-table th {
+        padding-bottom: 0.7rem;
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        text-align: left;
+        color: #64748b;
+    }
+    .timeline-table td {
+        padding: 0.9rem 0;
+        border-top: 1px solid rgba(226, 232, 240, 0.88);
+        vertical-align: top;
+        font-size: 0.92rem;
+        color: #334155;
+    }
+    .timeline-table tr:first-child td {
+        border-top: 1px solid rgba(226, 232, 240, 0.88);
+    }
+    .timeline-table tr {
+        transition: background-color 0.2s ease;
+    }
+    .timeline-table tr:hover {
+        background: rgba(248, 250, 252, 0.92);
+    }
+    .timeline-name {
+        display: block;
+        font-weight: 500;
+        color: #0f172a;
+    }
+    .timeline-venue {
+        margin-top: 0.15rem;
+        font-size: 0.82rem;
+        color: #64748b;
+    }
+    .empty-state {
+        display: flex;
+        flex-direction: column;
+        gap: 0.8rem;
+        align-items: flex-start;
+        border-radius: 12px;
+        border: 1px dashed rgba(148, 163, 184, 0.46);
+        background: rgba(248, 250, 252, 0.8);
+        padding: 1.15rem;
+    }
+    .empty-state h4 {
+        font-size: 1rem;
+        font-weight: 500;
+        color: #0f172a;
+    }
+    .button-lift {
+        transition: all 0.2s ease;
+    }
+    .button-lift:hover {
+        transform: translateY(-2px);
+    }
+    .attention-stack {
+        display: grid;
+        gap: 0.9rem;
+        margin-top: 1.2rem;
+    }
+    .fhq-attention-card {
+        display: block;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+        padding: 1rem;
+        background: rgba(255, 255, 255, 0.8);
+        transition: all 0.2s ease;
+    }
+    .fhq-attention-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 14px 30px rgba(15, 23, 42, 0.1);
+    }
+    .fhq-attention-card--amber {
+        background: linear-gradient(140deg, rgba(255, 251, 235, 0.9), rgba(255, 247, 237, 0.88));
+        border-color: rgba(251, 191, 36, 0.32);
+    }
+    .fhq-attention-card--amber .attention-tone {
+        color: #b45309;
+    }
+    .fhq-attention-card--slate {
+        background: linear-gradient(140deg, rgba(248, 250, 252, 0.92), rgba(241, 245, 249, 0.88));
+        border-color: rgba(148, 163, 184, 0.3);
+    }
+    .fhq-attention-card--slate .attention-tone {
+        color: #334155;
+    }
+    .fhq-attention-card--highlight {
+        border-left: 4px solid #f59e0b;
+        box-shadow: 0 16px 32px rgba(245, 158, 11, 0.14);
+    }
+    .attention-count {
+        margin-top: 0.65rem;
+        font-size: 2rem;
+        line-height: 1;
+        font-weight: 600;
+        letter-spacing: -0.05em;
+        color: #0f172a;
+    }
+    .attention-detail {
+        margin-top: 0.5rem;
+        font-size: 0.9rem;
+        color: #475569;
+    }
+    .attention-footer {
+        margin-top: 1rem;
+        font-size: 0.82rem;
+        color: #64748b;
+    }
+    .tools-grid {
+        display: grid;
+        gap: 0.9rem;
+        margin-top: 1.2rem;
+    }
+    @media (min-width: 768px) {
+        .tools-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+    @media (min-width: 1280px) {
+        .tools-grid {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+    }
+    .tool-tile {
+        position: relative;
+        display: flex;
+        min-height: 180px;
+        flex-direction: column;
+        justify-content: space-between;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+        padding: 1rem;
+        background: rgba(255, 255, 255, 0.78);
+        transition: all 0.2s ease;
+    }
+    .tool-tile:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 16px 32px rgba(15, 23, 42, 0.12);
+    }
+    .tool-tile--dark {
+        border-color: rgba(30, 41, 59, 0.5);
+        background: linear-gradient(150deg, rgba(15, 23, 42, 0.98), rgba(30, 41, 59, 0.94));
+        color: white;
+    }
+    .tool-kicker {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: #64748b;
+    }
+    .tool-tile--dark .tool-kicker,
+    .tool-tile--dark .tool-copy,
+    .tool-tile--dark .tool-meta {
+        color: rgba(226, 232, 240, 0.82);
+    }
+    .tool-title {
+        margin-top: 0.8rem;
+        font-size: 1.05rem;
+        font-weight: 500;
+        color: #0f172a;
+    }
+    .tool-tile--dark .tool-title,
+    .tool-tile--dark .tool-stat {
+        color: white;
+    }
+    .tool-copy {
+        margin-top: 0.45rem;
+        font-size: 0.9rem;
+        color: #475569;
+    }
+    .tool-footer {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        align-items: flex-end;
+        margin-top: 1.2rem;
+    }
+    .tool-stat {
+        font-size: 1.65rem;
+        line-height: 1;
+        font-weight: 600;
+        letter-spacing: -0.04em;
+        color: #0f172a;
+    }
+    .tool-meta {
+        font-size: 0.82rem;
+        color: #64748b;
+    }
+    .search-shell {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        background: rgba(255, 255, 255, 0.1);
+        padding: 0.4rem 0.55rem 0.4rem 0.8rem;
+        transition: all 0.2s ease;
+    }
+    .search-shell:focus-within {
+        border-color: rgba(252, 211, 77, 0.65);
+        background: rgba(255, 255, 255, 0.14);
+        transform: translateY(-1px);
+    }
+    .search-shell svg {
+        flex-shrink: 0;
+        color: #cbd5e1;
+    }
+    .search-shell input {
+        width: 100%;
+        border: 0;
+        background: transparent;
+        color: white;
+        box-shadow: none;
+        padding: 0.25rem 0;
+    }
+    .search-shell input::placeholder {
+        color: #cbd5e1;
+    }
+    .shortcut-badge {
+        flex-shrink: 0;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        background: rgba(15, 23, 42, 0.32);
+        padding: 0.3rem 0.55rem;
+        font-size: 0.68rem;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #e2e8f0;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="min-h-screen">
     {% call page_nav('Foxtown HQ', 'Morning Briefing') %}
-    <form method="GET" action="{{ url_for('search') }}" class="w-full sm:w-[360px]">
+    <form method="GET" action="{{ url_for('search') }}" class="w-full sm:w-[430px]">
         <label for="dashboardSearch" class="sr-only">Global search</label>
-        <input
-            id="dashboardSearch"
-            type="search"
-            name="q"
-            placeholder="Search recipes, ingredients, events..."
-            class="w-full px-4 py-2 rounded-xl border border-white/30 bg-white/10 text-white placeholder:text-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-300"
-        >
+        <div class="search-shell">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m21 21-4.35-4.35m1.85-5.15a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z"></path>
+            </svg>
+            <input
+                id="dashboardSearch"
+                data-shortcut="search"
+                type="search"
+                name="q"
+                placeholder="Search recipes, ingredients, events..."
+                autocomplete="off"
+            >
+            <span class="shortcut-badge hidden md:inline-flex">Cmd/Ctrl + K</span>
+        </div>
     </form>
     <span class="inline-flex items-center justify-center bg-foxtown-ember text-white rounded-full w-8 h-8 text-sm font-semibold" title="{{ current_user.username }}">
         {{ (current_user.username[:1] if current_user.username else '?')|upper }}
@@ -22,164 +582,376 @@
     <a href="{{ url_for('logout') }}" class="text-foxtown-ember hover:text-amber-200 font-semibold">Logout</a>
     {% endcall %}
 
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 fhq-fade">
-        <section class="bg-white border border-stone-200 rounded-2xl shadow-soft p-6">
-            <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
-                <div>
-                    <div class="text-xs uppercase tracking-widest text-stone-500">Today & This Week</div>
-                    <div class="text-4xl md:text-5xl font-display text-foxtown-ink mt-2">{{ today.strftime('%A, %B %-d') }}</div>
-                    <div class="text-stone-600 mt-2">{{ banquet_venue_name }} · {{ today.strftime('%Y') }}</div>
-                </div>
-                <div class="flex gap-3 flex-wrap">
-                    <a href="{{ url_for('banquet_planner') }}" class="bg-foxtown-ember hover:bg-orange-700 text-white px-4 py-2 rounded-xl font-semibold shadow-soft transition">Open Banquet Planner</a>
-                    <a href="{{ url_for('commissary_planner') }}" class="bg-foxtown-ink hover:bg-slate-900 text-white px-4 py-2 rounded-xl font-semibold shadow-soft transition">Open Commissary Planner</a>
-                    <a href="{{ url_for('production_board') }}" target="_blank" rel="noopener" class="bg-slate-900 hover:bg-black text-white px-4 py-2 rounded-xl font-semibold shadow-soft transition">Open Production Board</a>
-                </div>
-            </div>
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 dashboard-shell fhq-fade">
+        <section class="dashboard-grid">
+            <div class="space-y-5">
+                <article class="bento-card briefing-hero">
+                    <div class="hero-header">
+                        <div>
+                            <div class="section-label">Morning Briefing</div>
+                            <h2 class="hero-title">{{ today.strftime('%A, %B %-d') }}</h2>
+                            <div class="hero-subtitle">
+                                <span>{{ banquet_venue_name }}</span>
+                                <span>{{ today.strftime('%Y') }}</span>
+                                <span>Operational snapshot</span>
+                            </div>
+                            <div class="hero-clock" data-dashboard-clock>--:-- --</div>
+                            <div class="hero-clock-note">Local time</div>
+                        </div>
 
-            <div class="mt-6">
-                <h2 class="text-sm uppercase tracking-widest text-stone-500 mb-3">Events Today</h2>
-                {% if today_events %}
-                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                    {% for event in today_events %}
-                    <div class="rounded-xl border border-stone-200 bg-stone-50 p-4">
-                        <div class="text-lg font-display text-foxtown-ink">{{ event.name }}</div>
-                        <div class="mt-2 text-4xl font-semibold text-foxtown-ember leading-none fhq-countup" data-count="{{ event.guests or 0 }}">{{ event.guests or 0 }}</div>
-                        <div class="text-xs uppercase tracking-widest text-stone-500 mt-1">Guests</div>
-                        <div class="mt-3 text-sm text-stone-700">{{ event.service_timing or 'Service timing not set' }}</div>
-                        <div class="text-xs text-stone-500 mt-1">{{ event.venue_name }}</div>
+                        <div class="hero-actions">
+                            <a href="{{ url_for('banquet_planner') }}" class="hero-action hero-action--ember">
+                                <div>
+                                    <strong>Banquet Planner</strong>
+                                    <span>Events, shopping, and prep packets</span>
+                                </div>
+                                <span>Open</span>
+                            </a>
+                            <a href="{{ url_for('commissary_planner') }}" class="hero-action hero-action--ink">
+                                <div>
+                                    <strong>Commissary Planner</strong>
+                                    <span>Outlet orders and production packets</span>
+                                </div>
+                                <span>Open</span>
+                            </a>
+                            <a href="{{ url_for('production_board') }}" target="_blank" rel="noopener" class="hero-action">
+                                <div>
+                                    <strong>Production Board</strong>
+                                    <span>Read-only monitor view for service</span>
+                                </div>
+                                <span>Launch</span>
+                            </a>
+                        </div>
                     </div>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <div class="rounded-xl border border-dashed border-stone-300 bg-stone-50 p-6 text-stone-500">
-                    <div class="font-semibold text-stone-700">No events today</div>
-                    <div class="text-sm mt-1">Nothing scheduled for {{ today.strftime('%B %-d, %Y') }}.</div>
-                </div>
-                {% endif %}
+
+                    <div class="hero-metrics">
+                        <div class="hero-metric">
+                            <div class="hero-metric-label">Recipes</div>
+                            <div class="hero-metric-value fhq-countup" data-count="{{ recipe_count }}">{{ recipe_count }}</div>
+                            <div class="hero-metric-meta">Active production records</div>
+                        </div>
+                        <div class="hero-metric">
+                            <div class="hero-metric-label">Ingredients</div>
+                            <div class="hero-metric-value fhq-countup" data-count="{{ ingredient_count }}">{{ ingredient_count }}</div>
+                            <div class="hero-metric-meta">Tracked across current menus</div>
+                        </div>
+                        <div class="hero-metric">
+                            <div class="hero-metric-label">Rollouts</div>
+                            <div class="hero-metric-value fhq-countup" data-count="{{ recent_rollout_count }}">{{ recent_rollout_count }}</div>
+                            <div class="hero-metric-meta">Created in the last 30 days</div>
+                        </div>
+                        <div class="hero-metric">
+                            <div class="hero-metric-label">Price Cadence</div>
+                            <div class="hero-metric-value fhq-countup" data-count="{{ price_refresh_days }}">{{ price_refresh_days }}</div>
+                            <div class="hero-metric-meta">Days before a refresh is due</div>
+                        </div>
+                    </div>
+                </article>
+
+                <article class="bento-card timeline-card">
+                    <div class="timeline-header">
+                        <div>
+                            <div class="section-label">Event Timeline</div>
+                            <h2 class="text-2xl font-medium text-foxtown-ink mt-2">Today and the next 7 days</h2>
+                        </div>
+                        <div class="text-sm text-slate-500">{{ (today_events|length) + (upcoming_events|length) }} scheduled events</div>
+                    </div>
+
+                    <div class="timeline-sections">
+                        <section class="timeline-panel">
+                            <div class="timeline-panel-title">
+                                <h3>Today</h3>
+                                <div class="text-sm text-slate-500">{{ today.strftime('%B %-d, %Y') }}</div>
+                            </div>
+
+                            {% if today_events %}
+                            <div class="today-grid">
+                                {% for event in today_events %}
+                                {% set status = (event.status or 'planning')|lower %}
+                                <article class="today-card">
+                                    <div class="today-card-top">
+                                        <div>
+                                            <h4>{{ event.name }}</h4>
+                                            <div class="today-card-meta">{{ event.service_timing or 'Service timing not set' }}</div>
+                                        </div>
+                                        {% if status == 'confirmed' %}
+                                        <span class="glass-pill glass-pill--confirmed"><i></i>Confirmed</span>
+                                        {% elif status in ('completed', 'executed') %}
+                                        <span class="glass-pill glass-pill--executed"><i></i>Executed</span>
+                                        {% else %}
+                                        <span class="glass-pill glass-pill--planning"><i></i>Planning</span>
+                                        {% endif %}
+                                    </div>
+
+                                    <div class="today-card-guests">
+                                        <strong class="fhq-countup" data-count="{{ event.guests or 0 }}">{{ event.guests or 0 }}</strong>
+                                        <span class="text-sm uppercase tracking-[0.2em] text-slate-500">Guests</span>
+                                    </div>
+
+                                    <div class="today-card-footer">
+                                        <span>{{ event.venue_name or banquet_venue_name }}</span>
+                                        <a href="{{ url_for('banquet_event_edit', event_id=event.id) }}" class="text-foxtown-ember font-semibold hover:text-orange-700">Open event</a>
+                                    </div>
+                                </article>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <div class="empty-state">
+                                <div>
+                                    <h4>No events scheduled today</h4>
+                                    <p class="text-sm text-slate-500 mt-1">Nothing is on the books for {{ today.strftime('%B %-d, %Y') }}.</p>
+                                </div>
+                                <a href="{{ url_for('banquet_event_new') }}" class="inline-flex items-center rounded-full bg-foxtown-ember px-4 py-2 text-sm font-semibold text-white button-lift">Create New Event</a>
+                            </div>
+                            {% endif %}
+                        </section>
+
+                        <section class="timeline-panel">
+                            <div class="timeline-panel-title">
+                                <h3>Next 7 days</h3>
+                                <div class="text-sm text-slate-500">{{ today.strftime('%b %-d') }} to {{ week_end.strftime('%b %-d') }}</div>
+                            </div>
+
+                            {% if upcoming_events %}
+                            <div class="overflow-x-auto">
+                                <table class="timeline-table min-w-full">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Event</th>
+                                            <th>Guests</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for event in upcoming_events %}
+                                        {% set status = (event.status or 'planning')|lower %}
+                                        <tr onclick="if (!event.target.closest('a,button,input,select,textarea,form,label')) { window.location='{{ url_for('banquet_event_edit', event_id=event.id) }}'; }" class="cursor-pointer">
+                                            <td class="whitespace-nowrap">{{ event.event_date.strftime('%a %b %-d') if event.event_date else '-' }}</td>
+                                            <td>
+                                                <span class="timeline-name">{{ event.name }}</span>
+                                                <div class="timeline-venue">{{ event.venue_name or banquet_venue_name }}</div>
+                                            </td>
+                                            <td class="font-semibold text-slate-900">{{ event.guests or 0 }}</td>
+                                            <td>
+                                                {% if status == 'confirmed' %}
+                                                <span class="glass-pill glass-pill--confirmed"><i></i>Confirmed</span>
+                                                {% elif status in ('completed', 'executed') %}
+                                                <span class="glass-pill glass-pill--executed"><i></i>Executed</span>
+                                                {% else %}
+                                                <span class="glass-pill glass-pill--planning"><i></i>Planning</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <div class="empty-state">
+                                <div>
+                                    <h4>No upcoming events</h4>
+                                    <p class="text-sm text-slate-500 mt-1">The next 7 days are clear for {{ banquet_venue_name }}.</p>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </section>
+                    </div>
+                </article>
             </div>
 
-            <div class="mt-6">
-                <h2 class="text-sm uppercase tracking-widest text-stone-500 mb-3">Next 7 Days</h2>
-                {% if upcoming_events %}
-                <div class="overflow-x-auto">
-                    <table class="min-w-full text-sm">
-                        <thead class="text-xs uppercase tracking-wider text-stone-500 border-b border-stone-200">
-                            <tr>
-                                <th class="text-left py-2 pr-3">Date</th>
-                                <th class="text-left py-2 pr-3">Event</th>
-                                <th class="text-left py-2 pr-3">Guests</th>
-                                <th class="text-left py-2">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-stone-100">
-                            {% for event in upcoming_events %}
-                            <tr>
-                                <td class="py-2 pr-3 text-stone-600">{{ event.event_date.strftime('%a %b %-d') if event.event_date else '—' }}</td>
-                                <td class="py-2 pr-3 font-medium text-foxtown-ink">{{ event.name }}</td>
-                                <td class="py-2 pr-3 font-semibold text-foxtown-ink">{{ event.guests or 0 }}</td>
-                                <td class="py-2">
-                                    {% set status = (event.status or 'planning')|lower %}
-                                    {% if status == 'confirmed' %}
-                                    <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>Confirmed</span>
-                                    {% elif status in ('completed', 'executed') %}
-                                    <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Executed</span>
-                                    {% else %}
-                                    <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700"><span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span>Planning</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                {% else %}
-                <div class="rounded-xl border border-dashed border-stone-300 bg-stone-50 p-4 text-sm text-stone-500">No upcoming events in the next 7 days.</div>
-                {% endif %}
-            </div>
+            <aside class="attention-rail">
+                <article class="bento-card attention-card">
+                    <div class="attention-header">
+                        <div>
+                            <div class="section-label">Intelligence Sidebar</div>
+                            <h2 class="text-2xl font-medium text-foxtown-ink mt-2">Needs attention</h2>
+                        </div>
+                        <div class="text-sm text-slate-500">Live checks</div>
+                    </div>
+
+                    {% if attention_flags %}
+                    <div class="attention-stack">
+                        {% for flag in attention_flags %}
+                        <a
+                            href="{{ flag.href }}"
+                            class="fhq-attention-card fhq-attention-card--{{ flag.tone }} {% if stale_price_count and flag.title == 'Ingredient Price Refresh Needed' %}fhq-attention-card--highlight{% endif %}"
+                        >
+                            <div class="section-label attention-tone">{{ flag.title }}</div>
+                            <div class="attention-count fhq-countup" data-count="{{ flag.count_text }}">{{ flag.count_text }}</div>
+                            <div class="attention-detail">{{ flag.detail }}</div>
+                        </a>
+                        {% endfor %}
+                    </div>
+                    <div class="attention-footer">Signals are mapped from dashboard tones and update directly from menu coverage and pricing cadence.</div>
+                    {% else %}
+                    <div class="attention-stack">
+                        <div class="fhq-attention-card">
+                            <div class="section-label attention-tone">System status</div>
+                            <div class="attention-count">All clear</div>
+                            <div class="attention-detail">No urgent menu coverage or ingredient pricing issues are blocking the next few days.</div>
+                        </div>
+                    </div>
+                    <div class="attention-footer">This panel will surface missing menu lines and stale ingredient pricing as they appear.</div>
+                    {% endif %}
+                </article>
+            </aside>
         </section>
 
-        <section>
-            <div class="flex items-center justify-between mb-3">
-                <h2 class="text-lg font-display text-foxtown-ink">Needs Attention</h2>
-                <div class="text-xs text-stone-500">High-priority checks</div>
-            </div>
+        <section class="mt-5">
+            <article class="bento-card tools-card">
+                <div class="tools-header">
+                    <div>
+                        <div class="section-label">Tools</div>
+                        <h2 class="text-2xl font-medium text-foxtown-ink mt-2">Operations toolkit</h2>
+                    </div>
+                    <div class="text-sm text-slate-500">Compact bento navigation</div>
+                </div>
 
-            {% if attention_flags %}
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {% for flag in attention_flags %}
-                <a href="{{ flag.href }}" class="block rounded-xl border {% if flag.tone == 'amber' %}border-amber-300 bg-amber-50{% else %}border-slate-300 bg-slate-50{% endif %} p-4 hover:shadow-soft transition">
-                    <div class="text-xs uppercase tracking-widest {% if flag.tone == 'amber' %}text-amber-700{% else %}text-slate-600{% endif %}">{{ flag.title }}</div>
-                    <div class="text-3xl font-semibold {% if flag.tone == 'amber' %}text-amber-800{% else %}text-slate-800{% endif %} mt-2 fhq-countup" data-count="{{ flag.count_text }}">{{ flag.count_text }}</div>
-                    <div class="text-sm {% if flag.tone == 'amber' %}text-amber-800{% else %}text-slate-700{% endif %} mt-1">{{ flag.detail }}</div>
-                </a>
-                {% endfor %}
-            </div>
-            {% else %}
-            <div class="rounded-xl border border-emerald-300 bg-emerald-50 p-5">
-                <div class="text-xs uppercase tracking-widest text-emerald-700">Needs Attention</div>
-                <div class="text-xl font-semibold text-emerald-900 mt-2">All clear</div>
-                <div class="text-sm text-emerald-800 mt-1">No urgent menu or pricing issues detected right now.</div>
-            </div>
-            {% endif %}
-        </section>
+                <div class="tools-grid">
+                    <a href="{{ url_for('menu_costing') }}" class="tool-tile">
+                        <div>
+                            <div class="tool-kicker"><span>Costing</span><span>Open</span></div>
+                            <h3 class="tool-title">Menu Costing</h3>
+                            <p class="tool-copy">Estimate menu costs against the current ingredient pricing table.</p>
+                        </div>
+                        <div class="tool-footer">
+                            <div>
+                                <div class="tool-stat fhq-countup" data-count="{{ price_refresh_days }}">{{ price_refresh_days }}</div>
+                                <div class="tool-meta">day refresh cadence</div>
+                            </div>
+                            <div class="tool-meta">Pricing</div>
+                        </div>
+                    </a>
 
-        <section>
-            <div class="flex items-center justify-between mb-3">
-                <h2 class="text-lg font-display text-foxtown-ink">Tools</h2>
-                <div class="text-xs text-stone-500">Secondary navigation</div>
-            </div>
+                    <a href="{{ url_for('menu_rollouts') }}" class="tool-tile">
+                        <div>
+                            <div class="tool-kicker"><span>Planning</span><span>Open</span></div>
+                            <h3 class="tool-title">Menu Rollouts</h3>
+                            <p class="tool-copy">Review saved venue menus organized by quarter and year.</p>
+                        </div>
+                        <div class="tool-footer">
+                            <div>
+                                <div class="tool-stat fhq-countup" data-count="{{ recent_rollout_count }}">{{ recent_rollout_count }}</div>
+                                <div class="tool-meta">new in the last 30 days</div>
+                            </div>
+                            <div class="tool-meta">History</div>
+                        </div>
+                    </a>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <a href="{{ url_for('menu_costing') }}" class="group bg-white border border-stone-200 rounded-2xl shadow-soft hover:shadow-lift transition p-6">
-                    <div class="flex items-center justify-between mb-4"><span class="text-xs text-stone-400">Open →</span></div>
-                    <h3 class="text-lg font-display text-foxtown-ink">Menu Costing</h3>
-                    <p class="text-sm text-stone-600 mt-2">Estimate menu costs using current ingredient pricing.</p>
-                </a>
+                    <a href="{{ url_for('recipes') }}" class="tool-tile">
+                        <div>
+                            <div class="tool-kicker"><span>Library</span><span>Open</span></div>
+                            <h3 class="tool-title">Recipes</h3>
+                            <p class="tool-copy">Browse and maintain the production recipe database.</p>
+                        </div>
+                        <div class="tool-footer">
+                            <div>
+                                <div class="tool-stat fhq-countup" data-count="{{ recipe_count }}">{{ recipe_count }}</div>
+                                <div class="tool-meta">active recipes</div>
+                            </div>
+                            <div class="tool-meta">Core data</div>
+                        </div>
+                    </a>
 
-                <a href="{{ url_for('menu_rollouts') }}" class="group bg-white border border-stone-200 rounded-2xl shadow-soft hover:shadow-lift transition p-6">
-                    <div class="flex items-center justify-between mb-4"><span class="text-xs text-stone-400">Open →</span></div>
-                    <h3 class="text-lg font-display text-foxtown-ink">Menu Rollouts</h3>
-                    <p class="text-sm text-stone-600 mt-2">Saved menus by venue, quarter, and year.</p>
-                </a>
+                    <a href="{{ url_for('recipe_generator') }}" class="tool-tile">
+                        <div>
+                            <div class="tool-kicker"><span>Output</span><span>Open</span></div>
+                            <h3 class="tool-title">Recipe Generator</h3>
+                            <p class="tool-copy">Generate recipe PDFs and save them back into the database.</p>
+                        </div>
+                        <div class="tool-footer">
+                            <div>
+                                <div class="tool-stat">PDF</div>
+                                <div class="tool-meta">export workflow</div>
+                            </div>
+                            <div class="tool-meta">Documents</div>
+                        </div>
+                    </a>
 
-                <a href="{{ url_for('recipes') }}" class="group bg-white border border-stone-200 rounded-2xl shadow-soft hover:shadow-lift transition p-6">
-                    <div class="flex items-center justify-between mb-4"><span class="text-xs text-stone-400">Open →</span></div>
-                    <h3 class="text-lg font-display text-foxtown-ink">Recipes</h3>
-                    <p class="text-sm text-stone-600 mt-2">Browse, create, and manage your recipe database.</p>
-                </a>
+                    <a href="{{ url_for('ingredients') }}" class="tool-tile">
+                        <div>
+                            <div class="tool-kicker"><span>Inventory</span><span>Open</span></div>
+                            <h3 class="tool-title">Ingredients</h3>
+                            <p class="tool-copy">Manage ingredient records, categories, and pricing updates.</p>
+                        </div>
+                        <div class="tool-footer">
+                            <div>
+                                <div class="tool-stat fhq-countup" data-count="{{ ingredient_count }}">{{ ingredient_count }}</div>
+                                <div class="tool-meta">tracked ingredients</div>
+                            </div>
+                            <div class="tool-meta">Pricing</div>
+                        </div>
+                    </a>
 
-                <a href="{{ url_for('recipe_generator') }}" class="group bg-white border border-stone-200 rounded-2xl shadow-soft hover:shadow-lift transition p-6">
-                    <div class="flex items-center justify-between mb-4"><span class="text-xs text-stone-400">Open →</span></div>
-                    <h3 class="text-lg font-display text-foxtown-ink">Recipe Generator</h3>
-                    <p class="text-sm text-stone-600 mt-2">Generate recipe PDFs and save to the database.</p>
-                </a>
+                    <a href="{{ url_for('banquet_planner') }}" class="tool-tile">
+                        <div>
+                            <div class="tool-kicker"><span>Events</span><span>Open</span></div>
+                            <h3 class="tool-title">Banquet Planner</h3>
+                            <p class="tool-copy">Handle event scheduling, shopping lists, and prep packets.</p>
+                        </div>
+                        <div class="tool-footer">
+                            <div>
+                                <div class="tool-stat fhq-countup" data-count="{{ today_events|length }}">{{ today_events|length }}</div>
+                                <div class="tool-meta">events today</div>
+                            </div>
+                            <div class="tool-meta">Service</div>
+                        </div>
+                    </a>
 
-                <a href="{{ url_for('ingredients') }}" class="group bg-white border border-stone-200 rounded-2xl shadow-soft hover:shadow-lift transition p-6">
-                    <div class="flex items-center justify-between mb-4"><span class="text-xs text-stone-400">Open →</span></div>
-                    <h3 class="text-lg font-display text-foxtown-ink">Ingredients</h3>
-                    <p class="text-sm text-stone-600 mt-2">Manage ingredient database and pricing cadence.</p>
-                </a>
+                    <a href="{{ url_for('commissary_planner') }}" class="tool-tile">
+                        <div>
+                            <div class="tool-kicker"><span>Production</span><span>Open</span></div>
+                            <h3 class="tool-title">Commissary Planner</h3>
+                            <p class="tool-copy">Coordinate outlet orders and shared commissary prep runs.</p>
+                        </div>
+                        <div class="tool-footer">
+                            <div>
+                                <div class="tool-stat fhq-countup" data-count="{{ upcoming_events|length }}">{{ upcoming_events|length }}</div>
+                                <div class="tool-meta">events queued this week</div>
+                            </div>
+                            <div class="tool-meta">Batching</div>
+                        </div>
+                    </a>
 
-                <a href="{{ url_for('banquet_planner') }}" class="group bg-white border border-stone-200 rounded-2xl shadow-soft hover:shadow-lift transition p-6">
-                    <div class="flex items-center justify-between mb-4"><span class="text-xs text-stone-400">Open →</span></div>
-                    <h3 class="text-lg font-display text-foxtown-ink">Banquet Planner</h3>
-                    <p class="text-sm text-stone-600 mt-2">Events, shopping lists, and weekly/daily prep packets for banquets.</p>
-                </a>
-
-                <a href="{{ url_for('commissary_planner') }}" class="group bg-white border border-stone-200 rounded-2xl shadow-soft hover:shadow-lift transition p-6">
-                    <div class="flex items-center justify-between mb-4"><span class="text-xs text-stone-400">Open →</span></div>
-                    <h3 class="text-lg font-display text-foxtown-ink">Commissary Planner</h3>
-                    <p class="text-sm text-stone-600 mt-2">Outlet order entry and production packet for shared commissary prep.</p>
-                </a>
-
-                <a href="{{ url_for('production_board') }}" target="_blank" rel="noopener" class="group bg-slate-900 border border-slate-800 rounded-2xl shadow-soft hover:shadow-lift transition p-6 text-white">
-                    <div class="flex items-center justify-between mb-4"><span class="text-xs text-slate-300">Open →</span></div>
-                    <h3 class="text-lg font-display">Production Board</h3>
-                    <p class="text-sm text-slate-200 mt-2">Read-only live board for kitchen monitors and iPads.</p>
-                </a>
-            </div>
+                    <a href="{{ url_for('production_board') }}" target="_blank" rel="noopener" class="tool-tile tool-tile--dark">
+                        <div>
+                            <div class="tool-kicker"><span>Live View</span><span>Launch</span></div>
+                            <h3 class="tool-title">Production Board</h3>
+                            <p class="tool-copy">Keep a read-only service board up on kitchen monitors and iPads.</p>
+                        </div>
+                        <div class="tool-footer">
+                            <div>
+                                <div class="tool-stat">Live</div>
+                                <div class="tool-meta">kitchen display mode</div>
+                            </div>
+                            <div class="tool-meta">Monitors</div>
+                        </div>
+                    </a>
+                </div>
+            </article>
         </section>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    (function () {
+        const clock = document.querySelector('[data-dashboard-clock]');
+        if (!clock) return;
+
+        const formatter = new Intl.DateTimeFormat([], {
+            hour: 'numeric',
+            minute: '2-digit'
+        });
+
+        const render = () => {
+            clock.textContent = formatter.format(new Date());
+        };
+
+        render();
+        window.setInterval(render, 30000);
+    })();
+</script>
 {% endblock %}

@@ -90,6 +90,7 @@
             color: #A8A29E;
         }
     </style>
+    {% block extra_head %}{% endblock %}
 </head>
 <body class="min-h-screen bg-foxtown-canvas text-slate-900 font-sans antialiased">
     <div class="fixed inset-0 -z-10">
@@ -186,9 +187,20 @@
             };
 
             document.addEventListener('keydown', (event) => {
-                if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return;
                 const key = (event.key || '').toLowerCase();
                 const target = event.target;
+                const searchShortcut = key === 'k' && (event.metaKey || event.ctrlKey) && !event.altKey;
+
+                if (searchShortcut) {
+                    const searchInput = findSearchInput();
+                    if (!searchInput) return;
+                    event.preventDefault();
+                    searchInput.focus();
+                    searchInput.select();
+                    return;
+                }
+
+                if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return;
 
                 if (key === '/') {
                     if (isTypingContext(target)) return;
@@ -225,5 +237,6 @@
             });
         })();
     </script>
+    {% block extra_scripts %}{% endblock %}
 </body>
 </html>
