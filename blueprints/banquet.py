@@ -9,6 +9,63 @@ bp = Blueprint('banquet', __name__)
 def handle_banquet_error(error):
     return handle_route_error(error, 'banquet')
 
+def banquet_event_line_choice_column_ready(cur):
+    return db_column_exists(cur, 'public.banquet_event_menu_items', 'choice_selections')
+
+def insert_banquet_event_menu_line(
+    cur,
+    event_id,
+    menu_item_id,
+    menu_item_name,
+    recipe_id,
+    quantity,
+    quantity_unit,
+    menu_section,
+    menu_descriptor,
+    notes,
+    sort_order,
+    choice_selections=None,
+    has_choice_selections=False
+):
+    if has_choice_selections:
+        cur.execute("""
+            INSERT INTO banquet_event_menu_items (
+                event_id, menu_item_id, menu_item_name, recipe_id, quantity, quantity_unit,
+                menu_section, menu_descriptor, notes, choice_selections, sort_order
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (
+            event_id,
+            menu_item_id,
+            menu_item_name,
+            recipe_id,
+            quantity,
+            quantity_unit,
+            menu_section,
+            menu_descriptor,
+            notes,
+            choice_selections or None,
+            sort_order
+        ))
+        return
+
+    cur.execute("""
+        INSERT INTO banquet_event_menu_items (
+            event_id, menu_item_id, menu_item_name, recipe_id, quantity, quantity_unit,
+            menu_section, menu_descriptor, notes, sort_order
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+    """, (
+        event_id,
+        menu_item_id,
+        menu_item_name,
+        recipe_id,
+        quantity,
+        quantity_unit,
+        menu_section,
+        menu_descriptor,
+        notes,
+        sort_order
+    ))
+
 @bp.route('/banquet-planner')
 @login_required
 def banquet_planner():
@@ -160,6 +217,7 @@ def banquet_event_new():
     banquet_venue = resolve_banquet_venue(venues)
     default_venue_id = banquet_venue.get('id') or ''
     banquet_venue_name = banquet_venue.get('name') or 'Banquets'
+    has_line_choice_selections = banquet_event_line_choice_column_ready(cur)
 
     event = {
         'name': '',
@@ -269,12 +327,8 @@ def banquet_event_new():
                             continue
                         upsert_menu_item_recipe_link(cur, menu_item_id, recipe_id)
 
-                    cur.execute("""
-                        INSERT INTO banquet_event_menu_items (
-                            event_id, menu_item_id, menu_item_name, recipe_id, quantity, quantity_unit,
-                            menu_section, menu_descriptor, notes, sort_order
-                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    """, (
+                    insert_banquet_event_menu_line(
+                        cur,
                         event_id,
                         menu_item_id,
                         line_name,
@@ -284,8 +338,10 @@ def banquet_event_new():
                         line_section or None,
                         line_descriptor or None,
                         line['notes'] or None,
-                        idx
-                    ))
+                        idx,
+                        choice_selections=line.get('choice_selections'),
+                        has_choice_selections=has_line_choice_selections
+                    )
 
                 conn.commit()
                 flash('Banquet event created.', 'success')
@@ -300,6 +356,22 @@ def banquet_event_new():
         lines = []
 
     menu_items = list_banquet_menu_items(cur, event.get('venue_id') or '')
+    menu_item_ids = [item.get('id') for item in menu_items if item.get('id')]
+    menu_item_choice_options = {}
+    for menu_item_id, summary in get_banquet_menu_item_component_summaries(cur, menu_item_ids).items():
+        options = []
+        for recipe in summary.get('recipes') or []:
+            choice_group = clean_menu_text(recipe.get('choice_group') or '')
+            recipe_id = recipe.get('id')
+            if not choice_group or not recipe_id:
+                continue
+            options.append({
+                'recipe_id': recipe_id,
+                'recipe_name': recipe.get('name') or 'Choice',
+                'choice_group': choice_group
+            })
+        if options:
+            menu_item_choice_options[menu_item_id] = options
     cur.close()
     return render_template(
         'banquet_event_form.html',
@@ -309,6 +381,7 @@ def banquet_event_new():
         guest_count_history=[],
         lines=lines,
         menu_items=menu_items,
+        menu_item_choice_options=menu_item_choice_options,
         venues=venues,
         banquet_venue_name=banquet_venue_name,
         section_options=BANQUET_MENU_SECTION_OPTIONS,
@@ -332,6 +405,7 @@ def banquet_event_edit(event_id):
         return redirect(url_for('banquet_planner'))
     cur.execute("SELECT to_regclass('public.banquet_event_guest_log') AS table_ref")
     guest_log_table_ready = bool((cur.fetchone() or {}).get('table_ref'))
+    has_line_choice_selections = banquet_event_line_choice_column_ready(cur)
 
     venues = get_active_venues(cur)
     banquet_venue = resolve_banquet_venue(venues)
@@ -467,10 +541,13 @@ def banquet_event_edit(event_id):
                            recipe_id,
                            menu_item_name,
                            menu_section,
-                           menu_descriptor
+                           menu_descriptor,
+                           {choice_selections_sql}
                     FROM banquet_event_menu_items
                     WHERE event_id = %s
-                """, (event_id,))
+                """.format(
+                    choice_selections_sql=("choice_selections" if has_line_choice_selections else "NULL::text AS choice_selections")
+                ), (event_id,))
                 existing_line_map = {str(row.get('id')): row for row in cur.fetchall() if row.get('id') is not None}
                 cur.execute("DELETE FROM banquet_event_menu_items WHERE event_id = %s", (event_id,))
                 for idx, line in enumerate(lines):
@@ -480,6 +557,7 @@ def banquet_event_edit(event_id):
                     line_section = line.get('menu_section')
                     line_descriptor = line.get('menu_descriptor')
                     recipe_id = line.get('recipe_id')
+                    line_choice_selections = line.get('choice_selections')
                     if not menu_item_id and line_id and line_id in existing_line_map:
                         previous = existing_line_map[line_id]
                         menu_item_id = previous.get('menu_item_id')
@@ -488,6 +566,7 @@ def banquet_event_edit(event_id):
                         line_name = line_name or previous.get('menu_item_name') or ''
                         line_section = line_section or previous.get('menu_section')
                         line_descriptor = line_descriptor or previous.get('menu_descriptor')
+                        line_choice_selections = line_choice_selections or previous.get('choice_selections')
 
                     if menu_item_id:
                         cur.execute("""
@@ -517,12 +596,8 @@ def banquet_event_edit(event_id):
                             continue
                         upsert_menu_item_recipe_link(cur, menu_item_id, recipe_id)
 
-                    cur.execute("""
-                        INSERT INTO banquet_event_menu_items (
-                            event_id, menu_item_id, menu_item_name, recipe_id, quantity, quantity_unit,
-                            menu_section, menu_descriptor, notes, sort_order
-                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    """, (
+                    insert_banquet_event_menu_line(
+                        cur,
                         event_id,
                         menu_item_id,
                         line_name,
@@ -532,8 +607,10 @@ def banquet_event_edit(event_id):
                         line_section or None,
                         line_descriptor or None,
                         line['notes'] or None,
-                        idx
-                    ))
+                        idx,
+                        choice_selections=line_choice_selections,
+                        has_choice_selections=has_line_choice_selections
+                    )
                 if guest_log_table_ready and previous_guest_count != new_guest_count:
                     cur.execute("""
                         INSERT INTO banquet_event_guest_log (event_id, old_count, new_count)
@@ -555,8 +632,26 @@ def banquet_event_edit(event_id):
     for line in lines:
         if 'notes' not in line:
             line['notes'] = line.get('line_notes')
+        if 'choice_selections' not in line:
+            line['choice_selections'] = line.get('line_choice_selections')
 
     menu_items = list_banquet_menu_items(cur, event.get('venue_id') or '')
+    menu_item_ids = [item.get('id') for item in menu_items if item.get('id')]
+    menu_item_choice_options = {}
+    for menu_item_id, summary in get_banquet_menu_item_component_summaries(cur, menu_item_ids).items():
+        options = []
+        for recipe in summary.get('recipes') or []:
+            choice_group = clean_menu_text(recipe.get('choice_group') or '')
+            recipe_id = recipe.get('id')
+            if not choice_group or not recipe_id:
+                continue
+            options.append({
+                'recipe_id': recipe_id,
+                'recipe_name': recipe.get('name') or 'Choice',
+                'choice_group': choice_group
+            })
+        if options:
+            menu_item_choice_options[menu_item_id] = options
     event_beo_files = list_banquet_event_beo_files(cur, event_id)
     guest_count_history = []
     if guest_log_table_ready:
@@ -577,6 +672,7 @@ def banquet_event_edit(event_id):
         guest_count_history=guest_count_history,
         lines=lines,
         menu_items=menu_items,
+        menu_item_choice_options=menu_item_choice_options,
         venues=venues,
         banquet_venue_name=banquet_venue_name,
         section_options=BANQUET_MENU_SECTION_OPTIONS,
@@ -680,6 +776,7 @@ def banquet_event_duplicate(event_id):
         return redirect(url_for('banquet_event_edit', event_id=event_id))
 
     new_event_id = generate_id('bev_')
+    has_line_choice_selections = banquet_event_line_choice_column_ready(cur)
     try:
         cur.execute("""
             INSERT INTO banquet_events (
@@ -709,20 +806,19 @@ def banquet_event_duplicate(event_id):
                 menu_section,
                 menu_descriptor,
                 notes,
-                sort_order
+                sort_order,
+                {choice_selections_sql}
             FROM banquet_event_menu_items
             WHERE event_id = %s
             ORDER BY sort_order, id
-        """, (event_id,))
+        """.format(
+            choice_selections_sql=("choice_selections" if has_line_choice_selections else "NULL::text AS choice_selections")
+        ), (event_id,))
         source_lines = cur.fetchall()
 
         for line in source_lines:
-            cur.execute("""
-                INSERT INTO banquet_event_menu_items (
-                    event_id, menu_item_id, menu_item_name, recipe_id, quantity, quantity_unit,
-                    menu_section, menu_descriptor, notes, sort_order
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """, (
+            insert_banquet_event_menu_line(
+                cur,
                 new_event_id,
                 line.get('menu_item_id'),
                 line.get('menu_item_name'),
@@ -732,8 +828,10 @@ def banquet_event_duplicate(event_id):
                 line.get('menu_section'),
                 line.get('menu_descriptor'),
                 line.get('notes'),
-                line.get('sort_order')
-            ))
+                line.get('sort_order'),
+                choice_selections=line.get('choice_selections'),
+                has_choice_selections=has_line_choice_selections
+            )
 
         conn.commit()
         flash(f"Duplicated event as: {duplicate_name}", 'success')
@@ -771,6 +869,7 @@ def banquet_event_apply_template(event_id):
         return redirect(url_for('banquet_event_edit', event_id=event_id))
 
     guests = int(event.get('guest_count') or 0)
+    has_line_choice_selections = banquet_event_line_choice_column_ready(cur)
     try:
         existing_lines = get_banquet_event_lines(cur, event_id)
         sort_base = len(existing_lines)
@@ -786,12 +885,8 @@ def banquet_event_apply_template(event_id):
             }
             menu_item_id = resolve_or_create_banquet_menu_item(cur, line, event.get('venue_id') or '')
             upsert_menu_item_recipe_link(cur, menu_item_id, line.get('recipe_id'))
-            cur.execute("""
-                INSERT INTO banquet_event_menu_items (
-                    event_id, menu_item_id, menu_item_name, recipe_id, quantity, quantity_unit,
-                    menu_section, menu_descriptor, notes, sort_order
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """, (
+            insert_banquet_event_menu_line(
+                cur,
                 event_id,
                 menu_item_id,
                 line.get('menu_item_name'),
@@ -801,8 +896,10 @@ def banquet_event_apply_template(event_id):
                 line.get('menu_section'),
                 line.get('menu_descriptor'),
                 'Loaded from menu catalog',
-                sort_base + idx
-            ))
+                sort_base + idx,
+                choice_selections=None,
+                has_choice_selections=has_line_choice_selections
+            )
         conn.commit()
         flash('Loaded menu catalog lines to event.', 'success')
     except Exception:

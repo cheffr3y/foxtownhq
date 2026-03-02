@@ -193,6 +193,7 @@
             </div>
             <p class="text-sm text-stone-500 mb-4">Catalog selection drives recipe rollups. You can override event menu name, descriptor, section, and custom mods on each line.</p>
             <p class="text-sm text-stone-500 mb-4">Use <strong>Customize Recipes</strong> when an item needs real recipe swaps for this event only (example: change salad, swap side, swap dessert). It creates a private copy, opens the editor, then returns to this event.</p>
+            <p class="text-sm text-stone-500 mb-4">For menu items with choice groups, enter actual guest pick counts in the same row (example: Turkey 30, BLT 25). Prep and shopping rollups will follow these event picks.</p>
             <div class="overflow-x-auto">
                 <table class="menu-lines-table min-w-[1460px] text-sm" id="linesTable">
                     <thead class="text-xs uppercase text-stone-500 border-b border-stone-200">
@@ -203,7 +204,7 @@
                             <th class="text-left py-2 pr-2 min-w-[170px]">Section</th>
                             <th class="text-left py-2 pr-2 min-w-[120px]">Qty</th>
                             <th class="text-left py-2 pr-2 min-w-[100px]">Unit</th>
-                            <th class="text-left py-2 pr-2 min-w-[220px]">Custom Mods</th>
+                            <th class="text-left py-2 pr-2 min-w-[260px]">Custom Mods / Guest Selections</th>
                             <th class="text-left py-2 pr-2 min-w-[170px]">Actions</th>
                         </tr>
                     </thead>
@@ -241,7 +242,12 @@
                             </td>
                             <td class="py-2 pr-2"><input type="number" step="0.01" min="0" name="line_qty[]" value="{{ line.quantity or '' }}" class="w-full px-3 py-2 border border-stone-300 rounded-lg"></td>
                             <td class="py-2 pr-2"><input name="line_unit[]" value="{{ line.quantity_unit or line.yield_unit or 'each' }}" class="w-full px-3 py-2 border border-stone-300 rounded-lg"></td>
-                            <td class="py-2 pr-2"><input name="line_notes[]" value="{{ line.notes or '' }}" class="w-full px-3 py-2 border border-stone-300 rounded-lg" placeholder="No nuts, sauce on side"></td>
+                            <td class="py-2 pr-2">
+                                <input name="line_notes[]" value="{{ line.notes or '' }}" class="w-full px-3 py-2 border border-stone-300 rounded-lg" placeholder="No nuts, sauce on side">
+                                <input type="hidden" name="line_choice_selections[]" data-role="choice-selections" value="{{ line.choice_selections or line.line_choice_selections or '' }}">
+                                <div data-role="choice-editor" class="mt-2"></div>
+                                <div data-role="choice-summary" class="mt-1 text-xs text-stone-500"></div>
+                            </td>
                             <td class="py-2 pr-2">
                                 <div class="flex items-center gap-3 whitespace-nowrap">
                                     {% if event.id and (line.line_id or line.id) %}
@@ -358,7 +364,12 @@ function submitDuplicateEvent(formId, baseName, baseDate) {
     </td>
     <td class="py-2 pr-2"><input type="number" step="0.01" min="0" name="line_qty[]" value="1" class="w-full px-3 py-2 border border-stone-300 rounded-lg"></td>
     <td class="py-2 pr-2"><input name="line_unit[]" value="each" class="w-full px-3 py-2 border border-stone-300 rounded-lg"></td>
-    <td class="py-2 pr-2"><input name="line_notes[]" class="w-full px-3 py-2 border border-stone-300 rounded-lg" placeholder="Custom modifications"></td>
+    <td class="py-2 pr-2">
+        <input name="line_notes[]" class="w-full px-3 py-2 border border-stone-300 rounded-lg" placeholder="Custom modifications">
+        <input type="hidden" name="line_choice_selections[]" data-role="choice-selections" value="">
+        <div data-role="choice-editor" class="mt-2"></div>
+        <div data-role="choice-summary" class="mt-1 text-xs text-stone-500"></div>
+    </td>
     <td class="py-2 pr-2">
         <div class="flex items-center gap-3 whitespace-nowrap">
             <span class="text-stone-400 text-xs">Save event first</span>
@@ -373,6 +384,140 @@ function submitDuplicateEvent(formId, baseName, baseDate) {
     const lineRows = document.getElementById('lineRows');
     const addLineBtn = document.getElementById('addLineBtn');
     const template = document.getElementById('lineRowTemplate');
+    const choiceOptionsByItem = {{ (menu_item_choice_options or {})|tojson }};
+
+    function parseChoiceSelections(raw) {
+        if (!raw) return [];
+        try {
+            const payload = JSON.parse(raw);
+            if (Array.isArray(payload)) return payload;
+            if (payload && Array.isArray(payload.items)) return payload.items;
+        } catch (error) {}
+        return [];
+    }
+
+    function updateChoiceSummary(row, items) {
+        const summary = row.querySelector('[data-role="choice-summary"]');
+        if (!summary) return;
+        if (!items.length) {
+            summary.textContent = 'No guest-level choice split entered.';
+            return;
+        }
+        const totalsByGroup = {};
+        items.forEach((item) => {
+            const groupName = (item.choice_group || 'Choices').trim() || 'Choices';
+            totalsByGroup[groupName] = (totalsByGroup[groupName] || 0) + Number(item.count || 0);
+        });
+        const parts = Object.keys(totalsByGroup)
+            .sort((a, b) => a.localeCompare(b))
+            .map((groupName) => `${groupName}: ${totalsByGroup[groupName]} picks`);
+        summary.textContent = parts.join(' | ');
+    }
+
+    function updateChoiceSelections(row) {
+        const hiddenInput = row.querySelector('[data-role="choice-selections"]');
+        if (!hiddenInput) return;
+        const countInputs = row.querySelectorAll('[data-role="choice-count"]');
+        const items = [];
+        countInputs.forEach((input) => {
+            const rawValue = (input.value || '').trim();
+            if (!rawValue) return;
+            const count = Number(rawValue);
+            if (!Number.isFinite(count) || count <= 0) return;
+            items.push({
+                recipe_id: input.dataset.recipeId || '',
+                recipe_name: input.dataset.recipeName || '',
+                choice_group: input.dataset.choiceGroup || '',
+                count
+            });
+        });
+        hiddenInput.value = items.length ? JSON.stringify({ items }) : '';
+        updateChoiceSummary(row, items);
+    }
+
+    function renderChoiceEditor(row) {
+        if (!row) return;
+        const select = row.querySelector('[data-role="menu-item-select"]');
+        const container = row.querySelector('[data-role="choice-editor"]');
+        const hiddenInput = row.querySelector('[data-role="choice-selections"]');
+        if (!select || !container || !hiddenInput) return;
+
+        const menuItemId = select.value || '';
+        const options = choiceOptionsByItem[menuItemId] || [];
+        container.innerHTML = '';
+
+        if (!menuItemId || !options.length) {
+            hiddenInput.value = '';
+            container.innerHTML = '<div class="text-xs text-stone-500">No choice-group selections configured on this menu item.</div>';
+            updateChoiceSummary(row, []);
+            return;
+        }
+
+        const grouped = {};
+        options.forEach((option) => {
+            const groupName = (option.choice_group || '').trim();
+            if (!groupName) return;
+            if (!grouped[groupName]) grouped[groupName] = [];
+            grouped[groupName].push(option);
+        });
+
+        if (!Object.keys(grouped).length) {
+            hiddenInput.value = '';
+            container.innerHTML = '<div class="text-xs text-stone-500">No choice-group selections configured on this menu item.</div>';
+            updateChoiceSummary(row, []);
+            return;
+        }
+
+        const existingItems = parseChoiceSelections(hiddenInput.value);
+        const existingCounts = {};
+        existingItems.forEach((item) => {
+            const key = `${(item.choice_group || '').trim()}::${item.recipe_id || ''}`;
+            existingCounts[key] = Number(item.count || 0);
+        });
+
+        Object.keys(grouped).sort((a, b) => a.localeCompare(b)).forEach((groupName) => {
+            const groupWrap = document.createElement('div');
+            groupWrap.className = 'rounded-lg border border-stone-200 bg-stone-50 p-2 mt-2';
+
+            const heading = document.createElement('div');
+            heading.className = 'text-[11px] font-semibold uppercase tracking-wide text-stone-600 mb-1';
+            heading.textContent = groupName;
+            groupWrap.appendChild(heading);
+
+            grouped[groupName].forEach((option) => {
+                const rowWrap = document.createElement('label');
+                rowWrap.className = 'grid grid-cols-[1fr_80px] items-center gap-2 mb-1 last:mb-0';
+
+                const labelText = document.createElement('span');
+                labelText.className = 'text-xs text-stone-700';
+                labelText.textContent = option.recipe_name || 'Choice';
+                rowWrap.appendChild(labelText);
+
+                const countInput = document.createElement('input');
+                countInput.type = 'number';
+                countInput.step = '1';
+                countInput.min = '0';
+                countInput.placeholder = '0';
+                countInput.className = 'w-full px-2 py-1 border border-stone-300 rounded text-sm text-right';
+                countInput.dataset.role = 'choice-count';
+                countInput.dataset.choiceGroup = groupName;
+                countInput.dataset.recipeId = option.recipe_id || '';
+                countInput.dataset.recipeName = option.recipe_name || '';
+                const key = `${groupName}::${option.recipe_id || ''}`;
+                if (existingCounts[key] > 0) {
+                    countInput.value = String(existingCounts[key]);
+                }
+                countInput.addEventListener('input', () => updateChoiceSelections(row));
+                rowWrap.appendChild(countInput);
+
+                groupWrap.appendChild(rowWrap);
+            });
+
+            container.appendChild(groupWrap);
+        });
+
+        updateChoiceSelections(row);
+    }
 
     function syncRow(row, forceDefaults = false) {
         if (!row) return;
@@ -405,7 +550,10 @@ function submitDuplicateEvent(formId, baseName, baseDate) {
         const removeBtn = row.querySelector('.removeRow');
         const cloneBtn = row.querySelector('.cloneRow');
         if (select) {
-            select.addEventListener('change', () => syncRow(row, true));
+            select.addEventListener('change', () => {
+                syncRow(row, true);
+                renderChoiceEditor(row);
+            });
         }
         if (removeBtn) {
             removeBtn.addEventListener('click', () => row.remove());
@@ -435,6 +583,7 @@ function submitDuplicateEvent(formId, baseName, baseDate) {
             });
         }
         syncRow(row, false);
+        renderChoiceEditor(row);
     }
 
     addLineBtn.addEventListener('click', () => {

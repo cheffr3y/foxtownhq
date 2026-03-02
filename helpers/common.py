@@ -1,3 +1,4 @@
+import json
 import os
 import re
 import shutil
@@ -2055,7 +2056,9 @@ def get_banquet_event(cur, event_id):
 def get_banquet_event_lines(cur, event_id):
     if not banquet_tables_ready(cur):
         return []
-    cur.execute("""
+    has_choice_selections_column = db_column_exists(cur, 'public.banquet_event_menu_items', 'choice_selections')
+    choice_selections_sql = "emi.choice_selections AS line_choice_selections" if has_choice_selections_column else "NULL::text AS line_choice_selections"
+    cur.execute(f"""
         SELECT emi.id AS line_id,
                emi.event_id,
                emi.menu_item_id,
@@ -2066,6 +2069,7 @@ def get_banquet_event_lines(cur, event_id):
                emi.quantity,
                emi.quantity_unit,
                emi.notes AS line_notes,
+               {choice_selections_sql},
                r.name AS recipe_name,
                r.yield_qty,
                r.yield_unit,
@@ -2339,6 +2343,54 @@ def parse_commissary_order_lines(request, valid_recipe_ids):
         })
     return rows, errors
 
+def normalize_event_line_choice_selections(value):
+    text = (value or '').strip()
+    if not text:
+        return None
+    try:
+        payload = json.loads(text)
+    except (TypeError, ValueError):
+        return None
+
+    if isinstance(payload, dict):
+        raw_items = payload.get('items')
+    elif isinstance(payload, list):
+        raw_items = payload
+    else:
+        raw_items = []
+
+    items = []
+    for raw in raw_items or []:
+        if not isinstance(raw, dict):
+            continue
+        recipe_id = clean_menu_text(raw.get('recipe_id'))
+        if not recipe_id:
+            continue
+        count = to_float(raw.get('count'))
+        if count <= 0:
+            continue
+        items.append({
+            'recipe_id': recipe_id,
+            'choice_group': clean_menu_text(raw.get('choice_group')) or None,
+            'recipe_name': clean_menu_text(raw.get('recipe_name')) or None,
+            'count': round(count, 6)
+        })
+
+    if not items:
+        return None
+
+    return json.dumps({'items': items}, separators=(',', ':'))
+
+def parse_event_line_choice_selections(value):
+    normalized = normalize_event_line_choice_selections(value)
+    if not normalized:
+        return []
+    try:
+        payload = json.loads(normalized)
+    except (TypeError, ValueError):
+        return []
+    return payload.get('items') or []
+
 def parse_event_recipe_lines(request):
     line_ids = request.form.getlist('line_id[]')
     menu_item_ids = request.form.getlist('line_menu_item_id[]')
@@ -2349,10 +2401,11 @@ def parse_event_recipe_lines(request):
     quantities = request.form.getlist('line_qty[]')
     quantity_units = request.form.getlist('line_unit[]')
     notes = request.form.getlist('line_notes[]')
+    choice_selections = request.form.getlist('line_choice_selections[]')
 
     max_len = max(
         len(line_ids), len(menu_item_ids), len(recipe_ids), len(names), len(descriptors), len(sections),
-        len(quantities), len(quantity_units), len(notes), 0
+        len(quantities), len(quantity_units), len(notes), len(choice_selections), 0
     )
     rows = []
     errors = []
@@ -2366,8 +2419,9 @@ def parse_event_recipe_lines(request):
         qty_raw = (quantities[idx] if idx < len(quantities) else '').strip()
         qty_unit = clean_menu_text(quantity_units[idx] if idx < len(quantity_units) else '')
         note = clean_menu_text(notes[idx] if idx < len(notes) else '')
+        choice_selection_text = normalize_event_line_choice_selections(choice_selections[idx] if idx < len(choice_selections) else '')
 
-        if not any([menu_item_id, recipe_id, menu_name, descriptor, section, qty_raw, qty_unit, note]):
+        if not any([menu_item_id, recipe_id, menu_name, descriptor, section, qty_raw, qty_unit, note, choice_selection_text]):
             continue
         qty = parse_float_field(qty_raw, 'Menu quantity', errors, required=True, min_value=0.0001)
         if not menu_name and not menu_item_id:
@@ -2381,7 +2435,8 @@ def parse_event_recipe_lines(request):
             'menu_section': section or None,
             'quantity': qty,
             'quantity_unit': normalize_unit(qty_unit) or qty_unit or None,
-            'notes': note or None
+            'notes': note or None,
+            'choice_selections': choice_selection_text
         })
     return rows, errors
 
@@ -2710,8 +2765,10 @@ def fetch_banquet_event_lines(cur, start_date, end_date, venue_id=''):
     if not banquet_tables_ready(cur):
         return []
     has_base_yield = db_column_exists(cur, 'public.banquet_menu_items', 'base_yield_qty') and db_column_exists(cur, 'public.banquet_menu_items', 'base_yield_unit')
+    has_choice_selections_column = db_column_exists(cur, 'public.banquet_event_menu_items', 'choice_selections')
     base_yield_qty_sql = "mi.base_yield_qty" if has_base_yield else "1::numeric"
     base_yield_unit_sql = "mi.base_yield_unit" if has_base_yield else "'each'"
+    choice_selections_sql = "emi.choice_selections AS line_choice_selections" if has_choice_selections_column else "NULL::text AS line_choice_selections"
     params = [start_date, end_date, list(BANQUET_ACTIVE_STATUSES)]
     venue_filter_sql = ""
     if venue_id:
@@ -2742,6 +2799,7 @@ def fetch_banquet_event_lines(cur, start_date, end_date, venue_id=''):
                emi.quantity,
                emi.quantity_unit,
                emi.notes AS line_notes,
+               {choice_selections_sql},
                r.name AS recipe_name,
                r.category AS recipe_category,
                r.yield_qty,
@@ -2763,7 +2821,7 @@ def fetch_banquet_event_lines(cur, start_date, end_date, venue_id=''):
           AND e.status = ANY(%s)
           {venue_filter_sql}
         ORDER BY e.event_date, e.name, COALESCE(emi.sort_order, 0), emi.id
-    """.format(base_yield_qty_sql=base_yield_qty_sql, base_yield_unit_sql=base_yield_unit_sql, venue_filter_sql=venue_filter_sql), params)
+    """, params)
     return cur.fetchall()
 
 def build_banquet_datasets(cur, start_date, end_date, venue_id='', unit_system='imperial'):
@@ -2869,17 +2927,59 @@ def build_banquet_datasets(cur, start_date, end_date, venue_id='', unit_system='
         if not line_recipes and recipe:
             line_recipes = [dict(recipe)]
 
+        line_choice_selections = parse_event_line_choice_selections(row.get('line_choice_selections'))
+        line_choice_count_by_group_recipe = defaultdict(float)
+        line_choice_count_by_recipe = defaultdict(float)
+        for choice in line_choice_selections:
+            recipe_id = clean_menu_text(choice.get('recipe_id'))
+            if not recipe_id:
+                continue
+            count = max(0.0, to_float(choice.get('count')))
+            if count <= 0:
+                continue
+            group_name = clean_menu_text(choice.get('choice_group') or '')
+            line_choice_count_by_recipe[recipe_id] += count
+            if group_name:
+                line_choice_count_by_group_recipe[(group_name, recipe_id)] += count
+
         choice_group_rows = defaultdict(list)
         for line_recipe in line_recipes:
             group_name = clean_menu_text(line_recipe.get('choice_group') or '')
             if group_name:
                 choice_group_rows[group_name].append(line_recipe)
 
+        choice_recipe_occurrences = defaultdict(int)
+        for group_rows in choice_group_rows.values():
+            for item in group_rows:
+                recipe_id = item.get('id')
+                if recipe_id:
+                    choice_recipe_occurrences[recipe_id] += 1
+
         choice_multipliers = {}
         for group_name, group_rows in choice_group_rows.items():
+            selected_total = 0.0
+            has_selected_counts = False
+            for item in group_rows:
+                recipe_id = item.get('id')
+                explicit_count = line_choice_count_by_group_recipe.get((group_name, recipe_id))
+                if explicit_count <= 0 and choice_recipe_occurrences.get(recipe_id, 0) == 1:
+                    explicit_count = line_choice_count_by_recipe.get(recipe_id)
+                if explicit_count > 0:
+                    selected_total += explicit_count
+                    has_selected_counts = True
+
+            if has_selected_counts and selected_total > 0:
+                for item in group_rows:
+                    recipe_id = item.get('id')
+                    selected_count = line_choice_count_by_group_recipe.get((group_name, recipe_id))
+                    if selected_count <= 0 and choice_recipe_occurrences.get(recipe_id, 0) == 1:
+                        selected_count = line_choice_count_by_recipe.get(recipe_id)
+                    choice_multipliers[id(item)] = max(0.0, selected_count) / selected_total
+                continue
+
             total_weight = sum(max(0.0, to_float(item.get('choice_weight_percent'))) for item in group_rows)
             if total_weight <= 0:
-                equal_share = 1.0 / len(group_rows) if group_rows else 0
+                equal_share = 1.0 / len(group_rows) if group_rows else 0.0
                 for item in group_rows:
                     choice_multipliers[id(item)] = equal_share
             else:
@@ -2897,6 +2997,7 @@ def build_banquet_datasets(cur, start_date, end_date, venue_id='', unit_system='
             'base_yield_qty': to_float(row.get('base_yield_qty')) or 1,
             'base_yield_unit': row.get('base_yield_unit') or 'each',
             'notes': row.get('line_notes'),
+            'choice_selections': line_choice_selections,
             'recipe': line_recipes[0] if line_recipes else recipe,
             'recipes': line_recipes
         }

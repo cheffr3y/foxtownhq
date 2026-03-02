@@ -246,6 +246,7 @@ MIGRATIONS = [
     "CREATE INDEX IF NOT EXISTS idx_outlet_orders_status ON outlet_orders (status)",
     "CREATE INDEX IF NOT EXISTS idx_outlet_order_items_order_id ON outlet_order_items (order_id)",
     "CREATE INDEX IF NOT EXISTS idx_outlet_order_items_recipe_id ON outlet_order_items (recipe_id)",
+    "ALTER TABLE banquet_event_menu_items ADD COLUMN IF NOT EXISTS choice_selections TEXT",
 ]
 
 
