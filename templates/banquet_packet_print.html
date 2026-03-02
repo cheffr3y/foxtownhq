@@ -14,22 +14,28 @@
         </div>
         <div class="flex items-center gap-2 flex-wrap justify-end">
             <a
-                href="{{ url_for('banquet_packet_print', venue=selected_venue, start_date=start_date, end_date=end_date, include_shopping=include_shopping, include_beo=include_beo, simple=(0 if simplified_view else 1)) }}"
+                href="{{ url_for('banquet_packet_print', venue=selected_venue, start_date=start_date, end_date=end_date, include_shopping=include_shopping, include_beo=include_beo, include_literal_beo=(1 if include_literal_beo else 0), simple=(0 if simplified_view else 1)) }}"
                 class="px-4 py-2 rounded-xl border border-stone-300 text-stone-700 hover:bg-stone-50 font-semibold"
             >
                 {% if simplified_view %}Full View{% else %}Simplified View{% endif %}
             </a>
             <a
-                href="{{ url_for('banquet_packet_print', venue=selected_venue, start_date=start_date, end_date=end_date, include_shopping=include_shopping, include_beo=(0 if include_beo else 1), simple=(1 if simplified_view else 0)) }}"
+                href="{{ url_for('banquet_packet_print', venue=selected_venue, start_date=start_date, end_date=end_date, include_shopping=include_shopping, include_beo=(0 if include_beo else 1), include_literal_beo=(1 if include_literal_beo else 0), simple=(1 if simplified_view else 0)) }}"
                 class="px-4 py-2 rounded-xl border border-stone-300 text-stone-700 hover:bg-stone-50 font-semibold"
             >
                 {% if include_beo %}Hide BEO{% else %}Include BEO{% endif %}
             </a>
             <a
-                href="{{ url_for('banquet_packet_print', venue=selected_venue, start_date=start_date, end_date=end_date, include_shopping=(0 if include_shopping else 1), include_beo=include_beo, simple=(1 if simplified_view else 0)) }}"
+                href="{{ url_for('banquet_packet_print', venue=selected_venue, start_date=start_date, end_date=end_date, include_shopping=(0 if include_shopping else 1), include_beo=include_beo, include_literal_beo=(1 if include_literal_beo else 0), simple=(1 if simplified_view else 0)) }}"
                 class="px-4 py-2 rounded-xl border border-stone-300 text-stone-700 hover:bg-stone-50 font-semibold"
             >
                 {% if include_shopping %}Hide Shopping{% else %}Include Shopping{% endif %}
+            </a>
+            <a
+                href="{{ url_for('banquet_packet_print', venue=selected_venue, start_date=start_date, end_date=end_date, include_shopping=include_shopping, include_beo=include_beo, include_literal_beo=(0 if include_literal_beo else 1), simple=(1 if simplified_view else 0)) }}"
+                class="px-4 py-2 rounded-xl border border-stone-300 text-stone-700 hover:bg-stone-50 font-semibold"
+            >
+                {% if include_literal_beo %}Disable Embedded BEO PDF{% else %}Enable Embedded BEO PDF{% endif %}
             </a>
             <button onclick="window.print()" class="bg-foxtown-ember hover:bg-orange-700 text-white px-4 py-2 rounded-xl font-semibold">Print / Save PDF</button>
         </div>
@@ -38,7 +44,7 @@
     {# ═══════════════════════════════════════════════════ #}
     {#  SECTION 0 — LITERAL SOURCE BEO PDF (first pages)  #}
     {# ═══════════════════════════════════════════════════ #}
-    {% if include_beo and beo_files_by_event %}
+    {% if include_beo and include_literal_beo and beo_files_by_event %}
     <div class="pkt-section pkt-literal-beo-intro screen-only">
         <div class="pkt-section-header">
             <h2>Literal Source BEO (Attached PDF)</h2>
@@ -68,6 +74,15 @@
     {% set ns.first_literal = false %}
     {% endfor %}
     {% endfor %}
+    {% endif %}
+    {% if include_beo and not include_literal_beo and beo_files_by_event %}
+    <div class="pkt-section screen-only">
+        <div class="pkt-section-header">
+            <h2>Literal Source BEO PDFs</h2>
+            <span class="pkt-date-range">{{ start_date }} – {{ end_date }}</span>
+        </div>
+        <p class="pkt-subtitle">Embedded PDF pages are disabled by default to prevent print spooler lockups. Use the button above to enable embedding only when needed.</p>
+    </div>
     {% endif %}
 
     {# ═══════════════════════════════════════════════════ #}
@@ -933,6 +948,10 @@
 /* ═══════════════════════════════════════════ */
 @media print {
     nav, .print\:hidden, .screen-only { display: none !important; }
+    .pkt-literal-beo-page,
+    .pkt-literal-beo-intro {
+        display: none !important;
+    }
     body {
         background: #fff !important;
         -webkit-print-color-adjust: exact !important;
@@ -989,24 +1008,6 @@
         border-left: 6px solid #000;
         border-radius: 0;
         background: #f5f5f4 !important;
-    }
-    .pkt-literal-beo-page {
-        border: 0 !important;
-        padding: 0 !important;
-        margin: 0 !important;
-        overflow: hidden;
-        break-inside: avoid;
-        page-break-inside: avoid;
-    }
-    .pkt-literal-beo-header {
-        display: none !important;
-    }
-    .pkt-literal-beo-frame {
-        border: 0 !important;
-        width: 100% !important;
-        height: 9.55in !important;
-        min-height: 9.55in !important;
-        display: block;
     }
     .break-inside-avoid { break-inside: avoid; page-break-inside: avoid; }
     .break-before-page { break-before: page; page-break-before: always; }
