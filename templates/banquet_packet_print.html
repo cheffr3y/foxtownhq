@@ -329,8 +329,6 @@
             <div class="pkt-card-meta">
                 <span>BEO Line: {{ group.main_label }}</span>
                 <span>Used in: {{ prep.used_in_menu_items|join(' · ') }}</span>
-                <span>Batches: {{ "%.2f"|format(prep.required_batches or 0) }}</span>
-                <span>Each batch makes {{ "%.2f"|format(prep.yield_qty or 0) }} {{ prep.yield_unit or '' }}</span>
             </div>
 
             {# ── Ingredients table ── #}
@@ -375,7 +373,6 @@
                             <th>Sub-Recipe</th>
                             <th class="text-right" style="width:15%">Qty</th>
                             <th style="width:12%">Unit</th>
-                            <th class="text-right" style="width:14%">Batches</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -390,7 +387,6 @@
                             </td>
                             <td class="text-right pkt-mono pkt-qty pkt-qty-strong">{{ sub.display_required.quantity }}</td>
                             <td>{{ sub.display_required.unit }}</td>
-                            <td class="text-right pkt-mono">{{ "%.2f"|format(sub.required_batches or 0) }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -413,23 +409,6 @@
             </div>
             {% endif %}
 
-            {# ── Sign-off footer ── #}
-            <div class="pkt-card-footer">
-                <div class="pkt-signoff">
-                    <div class="pkt-signoff-field">
-                        <span class="pkt-signoff-label">Prepped by:</span>
-                        <span class="pkt-signoff-line"></span>
-                    </div>
-                    <div class="pkt-signoff-field">
-                        <span class="pkt-signoff-label">Date / Time:</span>
-                        <span class="pkt-signoff-line"></span>
-                    </div>
-                    <div class="pkt-signoff-field">
-                        <span class="pkt-signoff-label">Checked by:</span>
-                        <span class="pkt-signoff-line"></span>
-                    </div>
-                </div>
-            </div>
             {% if group.sub_cards %}
             <div class="pkt-card-body pkt-sub-section">
                 <div class="pkt-label">Dependency Build Order</div>
@@ -763,12 +742,6 @@
     flex: 1;
 }
 
-/* ── Sign-off footer ── */
-.pkt-card-footer {
-    padding: 0.6rem 1rem;
-    border-top: 1px solid #d6d3d1;
-    background: #fafaf9;
-}
 .pkt-sub-prep-card {
     border-left: 3px solid #a8a29e;
     margin-top: 0.65rem;
@@ -787,31 +760,6 @@
     letter-spacing: 0.08em;
     font-weight: 700;
     color: #78716c;
-}
-.pkt-signoff {
-    display: flex;
-    gap: 1.5rem;
-    margin-bottom: 0.4rem;
-}
-.pkt-signoff-field {
-    display: flex;
-    align-items: baseline;
-    gap: 0.3rem;
-    flex: 1;
-}
-.pkt-signoff-label {
-    font-size: 0.65rem;
-    font-weight: 600;
-    color: #78716c;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    white-space: nowrap;
-}
-.pkt-signoff-line {
-    flex: 1;
-    border-bottom: 2px solid #78716c;
-    min-width: 8rem;
-    height: 1.2rem;
 }
 
 /* ── Helpers ── */
@@ -1098,7 +1046,6 @@
     .pkt-card-body { padding: 0.5rem 0.75rem; }
     .pkt-card-header { padding: 0.6rem 0.75rem; }
     .pkt-card-meta { padding: 0.3rem 0.75rem; }
-    .pkt-card-footer { padding: 0.4rem 0.75rem; }
     .pkt-section-header h2 { font-size: 16pt; }
     .pkt-card-title h3 { font-size: 18pt; }
     .pkt-yield-number { font-size: 24pt; }
@@ -1106,7 +1053,6 @@
     .pkt-table tbody td { font-size: 11pt; }
     .pkt-qty-strong { font-size: 14pt; font-weight: 800; }
     .pkt-step { font-size: 11pt; line-height: 1.6; }
-    .pkt-signoff-label { font-size: 8pt; }
     .pkt-day-header { font-size: 20pt; }
 
     @page {
