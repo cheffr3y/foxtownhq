@@ -1930,7 +1930,6 @@ def banquet_packet_print():
         include_beo = True
     else:
         include_beo = (include_beo_raw or '').strip().lower() in ('1', 'true', 'yes', 'on')
-    include_literal_beo = (request.args.get('include_literal_beo') or '').strip().lower() in ('1', 'true', 'yes', 'on')
     auto_complete_past_banquet_events(cur, selected_venue)
     datasets = build_banquet_datasets(cur, start_date, end_date, selected_venue, get_unit_system())
     beo_files_by_event = list_banquet_event_beo_files_by_events(cur, [event.get('id') for event in datasets.get('events', [])])
@@ -1950,7 +1949,6 @@ def banquet_packet_print():
         end_date=end_date.isoformat(),
         include_shopping=include_shopping,
         include_beo=include_beo,
-        include_literal_beo=include_literal_beo,
         beo_files_by_event=beo_files_by_event,
         generated_at=datetime.now().strftime('%b %d, %Y %I:%M %p'),
         prep_groups=prep_groups,

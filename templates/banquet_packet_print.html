@@ -63,76 +63,26 @@
         </div>
         <div class="flex items-center gap-2 flex-wrap justify-end">
             <a
-                href="{{ url_for('banquet_packet_print', venue=selected_venue, start_date=start_date, end_date=end_date, include_shopping=include_shopping, include_beo=include_beo, include_literal_beo=(1 if include_literal_beo else 0), simple=(0 if simplified_view else 1)) }}"
+                href="{{ url_for('banquet_packet_print', venue=selected_venue, start_date=start_date, end_date=end_date, include_shopping=include_shopping, include_beo=include_beo, simple=(0 if simplified_view else 1)) }}"
                 class="px-4 py-2 rounded-xl border border-stone-300 text-stone-700 hover:bg-stone-50 font-semibold"
             >
                 {% if simplified_view %}Full View{% else %}Simplified View{% endif %}
             </a>
             <a
-                href="{{ url_for('banquet_packet_print', venue=selected_venue, start_date=start_date, end_date=end_date, include_shopping=include_shopping, include_beo=(0 if include_beo else 1), include_literal_beo=(1 if include_literal_beo else 0), simple=(1 if simplified_view else 0)) }}"
+                href="{{ url_for('banquet_packet_print', venue=selected_venue, start_date=start_date, end_date=end_date, include_shopping=include_shopping, include_beo=(0 if include_beo else 1), simple=(1 if simplified_view else 0)) }}"
                 class="px-4 py-2 rounded-xl border border-stone-300 text-stone-700 hover:bg-stone-50 font-semibold"
             >
                 {% if include_beo %}Hide BEO{% else %}Include BEO{% endif %}
             </a>
             <a
-                href="{{ url_for('banquet_packet_print', venue=selected_venue, start_date=start_date, end_date=end_date, include_shopping=(0 if include_shopping else 1), include_beo=include_beo, include_literal_beo=(1 if include_literal_beo else 0), simple=(1 if simplified_view else 0)) }}"
+                href="{{ url_for('banquet_packet_print', venue=selected_venue, start_date=start_date, end_date=end_date, include_shopping=(0 if include_shopping else 1), include_beo=include_beo, simple=(1 if simplified_view else 0)) }}"
                 class="px-4 py-2 rounded-xl border border-stone-300 text-stone-700 hover:bg-stone-50 font-semibold"
             >
                 {% if include_shopping %}Hide Shopping{% else %}Include Shopping{% endif %}
             </a>
-            <a
-                href="{{ url_for('banquet_packet_print', venue=selected_venue, start_date=start_date, end_date=end_date, include_shopping=include_shopping, include_beo=include_beo, include_literal_beo=(0 if include_literal_beo else 1), simple=(1 if simplified_view else 0)) }}"
-                class="px-4 py-2 rounded-xl border border-stone-300 text-stone-700 hover:bg-stone-50 font-semibold"
-            >
-                {% if include_literal_beo %}Disable Embedded BEO PDF{% else %}Enable Embedded BEO PDF{% endif %}
-            </a>
             <button onclick="window.print()" class="bg-foxtown-ember hover:bg-orange-700 text-white px-4 py-2 rounded-xl font-semibold">Print / Save PDF</button>
         </div>
     </div>
-
-    {# ═══════════════════════════════════════════════════ #}
-    {#  SECTION 0 — LITERAL SOURCE BEO PDF (first pages)  #}
-    {# ═══════════════════════════════════════════════════ #}
-    {% if include_beo and include_literal_beo and beo_files_by_event %}
-    <div class="pkt-section pkt-literal-beo-intro screen-only">
-        <div class="pkt-section-header">
-            <h2>Literal Source BEO (Attached PDF)</h2>
-            <span class="pkt-date-range">{{ start_date }} – {{ end_date }}</span>
-        </div>
-        <p class="pkt-subtitle">This section renders the exact attached BEO PDF so page 1 is your source-of-truth document.</p>
-    </div>
-    {% set ns = namespace(first_literal=true) %}
-    {% for event in datasets.events %}
-    {% set event_beo_files = beo_files_by_event.get(event.id, []) %}
-    {% for file in event_beo_files %}
-    <div class="pkt-section pkt-literal-beo-page {% if not ns.first_literal %}break-before-page{% endif %}">
-        <div class="pkt-literal-beo-header">
-            <div class="pkt-bold">{{ event.name }}</div>
-            <div class="pkt-muted">{{ file.original_filename }}</div>
-        </div>
-        <iframe
-            class="pkt-literal-beo-frame"
-            src="{{ url_for('banquet_event_beo_download', event_id=event.id, file_id=file.id, view=1) }}#page=1&view=Fit&toolbar=0&navpanes=0&scrollbar=0"
-            title="Literal BEO PDF"
-        ></iframe>
-        <div class="screen-only text-xs text-stone-500 mt-2">
-            If your browser does not print the embedded PDF page, open it directly:
-            <a class="text-foxtown-ember hover:text-orange-700 font-semibold" href="{{ url_for('banquet_event_beo_download', event_id=event.id, file_id=file.id, view=1) }}" target="_blank">Open literal BEO PDF</a>
-        </div>
-    </div>
-    {% set ns.first_literal = false %}
-    {% endfor %}
-    {% endfor %}
-    {% endif %}
-    {% if include_beo and not include_literal_beo and beo_files_by_event %}
-    <div class="pkt-section screen-only">
-        <div class="pkt-section-header">
-            <h2>Literal Source BEO PDFs</h2>
-            <span class="pkt-date-range">{{ start_date }} – {{ end_date }}</span>
-        </div>
-        <p class="pkt-subtitle">Embedded PDF pages are disabled by default to prevent print spooler lockups. Use the button above to enable embedding only when needed.</p>
-    </div>
-    {% endif %}
 
     {# ═══════════════════════════════════════════════════ #}
     {#  SECTION 1 — BEO SERVICE BRIEF (optional)          #}
@@ -581,24 +531,6 @@
     font-size: 1.1rem;
     font-weight: 800;
 }
-.pkt-literal-beo-page {
-    padding: 0.8rem;
-}
-.pkt-literal-beo-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    gap: 0.75rem;
-    margin-bottom: 0.5rem;
-}
-.pkt-literal-beo-frame {
-    width: 100%;
-    height: 70vh;
-    min-height: 720px;
-    border: 1px solid #d6d3d1;
-    background: #fff;
-}
-
 /* ── Prep family grouping ── */
 .pkt-prep-family-header {
     border: 1px solid #d6d3d1;
@@ -972,10 +904,6 @@
 /* ═══════════════════════════════════════════ */
 @media print {
     nav, .print\:hidden, .screen-only { display: none !important; }
-    .pkt-literal-beo-page,
-    .pkt-literal-beo-intro {
-        display: none !important;
-    }
     body {
         background: #fff !important;
         -webkit-print-color-adjust: exact !important;
