@@ -1937,6 +1937,7 @@ def banquet_packet_print():
     event_name_map = {event['id']: event['name'] for event in datasets.get('events', [])}
     for prep in datasets.get('weekly_prep', []):
         prep['instruction_steps'] = split_instruction_steps(prep.get('instructions'))
+    prep_groups = build_banquet_prep_groups(cur, datasets, get_unit_system())
     for pull in datasets.get('weekly_menu_pulls', []):
         pull['used_in_event_names'] = [event_name_map[event_id] for event_id in pull.get('used_in_events', []) if event_id in event_name_map]
     cur.close()
@@ -1952,5 +1953,6 @@ def banquet_packet_print():
         include_literal_beo=include_literal_beo,
         beo_files_by_event=beo_files_by_event,
         generated_at=datetime.now().strftime('%b %d, %Y %I:%M %p'),
+        prep_groups=prep_groups,
         datasets=datasets
     )

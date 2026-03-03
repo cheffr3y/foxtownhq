@@ -3877,6 +3877,235 @@ def build_commissary_prep_groups(cur, datasets, unit_system='imperial'):
 
     return groups
 
+def build_banquet_prep_groups(cur, datasets, unit_system='imperial'):
+    weekly_prep = datasets.get('weekly_prep') or []
+    if not weekly_prep:
+        return []
+
+    prep_by_recipe = {}
+    for prep in weekly_prep:
+        recipe_id = prep.get('recipe_id')
+        if recipe_id and recipe_id not in prep_by_recipe:
+            prep_by_recipe[recipe_id] = dict(prep)
+
+    root_recipe_sequence = []
+    root_recipe_labels = defaultdict(list)
+    for event in datasets.get('events', []):
+        for line in event.get('lines', []):
+            for recipe in line.get('recipes', []) or []:
+                recipe_id = recipe.get('id')
+                if not recipe_id:
+                    continue
+                if recipe_id not in root_recipe_sequence:
+                    root_recipe_sequence.append(recipe_id)
+                line_label = clean_menu_text(line.get('menu_item_name') or recipe.get('name') or '')
+                if line_label and line_label not in root_recipe_labels[recipe_id]:
+                    root_recipe_labels[recipe_id].append(line_label)
+
+    if not root_recipe_sequence:
+        root_recipe_sequence = [prep.get('recipe_id') for prep in weekly_prep if prep.get('recipe_id')]
+
+    stocked_root_recipe_ids = {recipe_id for recipe_id in root_recipe_sequence if recipe_id}
+    root_recipe_name_map = {}
+    for recipe_id in stocked_root_recipe_ids:
+        prep_row = prep_by_recipe.get(recipe_id) or {}
+        root_recipe_name_map[recipe_id] = prep_row.get('recipe_name') or 'Main prep card'
+
+    ingredient_name_map = {
+        row.get('id'): row.get('name')
+        for row in datasets.get('shopping_ingredients', [])
+        if row.get('id')
+    }
+    recipe_cache = {}
+
+    def get_recipe_cached(recipe_id):
+        if not recipe_id:
+            return None
+        if recipe_id not in recipe_cache:
+            recipe_cache[recipe_id] = get_recipe_by_id(cur, recipe_id)
+        return recipe_cache.get(recipe_id)
+
+    def build_sub_card(recipe_id, required_qty, required_unit, required_batches, ancestry, group_root_recipe_id):
+        if not recipe_id:
+            return None
+        recipe = get_recipe_cached(recipe_id)
+        if not recipe:
+            return None
+
+        batches = to_float(required_batches)
+        if batches <= 0:
+            yield_qty = to_float(recipe.get('yield_qty'))
+            if yield_qty > 0 and to_float(required_qty) > 0:
+                required_qty_in_yield = to_float(required_qty)
+                yield_unit = recipe.get('yield_unit') or required_unit
+                if required_unit and yield_unit and required_unit != yield_unit:
+                    converted = convert_quantity_between_units(required_qty_in_yield, required_unit, yield_unit)
+                    if converted is not None:
+                        required_qty_in_yield = converted
+                batches = required_qty_in_yield / yield_qty
+            else:
+                batches = to_float(required_qty)
+        if batches <= 0:
+            return None
+
+        components, _, _ = build_component_tree(
+            cur,
+            recipe_id,
+            batches,
+            0,
+            set(),
+            unit_system,
+            apply_q_factor=False
+        )
+
+        ingredient_totals = {}
+        collect_direct_ingredients_for_prep(components, ingredient_totals)
+        ingredient_rows = []
+        for (ing_id, unit), qty in ingredient_totals.items():
+            display = smart_quantity(qty, unit, unit_system)
+            ingredient_rows.append({
+                'ingredient_id': ing_id,
+                'name': ingredient_name_map.get(ing_id, 'Unknown'),
+                'quantity': qty,
+                'unit': unit,
+                'display_quantity': display.get('quantity'),
+                'display_unit': display.get('unit')
+            })
+        ingredient_rows.sort(key=lambda item: (item.get('name') or '').lower())
+
+        subrecipe_totals = {}
+        collect_direct_subrecipes_for_prep(components, subrecipe_totals)
+        subrecipe_rows = []
+        for (child_recipe_id, child_unit), child_qty in subrecipe_totals.items():
+            child_recipe = get_recipe_cached(child_recipe_id)
+            if not child_recipe:
+                continue
+            child_yield_qty = to_float(child_recipe.get('yield_qty'))
+            child_yield_unit = child_recipe.get('yield_unit') or child_unit
+            child_required_qty_in_yield = child_qty
+            if child_unit and child_yield_unit and child_unit != child_yield_unit:
+                converted = convert_quantity_between_units(child_qty, child_unit, child_yield_unit)
+                if converted is not None:
+                    child_required_qty_in_yield = converted
+            child_required_batches = (child_required_qty_in_yield / child_yield_qty) if child_yield_qty > 0 else child_required_qty_in_yield
+            covered_by_parent_recipe = child_recipe_id in printed_recipe_owner and printed_recipe_owner.get(child_recipe_id) != group_root_recipe_id
+            subrecipe_rows.append({
+                'recipe_id': child_recipe_id,
+                'recipe_name': child_recipe.get('name') or 'Sub-recipe',
+                'required_qty': child_qty,
+                'required_unit': child_unit,
+                'display_required': smart_quantity(child_qty, child_unit, unit_system),
+                'required_batches': child_required_batches,
+                'covered_by_parent_recipe': covered_by_parent_recipe,
+                'covered_by_recipe_name': root_recipe_name_map.get(printed_recipe_owner.get(child_recipe_id)) if covered_by_parent_recipe else None
+            })
+        subrecipe_rows.sort(key=lambda item: (item.get('recipe_name') or '').lower())
+
+        child_cards = []
+        if len(ancestry) < 4:
+            for sub_row in subrecipe_rows:
+                child_recipe_id = sub_row.get('recipe_id')
+                if not child_recipe_id or child_recipe_id in ancestry:
+                    continue
+                if sub_row.get('covered_by_parent_recipe'):
+                    continue
+                child_card = build_sub_card(
+                    child_recipe_id,
+                    sub_row.get('required_qty'),
+                    sub_row.get('required_unit'),
+                    sub_row.get('required_batches'),
+                    ancestry | {child_recipe_id},
+                    group_root_recipe_id
+                )
+                if child_card:
+                    child_cards.append(child_card)
+
+        display_required = smart_quantity(required_qty, required_unit, unit_system)
+        if (display_required.get('quantity') in ('', '0')) and to_float(required_qty) <= 0:
+            yield_qty = to_float(recipe.get('yield_qty'))
+            display_required = smart_quantity(yield_qty * batches if yield_qty > 0 else batches, recipe.get('yield_unit') or required_unit, unit_system)
+
+        return {
+            'recipe_id': recipe_id,
+            'recipe_name': recipe.get('name') or 'Sub-recipe',
+            'display_required': display_required,
+            'required_batches': batches,
+            'ingredient_rows': ingredient_rows,
+            'subrecipe_rows': subrecipe_rows,
+            'instruction_steps': split_instruction_steps(recipe.get('instructions')),
+            'child_cards': child_cards
+        }
+
+    def mark_tree_owner(card, owner_recipe_id):
+        recipe_id = card.get('recipe_id')
+        if recipe_id and recipe_id not in printed_recipe_owner:
+            printed_recipe_owner[recipe_id] = owner_recipe_id
+        for child in card.get('child_cards') or []:
+            mark_tree_owner(child, owner_recipe_id)
+
+    printed_recipe_owner = {}
+    groups = []
+    for root_recipe_id in root_recipe_sequence:
+        root_prep = prep_by_recipe.get(root_recipe_id)
+        if not root_prep:
+            continue
+        if root_recipe_id in printed_recipe_owner:
+            continue
+
+        main_labels = (
+            root_recipe_labels.get(root_recipe_id)
+            or root_prep.get('used_in_menu_items')
+            or [root_prep.get('recipe_name')]
+        )
+        main_labels = [label for label in main_labels if label]
+        main_label = main_labels[0] if main_labels else (root_prep.get('recipe_name') or 'Prep Item')
+
+        root_prep['instruction_steps'] = split_instruction_steps(root_prep.get('instructions'))
+        root_subrecipe_rows = []
+        sub_cards = []
+
+        for sub_row in root_prep.get('subrecipe_rows', []) or []:
+            sub_recipe_id = sub_row.get('recipe_id')
+            required_batches = to_float(sub_row.get('required_batches'))
+            if not sub_recipe_id or required_batches <= 0:
+                continue
+
+            covered_by_parent_recipe = sub_recipe_id in printed_recipe_owner and printed_recipe_owner.get(sub_recipe_id) != root_recipe_id
+            enriched_row = dict(sub_row)
+            enriched_row['covered_by_parent_recipe'] = covered_by_parent_recipe
+            enriched_row['covered_by_recipe_name'] = root_recipe_name_map.get(printed_recipe_owner.get(sub_recipe_id)) if covered_by_parent_recipe else None
+            root_subrecipe_rows.append(enriched_row)
+            if covered_by_parent_recipe:
+                continue
+
+            sub_card = build_sub_card(
+                sub_recipe_id,
+                sub_row.get('required_qty'),
+                sub_row.get('required_unit'),
+                required_batches,
+                {root_recipe_id, sub_recipe_id},
+                root_recipe_id
+            )
+            if not sub_card:
+                continue
+            if sub_row.get('display_required'):
+                sub_card['display_required'] = sub_row.get('display_required')
+            sub_cards.append(sub_card)
+
+        root_prep['subrecipe_rows'] = root_subrecipe_rows
+        printed_recipe_owner[root_recipe_id] = root_recipe_id
+        for card in sub_cards:
+            mark_tree_owner(card, root_recipe_id)
+
+        groups.append({
+            'main_label': main_label,
+            'main_labels': main_labels,
+            'root': root_prep,
+            'sub_cards': sub_cards
+        })
+
+    return groups
+
 def parse_catering_pdf_to_template_items(file_stream):
     reader = PdfReader(file_stream)
     parsed = []
