@@ -130,39 +130,222 @@ def dashboard():
     venues = get_active_venues(cur)
     banquet_venue = resolve_banquet_venue(venues)
     selected_venue = banquet_venue.get('id') or ''
+    unit_system = get_unit_system()
     auto_complete_past_banquet_events(cur, selected_venue)
-    datasets = build_banquet_datasets(cur, today, week_end, selected_venue, get_unit_system())
+    datasets = build_banquet_datasets(cur, today, week_end, selected_venue, unit_system)
 
-    today_events = [event for event in datasets.get('events', []) if event.get('event_date') == today]
+    def as_int(value):
+        try:
+            return int(value or 0)
+        except (TypeError, ValueError):
+            return 0
+
+    def as_float(value):
+        try:
+            return float(value or 0)
+        except (TypeError, ValueError):
+            return 0.0
+
+    def event_status_tone(status):
+        key = (status or '').strip().lower()
+        if key in ('confirmed', 'completed', 'executed'):
+            return 'emerald'
+        if key in ('cancelled', 'blocked'):
+            return 'rose'
+        return 'amber'
+
+    def estimate_prep_completion(event):
+        status_key = (event.get('status') or '').strip().lower()
+        if status_key in ('completed', 'executed'):
+            return 100
+        if status_key in ('cancelled',):
+            return 0
+
+        line_count = as_int(event.get('line_count'))
+        guest_count = max(1, as_int(event.get('guests')))
+        expected_line_count = max(1, round(guest_count / 26))
+        coverage_ratio = min(1.0, line_count / expected_line_count) if expected_line_count else 0.0
+
+        if status_key == 'confirmed':
+            return int(max(42, min(97, round(55 + (coverage_ratio * 42)))))
+        return int(max(10, min(84, round(18 + (coverage_ratio * 62)))))
+
+    def enrich_event(event):
+        event_copy = dict(event)
+        status_key = (event_copy.get('status') or 'planning').strip().lower()
+        event_copy['status'] = status_key
+        event_copy['status_tone'] = event_status_tone(status_key)
+        event_copy['prep_completion'] = estimate_prep_completion(event_copy)
+        event_copy['is_confirmed'] = status_key == 'confirmed'
+        return event_copy
+
+    today_events = [enrich_event(event) for event in datasets.get('events', []) if event.get('event_date') == today]
     upcoming_events = [
-        event for event in datasets.get('events', [])
+        enrich_event(event) for event in datasets.get('events', [])
         if event.get('event_date') and today < event.get('event_date') <= week_end
     ]
 
     events_with_missing_menus = [
-        event for event in datasets.get('events', [])
+        event for event in today_events + upcoming_events
         if event.get('event_date')
         and event.get('event_date') <= (today + timedelta(days=3))
         and int(event.get('line_count') or 0) == 0
     ]
 
-    attention_flags = []
+    # Production Board live pulse (next 48h in selected venue)
+    board_window_end = today + timedelta(days=2)
+    board_datasets = build_banquet_datasets(cur, today, board_window_end, selected_venue, unit_system)
+    production_board_active_tasks = sum(
+        as_int(event.get('line_count'))
+        for event in board_datasets.get('events', [])
+        if (event.get('status') or '').strip().lower() not in ('completed', 'executed', 'cancelled')
+    )
+    production_board_live = production_board_active_tasks > 0
+
+    # Production Pulse: aggregate sub-recipes for next 48h across all banquets.
+    pulse_datasets = build_banquet_datasets(cur, today, board_window_end, '', unit_system)
+    pulse_map = {}
+    for prep in pulse_datasets.get('weekly_prep', []) or []:
+        root_name = prep.get('recipe_name') or 'Prep Item'
+        sub_rows = prep.get('subrecipe_rows') or []
+
+        if not sub_rows and prep.get('recipe_id'):
+            fallback_key = f"root:{prep.get('recipe_id')}"
+            if fallback_key not in pulse_map:
+                pulse_map[fallback_key] = {
+                    'recipe_id': prep.get('recipe_id'),
+                    'recipe_name': prep.get('recipe_name') or 'Prep Item',
+                    'required_batches': 0.0,
+                    'used_in_preps': set(),
+                }
+            pulse_map[fallback_key]['required_batches'] += as_float(prep.get('required_batches'))
+            pulse_map[fallback_key]['used_in_preps'].add(root_name)
+
+        for sub in sub_rows:
+            recipe_id = sub.get('recipe_id')
+            recipe_name = sub.get('recipe_name') or 'Sub-recipe'
+            if recipe_id:
+                pulse_key = f"sub:{recipe_id}"
+            else:
+                pulse_key = f"sub-name:{recipe_name.strip().lower()}"
+            if pulse_key not in pulse_map:
+                pulse_map[pulse_key] = {
+                    'recipe_id': recipe_id,
+                    'recipe_name': recipe_name,
+                    'required_batches': 0.0,
+                    'used_in_preps': set(),
+                }
+            pulse_map[pulse_key]['required_batches'] += as_float(sub.get('required_batches'))
+            pulse_map[pulse_key]['used_in_preps'].add(root_name)
+
+    production_pulse_items = []
+    for row in pulse_map.values():
+        production_pulse_items.append({
+            'recipe_id': row.get('recipe_id'),
+            'recipe_name': row.get('recipe_name'),
+            'required_batches': round(as_float(row.get('required_batches')), 2),
+            'used_in_preps': sorted(row.get('used_in_preps') or []),
+        })
+    production_pulse_items.sort(key=lambda item: (-as_float(item.get('required_batches')), (item.get('recipe_name') or '').lower()))
+    production_pulse_total_batches = round(sum(as_float(item.get('required_batches')) for item in production_pulse_items), 2)
+    production_pulse_total_subrecipes = len(production_pulse_items)
+    production_pulse_items = production_pulse_items[:8]
+    production_pulse_event_count = as_int(pulse_datasets.get('event_count'))
+
+    # Pinned recipes = most-used in active week window; Recent = fallback quick access.
+    recipe_usage = {}
+    for event in datasets.get('events', []) or []:
+        for line in event.get('lines', []) or []:
+            line_recipes = line.get('recipes') or ([line.get('recipe')] if line.get('recipe') else [])
+            for line_recipe in line_recipes:
+                recipe_id = line_recipe.get('id')
+                if not recipe_id:
+                    continue
+                if recipe_id not in recipe_usage:
+                    recipe_usage[recipe_id] = {
+                        'id': recipe_id,
+                        'name': line_recipe.get('name') or line.get('menu_item_name') or 'Recipe',
+                        'hit_count': 0,
+                        'source': 'Pinned',
+                    }
+                recipe_usage[recipe_id]['hit_count'] += 1
+
+    pinned_recipes = sorted(
+        recipe_usage.values(),
+        key=lambda row: (-as_int(row.get('hit_count')), (row.get('name') or '').lower())
+    )[:8]
+    pinned_recipe_ids = {row.get('id') for row in pinned_recipes if row.get('id')}
+
+    cur.execute("""
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'recipes'
+          AND column_name = ANY(%s)
+    """, (['updated_at', 'created_at'],))
+    recipe_columns = {row.get('column_name') for row in cur.fetchall()}
+    if 'updated_at' in recipe_columns and 'created_at' in recipe_columns:
+        recent_order_expr = 'COALESCE(updated_at, created_at)'
+    elif 'updated_at' in recipe_columns:
+        recent_order_expr = 'updated_at'
+    elif 'created_at' in recipe_columns:
+        recent_order_expr = 'created_at'
+    else:
+        recent_order_expr = 'id'
+
+    cur.execute(f"""
+        SELECT id, name, recipe_type, category
+        FROM recipes
+        ORDER BY {recent_order_expr} DESC NULLS LAST, name
+        LIMIT 16
+    """)
+    recent_recipes = []
+    for row in cur.fetchall():
+        if row.get('id') in pinned_recipe_ids:
+            continue
+        recent_recipes.append({
+            'id': row.get('id'),
+            'name': row.get('name') or 'Recipe',
+            'recipe_type': row.get('recipe_type') or 'other',
+            'category': row.get('category') or '',
+            'source': 'Recent',
+        })
+        if len(recent_recipes) >= 8:
+            break
+
+    system_health_items = []
+    if production_board_live:
+        system_health_items.append({
+            'label': 'Production Board Live',
+            'count_text': str(production_board_active_tasks),
+            'detail': 'active prep tasks',
+            'tone': 'emerald',
+            'href': url_for('production_board'),
+        })
     if events_with_missing_menus:
         first_event = events_with_missing_menus[0]
-        attention_flags.append({
-            'title': 'Events Missing Menu Items',
+        system_health_items.append({
+            'label': 'Events Missing Menu Items',
             'count_text': str(len(events_with_missing_menus)),
             'detail': 'Events within 72 hours have no menu lines attached.',
             'href': url_for('banquet_event_edit', event_id=first_event.get('id')),
             'tone': 'amber',
         })
     if stale_price_count:
-        attention_flags.append({
-            'title': 'Ingredient Price Refresh Needed',
+        system_health_items.append({
+            'label': 'Ingredient Price Refresh Needed',
             'count_text': str(stale_price_count),
             'detail': f'Ingredients are older than {PRICE_REFRESH_DAYS or 56} days.',
             'href': url_for('ingredients', needs_update='1'),
-            'tone': 'slate',
+            'tone': 'rose',
+        })
+    if not system_health_items:
+        system_health_items.append({
+            'label': 'System Health',
+            'count_text': 'All Clear',
+            'detail': 'No urgent pricing or coverage risks in the next 72 hours.',
+            'href': url_for('dashboard'),
+            'tone': 'emerald',
         })
 
     cur.close()
@@ -179,7 +362,16 @@ def dashboard():
         banquet_venue_name=banquet_venue.get('name') or 'Banquets',
         today_events=today_events,
         upcoming_events=upcoming_events,
-        attention_flags=attention_flags,
+        stale_badge_count=stale_price_count,
+        production_board_live=production_board_live,
+        production_board_active_tasks=production_board_active_tasks,
+        production_pulse_items=production_pulse_items,
+        production_pulse_total_batches=production_pulse_total_batches,
+        production_pulse_total_subrecipes=production_pulse_total_subrecipes,
+        production_pulse_event_count=production_pulse_event_count,
+        pinned_recipes=pinned_recipes,
+        recent_recipes=recent_recipes,
+        system_health_items=system_health_items,
     )
 
 
