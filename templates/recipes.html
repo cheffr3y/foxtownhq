@@ -1,85 +1,317 @@
 {% extends "base.html" %}
+{% from "base.html" import page_nav %}
 
 {% block title %}Recipes - Foxtown HQ{% endblock %}
 
+{% block extra_head %}
+<style>
+    .recipes-shell {
+        padding-bottom: 3rem;
+    }
+
+    .unit-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.2rem;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        background: rgba(0, 0, 0, 0.35);
+        padding: 0.2rem;
+    }
+
+    .unit-toggle a {
+        border-radius: 999px;
+        padding: 0.3rem 0.65rem;
+        font-size: 0.72rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: #94A3B8;
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+        transition: all 0.2s ease;
+    }
+
+    .unit-toggle a:hover {
+        color: #fff;
+    }
+
+    .unit-toggle a.is-active {
+        background: linear-gradient(to right, #EA580C, #F7931A);
+        color: #fff;
+        box-shadow: 0 0 16px -8px rgba(247, 147, 26, 0.7);
+    }
+
+    .stats-row {
+        display: grid;
+        gap: 0.7rem;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    @media (min-width: 900px) {
+        .stats-row {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+    }
+
+    .stats-card {
+        border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(15, 17, 21, 0.82);
+        padding: 0.85rem 0.95rem;
+    }
+
+    .stats-label {
+        font-size: 0.67rem;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
+        color: #94A3B8;
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    }
+
+    .stats-value {
+        margin-top: 0.32rem;
+        color: #fff;
+        font-size: 1.52rem;
+        line-height: 1;
+        letter-spacing: -0.04em;
+        font-family: 'Space Grotesk', Inter, sans-serif;
+    }
+
+    .recipes-panel {
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(15, 17, 21, 0.86);
+        box-shadow: 0 0 38px -14px rgba(247, 147, 26, 0.24);
+    }
+
+    .filters-grid {
+        display: grid;
+        gap: 0.7rem;
+        grid-template-columns: repeat(1, minmax(0, 1fr));
+    }
+
+    @media (min-width: 768px) {
+        .filters-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (min-width: 1280px) {
+        .filters-grid {
+            grid-template-columns: minmax(0, 1.3fr) repeat(4, minmax(0, 1fr)) auto;
+            align-items: end;
+        }
+    }
+
+    .field-label {
+        display: block;
+        margin-bottom: 0.34rem;
+        color: #94A3B8;
+        font-size: 0.67rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    }
+
+    .field {
+        width: 100%;
+        min-height: 46px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 10px;
+        background: rgba(3, 3, 4, 0.6);
+        color: #fff;
+        padding: 0.63rem 0.8rem;
+        transition: all 0.2s ease;
+    }
+
+    .field:focus {
+        outline: none;
+        border-color: rgba(247, 147, 26, 0.7);
+        box-shadow: 0 0 20px -10px rgba(247, 147, 26, 0.55);
+    }
+
+    .field::placeholder {
+        color: rgba(255, 255, 255, 0.32);
+    }
+
+    .table-wrap {
+        overflow-x: auto;
+    }
+
+    .recipes-table {
+        width: 100%;
+        min-width: 1080px;
+        border-collapse: collapse;
+    }
+
+    .recipes-table thead {
+        background: rgba(234, 88, 12, 0.08);
+    }
+
+    .recipes-table th {
+        text-align: left;
+        font-size: 0.67rem;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
+        color: #94A3B8;
+        padding: 0.8rem 1rem;
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    }
+
+    .recipes-table td {
+        border-top: 1px solid rgba(148, 163, 184, 0.2);
+        color: #cbd5e1;
+        font-size: 0.88rem;
+        padding: 0.85rem 1rem;
+        vertical-align: top;
+    }
+
+    .recipes-table tbody tr {
+        transition: background-color 0.2s ease;
+    }
+
+    .recipes-table tbody tr:hover {
+        background: rgba(247, 147, 26, 0.08);
+    }
+
+    .recipes-table .sticky-right {
+        position: sticky;
+        right: 0;
+        background: rgba(15, 17, 21, 0.96);
+    }
+
+    .recipe-name {
+        color: #fff;
+        font-size: 0.95rem;
+        font-weight: 600;
+    }
+
+    .recipe-meta {
+        margin-top: 0.2rem;
+        color: #94A3B8;
+        font-size: 0.75rem;
+        max-width: 440px;
+    }
+
+    .tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.33rem;
+        font-size: 0.7rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    }
+
+    .tag i {
+        width: 0.42rem;
+        height: 0.42rem;
+        border-radius: 999px;
+        display: inline-block;
+    }
+
+    .tag-rm {
+        color: #FFD600;
+    }
+
+    .tag-rm i {
+        background: #F7931A;
+        box-shadow: 0 0 12px rgba(247, 147, 26, 0.6);
+    }
+
+    .tag-rb {
+        color: #93c5fd;
+    }
+
+    .tag-rb i {
+        background: #3b82f6;
+    }
+
+    .row-actions {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.7rem;
+        opacity: 0;
+        transition: opacity 0.15s ease;
+    }
+
+    tr:hover .row-actions,
+    tr:focus-within .row-actions {
+        opacity: 1;
+    }
+
+    .row-action {
+        color: #94A3B8;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+
+    .row-action:hover {
+        color: #FFD600;
+    }
+
+    .empty-block {
+        padding: 2.4rem 1.5rem;
+        text-align: center;
+    }
+
+    .empty-title {
+        color: #fff;
+        font-size: 1.42rem;
+        font-family: 'Space Grotesk', Inter, sans-serif;
+    }
+
+    .empty-copy {
+        margin-top: 0.45rem;
+        color: #94A3B8;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="min-h-screen">
-    <nav class="bg-foxtown-charcoal text-white border-b border-slate-800/60">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex flex-wrap justify-between items-center gap-3 py-3 sm:h-16 sm:py-0">
-                <div class="flex items-center gap-3 min-w-0">
-                    <a href="{{ url_for('dashboard') }}" class="text-amber-200 hover:text-white shrink-0" aria-label="Back to dashboard">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-                        </svg>
-                    </a>
-                    <h1 class="text-2xl font-display tracking-tight truncate">Recipes</h1>
-                    <span class="inline-flex items-center rounded-full bg-slate-700/80 px-2.5 py-1 text-xs font-semibold text-stone-200">
-                        {{ recipes|length }} shown
-                    </span>
-                </div>
-                <div class="flex items-center gap-2 sm:gap-3 w-full sm:w-auto justify-end">
-                    <div class="flex items-center bg-slate-800/60 rounded-lg p-1 text-xs">
-                        <span class="px-2 text-stone-200 hidden sm:inline">Units</span>
-                        <a href="{{ unit_urls.auto }}"
-                           class="px-2 py-1 rounded {% if unit_system == 'auto' %}bg-white/90 text-foxtown-ink{% else %}text-stone-200 hover:text-white{% endif %}">
-                            Auto
-                        </a>
-                        <a href="{{ unit_urls.imperial }}"
-                           class="px-2 py-1 rounded {% if unit_system == 'imperial' %}bg-white/90 text-foxtown-ink{% else %}text-stone-200 hover:text-white{% endif %}">
-                            US
-                        </a>
-                        <a href="{{ unit_urls.metric }}"
-                           class="px-2 py-1 rounded {% if unit_system == 'metric' %}bg-white/90 text-foxtown-ink{% else %}text-stone-200 hover:text-white{% endif %}">
-                            Metric
-                        </a>
-                    </div>
-                    <a href="{{ url_for('recipe_new') }}" class="bg-foxtown-ember hover:bg-orange-700 text-white px-4 py-2 rounded-xl font-semibold transition duration-200 shadow-soft text-sm whitespace-nowrap">
-                        + New Recipe
-                    </a>
-                </div>
-            </div>
-        </div>
-    </nav>
+    {% call page_nav('Recipes', recipes|length ~ ' shown') %}
+    <div class="unit-toggle" role="group" aria-label="Units">
+        <a href="{{ unit_urls.auto }}" class="{% if unit_system == 'auto' %}is-active{% endif %}">Auto</a>
+        <a href="{{ unit_urls.imperial }}" class="{% if unit_system == 'imperial' %}is-active{% endif %}">US</a>
+        <a href="{{ unit_urls.metric }}" class="{% if unit_system == 'metric' %}is-active{% endif %}">Metric</a>
+    </div>
+    <a href="{{ url_for('recipe_new') }}" class="fhq-btn fhq-btn--primary" data-shortcut="new">+ New Recipe</a>
+    {% endcall %}
 
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-4">
-        <div class="rounded-xl border border-stone-200/80 bg-white/85 px-4 py-2.5">
-            <div class="flex flex-wrap items-center gap-3 text-sm">
-                <div class="inline-flex items-baseline gap-2">
-                    <span class="text-xl font-display text-foxtown-ink">{{ menu_count }}</span>
-                    <span class="text-stone-500">Plated (RM)</span>
-                </div>
-                <span class="text-stone-300">|</span>
-                <div class="inline-flex items-baseline gap-2">
-                    <span class="text-xl font-display text-foxtown-ink">{{ batch_count }}</span>
-                    <span class="text-stone-500">Batch (RB)</span>
-                </div>
-                {% if active_filter_count > 0 %}
-                <span class="text-stone-300">|</span>
-                <div class="inline-flex items-baseline gap-2">
-                    <span class="text-xl font-display text-foxtown-ink">{{ active_filter_count }}</span>
-                    <span class="text-stone-500">Active Filters</span>
-                </div>
-                {% endif %}
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4 recipes-shell fhq-fade">
+        <div class="stats-row">
+            <div class="stats-card">
+                <div class="stats-label">Plated (RM)</div>
+                <div class="stats-value">{{ menu_count }}</div>
             </div>
+            <div class="stats-card">
+                <div class="stats-label">Batch (RB)</div>
+                <div class="stats-value">{{ batch_count }}</div>
+            </div>
+            {% if active_filter_count > 0 %}
+            <div class="stats-card">
+                <div class="stats-label">Active Filters</div>
+                <div class="stats-value">{{ active_filter_count }}</div>
+            </div>
+            {% endif %}
         </div>
 
-        <div class="bg-white/90 rounded-xl border border-stone-200/70 p-4">
-            <form method="GET" action="{{ url_for('recipes') }}" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3 items-end">
-                <div class="xl:col-span-2">
-                    <label for="q" class="block text-xs font-semibold uppercase tracking-wide text-stone-500 mb-1">Search</label>
+        <div class="recipes-panel p-4">
+            <form method="GET" action="{{ url_for('recipes') }}" class="filters-grid">
+                <div>
+                    <label for="q" class="field-label">Search</label>
                     <input
                         type="text"
                         id="q"
                         name="q"
                         value="{{ search_query }}"
                         placeholder="Recipe name or descriptor"
-                        class="w-full px-3 py-2.5 border border-stone-300 rounded-xl bg-white focus:ring-2 focus:ring-foxtown-ember focus:border-transparent"
+                        class="field"
                     >
                 </div>
                 <div>
-                    <label for="recipe_type" class="block text-xs font-semibold uppercase tracking-wide text-stone-500 mb-1">Type</label>
-                    <select id="recipe_type" name="recipe_type" class="w-full px-3 py-2.5 border border-stone-300 rounded-xl bg-white focus:ring-2 focus:ring-foxtown-ember focus:border-transparent">
+                    <label for="recipe_type" class="field-label">Type</label>
+                    <select id="recipe_type" name="recipe_type" class="field">
                         <option value="">All types</option>
                         {% for value, label in recipe_type_choices %}
                         <option value="{{ value }}" {% if selected_recipe_type == value %}selected{% endif %}>{{ label }}</option>
@@ -87,8 +319,8 @@
                     </select>
                 </div>
                 <div>
-                    <label for="category" class="block text-xs font-semibold uppercase tracking-wide text-stone-500 mb-1">Category</label>
-                    <select id="category" name="category" class="w-full px-3 py-2.5 border border-stone-300 rounded-xl bg-white focus:ring-2 focus:ring-foxtown-ember focus:border-transparent">
+                    <label for="category" class="field-label">Category</label>
+                    <select id="category" name="category" class="field">
                         <option value="">All categories</option>
                         {% for category in category_options %}
                         <option value="{{ category }}" {% if selected_category == category %}selected{% endif %}>{{ category }}</option>
@@ -96,81 +328,73 @@
                     </select>
                 </div>
                 <div>
-                    <label for="venue" class="block text-xs font-semibold uppercase tracking-wide text-stone-500 mb-1">Venue</label>
-                    <select id="venue" name="venue" class="w-full px-3 py-2.5 border border-stone-300 rounded-xl bg-white focus:ring-2 focus:ring-foxtown-ember focus:border-transparent">
+                    <label for="venue" class="field-label">Venue</label>
+                    <select id="venue" name="venue" class="field">
                         <option value="">All venues</option>
                         {% for venue in venues %}
                         <option value="{{ venue.id }}" {% if selected_venue == venue.id %}selected{% endif %}>{{ venue.name }}</option>
                         {% endfor %}
                     </select>
                 </div>
-                <div class="flex gap-2">
-                    <button type="submit" class="flex-1 bg-foxtown-ember hover:bg-orange-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition shadow-soft">
-                        Apply
-                    </button>
-                    <a href="{{ clear_filters_url }}" class="px-4 py-2.5 rounded-xl border border-stone-300 text-sm font-semibold text-stone-700 hover:bg-stone-50">
-                        Clear
-                    </a>
+                <div class="flex gap-2 items-end">
+                    <button type="submit" class="fhq-btn fhq-btn--primary w-full">Apply</button>
+                    <a href="{{ clear_filters_url }}" class="fhq-btn fhq-btn--outline w-full text-center">Clear</a>
                 </div>
             </form>
         </div>
 
-        <div class="bg-white rounded-2xl border border-stone-200 shadow-soft overflow-hidden">
+        <div class="recipes-panel overflow-hidden">
             {% if recipes %}
-            <div class="overflow-x-auto">
-                <table class="min-w-[1080px] divide-y divide-stone-200">
-                    <thead class="bg-stone-50">
+            <div class="table-wrap">
+                <table class="recipes-table">
+                    <thead>
                         <tr>
-                            <th class="px-5 py-3 text-left text-xs font-semibold text-stone-500 uppercase tracking-wider">Recipe</th>
-                            <th class="px-5 py-3 text-left text-xs font-semibold text-stone-500 uppercase tracking-wider">Type</th>
-                            <th class="px-5 py-3 text-left text-xs font-semibold text-stone-500 uppercase tracking-wider">Category</th>
-                            <th class="px-5 py-3 text-left text-xs font-semibold text-stone-500 uppercase tracking-wider">Yield</th>
-                            <th class="hidden xl:table-cell px-5 py-3 text-left text-xs font-semibold text-stone-500 uppercase tracking-wider">Ingredients</th>
-                            <th class="px-5 py-3 text-left text-xs font-semibold text-stone-500 uppercase tracking-wider">Venues</th>
-                            <th class="px-5 py-3 text-right text-xs font-semibold text-stone-500 uppercase tracking-wider sticky right-0 bg-stone-50">Actions</th>
+                            <th>Recipe</th>
+                            <th>Type</th>
+                            <th>Category</th>
+                            <th>Yield</th>
+                            <th class="hidden xl:table-cell">Ingredients</th>
+                            <th>Venues</th>
+                            <th class="sticky-right text-right">Actions</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-stone-200 bg-white">
+                    <tbody>
                         {% for recipe in recipes %}
-                        <tr class="group cursor-pointer hover:bg-stone-50/70 transition" onclick="if (!event.target.closest('a,button,input,select,textarea,form,label')) { window.location='{{ url_for('recipe_detail', recipe_id=recipe.id) }}'; }">
-                            <td class="px-5 py-4 align-top">
-                                <div class="text-sm font-semibold text-foxtown-ink">{{ recipe.name }}</div>
+                        <tr class="group cursor-pointer" onclick="if (!event.target.closest('a,button,input,select,textarea,form,label')) { window.location='{{ url_for('recipe_detail', recipe_id=recipe.id) }}'; }">
+                            <td>
+                                <div class="recipe-name">{{ recipe.name }}</div>
                                 {% if recipe.menu_descriptor %}
-                                <div class="mt-1 text-[11px] text-stone-400 max-w-[460px]">{{ recipe.menu_descriptor }}</div>
+                                <div class="recipe-meta">{{ recipe.menu_descriptor }}</div>
                                 {% endif %}
                             </td>
-                            <td class="px-5 py-4 align-top">
+                            <td>
                                 {% if recipe.recipe_type == 'menu' %}
-                                    <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-foxtown-ink">
-                                        <span class="w-2 h-2 rounded-full bg-foxtown-ember"></span>RM
-                                    </span>
+                                    <span class="tag tag-rm"><i></i>RM</span>
                                 {% elif recipe.recipe_type == 'batch' %}
-                                    <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700">
-                                        <span class="w-2 h-2 rounded-full bg-slate-500"></span>RB
-                                    </span>
+                                    <span class="tag tag-rb"><i></i>RB</span>
                                 {% else %}
-                                    <span class="text-xs text-stone-500">--</span>
+                                    <span class="text-stone-500">--</span>
                                 {% endif %}
                             </td>
-                            <td class="px-5 py-4 align-top text-sm text-stone-700">{{ recipe.category or 'Uncategorized' }}</td>
-                            <td class="px-5 py-4 align-top text-sm text-stone-700">
+                            <td>{{ recipe.category or 'Uncategorized' }}</td>
+                            <td>
                                 {% set yield_display = smart_quantity(recipe.yield_qty, recipe.yield_unit) %}
                                 {{ yield_display.quantity }} {{ yield_display.unit }}
                             </td>
-                            <td class="hidden xl:table-cell px-5 py-4 align-top text-sm text-stone-700">{{ recipe.ingredient_count }}</td>
-                            <td class="px-5 py-4 align-top text-sm text-stone-600 max-w-[280px]">
+                            <td class="hidden xl:table-cell">{{ recipe.ingredient_count }}</td>
+                            <td class="max-w-[280px]">
                                 {% if recipe.venue_names %}
                                     <span class="block truncate whitespace-nowrap" title="{{ recipe.venue_names }}">{{ recipe.venue_names }}</span>
                                 {% else %}
                                     <span class="block truncate whitespace-nowrap text-stone-500" title="All venues">All venues</span>
                                 {% endif %}
                             </td>
-                            <td class="px-5 py-4 align-top text-right sticky right-0 bg-white">
-                                <div class="inline-flex items-center gap-3 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-150">
+                            <td class="sticky-right text-right">
+                                <div class="row-actions">
                                     <form method="POST" action="{{ url_for('recipe_clone', recipe_id=recipe.id) }}" class="inline" onclick="event.stopPropagation();">
-                                        <button type="submit" class="text-stone-700 hover:text-slate-900 text-sm font-semibold" onclick="event.stopPropagation();">Clone</button>
+                                        <button type="submit" class="row-action" onclick="event.stopPropagation();">Clone</button>
                                     </form>
-                                    <a href="{{ url_for('recipe_edit', recipe_id=recipe.id) }}" class="text-stone-700 hover:text-slate-900 text-sm font-semibold" onclick="event.stopPropagation();">Edit</a>
+                                    <a href="{{ url_for('recipe_edit', recipe_id=recipe.id) }}" class="row-action" onclick="event.stopPropagation();">Edit</a>
                                 </div>
                             </td>
                         </tr>
@@ -179,12 +403,12 @@
                 </table>
             </div>
             {% else %}
-            <div class="px-6 py-12 text-center">
-                <h3 class="text-xl font-display text-foxtown-ink">No recipes match these filters</h3>
-                <p class="mt-2 text-stone-500">Try clearing filters or create a new recipe.</p>
+            <div class="empty-block">
+                <h3 class="empty-title">No recipes match these filters</h3>
+                <p class="empty-copy">Try clearing filters or create a new recipe.</p>
                 <div class="mt-6 flex items-center justify-center gap-3">
-                    <a href="{{ clear_filters_url }}" class="px-4 py-2 rounded-xl border border-stone-300 text-sm font-semibold text-stone-700 hover:bg-stone-50">Clear Filters</a>
-                    <a href="{{ url_for('recipe_new') }}" class="bg-foxtown-ember hover:bg-orange-700 text-white px-4 py-2 rounded-xl text-sm font-semibold">+ New Recipe</a>
+                    <a href="{{ clear_filters_url }}" class="fhq-btn fhq-btn--outline">Clear Filters</a>
+                    <a href="{{ url_for('recipe_new') }}" class="fhq-btn fhq-btn--primary">+ New Recipe</a>
                 </div>
             </div>
             {% endif %}

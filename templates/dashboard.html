@@ -5,563 +5,824 @@
 
 {% block extra_head %}
 <style>
-    nav h1 {
-        font-family: Inter, system-ui, sans-serif;
-        font-weight: 500;
-        letter-spacing: -0.03em;
-    }
     .dashboard-shell {
-        padding-bottom: 3rem;
+        padding-bottom: 4rem;
     }
-    .dashboard-grid {
-        display: grid;
-        gap: 1.25rem;
+
+    .dashboard-search {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: rgba(15, 17, 21, 0.78);
+        backdrop-filter: blur(10px);
+        padding: 0.32rem 0.5rem 0.32rem 0.78rem;
+        transition: all 0.22s ease;
     }
-    @media (min-width: 1280px) {
-        .dashboard-grid {
-            grid-template-columns: minmax(0, 1.85fr) minmax(300px, 0.95fr);
-            align-items: start;
-        }
-        .attention-rail {
-            position: sticky;
-            top: 1.5rem;
-        }
+
+    .dashboard-search:focus-within {
+        border-color: rgba(247, 147, 26, 0.7);
+        box-shadow: 0 0 22px -8px rgba(247, 147, 26, 0.6);
     }
-    .bento-card {
+
+    .dashboard-search svg {
+        color: rgba(255, 255, 255, 0.7);
+        flex-shrink: 0;
+    }
+
+    .dashboard-search input {
+        min-height: 38px;
+        border: 0;
+        background: transparent;
+        padding: 0.1rem 0;
+        color: #fff;
+        box-shadow: none;
+    }
+
+    .dashboard-search input:focus {
+        box-shadow: none;
+        border: 0;
+    }
+
+    .shortcut-badge {
+        flex-shrink: 0;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        background: rgba(3, 3, 4, 0.8);
+        color: rgba(255, 255, 255, 0.82);
+        padding: 0.24rem 0.55rem;
+        font-size: 0.68rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    }
+
+    .user-node {
+        width: 2rem;
+        height: 2rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        border: 1px solid rgba(247, 147, 26, 0.46);
+        color: #FFD600;
+        background: rgba(234, 88, 12, 0.15);
+        box-shadow: 0 0 16px -6px rgba(247, 147, 26, 0.72);
+        font-weight: 600;
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    }
+
+    .hero-block {
         position: relative;
         overflow: hidden;
-        border: 1px solid #e2e8f0;
-        border-radius: 12px;
-        background: rgba(255, 255, 255, 0.76);
-        backdrop-filter: blur(14px);
-        box-shadow: 0 14px 34px rgba(15, 23, 42, 0.08);
+        padding: 1.4rem;
     }
-    .bento-card::before {
+
+    .hero-block::before {
         content: "";
         position: absolute;
         inset: 0;
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0));
         pointer-events: none;
-    }
-    .section-label {
-        font-size: 0.72rem;
-        font-weight: 600;
-        letter-spacing: 0.18em;
-        text-transform: uppercase;
-        color: #64748b;
-    }
-    .briefing-hero {
-        padding: 1.5rem;
         background:
-            radial-gradient(circle at top left, rgba(251, 191, 36, 0.22), transparent 34%),
-            linear-gradient(140deg, rgba(255, 255, 255, 0.82), rgba(241, 245, 249, 0.88));
+            radial-gradient(circle at 15% -5%, rgba(247, 147, 26, 0.18), transparent 38%),
+            radial-gradient(circle at 80% 0%, rgba(255, 214, 0, 0.12), transparent 36%);
     }
-    .hero-header {
-        display: flex;
-        flex-direction: column;
-        gap: 1.25rem;
+
+    .hero-grid {
+        position: relative;
+        display: grid;
+        gap: 1.1rem;
     }
+
     @media (min-width: 1024px) {
-        .hero-header {
-            flex-direction: row;
-            justify-content: space-between;
-            align-items: flex-start;
+        .hero-grid {
+            grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
+            align-items: center;
+            gap: 2rem;
         }
     }
+
     .hero-title {
-        margin-top: 0.45rem;
-        font-size: clamp(2rem, 5vw, 3.6rem);
-        line-height: 0.95;
-        font-weight: 500;
-        letter-spacing: -0.04em;
-        color: #0f172a;
-    }
-    .hero-subtitle {
         margin-top: 0.8rem;
+        font-family: 'Space Grotesk', Inter, sans-serif;
+        font-size: clamp(2rem, 5.4vw, 4.35rem);
+        line-height: 0.95;
+        letter-spacing: -0.04em;
+        color: #fff;
+    }
+
+    .hero-title .accent {
+        background: linear-gradient(to right, #F7931A, #FFD600);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+    }
+
+    .hero-copy {
+        margin-top: 0.75rem;
+        max-width: 62ch;
+        color: #94A3B8;
+        font-size: 0.96rem;
+        line-height: 1.55;
+    }
+
+    .hero-meta {
+        margin-top: 0.85rem;
         display: flex;
         flex-wrap: wrap;
-        gap: 0.5rem 0.85rem;
-        color: #475569;
-        font-size: 0.95rem;
+        gap: 0.45rem 0.8rem;
+        color: #cbd5e1;
+        font-size: 0.76rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
     }
+
     .hero-clock {
-        margin-top: 1rem;
-        font-size: clamp(2rem, 4vw, 2.9rem);
+        margin-top: 0.95rem;
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+        font-size: clamp(1.75rem, 4vw, 2.85rem);
         line-height: 1;
-        font-weight: 600;
-        letter-spacing: -0.04em;
-        color: #ea580c;
+        color: #F7931A;
+        text-shadow: 0 0 18px rgba(247, 147, 26, 0.45);
     }
+
     .hero-clock-note {
         margin-top: 0.35rem;
-        font-size: 0.78rem;
-        text-transform: uppercase;
+        font-size: 0.72rem;
         letter-spacing: 0.14em;
-        color: #94a3b8;
+        text-transform: uppercase;
+        color: #94A3B8;
     }
+
     .hero-actions {
-        display: grid;
-        gap: 0.75rem;
-        width: 100%;
-    }
-    @media (min-width: 640px) {
-        .hero-actions {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-        }
-    }
-    @media (min-width: 1024px) {
-        .hero-actions {
-            width: min(420px, 100%);
-            grid-template-columns: 1fr;
-        }
-    }
-    .hero-action {
+        margin-top: 1rem;
         display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 0.75rem;
+        flex-wrap: wrap;
+        gap: 0.65rem;
+    }
+
+    .hero-visual {
+        position: relative;
+        height: 300px;
+    }
+
+    @media (min-width: 768px) {
+        .hero-visual {
+            height: 350px;
+        }
+    }
+
+    @media (min-width: 1024px) {
+        .hero-visual {
+            height: 420px;
+        }
+    }
+
+    .orbital-core {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 150px;
+        height: 150px;
+        transform: translate(-50%, -50%);
+        border-radius: 999px;
+        background: radial-gradient(circle at 35% 30%, rgba(255, 214, 0, 0.9), rgba(247, 147, 26, 0.65), rgba(3, 3, 4, 0.9));
+        box-shadow:
+            0 0 45px -12px rgba(247, 147, 26, 0.8),
+            inset 0 0 45px rgba(247, 147, 26, 0.35);
+        animation: float 8s ease-in-out infinite;
+    }
+
+    .orbital-ring {
+        position: absolute;
+        border-radius: 999px;
+        border: 1px solid rgba(247, 147, 26, 0.45);
+    }
+
+    .orbital-ring--outer {
+        inset: -48px;
+        animation: spin 10s linear infinite;
+    }
+
+    .orbital-ring--inner {
+        inset: -25px;
+        border-color: rgba(255, 214, 0, 0.45);
+        animation: spinReverse 14s linear infinite;
+    }
+
+    .orbital-ring::before,
+    .orbital-ring::after {
+        content: "";
+        position: absolute;
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        background: #F7931A;
+        box-shadow: 0 0 15px rgba(247, 147, 26, 0.7);
+    }
+
+    .orbital-ring::before {
+        top: -5px;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+
+    .orbital-ring::after {
+        bottom: -5px;
+        left: 17%;
+    }
+
+    .orbital-stat {
+        position: absolute;
+        min-width: 145px;
         border-radius: 12px;
-        padding: 0.95rem 1rem;
-        border: 1px solid rgba(148, 163, 184, 0.22);
-        background: rgba(255, 255, 255, 0.78);
-        color: #0f172a;
-        transition: all 0.2s ease;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        background: rgba(0, 0, 0, 0.48);
+        backdrop-filter: blur(10px);
+        padding: 0.7rem 0.8rem;
+        box-shadow: 0 0 24px -12px rgba(247, 147, 26, 0.7);
+        animation: float 7s ease-in-out infinite;
     }
-    .hero-action:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 14px 28px rgba(15, 23, 42, 0.12);
+
+    .orbital-stat .label {
+        font-size: 0.66rem;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
+        color: #94A3B8;
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
     }
-    .hero-action strong {
-        display: block;
-        font-weight: 500;
+
+    .orbital-stat .value {
+        margin-top: 0.35rem;
+        font-size: 1.35rem;
+        letter-spacing: -0.03em;
+        color: #fff;
+        font-family: 'Space Grotesk', Inter, sans-serif;
     }
-    .hero-action span {
-        font-size: 0.8rem;
-        color: #64748b;
+
+    .orbital-stat--a {
+        top: 10%;
+        left: 6%;
+        animation-delay: 0.2s;
     }
-    .hero-action--ember {
-        background: linear-gradient(140deg, rgba(234, 88, 12, 0.94), rgba(194, 65, 12, 0.92));
-        color: white;
-        border-color: rgba(234, 88, 12, 0.32);
+
+    .orbital-stat--b {
+        top: 16%;
+        right: 6%;
+        animation-delay: 0.8s;
     }
-    .hero-action--ember span {
-        color: rgba(255, 255, 255, 0.78);
+
+    .orbital-stat--c {
+        bottom: 14%;
+        left: 50%;
+        transform: translateX(-50%);
+        animation-delay: 1.4s;
     }
-    .hero-action--ink {
-        background: linear-gradient(140deg, rgba(15, 23, 42, 0.94), rgba(30, 41, 59, 0.92));
-        color: white;
-        border-color: rgba(15, 23, 42, 0.28);
+
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
     }
-    .hero-action--ink span {
-        color: rgba(226, 232, 240, 0.8);
+
+    @keyframes spinReverse {
+        from { transform: rotate(360deg); }
+        to { transform: rotate(0deg); }
     }
-    .hero-metrics {
-        margin-top: 1.25rem;
+
+    .metrics-grid {
+        margin-top: 1.15rem;
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 0.9rem;
+        gap: 0.75rem;
     }
+
     @media (min-width: 1024px) {
-        .hero-metrics {
+        .metrics-grid {
             grid-template-columns: repeat(4, minmax(0, 1fr));
         }
     }
-    .hero-metric {
-        position: relative;
-        border-radius: 12px;
-        padding: 1rem;
-        border: 1px solid rgba(148, 163, 184, 0.18);
-        background: rgba(255, 255, 255, 0.7);
+
+    .metric-card {
+        border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(0, 0, 0, 0.32);
+        padding: 0.85rem;
     }
-    .hero-metric-label {
-        font-size: 0.74rem;
-        font-weight: 600;
+
+    .metric-label {
+        font-size: 0.66rem;
         letter-spacing: 0.14em;
         text-transform: uppercase;
-        color: #64748b;
+        color: #94A3B8;
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
     }
-    .hero-metric-value {
-        margin-top: 0.4rem;
-        font-size: 1.8rem;
+
+    .metric-value {
+        margin-top: 0.35rem;
+        font-family: 'Space Grotesk', Inter, sans-serif;
+        font-size: 1.7rem;
         line-height: 1;
-        font-weight: 600;
         letter-spacing: -0.04em;
-        color: #0f172a;
+        color: #fff;
     }
-    .hero-metric-meta {
-        margin-top: 0.45rem;
-        font-size: 0.86rem;
-        color: #64748b;
+
+    .metric-meta {
+        margin-top: 0.35rem;
+        color: #94A3B8;
+        font-size: 0.82rem;
     }
-    .timeline-card,
-    .tools-card,
-    .attention-card {
-        padding: 1.35rem;
-    }
-    .timeline-header,
-    .tools-header,
-    .attention-header {
-        display: flex;
-        justify-content: space-between;
-        gap: 1rem;
-        align-items: flex-end;
-    }
-    .timeline-sections {
+
+    .dashboard-grid {
+        margin-top: 1rem;
         display: grid;
         gap: 1rem;
-        margin-top: 1.2rem;
     }
-    .timeline-panel {
-        border-radius: 12px;
-        border: 1px solid rgba(148, 163, 184, 0.16);
-        background: rgba(248, 250, 252, 0.88);
+
+    @media (min-width: 1280px) {
+        .dashboard-grid {
+            grid-template-columns: minmax(0, 1.72fr) minmax(300px, 0.9fr);
+            align-items: start;
+        }
+
+        .attention-rail {
+            position: sticky;
+            top: 1.2rem;
+        }
+    }
+
+    .section-block {
+        padding: 1.2rem;
+    }
+
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        gap: 0.8rem;
+    }
+
+    .section-label {
+        font-size: 0.68rem;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: #94A3B8;
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    }
+
+    .section-title {
+        margin-top: 0.35rem;
+        color: #fff;
+        font-size: 1.5rem;
+        line-height: 1.1;
+        letter-spacing: -0.03em;
+        font-family: 'Space Grotesk', Inter, sans-serif;
+    }
+
+    .section-caption {
+        font-size: 0.8rem;
+        color: #94A3B8;
+    }
+
+    .timeline-ledger {
+        position: relative;
+        margin-top: 1.1rem;
+        display: grid;
+        gap: 0.85rem;
+    }
+
+    .ledger-line {
+        position: absolute;
+        left: 14px;
+        top: 22px;
+        bottom: 22px;
+        width: 2px;
+        background: linear-gradient(to bottom, #EA580C, rgba(234, 88, 12, 0.1));
+    }
+
+    .timeline-node {
+        position: relative;
+        margin-left: 0.9rem;
+        border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(15, 17, 21, 0.82);
         padding: 1rem;
     }
-    .timeline-panel-title {
+
+    .timeline-node::before {
+        content: "";
+        position: absolute;
+        left: -1.35rem;
+        top: 1.1rem;
+        width: 14px;
+        height: 14px;
+        border-radius: 999px;
+        border: 2px solid rgba(247, 147, 26, 0.7);
+        background: rgba(3, 3, 4, 1);
+        box-shadow: 0 0 16px rgba(247, 147, 26, 0.52);
+    }
+
+    .timeline-node::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        border-radius: 14px;
+        background:
+            linear-gradient(90deg, rgba(247, 147, 26, 0.18), transparent 32%);
+        opacity: 0.5;
+    }
+
+    .panel-header {
+        position: relative;
         display: flex;
         justify-content: space-between;
-        gap: 1rem;
         align-items: center;
-        margin-bottom: 0.9rem;
+        gap: 0.75rem;
+        z-index: 1;
     }
-    .timeline-panel-title h3 {
+
+    .panel-title {
         font-size: 1rem;
-        font-weight: 500;
-        color: #0f172a;
+        color: #fff;
+        font-family: 'Space Grotesk', Inter, sans-serif;
     }
+
+    .panel-subtitle {
+        color: #94A3B8;
+        font-size: 0.82rem;
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    }
+
     .today-grid {
+        position: relative;
+        margin-top: 0.9rem;
         display: grid;
-        gap: 0.9rem;
+        gap: 0.75rem;
+        z-index: 1;
     }
+
     @media (min-width: 768px) {
         .today-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
         }
     }
+
     .today-card {
         border-radius: 12px;
-        border: 1px solid rgba(148, 163, 184, 0.16);
-        background: rgba(255, 255, 255, 0.82);
-        padding: 1rem;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(3, 3, 4, 0.55);
+        padding: 0.9rem;
+        transition: all 0.2s ease;
     }
+
+    .today-card:hover {
+        border-color: rgba(247, 147, 26, 0.45);
+        transform: translateY(-1px);
+    }
+
     .today-card-top {
         display: flex;
         justify-content: space-between;
-        gap: 0.75rem;
+        gap: 0.8rem;
         align-items: flex-start;
     }
-    .today-card h4 {
+
+    .today-card-title {
+        color: #fff;
         font-size: 1.05rem;
-        font-weight: 500;
-        color: #0f172a;
+        font-family: 'Space Grotesk', Inter, sans-serif;
     }
+
     .today-card-meta {
-        margin-top: 0.7rem;
-        font-size: 0.9rem;
-        color: #475569;
+        margin-top: 0.45rem;
+        color: #94A3B8;
+        font-size: 0.86rem;
     }
+
     .today-card-guests {
-        margin-top: 1rem;
+        margin-top: 0.85rem;
         display: flex;
         align-items: baseline;
-        gap: 0.5rem;
+        gap: 0.45rem;
     }
+
     .today-card-guests strong {
         font-size: 2rem;
         line-height: 1;
-        font-weight: 600;
         letter-spacing: -0.04em;
-        color: #ea580c;
+        color: #F7931A;
+        text-shadow: 0 0 14px rgba(247, 147, 26, 0.5);
+        font-family: 'Space Grotesk', Inter, sans-serif;
     }
+
     .today-card-footer {
-        margin-top: 1rem;
+        margin-top: 0.9rem;
         display: flex;
         justify-content: space-between;
-        gap: 0.75rem;
         align-items: center;
-        font-size: 0.86rem;
-        color: #64748b;
+        gap: 0.75rem;
+        color: #94A3B8;
+        font-size: 0.83rem;
     }
-    .glass-pill {
+
+    .status-badge {
         display: inline-flex;
         align-items: center;
-        gap: 0.4rem;
+        gap: 0.35rem;
         border-radius: 999px;
-        padding: 0.35rem 0.7rem;
-        border: 1px solid rgba(148, 163, 184, 0.25);
-        background: rgba(255, 255, 255, 0.58);
-        backdrop-filter: blur(10px);
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.58);
-        font-size: 0.72rem;
-        font-weight: 600;
-        letter-spacing: 0.08em;
+        padding: 0.28rem 0.58rem;
+        font-size: 0.7rem;
+        letter-spacing: 0.09em;
         text-transform: uppercase;
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+        border: 1px solid transparent;
     }
-    .glass-pill i {
-        display: inline-block;
-        width: 0.45rem;
-        height: 0.45rem;
+
+    .status-badge::before {
+        content: "";
+        width: 0.4rem;
+        height: 0.4rem;
         border-radius: 999px;
         background: currentColor;
+        box-shadow: 0 0 12px currentColor;
     }
-    .glass-pill--confirmed {
-        color: #b45309;
+
+    .status-badge--confirmed {
+        color: #FFD600;
+        border-color: rgba(255, 214, 0, 0.42);
+        background: rgba(255, 214, 0, 0.12);
     }
-    .glass-pill--executed {
-        color: #047857;
+
+    .status-badge--executed {
+        color: #22d3ee;
+        border-color: rgba(34, 211, 238, 0.45);
+        background: rgba(34, 211, 238, 0.12);
     }
-    .glass-pill--planning {
-        color: #475569;
+
+    .status-badge--planning {
+        color: #94A3B8;
+        border-color: rgba(148, 163, 184, 0.4);
+        background: rgba(148, 163, 184, 0.14);
     }
+
+    .empty-state {
+        margin-top: 0.95rem;
+        border-radius: 12px;
+        border: 1px dashed rgba(148, 163, 184, 0.5);
+        background: rgba(3, 3, 4, 0.45);
+        padding: 1rem;
+        position: relative;
+        z-index: 1;
+    }
+
+    .empty-state h4 {
+        font-size: 1rem;
+        color: #fff;
+        font-family: 'Space Grotesk', Inter, sans-serif;
+    }
+
+    .empty-state p {
+        margin-top: 0.35rem;
+        font-size: 0.86rem;
+        color: #94A3B8;
+    }
+
     .timeline-table {
+        margin-top: 0.9rem;
         width: 100%;
         border-collapse: collapse;
+        position: relative;
+        z-index: 1;
     }
+
     .timeline-table th {
-        padding-bottom: 0.7rem;
-        font-size: 0.72rem;
-        font-weight: 600;
-        letter-spacing: 0.16em;
+        font-size: 0.68rem;
+        letter-spacing: 0.14em;
         text-transform: uppercase;
+        color: #94A3B8;
         text-align: left;
-        color: #64748b;
+        padding-bottom: 0.65rem;
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
     }
+
     .timeline-table td {
-        padding: 0.9rem 0;
-        border-top: 1px solid rgba(226, 232, 240, 0.88);
+        border-top: 1px solid rgba(148, 163, 184, 0.18);
+        padding: 0.82rem 0;
+        color: #cbd5e1;
+        font-size: 0.88rem;
         vertical-align: top;
-        font-size: 0.92rem;
-        color: #334155;
     }
-    .timeline-table tr:first-child td {
-        border-top: 1px solid rgba(226, 232, 240, 0.88);
-    }
+
     .timeline-table tr {
         transition: background-color 0.2s ease;
     }
+
     .timeline-table tr:hover {
-        background: rgba(248, 250, 252, 0.92);
+        background: rgba(247, 147, 26, 0.08);
     }
+
     .timeline-name {
         display: block;
+        color: #fff;
         font-weight: 500;
-        color: #0f172a;
     }
+
     .timeline-venue {
-        margin-top: 0.15rem;
-        font-size: 0.82rem;
-        color: #64748b;
+        margin-top: 0.18rem;
+        font-size: 0.79rem;
+        color: #94A3B8;
     }
-    .empty-state {
-        display: flex;
-        flex-direction: column;
-        gap: 0.8rem;
-        align-items: flex-start;
-        border-radius: 12px;
-        border: 1px dashed rgba(148, 163, 184, 0.46);
-        background: rgba(248, 250, 252, 0.8);
-        padding: 1.15rem;
-    }
-    .empty-state h4 {
-        font-size: 1rem;
-        font-weight: 500;
-        color: #0f172a;
-    }
-    .button-lift {
-        transition: all 0.2s ease;
-    }
-    .button-lift:hover {
-        transform: translateY(-2px);
-    }
+
     .attention-stack {
+        margin-top: 1rem;
         display: grid;
-        gap: 0.9rem;
-        margin-top: 1.2rem;
+        gap: 0.75rem;
     }
-    .fhq-attention-card {
+
+    .attention-card {
         display: block;
         border-radius: 12px;
-        border: 1px solid #e2e8f0;
-        padding: 1rem;
-        background: rgba(255, 255, 255, 0.8);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        padding: 0.95rem;
+        background: rgba(0, 0, 0, 0.4);
         transition: all 0.2s ease;
     }
-    .fhq-attention-card:hover {
+
+    .attention-card:hover {
         transform: translateY(-2px);
-        box-shadow: 0 14px 30px rgba(15, 23, 42, 0.1);
+        border-color: rgba(247, 147, 26, 0.55);
+        box-shadow: 0 0 28px -10px rgba(247, 147, 26, 0.46);
     }
-    .fhq-attention-card--amber {
-        background: linear-gradient(140deg, rgba(255, 251, 235, 0.9), rgba(255, 247, 237, 0.88));
-        border-color: rgba(251, 191, 36, 0.32);
+
+    .attention-card--amber {
+        background: linear-gradient(145deg, rgba(234, 88, 12, 0.2), rgba(247, 147, 26, 0.08));
     }
-    .fhq-attention-card--amber .attention-tone {
-        color: #b45309;
+
+    .attention-card--slate {
+        background: linear-gradient(145deg, rgba(30, 41, 59, 0.52), rgba(15, 17, 21, 0.75));
     }
-    .fhq-attention-card--slate {
-        background: linear-gradient(140deg, rgba(248, 250, 252, 0.92), rgba(241, 245, 249, 0.88));
-        border-color: rgba(148, 163, 184, 0.3);
+
+    .attention-card--highlight {
+        border-left: 3px solid #FFD600;
+        box-shadow: 0 0 22px -10px rgba(255, 214, 0, 0.5);
     }
-    .fhq-attention-card--slate .attention-tone {
-        color: #334155;
+
+    .attention-tone {
+        color: #FFD600;
+        font-size: 0.68rem;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
     }
-    .fhq-attention-card--highlight {
-        border-left: 4px solid #f59e0b;
-        box-shadow: 0 16px 32px rgba(245, 158, 11, 0.14);
-    }
+
     .attention-count {
-        margin-top: 0.65rem;
-        font-size: 2rem;
+        margin-top: 0.55rem;
+        color: #fff;
+        font-size: 1.95rem;
         line-height: 1;
-        font-weight: 600;
         letter-spacing: -0.05em;
-        color: #0f172a;
+        font-family: 'Space Grotesk', Inter, sans-serif;
     }
+
     .attention-detail {
-        margin-top: 0.5rem;
-        font-size: 0.9rem;
-        color: #475569;
+        margin-top: 0.55rem;
+        color: #94A3B8;
+        font-size: 0.86rem;
     }
+
     .attention-footer {
-        margin-top: 1rem;
-        font-size: 0.82rem;
-        color: #64748b;
+        margin-top: 0.95rem;
+        color: #94A3B8;
+        font-size: 0.76rem;
     }
+
     .tools-grid {
+        margin-top: 1rem;
         display: grid;
-        gap: 0.9rem;
-        margin-top: 1.2rem;
+        gap: 0.75rem;
     }
+
     @media (min-width: 768px) {
         .tools-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
         }
     }
+
     @media (min-width: 1280px) {
         .tools-grid {
             grid-template-columns: repeat(4, minmax(0, 1fr));
         }
     }
+
     .tool-tile {
         position: relative;
+        overflow: hidden;
         display: flex;
-        min-height: 180px;
+        min-height: 190px;
         flex-direction: column;
         justify-content: space-between;
-        border-radius: 12px;
-        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(15, 17, 21, 0.72);
         padding: 1rem;
-        background: rgba(255, 255, 255, 0.78);
-        transition: all 0.2s ease;
+        transition: all 0.22s ease;
     }
+
+    .tool-tile::after {
+        content: "";
+        position: absolute;
+        right: -36px;
+        bottom: -38px;
+        width: 130px;
+        height: 130px;
+        border-radius: 24px;
+        transform: rotate(18deg);
+        background: radial-gradient(circle at center, rgba(247, 147, 26, 0.17), transparent 70%);
+        opacity: 0.25;
+        transition: opacity 0.2s ease;
+    }
+
     .tool-tile:hover {
         transform: translateY(-2px);
-        box-shadow: 0 16px 32px rgba(15, 23, 42, 0.12);
+        border-color: rgba(247, 147, 26, 0.5);
+        box-shadow: 0 0 28px -11px rgba(247, 147, 26, 0.42);
     }
+
+    .tool-tile:hover::after {
+        opacity: 0.75;
+    }
+
     .tool-tile--dark {
-        border-color: rgba(30, 41, 59, 0.5);
-        background: linear-gradient(150deg, rgba(15, 23, 42, 0.98), rgba(30, 41, 59, 0.94));
-        color: white;
+        background: linear-gradient(150deg, rgba(234, 88, 12, 0.24), rgba(15, 17, 21, 0.86));
+        border-color: rgba(247, 147, 26, 0.48);
     }
+
     .tool-kicker {
         display: flex;
-        align-items: center;
         justify-content: space-between;
-        gap: 0.75rem;
-        font-size: 0.72rem;
-        font-weight: 600;
+        gap: 0.7rem;
+        color: #94A3B8;
+        font-size: 0.66rem;
         letter-spacing: 0.14em;
         text-transform: uppercase;
-        color: #64748b;
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
     }
-    .tool-tile--dark .tool-kicker,
-    .tool-tile--dark .tool-copy,
-    .tool-tile--dark .tool-meta {
-        color: rgba(226, 232, 240, 0.82);
-    }
+
     .tool-title {
-        margin-top: 0.8rem;
-        font-size: 1.05rem;
-        font-weight: 500;
-        color: #0f172a;
+        margin-top: 0.65rem;
+        color: #fff;
+        font-size: 1.03rem;
+        font-family: 'Space Grotesk', Inter, sans-serif;
     }
-    .tool-tile--dark .tool-title,
-    .tool-tile--dark .tool-stat {
-        color: white;
-    }
+
     .tool-copy {
         margin-top: 0.45rem;
-        font-size: 0.9rem;
-        color: #475569;
+        color: #94A3B8;
+        font-size: 0.86rem;
+        line-height: 1.4;
     }
+
     .tool-footer {
         display: flex;
         justify-content: space-between;
-        gap: 1rem;
         align-items: flex-end;
-        margin-top: 1.2rem;
-    }
-    .tool-stat {
-        font-size: 1.65rem;
-        line-height: 1;
-        font-weight: 600;
-        letter-spacing: -0.04em;
-        color: #0f172a;
-    }
-    .tool-meta {
-        font-size: 0.82rem;
-        color: #64748b;
-    }
-    .search-shell {
-        display: flex;
-        align-items: center;
         gap: 0.65rem;
-        border-radius: 999px;
-        border: 1px solid rgba(255, 255, 255, 0.18);
-        background: rgba(255, 255, 255, 0.1);
-        padding: 0.4rem 0.55rem 0.4rem 0.8rem;
-        transition: all 0.2s ease;
+        margin-top: 1rem;
     }
-    .search-shell:focus-within {
-        border-color: rgba(252, 211, 77, 0.65);
-        background: rgba(255, 255, 255, 0.14);
-        transform: translateY(-1px);
+
+    .tool-stat {
+        color: #fff;
+        font-size: 1.6rem;
+        line-height: 1;
+        letter-spacing: -0.04em;
+        font-family: 'Space Grotesk', Inter, sans-serif;
     }
-    .search-shell svg {
-        flex-shrink: 0;
-        color: #cbd5e1;
+
+    .tool-meta {
+        color: #94A3B8;
+        font-size: 0.79rem;
     }
-    .search-shell input {
-        width: 100%;
-        border: 0;
-        background: transparent;
-        color: white;
-        box-shadow: none;
-        padding: 0.25rem 0;
-    }
-    .search-shell input::placeholder {
-        color: #cbd5e1;
-    }
-    .shortcut-badge {
-        flex-shrink: 0;
-        border-radius: 999px;
-        border: 1px solid rgba(255, 255, 255, 0.16);
-        background: rgba(15, 23, 42, 0.32);
-        padding: 0.3rem 0.55rem;
-        font-size: 0.68rem;
+
+    .entry-link {
+        color: #F7931A;
+        font-size: 0.8rem;
         font-weight: 600;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        color: #e2e8f0;
+        transition: color 0.2s ease;
+    }
+
+    .entry-link:hover {
+        color: #FFD600;
     }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="min-h-screen">
-    {% call page_nav('Foxtown HQ', 'Morning Briefing') %}
-    <form method="GET" action="{{ url_for('search') }}" class="w-full sm:w-[430px]">
+    {% call page_nav('Foxtown HQ', 'Network Briefing') %}
+    <form method="GET" action="{{ url_for('search') }}" class="w-full sm:w-[440px]">
         <label for="dashboardSearch" class="sr-only">Global search</label>
-        <div class="search-shell">
+        <div class="dashboard-search">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m21 21-4.35-4.35m1.85-5.15a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z"></path>
             </svg>
@@ -576,92 +837,101 @@
             <span class="shortcut-badge hidden md:inline-flex">Cmd/Ctrl + K</span>
         </div>
     </form>
-    <span class="inline-flex items-center justify-center bg-foxtown-ember text-white rounded-full w-8 h-8 text-sm font-semibold" title="{{ current_user.username }}">
+    <span class="user-node" title="{{ current_user.username }}">
         {{ (current_user.username[:1] if current_user.username else '?')|upper }}
     </span>
-    <a href="{{ url_for('logout') }}" class="text-foxtown-ember hover:text-amber-200 font-semibold">Logout</a>
+    <a href="{{ url_for('logout') }}" class="fhq-btn fhq-btn--ghost">Logout</a>
     {% endcall %}
 
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 dashboard-shell fhq-fade">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 dashboard-shell fhq-fade">
+        <section class="hero-block fhq-card holographic-gradient">
+            <div class="hero-grid">
+                <div>
+                    <span class="fhq-chip"><span class="fhq-ping"></span> Live Operations</span>
+                    <h2 class="hero-title">
+                        {{ today.strftime('%A, %B %-d') }}
+                        <span class="accent">Command Layer</span>
+                    </h2>
+                    <p class="hero-copy">
+                        Secure production intelligence for {{ banquet_venue_name }}. Track event execution, planning drift,
+                        and prep cadence from one operational ledger.
+                    </p>
+                    <div class="hero-meta">
+                        <span>{{ banquet_venue_name }}</span>
+                        <span>{{ today.strftime('%Y') }}</span>
+                        <span>Bitcoin-grade reliability</span>
+                    </div>
+                    <div class="hero-clock" data-dashboard-clock>--:-- --</div>
+                    <div class="hero-clock-note">Local time</div>
+                    <div class="hero-actions">
+                        <a href="{{ url_for('banquet_planner') }}" class="fhq-btn fhq-btn--primary">Banquet Planner</a>
+                        <a href="{{ url_for('commissary_planner') }}" class="fhq-btn fhq-btn--outline">Commissary Planner</a>
+                        <a href="{{ url_for('production_board') }}" target="_blank" rel="noopener" class="fhq-btn fhq-btn--ghost">Production Board</a>
+                    </div>
+                </div>
+
+                <div class="hero-visual" aria-hidden="true">
+                    <div class="orbital-core">
+                        <span class="orbital-ring orbital-ring--outer"></span>
+                        <span class="orbital-ring orbital-ring--inner"></span>
+                    </div>
+                    <div class="orbital-stat orbital-stat--a">
+                        <div class="label">Recipes</div>
+                        <div class="value fhq-countup" data-count="{{ recipe_count }}">{{ recipe_count }}</div>
+                    </div>
+                    <div class="orbital-stat orbital-stat--b">
+                        <div class="label">Ingredients</div>
+                        <div class="value fhq-countup" data-count="{{ ingredient_count }}">{{ ingredient_count }}</div>
+                    </div>
+                    <div class="orbital-stat orbital-stat--c">
+                        <div class="label">Rollouts (30d)</div>
+                        <div class="value fhq-countup" data-count="{{ recent_rollout_count }}">{{ recent_rollout_count }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-label">Recipes</div>
+                    <div class="metric-value fhq-countup" data-count="{{ recipe_count }}">{{ recipe_count }}</div>
+                    <div class="metric-meta">Active production records</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Ingredients</div>
+                    <div class="metric-value fhq-countup" data-count="{{ ingredient_count }}">{{ ingredient_count }}</div>
+                    <div class="metric-meta">Tracked menu inputs</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Rollouts</div>
+                    <div class="metric-value fhq-countup" data-count="{{ recent_rollout_count }}">{{ recent_rollout_count }}</div>
+                    <div class="metric-meta">Built in the last 30 days</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Price Cadence</div>
+                    <div class="metric-value fhq-countup" data-count="{{ price_refresh_days }}">{{ price_refresh_days }}</div>
+                    <div class="metric-meta">Days before refresh due</div>
+                </div>
+            </div>
+        </section>
+
         <section class="dashboard-grid">
-            <div class="space-y-5">
-                <article class="bento-card briefing-hero">
-                    <div class="hero-header">
-                        <div>
-                            <div class="section-label">Morning Briefing</div>
-                            <h2 class="hero-title">{{ today.strftime('%A, %B %-d') }}</h2>
-                            <div class="hero-subtitle">
-                                <span>{{ banquet_venue_name }}</span>
-                                <span>{{ today.strftime('%Y') }}</span>
-                                <span>Operational snapshot</span>
-                            </div>
-                            <div class="hero-clock" data-dashboard-clock>--:-- --</div>
-                            <div class="hero-clock-note">Local time</div>
-                        </div>
-
-                        <div class="hero-actions">
-                            <a href="{{ url_for('banquet_planner') }}" class="hero-action hero-action--ember">
-                                <div>
-                                    <strong>Banquet Planner</strong>
-                                    <span>Events, shopping, and prep packets</span>
-                                </div>
-                                <span>Open</span>
-                            </a>
-                            <a href="{{ url_for('commissary_planner') }}" class="hero-action hero-action--ink">
-                                <div>
-                                    <strong>Commissary Planner</strong>
-                                    <span>Outlet orders and production packets</span>
-                                </div>
-                                <span>Open</span>
-                            </a>
-                            <a href="{{ url_for('production_board') }}" target="_blank" rel="noopener" class="hero-action">
-                                <div>
-                                    <strong>Production Board</strong>
-                                    <span>Read-only monitor view for service</span>
-                                </div>
-                                <span>Launch</span>
-                            </a>
-                        </div>
-                    </div>
-
-                    <div class="hero-metrics">
-                        <div class="hero-metric">
-                            <div class="hero-metric-label">Recipes</div>
-                            <div class="hero-metric-value fhq-countup" data-count="{{ recipe_count }}">{{ recipe_count }}</div>
-                            <div class="hero-metric-meta">Active production records</div>
-                        </div>
-                        <div class="hero-metric">
-                            <div class="hero-metric-label">Ingredients</div>
-                            <div class="hero-metric-value fhq-countup" data-count="{{ ingredient_count }}">{{ ingredient_count }}</div>
-                            <div class="hero-metric-meta">Tracked across current menus</div>
-                        </div>
-                        <div class="hero-metric">
-                            <div class="hero-metric-label">Rollouts</div>
-                            <div class="hero-metric-value fhq-countup" data-count="{{ recent_rollout_count }}">{{ recent_rollout_count }}</div>
-                            <div class="hero-metric-meta">Created in the last 30 days</div>
-                        </div>
-                        <div class="hero-metric">
-                            <div class="hero-metric-label">Price Cadence</div>
-                            <div class="hero-metric-value fhq-countup" data-count="{{ price_refresh_days }}">{{ price_refresh_days }}</div>
-                            <div class="hero-metric-meta">Days before a refresh is due</div>
-                        </div>
-                    </div>
-                </article>
-
-                <article class="bento-card timeline-card">
-                    <div class="timeline-header">
+            <div class="space-y-4">
+                <article class="fhq-card section-block">
+                    <div class="section-header">
                         <div>
                             <div class="section-label">Event Timeline</div>
-                            <h2 class="text-2xl font-medium text-foxtown-ink mt-2">Today and the next 7 days</h2>
+                            <h2 class="section-title">Today and the next 7 days</h2>
                         </div>
-                        <div class="text-sm text-slate-500">{{ (today_events|length) + (upcoming_events|length) }} scheduled events</div>
+                        <div class="section-caption">{{ (today_events|length) + (upcoming_events|length) }} scheduled events</div>
                     </div>
 
-                    <div class="timeline-sections">
-                        <section class="timeline-panel">
-                            <div class="timeline-panel-title">
-                                <h3>Today</h3>
-                                <div class="text-sm text-slate-500">{{ today.strftime('%B %-d, %Y') }}</div>
+                    <div class="timeline-ledger">
+                        <div class="ledger-line"></div>
+
+                        <section class="timeline-node">
+                            <div class="panel-header">
+                                <h3 class="panel-title">Today</h3>
+                                <div class="panel-subtitle">{{ today.strftime('%B %-d, %Y') }}</div>
                             </div>
 
                             {% if today_events %}
@@ -671,45 +941,43 @@
                                 <article class="today-card">
                                     <div class="today-card-top">
                                         <div>
-                                            <h4>{{ event.name }}</h4>
+                                            <h4 class="today-card-title">{{ event.name }}</h4>
                                             <div class="today-card-meta">{{ event.service_timing or 'Service timing not set' }}</div>
                                         </div>
                                         {% if status == 'confirmed' %}
-                                        <span class="glass-pill glass-pill--confirmed"><i></i>Confirmed</span>
+                                        <span class="status-badge status-badge--confirmed">Confirmed</span>
                                         {% elif status in ('completed', 'executed') %}
-                                        <span class="glass-pill glass-pill--executed"><i></i>Executed</span>
+                                        <span class="status-badge status-badge--executed">Executed</span>
                                         {% else %}
-                                        <span class="glass-pill glass-pill--planning"><i></i>Planning</span>
+                                        <span class="status-badge status-badge--planning">Planning</span>
                                         {% endif %}
                                     </div>
 
                                     <div class="today-card-guests">
                                         <strong class="fhq-countup" data-count="{{ event.guests or 0 }}">{{ event.guests or 0 }}</strong>
-                                        <span class="text-sm uppercase tracking-[0.2em] text-slate-500">Guests</span>
+                                        <span class="text-xs uppercase tracking-[0.2em] text-stone-500">Guests</span>
                                     </div>
 
                                     <div class="today-card-footer">
                                         <span>{{ event.venue_name or banquet_venue_name }}</span>
-                                        <a href="{{ url_for('banquet_event_edit', event_id=event.id) }}" class="text-foxtown-ember font-semibold hover:text-orange-700">Open event</a>
+                                        <a href="{{ url_for('banquet_event_edit', event_id=event.id) }}" class="entry-link">Open event</a>
                                     </div>
                                 </article>
                                 {% endfor %}
                             </div>
                             {% else %}
                             <div class="empty-state">
-                                <div>
-                                    <h4>No events scheduled today</h4>
-                                    <p class="text-sm text-slate-500 mt-1">Nothing is on the books for {{ today.strftime('%B %-d, %Y') }}.</p>
-                                </div>
-                                <a href="{{ url_for('banquet_event_new') }}" class="inline-flex items-center rounded-full bg-foxtown-ember px-4 py-2 text-sm font-semibold text-white button-lift">Create New Event</a>
+                                <h4>No events scheduled today</h4>
+                                <p>Nothing is on the books for {{ today.strftime('%B %-d, %Y') }}.</p>
+                                <a href="{{ url_for('banquet_event_new') }}" class="fhq-btn fhq-btn--primary mt-4">Create New Event</a>
                             </div>
                             {% endif %}
                         </section>
 
-                        <section class="timeline-panel">
-                            <div class="timeline-panel-title">
-                                <h3>Next 7 days</h3>
-                                <div class="text-sm text-slate-500">{{ today.strftime('%b %-d') }} to {{ week_end.strftime('%b %-d') }}</div>
+                        <section class="timeline-node">
+                            <div class="panel-header">
+                                <h3 class="panel-title">Next 7 days</h3>
+                                <div class="panel-subtitle">{{ today.strftime('%b %-d') }} to {{ week_end.strftime('%b %-d') }}</div>
                             </div>
 
                             {% if upcoming_events %}
@@ -732,14 +1000,14 @@
                                                 <span class="timeline-name">{{ event.name }}</span>
                                                 <div class="timeline-venue">{{ event.venue_name or banquet_venue_name }}</div>
                                             </td>
-                                            <td class="font-semibold text-slate-900">{{ event.guests or 0 }}</td>
+                                            <td class="font-semibold text-stone-700">{{ event.guests or 0 }}</td>
                                             <td>
                                                 {% if status == 'confirmed' %}
-                                                <span class="glass-pill glass-pill--confirmed"><i></i>Confirmed</span>
+                                                <span class="status-badge status-badge--confirmed">Confirmed</span>
                                                 {% elif status in ('completed', 'executed') %}
-                                                <span class="glass-pill glass-pill--executed"><i></i>Executed</span>
+                                                <span class="status-badge status-badge--executed">Executed</span>
                                                 {% else %}
-                                                <span class="glass-pill glass-pill--planning"><i></i>Planning</span>
+                                                <span class="status-badge status-badge--planning">Planning</span>
                                                 {% endif %}
                                             </td>
                                         </tr>
@@ -749,25 +1017,155 @@
                             </div>
                             {% else %}
                             <div class="empty-state">
-                                <div>
-                                    <h4>No upcoming events</h4>
-                                    <p class="text-sm text-slate-500 mt-1">The next 7 days are clear for {{ banquet_venue_name }}.</p>
-                                </div>
+                                <h4>No upcoming events</h4>
+                                <p>The next 7 days are clear for {{ banquet_venue_name }}.</p>
                             </div>
                             {% endif %}
                         </section>
                     </div>
                 </article>
+
+                <article class="fhq-card section-block">
+                    <div class="section-header">
+                        <div>
+                            <div class="section-label">Tools</div>
+                            <h2 class="section-title">Operations toolkit</h2>
+                        </div>
+                        <div class="section-caption">Compact navigation blocks</div>
+                    </div>
+
+                    <div class="tools-grid">
+                        <a href="{{ url_for('menu_costing') }}" class="tool-tile">
+                            <div>
+                                <div class="tool-kicker"><span>Costing</span><span>Open</span></div>
+                                <h3 class="tool-title">Menu Costing</h3>
+                                <p class="tool-copy">Estimate menu costs against the current ingredient pricing table.</p>
+                            </div>
+                            <div class="tool-footer">
+                                <div>
+                                    <div class="tool-stat fhq-countup" data-count="{{ price_refresh_days }}">{{ price_refresh_days }}</div>
+                                    <div class="tool-meta">day refresh cadence</div>
+                                </div>
+                                <div class="tool-meta">Pricing</div>
+                            </div>
+                        </a>
+
+                        <a href="{{ url_for('menu_rollouts') }}" class="tool-tile">
+                            <div>
+                                <div class="tool-kicker"><span>Planning</span><span>Open</span></div>
+                                <h3 class="tool-title">Menu Rollouts</h3>
+                                <p class="tool-copy">Review saved venue menus organized by quarter and year.</p>
+                            </div>
+                            <div class="tool-footer">
+                                <div>
+                                    <div class="tool-stat fhq-countup" data-count="{{ recent_rollout_count }}">{{ recent_rollout_count }}</div>
+                                    <div class="tool-meta">new in the last 30 days</div>
+                                </div>
+                                <div class="tool-meta">History</div>
+                            </div>
+                        </a>
+
+                        <a href="{{ url_for('recipes') }}" class="tool-tile">
+                            <div>
+                                <div class="tool-kicker"><span>Library</span><span>Open</span></div>
+                                <h3 class="tool-title">Recipes</h3>
+                                <p class="tool-copy">Browse and maintain the production recipe database.</p>
+                            </div>
+                            <div class="tool-footer">
+                                <div>
+                                    <div class="tool-stat fhq-countup" data-count="{{ recipe_count }}">{{ recipe_count }}</div>
+                                    <div class="tool-meta">active recipes</div>
+                                </div>
+                                <div class="tool-meta">Core data</div>
+                            </div>
+                        </a>
+
+                        <a href="{{ url_for('recipe_generator') }}" class="tool-tile">
+                            <div>
+                                <div class="tool-kicker"><span>Output</span><span>Open</span></div>
+                                <h3 class="tool-title">Recipe Generator</h3>
+                                <p class="tool-copy">Generate recipe PDFs and save them back into the database.</p>
+                            </div>
+                            <div class="tool-footer">
+                                <div>
+                                    <div class="tool-stat">PDF</div>
+                                    <div class="tool-meta">export workflow</div>
+                                </div>
+                                <div class="tool-meta">Documents</div>
+                            </div>
+                        </a>
+
+                        <a href="{{ url_for('ingredients') }}" class="tool-tile">
+                            <div>
+                                <div class="tool-kicker"><span>Inventory</span><span>Open</span></div>
+                                <h3 class="tool-title">Ingredients</h3>
+                                <p class="tool-copy">Manage ingredient records, categories, and pricing updates.</p>
+                            </div>
+                            <div class="tool-footer">
+                                <div>
+                                    <div class="tool-stat fhq-countup" data-count="{{ ingredient_count }}">{{ ingredient_count }}</div>
+                                    <div class="tool-meta">tracked ingredients</div>
+                                </div>
+                                <div class="tool-meta">Pricing</div>
+                            </div>
+                        </a>
+
+                        <a href="{{ url_for('banquet_planner') }}" class="tool-tile">
+                            <div>
+                                <div class="tool-kicker"><span>Events</span><span>Open</span></div>
+                                <h3 class="tool-title">Banquet Planner</h3>
+                                <p class="tool-copy">Handle event scheduling, shopping lists, and prep packets.</p>
+                            </div>
+                            <div class="tool-footer">
+                                <div>
+                                    <div class="tool-stat fhq-countup" data-count="{{ today_events|length }}">{{ today_events|length }}</div>
+                                    <div class="tool-meta">events today</div>
+                                </div>
+                                <div class="tool-meta">Service</div>
+                            </div>
+                        </a>
+
+                        <a href="{{ url_for('commissary_planner') }}" class="tool-tile">
+                            <div>
+                                <div class="tool-kicker"><span>Production</span><span>Open</span></div>
+                                <h3 class="tool-title">Commissary Planner</h3>
+                                <p class="tool-copy">Coordinate outlet orders and shared commissary prep runs.</p>
+                            </div>
+                            <div class="tool-footer">
+                                <div>
+                                    <div class="tool-stat fhq-countup" data-count="{{ upcoming_events|length }}">{{ upcoming_events|length }}</div>
+                                    <div class="tool-meta">events queued this week</div>
+                                </div>
+                                <div class="tool-meta">Batching</div>
+                            </div>
+                        </a>
+
+                        <a href="{{ url_for('production_board') }}" target="_blank" rel="noopener" class="tool-tile tool-tile--dark">
+                            <div>
+                                <div class="tool-kicker"><span>Live View</span><span>Launch</span></div>
+                                <h3 class="tool-title">Production Board</h3>
+                                <p class="tool-copy">Keep a read-only service board up on kitchen monitors and iPads.</p>
+                            </div>
+                            <div class="tool-footer">
+                                <div>
+                                    <div class="tool-stat">Live</div>
+                                    <div class="tool-meta">kitchen display mode</div>
+                                </div>
+                                <div class="tool-meta">Monitors</div>
+                            </div>
+                        </a>
+                    </div>
+                </article>
             </div>
 
             <aside class="attention-rail">
-                <article class="bento-card attention-card">
-                    <div class="attention-header">
+                <article class="fhq-card section-block">
+                    <div class="section-header">
                         <div>
                             <div class="section-label">Intelligence Sidebar</div>
-                            <h2 class="text-2xl font-medium text-foxtown-ink mt-2">Needs attention</h2>
+                            <h2 class="section-title">Needs attention</h2>
                         </div>
-                        <div class="text-sm text-slate-500">Live checks</div>
+                        <div class="section-caption">Live checks</div>
                     </div>
 
                     {% if attention_flags %}
@@ -775,9 +1173,9 @@
                         {% for flag in attention_flags %}
                         <a
                             href="{{ flag.href }}"
-                            class="fhq-attention-card fhq-attention-card--{{ flag.tone }} {% if stale_price_count and flag.title == 'Ingredient Price Refresh Needed' %}fhq-attention-card--highlight{% endif %}"
+                            class="attention-card attention-card--{{ flag.tone }} {% if stale_price_count and flag.title == 'Ingredient Price Refresh Needed' %}attention-card--highlight{% endif %}"
                         >
-                            <div class="section-label attention-tone">{{ flag.title }}</div>
+                            <div class="attention-tone">{{ flag.title }}</div>
                             <div class="attention-count fhq-countup" data-count="{{ flag.count_text }}">{{ flag.count_text }}</div>
                             <div class="attention-detail">{{ flag.detail }}</div>
                         </a>
@@ -786,150 +1184,16 @@
                     <div class="attention-footer">Signals are mapped from dashboard tones and update directly from menu coverage and pricing cadence.</div>
                     {% else %}
                     <div class="attention-stack">
-                        <div class="fhq-attention-card">
-                            <div class="section-label attention-tone">System status</div>
+                        <div class="attention-card attention-card--slate">
+                            <div class="attention-tone">System status</div>
                             <div class="attention-count">All clear</div>
                             <div class="attention-detail">No urgent menu coverage or ingredient pricing issues are blocking the next few days.</div>
                         </div>
                     </div>
-                    <div class="attention-footer">This panel will surface missing menu lines and stale ingredient pricing as they appear.</div>
+                    <div class="attention-footer">This panel surfaces missing menu lines and stale ingredient pricing as they appear.</div>
                     {% endif %}
                 </article>
             </aside>
-        </section>
-
-        <section class="mt-5">
-            <article class="bento-card tools-card">
-                <div class="tools-header">
-                    <div>
-                        <div class="section-label">Tools</div>
-                        <h2 class="text-2xl font-medium text-foxtown-ink mt-2">Operations toolkit</h2>
-                    </div>
-                    <div class="text-sm text-slate-500">Compact bento navigation</div>
-                </div>
-
-                <div class="tools-grid">
-                    <a href="{{ url_for('menu_costing') }}" class="tool-tile">
-                        <div>
-                            <div class="tool-kicker"><span>Costing</span><span>Open</span></div>
-                            <h3 class="tool-title">Menu Costing</h3>
-                            <p class="tool-copy">Estimate menu costs against the current ingredient pricing table.</p>
-                        </div>
-                        <div class="tool-footer">
-                            <div>
-                                <div class="tool-stat fhq-countup" data-count="{{ price_refresh_days }}">{{ price_refresh_days }}</div>
-                                <div class="tool-meta">day refresh cadence</div>
-                            </div>
-                            <div class="tool-meta">Pricing</div>
-                        </div>
-                    </a>
-
-                    <a href="{{ url_for('menu_rollouts') }}" class="tool-tile">
-                        <div>
-                            <div class="tool-kicker"><span>Planning</span><span>Open</span></div>
-                            <h3 class="tool-title">Menu Rollouts</h3>
-                            <p class="tool-copy">Review saved venue menus organized by quarter and year.</p>
-                        </div>
-                        <div class="tool-footer">
-                            <div>
-                                <div class="tool-stat fhq-countup" data-count="{{ recent_rollout_count }}">{{ recent_rollout_count }}</div>
-                                <div class="tool-meta">new in the last 30 days</div>
-                            </div>
-                            <div class="tool-meta">History</div>
-                        </div>
-                    </a>
-
-                    <a href="{{ url_for('recipes') }}" class="tool-tile">
-                        <div>
-                            <div class="tool-kicker"><span>Library</span><span>Open</span></div>
-                            <h3 class="tool-title">Recipes</h3>
-                            <p class="tool-copy">Browse and maintain the production recipe database.</p>
-                        </div>
-                        <div class="tool-footer">
-                            <div>
-                                <div class="tool-stat fhq-countup" data-count="{{ recipe_count }}">{{ recipe_count }}</div>
-                                <div class="tool-meta">active recipes</div>
-                            </div>
-                            <div class="tool-meta">Core data</div>
-                        </div>
-                    </a>
-
-                    <a href="{{ url_for('recipe_generator') }}" class="tool-tile">
-                        <div>
-                            <div class="tool-kicker"><span>Output</span><span>Open</span></div>
-                            <h3 class="tool-title">Recipe Generator</h3>
-                            <p class="tool-copy">Generate recipe PDFs and save them back into the database.</p>
-                        </div>
-                        <div class="tool-footer">
-                            <div>
-                                <div class="tool-stat">PDF</div>
-                                <div class="tool-meta">export workflow</div>
-                            </div>
-                            <div class="tool-meta">Documents</div>
-                        </div>
-                    </a>
-
-                    <a href="{{ url_for('ingredients') }}" class="tool-tile">
-                        <div>
-                            <div class="tool-kicker"><span>Inventory</span><span>Open</span></div>
-                            <h3 class="tool-title">Ingredients</h3>
-                            <p class="tool-copy">Manage ingredient records, categories, and pricing updates.</p>
-                        </div>
-                        <div class="tool-footer">
-                            <div>
-                                <div class="tool-stat fhq-countup" data-count="{{ ingredient_count }}">{{ ingredient_count }}</div>
-                                <div class="tool-meta">tracked ingredients</div>
-                            </div>
-                            <div class="tool-meta">Pricing</div>
-                        </div>
-                    </a>
-
-                    <a href="{{ url_for('banquet_planner') }}" class="tool-tile">
-                        <div>
-                            <div class="tool-kicker"><span>Events</span><span>Open</span></div>
-                            <h3 class="tool-title">Banquet Planner</h3>
-                            <p class="tool-copy">Handle event scheduling, shopping lists, and prep packets.</p>
-                        </div>
-                        <div class="tool-footer">
-                            <div>
-                                <div class="tool-stat fhq-countup" data-count="{{ today_events|length }}">{{ today_events|length }}</div>
-                                <div class="tool-meta">events today</div>
-                            </div>
-                            <div class="tool-meta">Service</div>
-                        </div>
-                    </a>
-
-                    <a href="{{ url_for('commissary_planner') }}" class="tool-tile">
-                        <div>
-                            <div class="tool-kicker"><span>Production</span><span>Open</span></div>
-                            <h3 class="tool-title">Commissary Planner</h3>
-                            <p class="tool-copy">Coordinate outlet orders and shared commissary prep runs.</p>
-                        </div>
-                        <div class="tool-footer">
-                            <div>
-                                <div class="tool-stat fhq-countup" data-count="{{ upcoming_events|length }}">{{ upcoming_events|length }}</div>
-                                <div class="tool-meta">events queued this week</div>
-                            </div>
-                            <div class="tool-meta">Batching</div>
-                        </div>
-                    </a>
-
-                    <a href="{{ url_for('production_board') }}" target="_blank" rel="noopener" class="tool-tile tool-tile--dark">
-                        <div>
-                            <div class="tool-kicker"><span>Live View</span><span>Launch</span></div>
-                            <h3 class="tool-title">Production Board</h3>
-                            <p class="tool-copy">Keep a read-only service board up on kitchen monitors and iPads.</p>
-                        </div>
-                        <div class="tool-footer">
-                            <div>
-                                <div class="tool-stat">Live</div>
-                                <div class="tool-meta">kitchen display mode</div>
-                            </div>
-                            <div class="tool-meta">Monitors</div>
-                        </div>
-                    </a>
-                </div>
-            </article>
         </section>
     </div>
 </div>

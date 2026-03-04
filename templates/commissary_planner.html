@@ -3,18 +3,251 @@
 
 {% block title %}Commissary Planner - Foxtown HQ{% endblock %}
 
+{% block extra_head %}
+<style>
+    .comm-shell {
+        padding-bottom: 3.5rem;
+    }
+
+    .comm-panel {
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(15, 17, 21, 0.86);
+        box-shadow: 0 0 36px -14px rgba(247, 147, 26, 0.24);
+    }
+
+    .comm-controls {
+        display: grid;
+        gap: 0.75rem;
+        grid-template-columns: repeat(1, minmax(0, 1fr));
+    }
+
+    @media (min-width: 1024px) {
+        .comm-controls {
+            grid-template-columns: minmax(0, 1.3fr) repeat(3, minmax(0, 1fr)) auto;
+            align-items: end;
+        }
+    }
+
+    .comm-label {
+        display: block;
+        margin-bottom: 0.35rem;
+        font-size: 0.67rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #94A3B8;
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    }
+
+    .comm-field {
+        width: 100%;
+        min-height: 46px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 10px;
+        background: rgba(3, 3, 4, 0.6);
+        color: #fff;
+        padding: 0.6rem 0.8rem;
+        transition: all 0.2s ease;
+    }
+
+    .comm-field:focus {
+        outline: none;
+        border-color: rgba(247, 147, 26, 0.7);
+        box-shadow: 0 0 20px -10px rgba(247, 147, 26, 0.52);
+    }
+
+    .metrics-grid {
+        display: grid;
+        gap: 0.75rem;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    @media (min-width: 900px) {
+        .metrics-grid {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+    }
+
+    .metric-card {
+        border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(15, 17, 21, 0.82);
+        padding: 0.9rem;
+    }
+
+    .metric-label {
+        font-size: 0.66rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: #94A3B8;
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    }
+
+    .metric-value {
+        margin-top: 0.34rem;
+        color: #fff;
+        font-size: 1.55rem;
+        line-height: 1;
+        letter-spacing: -0.04em;
+        font-family: 'Space Grotesk', Inter, sans-serif;
+    }
+
+    .summary-grid {
+        display: grid;
+        gap: 0.75rem;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .summary-card {
+        border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(0, 0, 0, 0.4);
+        padding: 0.9rem;
+    }
+
+    .exports-box {
+        border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(15, 17, 21, 0.8);
+        padding: 1rem;
+    }
+
+    .section-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.8rem;
+        margin-bottom: 0.9rem;
+    }
+
+    .section-title {
+        color: #fff;
+        font-size: 1.4rem;
+        letter-spacing: -0.03em;
+        font-family: 'Space Grotesk', Inter, sans-serif;
+    }
+
+    .table-wrap {
+        overflow-x: auto;
+    }
+
+    .comm-table {
+        width: 100%;
+        min-width: 760px;
+        border-collapse: collapse;
+    }
+
+    .comm-table th {
+        text-align: left;
+        font-size: 0.67rem;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
+        color: #94A3B8;
+        padding: 0.72rem 0.8rem;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.24);
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    }
+
+    .comm-table td {
+        padding: 0.78rem 0.8rem;
+        border-top: 1px solid rgba(148, 163, 184, 0.2);
+        color: #cbd5e1;
+        font-size: 0.88rem;
+    }
+
+    .comm-table tbody tr {
+        transition: background-color 0.2s ease;
+    }
+
+    .comm-table tbody tr:hover {
+        background: rgba(247, 147, 26, 0.08);
+    }
+
+    .entry-title {
+        color: #fff;
+        font-weight: 600;
+    }
+
+    .status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        border-radius: 999px;
+        padding: 0.22rem 0.55rem;
+        font-size: 0.68rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        border: 1px solid transparent;
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    }
+
+    .status-pill::before {
+        content: "";
+        width: 0.38rem;
+        height: 0.38rem;
+        border-radius: 999px;
+        background: currentColor;
+    }
+
+    .status-pill--completed {
+        color: #22d3ee;
+        background: rgba(34, 211, 238, 0.12);
+        border-color: rgba(34, 211, 238, 0.45);
+    }
+
+    .status-pill--production {
+        color: #a78bfa;
+        background: rgba(167, 139, 250, 0.14);
+        border-color: rgba(167, 139, 250, 0.45);
+    }
+
+    .status-pill--confirmed {
+        color: #FFD600;
+        background: rgba(255, 214, 0, 0.12);
+        border-color: rgba(255, 214, 0, 0.4);
+    }
+
+    .status-pill--cancelled {
+        color: #f87171;
+        background: rgba(248, 113, 113, 0.14);
+        border-color: rgba(248, 113, 113, 0.42);
+    }
+
+    .status-pill--default {
+        color: #94A3B8;
+        background: rgba(148, 163, 184, 0.14);
+        border-color: rgba(148, 163, 184, 0.4);
+    }
+
+    .link-accent {
+        color: #F7931A;
+        font-size: 0.84rem;
+        font-weight: 600;
+    }
+
+    .link-accent:hover {
+        color: #FFD600;
+    }
+
+    .empty-note {
+        color: #94A3B8;
+        font-size: 0.9rem;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="min-h-screen">
     {% call page_nav('Commissary Planner', 'Order entry and production packet for batch items.', url_for('dashboard')) %}
-    <a href="{{ url_for('commissary_order_new') }}" class="bg-foxtown-ember hover:bg-orange-700 text-white px-4 py-2 rounded-xl font-semibold">+ New Order</a>
+    <a href="{{ url_for('commissary_order_new') }}" class="fhq-btn fhq-btn--primary" data-shortcut="new">+ New Order</a>
     {% endcall %}
 
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-5">
-            <form method="GET" class="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
-                <div class="md:col-span-2">
-                    <label class="block text-sm font-medium text-stone-700 mb-1">Outlet</label>
-                    <select name="outlet" class="w-full px-4 py-3 border border-stone-300 rounded-xl">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4 comm-shell fhq-fade">
+        <section class="comm-panel p-4">
+            <form method="GET" class="comm-controls">
+                <div>
+                    <label class="comm-label">Outlet</label>
+                    <select name="outlet" class="comm-field">
                         <option value="">All Outlets</option>
                         {% for outlet in outlet_options %}
                         <option value="{{ outlet }}" {% if selected_outlet == outlet %}selected{% endif %}>{{ outlet }}</option>
@@ -22,16 +255,16 @@
                     </select>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-stone-700 mb-1">Start</label>
-                    <input type="date" name="start_date" value="{{ start_date }}" class="w-full px-4 py-3 border border-stone-300 rounded-xl">
+                    <label class="comm-label">Start</label>
+                    <input type="date" name="start_date" value="{{ start_date }}" class="comm-field">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-stone-700 mb-1">End</label>
-                    <input type="date" name="end_date" value="{{ end_date }}" class="w-full px-4 py-3 border border-stone-300 rounded-xl">
+                    <label class="comm-label">End</label>
+                    <input type="date" name="end_date" value="{{ end_date }}" class="comm-field">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-stone-700 mb-1">Units</label>
-                    <select name="units" class="w-full px-4 py-3 border border-stone-300 rounded-xl">
+                    <label class="comm-label">Units</label>
+                    <select name="units" class="comm-field">
                         <option value="auto" {% if selected_units == 'auto' %}selected{% endif %}>Auto</option>
                         <option value="imperial" {% if selected_units == 'imperial' %}selected{% endif %}>Imperial</option>
                         <option value="metric" {% if selected_units == 'metric' %}selected{% endif %}>Metric</option>
@@ -39,96 +272,96 @@
                     </select>
                 </div>
                 <div class="flex gap-2">
-                    <button type="submit" class="bg-foxtown-ember hover:bg-orange-700 text-white px-5 py-3 rounded-xl font-semibold transition">Apply</button>
-                    <a href="{{ url_for('commissary_planner') }}" class="px-5 py-3 rounded-xl border border-stone-300 text-stone-700 hover:bg-stone-50">Reset</a>
+                    <button type="submit" class="fhq-btn fhq-btn--primary w-full">Apply</button>
+                    <a href="{{ url_for('commissary_planner') }}" class="fhq-btn fhq-btn--outline w-full text-center">Reset</a>
                 </div>
             </form>
-        </div>
+        </section>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-            <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-5">
-                <div class="text-xs uppercase tracking-widest text-stone-500 mb-1">Orders In Window</div>
-                <div class="text-3xl font-semibold text-foxtown-ink fhq-countup" data-count="{{ datasets.order_count }}">{{ datasets.order_count }}</div>
+        <section class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-label">Orders In Window</div>
+                <div class="metric-value fhq-countup" data-count="{{ datasets.order_count }}">{{ datasets.order_count }}</div>
             </div>
-            <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-5">
-                <div class="text-xs uppercase tracking-widest text-stone-500 mb-1">Order Lines</div>
-                <div class="text-3xl font-semibold text-foxtown-ink fhq-countup" data-count="{{ datasets.line_count }}">{{ datasets.line_count }}</div>
+            <div class="metric-card">
+                <div class="metric-label">Order Lines</div>
+                <div class="metric-value fhq-countup" data-count="{{ datasets.line_count }}">{{ datasets.line_count }}</div>
             </div>
-            <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-5">
-                <div class="text-xs uppercase tracking-widest text-stone-500 mb-1">Shopping Ingredients</div>
-                <div class="text-3xl font-semibold text-foxtown-ink fhq-countup" data-count="{{ datasets.shopping_ingredients|length }}">{{ datasets.shopping_ingredients|length }}</div>
+            <div class="metric-card">
+                <div class="metric-label">Shopping Ingredients</div>
+                <div class="metric-value fhq-countup" data-count="{{ datasets.shopping_ingredients|length }}">{{ datasets.shopping_ingredients|length }}</div>
             </div>
-            <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-5">
-                <div class="text-xs uppercase tracking-widest text-stone-500 mb-1">Production Cards</div>
-                <div class="text-3xl font-semibold text-foxtown-ink fhq-countup" data-count="{{ datasets.weekly_prep|length }}">{{ datasets.weekly_prep|length }}</div>
+            <div class="metric-card">
+                <div class="metric-label">Production Cards</div>
+                <div class="metric-value fhq-countup" data-count="{{ datasets.weekly_prep|length }}">{{ datasets.weekly_prep|length }}</div>
             </div>
-        </div>
+        </section>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-5">
-                <div class="text-xs uppercase tracking-widest text-stone-500 mb-1">Open Orders</div>
-                <div class="text-3xl font-semibold text-foxtown-ink fhq-countup" data-count="{{ metrics.open_orders }}">{{ metrics.open_orders }}</div>
+        <section class="summary-grid">
+            <div class="summary-card">
+                <div class="metric-label">Open Orders</div>
+                <div class="metric-value fhq-countup" data-count="{{ metrics.open_orders }}">{{ metrics.open_orders }}</div>
             </div>
-            <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-5">
-                <div class="text-xs uppercase tracking-widest text-stone-500 mb-1">Completed Orders</div>
-                <div class="text-3xl font-semibold text-foxtown-ink fhq-countup" data-count="{{ metrics.completed_orders }}">{{ metrics.completed_orders }}</div>
+            <div class="summary-card">
+                <div class="metric-label">Completed Orders</div>
+                <div class="metric-value fhq-countup" data-count="{{ metrics.completed_orders }}">{{ metrics.completed_orders }}</div>
             </div>
-        </div>
+        </section>
 
-        <div class="bg-white rounded-2xl border border-stone-200 p-5 shadow-soft">
-            <h2 class="text-lg font-display text-foxtown-ink">Exports</h2>
-            <div class="mt-3 space-y-2 text-sm">
-                <a href="{{ url_for('commissary_packet_print', outlet=selected_outlet, start_date=start_date, end_date=end_date, include_shopping=1, units=selected_units) }}" target="_blank" class="block text-foxtown-ember hover:text-orange-700 font-semibold">Print / Save Production Packet</a>
+        <section class="exports-box">
+            <h2 class="section-title text-lg">Exports</h2>
+            <div class="mt-2 text-sm">
+                <a href="{{ url_for('commissary_packet_print', outlet=selected_outlet, start_date=start_date, end_date=end_date, include_shopping=1, units=selected_units) }}" target="_blank" class="link-accent">Print / Save Production Packet</a>
             </div>
-        </div>
+        </section>
 
-        <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-6">
-            <div class="flex items-center justify-between mb-4">
-                <h2 class="text-xl font-display text-foxtown-ink">Orders In Range</h2>
-                <a href="{{ url_for('commissary_order_new') }}" class="text-sm text-foxtown-ember font-semibold hover:text-orange-700">+ New Order</a>
+        <section class="comm-panel p-5">
+            <div class="section-head">
+                <h2 class="section-title">Orders In Range</h2>
+                <a href="{{ url_for('commissary_order_new') }}" class="link-accent">+ New Order</a>
             </div>
             {% if orders %}
-            <div class="overflow-x-auto">
-                <table class="min-w-full text-sm">
-                    <thead class="text-xs uppercase text-stone-500 border-b border-stone-200">
+            <div class="table-wrap">
+                <table class="comm-table">
+                    <thead>
                         <tr>
-                            <th class="text-left py-2 pr-3">Needed Date</th>
-                            <th class="text-left py-2 pr-3">Outlet</th>
-                            <th class="text-left py-2 pr-3">Status</th>
-                            <th class="text-left py-2 pr-3">Lines</th>
-                            <th class="text-left py-2">Action</th>
+                            <th>Needed Date</th>
+                            <th>Outlet</th>
+                            <th>Status</th>
+                            <th>Lines</th>
+                            <th>Action</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-stone-100">
+                    <tbody>
                         {% for order in orders %}
-                        <tr class="cursor-pointer hover:bg-stone-50/70 transition" onclick="if (!event.target.closest('a,button,input,select,textarea,form,label')) { window.location='{{ url_for('commissary_order_edit', order_id=order.id) }}'; }">
-                            <td class="py-2 pr-3">{{ order.needed_date }}</td>
-                            <td class="py-2 pr-3 font-medium text-foxtown-ink">{{ order.outlet }}</td>
-                            <td class="py-2 pr-3">
-                                {% set status = (order.status or 'pending')|lower %}
+                        {% set status = (order.status or 'pending')|lower %}
+                        <tr class="cursor-pointer" onclick="if (!event.target.closest('a,button,input,select,textarea,form,label')) { window.location='{{ url_for('commissary_order_edit', order_id=order.id) }}'; }">
+                            <td>{{ order.needed_date }}</td>
+                            <td><span class="entry-title">{{ order.outlet }}</span></td>
+                            <td>
                                 {% if status == 'completed' %}
-                                <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">Completed</span>
+                                <span class="status-pill status-pill--completed">Completed</span>
                                 {% elif status == 'in_production' %}
-                                <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">In Production</span>
+                                <span class="status-pill status-pill--production">In Production</span>
                                 {% elif status == 'confirmed' %}
-                                <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">Confirmed</span>
+                                <span class="status-pill status-pill--confirmed">Confirmed</span>
                                 {% elif status == 'cancelled' %}
-                                <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">Cancelled</span>
+                                <span class="status-pill status-pill--cancelled">Cancelled</span>
                                 {% else %}
-                                <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">Pending</span>
+                                <span class="status-pill status-pill--default">Pending</span>
                                 {% endif %}
                             </td>
-                            <td class="py-2 pr-3">{{ order.line_count }}</td>
-                            <td class="py-2"><a href="{{ url_for('commissary_order_edit', order_id=order.id) }}" class="text-foxtown-ember hover:text-orange-700 font-semibold">Edit</a></td>
+                            <td>{{ order.line_count }}</td>
+                            <td><a href="{{ url_for('commissary_order_edit', order_id=order.id) }}" class="link-accent">Edit</a></td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
             {% else %}
-            <p class="text-sm text-stone-500">No commissary orders in the selected window.</p>
+            <p class="empty-note">No commissary orders in the selected window.</p>
             {% endif %}
-        </div>
+        </section>
     </div>
 </div>
 {% endblock %}

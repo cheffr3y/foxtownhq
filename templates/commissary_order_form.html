@@ -1,34 +1,155 @@
 {% extends "base.html" %}
+{% from "base.html" import page_nav %}
 
 {% block title %}{{ page_title }} - Foxtown HQ{% endblock %}
 
+{% block extra_head %}
+<style>
+    .order-shell {
+        padding-bottom: 3.5rem;
+    }
+
+    .order-panel {
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.11);
+        background: rgba(15, 17, 21, 0.86);
+        box-shadow: 0 0 36px -14px rgba(247, 147, 26, 0.24);
+    }
+
+    .field-grid {
+        display: grid;
+        gap: 0.75rem;
+        grid-template-columns: repeat(1, minmax(0, 1fr));
+    }
+
+    @media (min-width: 900px) {
+        .field-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+    }
+
+    .field-label {
+        display: block;
+        margin-bottom: 0.35rem;
+        font-size: 0.67rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #94A3B8;
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    }
+
+    .field {
+        width: 100%;
+        min-height: 46px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 10px;
+        background: rgba(3, 3, 4, 0.6);
+        color: #fff;
+        padding: 0.6rem 0.8rem;
+        transition: all 0.2s ease;
+    }
+
+    .field:focus {
+        outline: none;
+        border-color: rgba(247, 147, 26, 0.7);
+        box-shadow: 0 0 20px -10px rgba(247, 147, 26, 0.52);
+    }
+
+    .field::placeholder {
+        color: rgba(255, 255, 255, 0.35);
+    }
+
+    .section-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.8rem;
+        margin-bottom: 0.9rem;
+    }
+
+    .section-title {
+        color: #fff;
+        font-size: 1.38rem;
+        letter-spacing: -0.03em;
+        font-family: 'Space Grotesk', Inter, sans-serif;
+    }
+
+    .section-copy {
+        margin-top: 0.25rem;
+        color: #94A3B8;
+        font-size: 0.86rem;
+    }
+
+    .table-wrap {
+        overflow-x: auto;
+    }
+
+    .lines-table {
+        width: 100%;
+        min-width: 1120px;
+        border-collapse: collapse;
+    }
+
+    .lines-table th {
+        text-align: left;
+        font-size: 0.67rem;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
+        color: #94A3B8;
+        padding: 0.7rem 0.7rem;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.24);
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    }
+
+    .lines-table td {
+        padding: 0.72rem 0.7rem;
+        border-top: 1px solid rgba(148, 163, 184, 0.2);
+        color: #cbd5e1;
+        font-size: 0.86rem;
+        vertical-align: top;
+    }
+
+    .remove-btn {
+        color: #fda4af;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+
+    .remove-btn:hover {
+        color: #f43f5e;
+    }
+
+    .delete-order {
+        min-height: 42px;
+        border-radius: 999px;
+        border: 1px solid rgba(248, 113, 113, 0.7);
+        background: rgba(239, 68, 68, 0.22);
+        color: #fecaca;
+        padding: 0.5rem 0.95rem;
+        font-weight: 600;
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+    }
+
+    .delete-order:hover {
+        background: rgba(239, 68, 68, 0.34);
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="min-h-screen">
-    <nav class="bg-foxtown-charcoal text-white border-b border-slate-800/60">
-        <div class="max-w-[96rem] mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between py-4">
-                <div class="flex items-center space-x-3">
-                    <a href="{{ url_for('commissary_planner') }}" class="text-amber-200 hover:text-white" aria-label="Back">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-                        </svg>
-                    </a>
-                    <div>
-                        <h1 class="text-2xl font-display tracking-tight">{{ page_title }}</h1>
-                        <p class="text-sm text-stone-200">Enter outlet requests for commissary production using existing recipes.</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </nav>
+    {% call page_nav(page_title, 'Enter outlet requests for commissary production using existing recipes.', url_for('commissary_planner')) %}
+    {% endcall %}
 
-    <form method="POST" class="max-w-[96rem] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-6">
-            <h2 class="text-xl font-display text-foxtown-ink mb-4">Order Details</h2>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <form method="POST" class="max-w-[96rem] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4 order-shell fhq-fade">
+        <section class="order-panel p-5">
+            <h2 class="section-title text-lg mb-4">Order Details</h2>
+            <div class="field-grid">
                 <div>
-                    <label class="block text-sm font-medium text-stone-700 mb-1">Outlet</label>
-                    <input list="outletOptions" name="outlet" value="{{ order.outlet or '' }}" class="w-full px-4 py-3 border border-stone-300 rounded-xl" required>
+                    <label class="field-label">Outlet</label>
+                    <input list="outletOptions" name="outlet" value="{{ order.outlet or '' }}" class="field" required>
                     <datalist id="outletOptions">
                         {% for outlet in outlet_options %}
                         <option value="{{ outlet }}"></option>
@@ -36,46 +157,49 @@
                     </datalist>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-stone-700 mb-1">Needed Date</label>
-                    <input type="date" name="needed_date" value="{{ order.needed_date or '' }}" class="w-full px-4 py-3 border border-stone-300 rounded-xl" required>
+                    <label class="field-label">Needed Date</label>
+                    <input type="date" name="needed_date" value="{{ order.needed_date or '' }}" class="field" required>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-stone-700 mb-1">Status</label>
-                    <select name="status" class="w-full px-4 py-3 border border-stone-300 rounded-xl">
+                    <label class="field-label">Status</label>
+                    <select name="status" class="field">
                         {% for value, label in status_options %}
                         <option value="{{ value }}" {% if (order.status or 'pending') == value %}selected{% endif %}>{{ label }}</option>
                         {% endfor %}
                     </select>
                 </div>
                 <div class="md:col-span-3">
-                    <label class="block text-sm font-medium text-stone-700 mb-1">Notes</label>
-                    <textarea name="notes" rows="3" class="w-full px-4 py-3 border border-stone-300 rounded-xl">{{ order.notes or '' }}</textarea>
+                    <label class="field-label">Notes</label>
+                    <textarea name="notes" rows="3" class="field">{{ order.notes or '' }}</textarea>
                 </div>
             </div>
-        </div>
+        </section>
 
-        <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-6">
-            <div class="flex items-center justify-between mb-4">
-                <h2 class="text-xl font-display text-foxtown-ink">Order Items</h2>
-                <button type="button" id="addLineBtn" class="text-foxtown-ember font-semibold hover:text-orange-700">+ Add line</button>
+        <section class="order-panel p-5">
+            <div class="section-head">
+                <div>
+                    <h2 class="section-title">Order Items</h2>
+                    <p class="section-copy">Search recipes from your DB, set requested output quantity, and add line notes.</p>
+                </div>
+                <button type="button" id="addLineBtn" class="fhq-btn fhq-btn--outline">+ Add line</button>
             </div>
-            <p class="text-sm text-stone-500 mb-4">Search recipes from your DB, set requested output quantity, and add any line notes.</p>
-            <div class="overflow-x-auto">
-                <table class="min-w-[1120px] w-full text-sm" id="linesTable">
-                    <thead class="text-xs uppercase text-stone-500 border-b border-stone-200">
+
+            <div class="table-wrap">
+                <table class="lines-table" id="linesTable">
+                    <thead>
                         <tr>
-                            <th class="text-left py-2 pr-2 min-w-[320px]">Recipe</th>
-                            <th class="text-left py-2 pr-2 min-w-[260px]">Item Name Override</th>
-                            <th class="text-left py-2 pr-2 min-w-[120px]">Qty</th>
-                            <th class="text-left py-2 pr-2 min-w-[110px]">Unit</th>
-                            <th class="text-left py-2 pr-2 min-w-[220px]">Notes</th>
-                            <th class="text-left py-2 pr-2 min-w-[100px]">Action</th>
+                            <th class="min-w-[320px]">Recipe</th>
+                            <th class="min-w-[260px]">Item Name Override</th>
+                            <th class="min-w-[120px]">Qty</th>
+                            <th class="min-w-[110px]">Unit</th>
+                            <th class="min-w-[220px]">Notes</th>
+                            <th class="min-w-[100px]">Action</th>
                         </tr>
                     </thead>
-                    <tbody id="lineRows" class="divide-y divide-stone-100">
+                    <tbody id="lineRows">
                         {% for line in lines %}
                         <tr>
-                            <td class="py-2 pr-2">
+                            <td>
                                 <input type="hidden" name="line_id[]" value="{{ line.line_id or line.id or '' }}">
                                 {% set selected_recipe = (recipe_options|selectattr('id', 'equalto', line.recipe_id)|list|first) %}
                                 <input type="hidden" name="line_recipe_id[]" data-role="recipe-id" value="{{ line.recipe_id or '' }}">
@@ -84,43 +208,43 @@
                                     data-role="recipe-search"
                                     list="recipeSearchOptions"
                                     value="{{ selected_recipe.display_label if selected_recipe else (line.recipe_name or '') }}"
-                                    class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm"
+                                    class="field"
                                     placeholder="Search recipe..."
                                 >
                             </td>
-                            <td class="py-2 pr-2">
-                                <input name="line_item_name[]" data-role="item-name" value="{{ line.item_name or line.recipe_name or '' }}" class="w-full px-3 py-2 border border-stone-300 rounded-lg" placeholder="Defaults to recipe name">
+                            <td>
+                                <input name="line_item_name[]" data-role="item-name" value="{{ line.item_name or line.recipe_name or '' }}" class="field" placeholder="Defaults to recipe name">
                             </td>
-                            <td class="py-2 pr-2"><input type="number" step="0.01" min="0" name="line_qty[]" value="{{ line.quantity or '' }}" class="w-full px-3 py-2 border border-stone-300 rounded-lg"></td>
-                            <td class="py-2 pr-2"><input name="line_unit[]" data-role="line-unit" value="{{ line.quantity_unit or line.yield_unit or 'each' }}" class="w-full px-3 py-2 border border-stone-300 rounded-lg"></td>
-                            <td class="py-2 pr-2"><input name="line_notes[]" value="{{ line.notes or line.line_notes or '' }}" class="w-full px-3 py-2 border border-stone-300 rounded-lg" placeholder="Pack size, delivery notes"></td>
-                            <td class="py-2 pr-2"><button type="button" class="removeRow text-red-600 hover:text-red-800 font-semibold">Remove</button></td>
+                            <td><input type="number" step="0.01" min="0" name="line_qty[]" value="{{ line.quantity or '' }}" class="field"></td>
+                            <td><input name="line_unit[]" data-role="line-unit" value="{{ line.quantity_unit or line.yield_unit or 'each' }}" class="field"></td>
+                            <td><input name="line_notes[]" value="{{ line.notes or line.line_notes or '' }}" class="field" placeholder="Pack size, delivery notes"></td>
+                            <td><button type="button" class="removeRow remove-btn">Remove</button></td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
             {% if not lines %}
-            <p class="text-sm text-stone-500 mt-4">Start by adding at least one line item.</p>
+            <p class="section-copy mt-3">Start by adding at least one line item.</p>
             {% endif %}
-        </div>
+        </section>
 
         <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2">
+            <div>
                 {% if order.id %}
                 <button
                     type="submit"
                     form="deleteOrderForm"
                     onclick="return confirm('Delete this commissary order? This cannot be undone.');"
-                    class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl font-semibold"
+                    class="delete-order"
                 >
                     Delete Order
                 </button>
                 {% endif %}
             </div>
             <div class="flex items-center gap-3">
-                <a href="{{ url_for('commissary_planner') }}" class="px-5 py-3 rounded-xl border border-stone-300 text-stone-700 hover:bg-stone-50">Cancel</a>
-                <button type="submit" class="bg-foxtown-ember hover:bg-orange-700 text-white px-5 py-3 rounded-xl font-semibold" data-loading-text="Saving...">Save Order</button>
+                <a href="{{ url_for('commissary_planner') }}" class="fhq-btn fhq-btn--outline">Cancel</a>
+                <button type="submit" class="fhq-btn fhq-btn--primary" data-loading-text="Saving...">Save Order</button>
             </div>
         </div>
     </form>
@@ -132,22 +256,22 @@
 
 <template id="lineRowTemplate">
 <tr>
-    <td class="py-2 pr-2">
+    <td>
         <input type="hidden" name="line_id[]" value="">
         <input type="hidden" name="line_recipe_id[]" data-role="recipe-id" value="">
         <input
             type="text"
             data-role="recipe-search"
             list="recipeSearchOptions"
-            class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm"
+            class="field"
             placeholder="Search recipe..."
         >
     </td>
-    <td class="py-2 pr-2"><input name="line_item_name[]" data-role="item-name" class="w-full px-3 py-2 border border-stone-300 rounded-lg" placeholder="Defaults to recipe name"></td>
-    <td class="py-2 pr-2"><input type="number" step="0.01" min="0" name="line_qty[]" value="1" class="w-full px-3 py-2 border border-stone-300 rounded-lg"></td>
-    <td class="py-2 pr-2"><input name="line_unit[]" data-role="line-unit" value="each" class="w-full px-3 py-2 border border-stone-300 rounded-lg"></td>
-    <td class="py-2 pr-2"><input name="line_notes[]" class="w-full px-3 py-2 border border-stone-300 rounded-lg" placeholder="Pack size, delivery notes"></td>
-    <td class="py-2 pr-2"><button type="button" class="removeRow text-red-600 hover:text-red-800 font-semibold">Remove</button></td>
+    <td><input name="line_item_name[]" data-role="item-name" class="field" placeholder="Defaults to recipe name"></td>
+    <td><input type="number" step="0.01" min="0" name="line_qty[]" value="1" class="field"></td>
+    <td><input name="line_unit[]" data-role="line-unit" value="each" class="field"></td>
+    <td><input name="line_notes[]" class="field" placeholder="Pack size, delivery notes"></td>
+    <td><button type="button" class="removeRow remove-btn">Remove</button></td>
 </tr>
 </template>
 

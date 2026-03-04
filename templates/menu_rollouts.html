@@ -3,51 +3,177 @@
 
 {% block title %}Menu Rollouts - Foxtown HQ{% endblock %}
 
+{% block extra_head %}
+<style>
+    .roll-shell {
+        padding-bottom: 3.5rem;
+    }
+
+    .roll-grid {
+        display: grid;
+        gap: 0.85rem;
+        grid-template-columns: repeat(1, minmax(0, 1fr));
+    }
+
+    @media (min-width: 768px) {
+        .roll-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (min-width: 1280px) {
+        .roll-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+    }
+
+    .roll-card {
+        position: relative;
+        overflow: hidden;
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.11);
+        background: rgba(15, 17, 21, 0.84);
+        box-shadow: 0 0 34px -14px rgba(247, 147, 26, 0.24);
+        transition: all 0.24s ease;
+    }
+
+    .roll-card::after {
+        content: "";
+        position: absolute;
+        right: -34px;
+        bottom: -40px;
+        width: 140px;
+        height: 140px;
+        border-radius: 24px;
+        transform: rotate(18deg);
+        background: radial-gradient(circle at center, rgba(247, 147, 26, 0.18), transparent 68%);
+        opacity: 0.2;
+        transition: opacity 0.2s ease;
+    }
+
+    .roll-card:hover {
+        transform: translateY(-2px);
+        border-color: rgba(247, 147, 26, 0.52);
+        box-shadow: 0 0 30px -11px rgba(247, 147, 26, 0.4);
+    }
+
+    .roll-card:hover::after {
+        opacity: 0.75;
+    }
+
+    .roll-kicker {
+        font-size: 0.67rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #94A3B8;
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    }
+
+    .roll-title {
+        margin-top: 0.35rem;
+        color: #fff;
+        font-size: 1.12rem;
+        line-height: 1.2;
+        font-family: 'Space Grotesk', Inter, sans-serif;
+        transition: color 0.2s ease;
+    }
+
+    .roll-card:hover .roll-title {
+        color: #FFD600;
+    }
+
+    .roll-chip {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.45);
+        background: rgba(148, 163, 184, 0.14);
+        padding: 0.22rem 0.55rem;
+        font-size: 0.68rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #cbd5e1;
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    }
+
+    .roll-meta {
+        margin-top: 0.95rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.8rem;
+        color: #94A3B8;
+        font-size: 0.86rem;
+    }
+
+    .roll-open {
+        color: #F7931A;
+        font-weight: 600;
+    }
+
+    .roll-open:hover {
+        color: #FFD600;
+    }
+
+    .empty-card {
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.11);
+        background: rgba(15, 17, 21, 0.86);
+        box-shadow: 0 0 36px -14px rgba(247, 147, 26, 0.24);
+        padding: 2.5rem 1.6rem;
+        text-align: center;
+    }
+
+    .empty-title {
+        color: #fff;
+        font-size: 1.5rem;
+        font-family: 'Space Grotesk', Inter, sans-serif;
+    }
+
+    .empty-copy {
+        margin-top: 0.4rem;
+        color: #94A3B8;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="min-h-screen">
     {% call page_nav('Menu Rollouts', 'Containers for each venue menu by quarter and year.', url_for('dashboard')) %}
-    <a href="{{ url_for('menu_costing') }}" class="text-sm text-stone-200 hover:text-white">One-off Costing</a>
-    <a href="{{ url_for('menu_rollout_new') }}" class="bg-foxtown-ember hover:bg-orange-700 text-white px-4 py-2 rounded-xl font-semibold transition duration-200 shadow-soft hover:shadow-lift">
-        + New Rollout
-    </a>
+    <a href="{{ url_for('menu_costing') }}" class="fhq-btn fhq-btn--outline">One-off Costing</a>
+    <a href="{{ url_for('menu_rollout_new') }}" class="fhq-btn fhq-btn--primary" data-shortcut="new">+ New Rollout</a>
     {% endcall %}
 
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 roll-shell fhq-fade">
         {% if rollouts %}
-        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        <div class="roll-grid">
             {% for rollout in rollouts %}
-            <a href="{{ url_for('menu_rollout_edit', rollout_id=rollout.id) }}" class="group bg-white border border-stone-200 rounded-2xl shadow-soft hover:shadow-lift transition overflow-hidden">
-                <div class="p-6">
-                    <div class="flex items-start justify-between">
-                        <div>
-                            <div class="text-xs uppercase tracking-wide text-stone-400">{{ rollout.venue or 'Venue' }}</div>
-                            <h2 class="text-lg font-display text-foxtown-ink mt-1 group-hover:text-foxtown-ember">
-                                {{ rollout.name or 'Untitled Menu' }}
-                            </h2>
-                        </div>
-                        <span class="text-xs bg-stone-100 text-stone-500 px-2 py-1 rounded-full">
-                            {% if rollout.quarter or rollout.year %}
-                                {{ rollout.quarter or '' }} {{ rollout.year or '' }}
-                            {% else %}
-                                Draft
-                            {% endif %}
-                        </span>
+            <a href="{{ url_for('menu_rollout_edit', rollout_id=rollout.id) }}" class="roll-card block p-5">
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                        <div class="roll-kicker">{{ rollout.venue or 'Venue' }}</div>
+                        <h2 class="roll-title">{{ rollout.name or 'Untitled Menu' }}</h2>
                     </div>
-                    <div class="mt-4 flex items-center justify-between text-sm text-stone-500">
-                        <div>{{ rollout.item_count or 0 }} recipes</div>
-                        <div class="text-foxtown-ember font-semibold">Open →</div>
-                    </div>
+                    <span class="roll-chip">
+                        {% if rollout.quarter or rollout.year %}
+                            {{ rollout.quarter or '' }} {{ rollout.year or '' }}
+                        {% else %}
+                            Draft
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="roll-meta">
+                    <div>{{ rollout.item_count or 0 }} recipes</div>
+                    <div class="roll-open">Open</div>
                 </div>
             </a>
             {% endfor %}
         </div>
         {% else %}
-        <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-12 text-center">
-            <h3 class="text-xl font-display text-foxtown-ink mb-2">No rollouts yet</h3>
-            <p class="text-stone-500 mb-6">Create a saved menu rollout by venue, quarter, and year.</p>
-            <a href="{{ url_for('menu_rollout_new') }}" class="bg-foxtown-ember hover:bg-orange-700 text-white px-6 py-3 rounded-xl font-semibold transition duration-200 shadow-soft hover:shadow-lift">
-                + New Rollout
-            </a>
+        <div class="empty-card">
+            <h3 class="empty-title">No rollouts yet</h3>
+            <p class="empty-copy">Create a saved menu rollout by venue, quarter, and year.</p>
+            <a href="{{ url_for('menu_rollout_new') }}" class="fhq-btn fhq-btn--primary mt-6">+ New Rollout</a>
         </div>
         {% endif %}
     </div>

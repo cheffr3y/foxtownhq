@@ -3,6 +3,149 @@
 
 {% block title %}Search - Foxtown HQ{% endblock %}
 
+{% block extra_head %}
+<style>
+    .search-shell {
+        padding-bottom: 3.5rem;
+    }
+
+    .search-input {
+        width: 100%;
+        min-height: 48px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 10px;
+        background: rgba(3, 3, 4, 0.6);
+        color: #fff;
+        padding: 0.62rem 0.8rem;
+        transition: all 0.2s ease;
+    }
+
+    .search-input:focus {
+        outline: none;
+        border-color: rgba(247, 147, 26, 0.7);
+        box-shadow: 0 0 20px -10px rgba(247, 147, 26, 0.52);
+    }
+
+    .search-input::placeholder {
+        color: rgba(255, 255, 255, 0.35);
+    }
+
+    .query-card {
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.11);
+        background: rgba(15, 17, 21, 0.86);
+        box-shadow: 0 0 36px -14px rgba(247, 147, 26, 0.24);
+        padding: 1rem;
+    }
+
+    .query-label {
+        font-size: 0.67rem;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
+        color: #94A3B8;
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    }
+
+    .query-value {
+        margin-top: 0.35rem;
+        color: #fff;
+        font-size: 1.75rem;
+        line-height: 1.05;
+        letter-spacing: -0.03em;
+        font-family: 'Space Grotesk', Inter, sans-serif;
+    }
+
+    .query-meta {
+        margin-top: 0.4rem;
+        color: #94A3B8;
+        font-size: 0.88rem;
+    }
+
+    .results-grid {
+        display: grid;
+        gap: 0.8rem;
+        grid-template-columns: repeat(1, minmax(0, 1fr));
+    }
+
+    @media (min-width: 1100px) {
+        .results-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+    }
+
+    .results-panel {
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.11);
+        background: rgba(15, 17, 21, 0.86);
+        box-shadow: 0 0 36px -14px rgba(247, 147, 26, 0.24);
+        padding: 1rem;
+    }
+
+    .panel-title {
+        color: #fff;
+        font-size: 1.08rem;
+        font-family: 'Space Grotesk', Inter, sans-serif;
+    }
+
+    .result-list {
+        margin-top: 0.75rem;
+        display: grid;
+        gap: 0.65rem;
+    }
+
+    .result-item {
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(3, 3, 4, 0.48);
+        padding: 0.75rem;
+        transition: all 0.2s ease;
+    }
+
+    .result-item:hover {
+        border-color: rgba(247, 147, 26, 0.48);
+        background: rgba(247, 147, 26, 0.08);
+    }
+
+    .result-name {
+        color: #fff;
+        font-weight: 600;
+        font-size: 0.92rem;
+    }
+
+    .result-meta {
+        margin-top: 0.25rem;
+        color: #94A3B8;
+        font-size: 0.78rem;
+    }
+
+    .empty {
+        margin-top: 0.7rem;
+        color: #94A3B8;
+        font-size: 0.88rem;
+    }
+
+    .empty-card {
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.11);
+        background: rgba(15, 17, 21, 0.86);
+        box-shadow: 0 0 36px -14px rgba(247, 147, 26, 0.24);
+        padding: 2.5rem 1.6rem;
+        text-align: center;
+    }
+
+    .empty-title {
+        color: #fff;
+        font-size: 1.5rem;
+        font-family: 'Space Grotesk', Inter, sans-serif;
+    }
+
+    .empty-copy {
+        margin-top: 0.4rem;
+        color: #94A3B8;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="min-h-screen">
     {% call page_nav('Search', 'Recipes, ingredients, and banquet events in one view.', url_for('dashboard')) %}
@@ -14,77 +157,74 @@
             name="q"
             value="{{ search_query }}"
             placeholder="Search recipes, ingredients, events..."
-            class="w-full px-4 py-2 rounded-xl border border-white/30 bg-white/10 text-white placeholder:text-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-300"
+            class="search-input"
+            data-shortcut="search"
         >
     </form>
     {% endcall %}
 
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4 search-shell fhq-fade">
         {% if search_query %}
-        <div class="bg-white rounded-2xl border border-stone-200 shadow-soft p-5">
-            <div class="text-xs uppercase tracking-widest text-stone-500">Search Query</div>
-            <div class="mt-1 text-2xl font-display text-foxtown-ink">{{ search_query }}</div>
-            <div class="mt-2 text-sm text-stone-600">
-                {{ recipes|length }} recipes · {{ ingredients|length }} ingredients · {{ events|length }} events
-            </div>
-        </div>
+        <section class="query-card">
+            <div class="query-label">Search Query</div>
+            <div class="query-value">{{ search_query }}</div>
+            <div class="query-meta">{{ recipes|length }} recipes · {{ ingredients|length }} ingredients · {{ events|length }} events</div>
+        </section>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <section class="bg-white rounded-2xl border border-stone-200 shadow-soft p-5">
-                <h2 class="text-lg font-display text-foxtown-ink">Recipes</h2>
+        <section class="results-grid">
+            <section class="results-panel">
+                <h2 class="panel-title">Recipes</h2>
                 {% if recipes %}
-                <div class="mt-3 space-y-3">
+                <div class="result-list">
                     {% for recipe in recipes %}
-                    <a href="{{ url_for('recipe_detail', recipe_id=recipe.id) }}" class="block rounded-xl border border-stone-200 p-3 hover:bg-stone-50 transition">
-                        <div class="font-semibold text-foxtown-ink">{{ recipe.name }}</div>
-                        <div class="text-xs text-stone-500 mt-1">{{ (recipe.recipe_type or 'unspecified')|title }}{% if recipe.category %} · {{ recipe.category }}{% endif %}</div>
+                    <a href="{{ url_for('recipe_detail', recipe_id=recipe.id) }}" class="result-item block">
+                        <div class="result-name">{{ recipe.name }}</div>
+                        <div class="result-meta">{{ (recipe.recipe_type or 'unspecified')|title }}{% if recipe.category %} · {{ recipe.category }}{% endif %}</div>
                     </a>
                     {% endfor %}
                 </div>
                 {% else %}
-                <p class="mt-3 text-sm text-stone-500">No recipes matched this query.</p>
+                <p class="empty">No recipes matched this query.</p>
                 {% endif %}
             </section>
 
-            <section class="bg-white rounded-2xl border border-stone-200 shadow-soft p-5">
-                <h2 class="text-lg font-display text-foxtown-ink">Ingredients</h2>
+            <section class="results-panel">
+                <h2 class="panel-title">Ingredients</h2>
                 {% if ingredients %}
-                <div class="mt-3 space-y-3">
+                <div class="result-list">
                     {% for ingredient in ingredients %}
-                    <a href="{{ url_for('edit_ingredient', ingredient_id=ingredient.id) }}" class="block rounded-xl border border-stone-200 p-3 hover:bg-stone-50 transition">
-                        <div class="font-semibold text-foxtown-ink">{{ ingredient.name }}</div>
-                        <div class="text-xs text-stone-500 mt-1">{{ ingredient.category or 'Uncategorized' }}{% if ingredient.unit %} · {{ ingredient.unit }}{% endif %}</div>
+                    <a href="{{ url_for('edit_ingredient', ingredient_id=ingredient.id) }}" class="result-item block">
+                        <div class="result-name">{{ ingredient.name }}</div>
+                        <div class="result-meta">{{ ingredient.category or 'Uncategorized' }}{% if ingredient.unit %} · {{ ingredient.unit }}{% endif %}</div>
                     </a>
                     {% endfor %}
                 </div>
                 {% else %}
-                <p class="mt-3 text-sm text-stone-500">No ingredients matched this query.</p>
+                <p class="empty">No ingredients matched this query.</p>
                 {% endif %}
             </section>
 
-            <section class="bg-white rounded-2xl border border-stone-200 shadow-soft p-5">
-                <h2 class="text-lg font-display text-foxtown-ink">Banquet Events</h2>
+            <section class="results-panel">
+                <h2 class="panel-title">Banquet Events</h2>
                 {% if events %}
-                <div class="mt-3 space-y-3">
+                <div class="result-list">
                     {% for event in events %}
-                    <a href="{{ url_for('banquet_event_edit', event_id=event.id) }}" class="block rounded-xl border border-stone-200 p-3 hover:bg-stone-50 transition">
-                        <div class="font-semibold text-foxtown-ink">{{ event.name }}</div>
-                        <div class="text-xs text-stone-500 mt-1">
-                            {{ event.event_date.strftime('%b %-d, %Y') if event.event_date else 'No date' }} · {{ event.guests or 0 }} guests · {{ event.venue_name }}
-                        </div>
+                    <a href="{{ url_for('banquet_event_edit', event_id=event.id) }}" class="result-item block">
+                        <div class="result-name">{{ event.name }}</div>
+                        <div class="result-meta">{{ event.event_date.strftime('%b %-d, %Y') if event.event_date else 'No date' }} · {{ event.guests or 0 }} guests · {{ event.venue_name }}</div>
                     </a>
                     {% endfor %}
                 </div>
                 {% else %}
-                <p class="mt-3 text-sm text-stone-500">No events matched this query.</p>
+                <p class="empty">No events matched this query.</p>
                 {% endif %}
             </section>
-        </div>
+        </section>
         {% else %}
-        <div class="bg-white rounded-2xl border border-stone-200 shadow-soft px-6 py-12 text-center">
-            <h2 class="text-2xl font-display text-foxtown-ink">Search across Foxtown HQ</h2>
-            <p class="mt-2 text-stone-500">Enter a recipe, ingredient, or event name to start.</p>
-        </div>
+        <section class="empty-card">
+            <h2 class="empty-title">Search across Foxtown HQ</h2>
+            <p class="empty-copy">Enter a recipe, ingredient, or event name to start.</p>
+        </section>
         {% endif %}
     </div>
 </div>
