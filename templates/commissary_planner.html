@@ -16,6 +16,47 @@
         box-shadow: 0 0 36px -14px rgba(247, 147, 26, 0.24);
     }
 
+    .week-nav {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.6rem;
+        margin-bottom: 0.85rem;
+    }
+
+    .week-range {
+        color: #fff;
+        font-size: 1.02rem;
+        font-family: 'Space Grotesk', Inter, sans-serif;
+        letter-spacing: -0.01em;
+    }
+
+    .week-links {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        flex-wrap: wrap;
+    }
+
+    .week-link {
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        background: rgba(0, 0, 0, 0.35);
+        color: #cbd5e1;
+        font-size: 0.72rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+        padding: 0.32rem 0.7rem;
+        transition: all 0.2s ease;
+    }
+
+    .week-link:hover {
+        border-color: rgba(247, 147, 26, 0.6);
+        color: #FFD600;
+    }
+
     .comm-controls {
         display: grid;
         gap: 0.75rem;
@@ -24,7 +65,7 @@
 
     @media (min-width: 1024px) {
         .comm-controls {
-            grid-template-columns: minmax(0, 1.3fr) repeat(3, minmax(0, 1fr)) auto;
+            grid-template-columns: minmax(0, 1.25fr) minmax(210px, 0.8fr) minmax(200px, 0.8fr) auto;
             align-items: end;
         }
     }
@@ -54,6 +95,16 @@
         outline: none;
         border-color: rgba(247, 147, 26, 0.7);
         box-shadow: 0 0 20px -10px rgba(247, 147, 26, 0.52);
+    }
+
+    .comm-field::placeholder {
+        color: rgba(255, 255, 255, 0.35);
+    }
+
+    .comm-field--compact {
+        min-height: 40px;
+        padding: 0.45rem 0.65rem;
+        font-size: 0.84rem;
     }
 
     .metrics-grid {
@@ -98,6 +149,12 @@
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
+    @media (min-width: 900px) {
+        .summary-grid {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+    }
+
     .summary-card {
         border-radius: 14px;
         border: 1px solid rgba(255, 255, 255, 0.12);
@@ -122,9 +179,14 @@
 
     .section-title {
         color: #fff;
-        font-size: 1.4rem;
+        font-size: 1.35rem;
         letter-spacing: -0.03em;
         font-family: 'Space Grotesk', Inter, sans-serif;
+    }
+
+    .section-copy {
+        color: #94A3B8;
+        font-size: 0.82rem;
     }
 
     .table-wrap {
@@ -233,17 +295,148 @@
         color: #94A3B8;
         font-size: 0.9rem;
     }
+
+    .day-stack {
+        display: grid;
+        gap: 0.8rem;
+    }
+
+    .day-card {
+        border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(3, 3, 4, 0.45);
+        overflow: hidden;
+    }
+
+    .day-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.7rem;
+        background: rgba(234, 88, 12, 0.12);
+        border-bottom: 1px solid rgba(247, 147, 26, 0.3);
+        padding: 0.55rem 0.8rem;
+    }
+
+    .day-title {
+        color: #fff;
+        font-family: 'Space Grotesk', Inter, sans-serif;
+        font-size: 1rem;
+    }
+
+    .day-count {
+        color: #94A3B8;
+        font-size: 0.78rem;
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    }
+
+    .day-order {
+        padding: 0.75rem 0.8rem;
+        border-top: 1px solid rgba(148, 163, 184, 0.2);
+    }
+
+    .day-order:first-of-type {
+        border-top: none;
+    }
+
+    .day-order-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.7rem;
+        margin-bottom: 0.55rem;
+    }
+
+    .day-order-name {
+        color: #fff;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    .day-order-meta {
+        color: #94A3B8;
+        font-size: 0.75rem;
+    }
+
+    .line-log-list {
+        display: grid;
+        gap: 0.65rem;
+    }
+
+    .line-log-card {
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(15, 17, 21, 0.78);
+        padding: 0.65rem;
+    }
+
+    .line-log-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 0.6rem;
+        margin-bottom: 0.55rem;
+    }
+
+    .line-log-name {
+        color: #fff;
+        font-size: 0.88rem;
+        font-weight: 600;
+    }
+
+    .line-log-qty {
+        color: #FFD600;
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+        font-size: 0.77rem;
+    }
+
+    .line-log-form {
+        display: grid;
+        gap: 0.5rem;
+        grid-template-columns: repeat(1, minmax(0, 1fr));
+    }
+
+    @media (min-width: 900px) {
+        .line-log-form {
+            grid-template-columns: repeat(5, minmax(0, 1fr)) auto;
+            align-items: center;
+        }
+    }
+
+    .line-log-check {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        color: #cbd5e1;
+        font-size: 0.78rem;
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+        white-space: nowrap;
+    }
+
+    .line-log-updated {
+        margin-top: 0.45rem;
+        color: #94A3B8;
+        font-size: 0.72rem;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="min-h-screen">
-    {% call page_nav('Commissary Planner', 'Order entry and production packet for batch items.', url_for('dashboard')) %}
+    {% call page_nav('Commissary Planner', 'Weekly production view with digital line-by-line sign-off.', url_for('dashboard')) %}
     <a href="{{ url_for('commissary_order_new') }}" class="fhq-btn fhq-btn--primary" data-shortcut="new">+ New Order</a>
     {% endcall %}
 
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4 comm-shell fhq-fade">
         <section class="comm-panel p-4">
+            <div class="week-nav">
+                <div class="week-range">Week of {{ start_date }} to {{ end_date }}</div>
+                <div class="week-links">
+                    <a href="{{ url_for('commissary_planner', week_start=prev_week_start, outlet=(selected_outlet or None), units=selected_units) }}" class="week-link">Prev Week</a>
+                    <a href="{{ url_for('commissary_planner', week_start=current_week_start, outlet=(selected_outlet or None), units=selected_units) }}" class="week-link">This Week</a>
+                    <a href="{{ url_for('commissary_planner', week_start=next_week_start, outlet=(selected_outlet or None), units=selected_units) }}" class="week-link">Next Week</a>
+                </div>
+            </div>
             <form method="GET" class="comm-controls">
                 <div>
                     <label class="comm-label">Outlet</label>
@@ -255,12 +448,8 @@
                     </select>
                 </div>
                 <div>
-                    <label class="comm-label">Start</label>
-                    <input type="date" name="start_date" value="{{ start_date }}" class="comm-field">
-                </div>
-                <div>
-                    <label class="comm-label">End</label>
-                    <input type="date" name="end_date" value="{{ end_date }}" class="comm-field">
+                    <label class="comm-label">Week Start</label>
+                    <input type="date" name="week_start" value="{{ week_start }}" class="comm-field">
                 </div>
                 <div>
                     <label class="comm-label">Units</label>
@@ -280,7 +469,7 @@
 
         <section class="metrics-grid">
             <div class="metric-card">
-                <div class="metric-label">Orders In Window</div>
+                <div class="metric-label">Orders In Week</div>
                 <div class="metric-value fhq-countup" data-count="{{ datasets.order_count }}">{{ datasets.order_count }}</div>
             </div>
             <div class="metric-card">
@@ -306,18 +495,26 @@
                 <div class="metric-label">Completed Orders</div>
                 <div class="metric-value fhq-countup" data-count="{{ metrics.completed_orders }}">{{ metrics.completed_orders }}</div>
             </div>
+            <div class="summary-card">
+                <div class="metric-label">Logged Lines</div>
+                <div class="metric-value fhq-countup" data-count="{{ metrics.logged_lines }}">{{ metrics.logged_lines }}</div>
+            </div>
+            <div class="summary-card">
+                <div class="metric-label">Signed-off Lines</div>
+                <div class="metric-value fhq-countup" data-count="{{ metrics.signed_off_lines }}">{{ metrics.signed_off_lines }}</div>
+            </div>
         </section>
 
         <section class="exports-box">
             <h2 class="section-title text-lg">Exports</h2>
             <div class="mt-2 text-sm">
-                <a href="{{ url_for('commissary_packet_print', outlet=selected_outlet, start_date=start_date, end_date=end_date, include_shopping=1, units=selected_units) }}" target="_blank" class="link-accent">Print / Save Production Packet</a>
+                <a href="{{ url_for('commissary_packet_print', outlet=selected_outlet, week_start=week_start, include_shopping=1, units=selected_units) }}" target="_blank" class="link-accent">Print / Save Weekly Production Packet</a>
             </div>
         </section>
 
         <section class="comm-panel p-5">
             <div class="section-head">
-                <h2 class="section-title">Orders In Range</h2>
+                <h2 class="section-title">Orders In Week</h2>
                 <a href="{{ url_for('commissary_order_new') }}" class="link-accent">+ New Order</a>
             </div>
             {% if orders %}
@@ -329,6 +526,8 @@
                             <th>Outlet</th>
                             <th>Status</th>
                             <th>Lines</th>
+                            <th>Logged</th>
+                            <th>Signed Off</th>
                             <th>Action</th>
                         </tr>
                     </thead>
@@ -352,6 +551,8 @@
                                 {% endif %}
                             </td>
                             <td>{{ order.line_count }}</td>
+                            <td>{{ order.logged_line_count or 0 }}</td>
+                            <td>{{ order.signed_off_line_count or 0 }}</td>
                             <td><a href="{{ url_for('commissary_order_edit', order_id=order.id) }}" class="link-accent">Edit</a></td>
                         </tr>
                         {% endfor %}
@@ -359,7 +560,67 @@
                 </table>
             </div>
             {% else %}
-            <p class="empty-note">No commissary orders in the selected window.</p>
+            <p class="empty-note">No commissary orders in the selected week.</p>
+            {% endif %}
+        </section>
+
+        <section class="comm-panel p-5">
+            <div class="section-head">
+                <div>
+                    <h2 class="section-title">Daily Production Log</h2>
+                    <p class="section-copy">Track who made each line, who tasted it, sign-off, and notes.</p>
+                </div>
+            </div>
+            {% if datasets.daily_groups %}
+            <div class="day-stack">
+                {% for day in datasets.daily_groups %}
+                <article class="day-card">
+                    <div class="day-head">
+                        <div class="day-title">{{ day.date }}</div>
+                        <div class="day-count">{{ day.orders|length }} orders</div>
+                    </div>
+                    {% for order in day.orders %}
+                    <div class="day-order">
+                        <div class="day-order-head">
+                            <div class="day-order-name">{{ order.outlet }}</div>
+                            <div class="day-order-meta">{{ (order.status or 'pending')|replace('_', ' ')|title }} · {{ order.line_count }} lines</div>
+                        </div>
+                        <div class="line-log-list">
+                            {% for line in order.lines %}
+                            {% set prod = line.production_log or {} %}
+                            <div class="line-log-card">
+                                <div class="line-log-head">
+                                    <div class="line-log-name">{{ line.item_name }}</div>
+                                    <div class="line-log-qty">{{ line.quantity }} {{ line.quantity_unit }}</div>
+                                </div>
+                                <form method="POST" action="{{ url_for('commissary_production_log_update', line_id=line.id) }}" class="line-log-form">
+                                    <input type="hidden" name="production_date" value="{{ day.date.isoformat() if day.date else '' }}">
+                                    <input type="hidden" name="week_start" value="{{ week_start }}">
+                                    <input type="hidden" name="outlet" value="{{ selected_outlet }}">
+                                    <input type="hidden" name="units" value="{{ selected_units }}">
+                                    <input type="text" name="made_by" value="{{ prod.made_by or '' }}" placeholder="Made by" class="comm-field comm-field--compact">
+                                    <input type="text" name="tasted_by" value="{{ prod.tasted_by or '' }}" placeholder="Tasted by" class="comm-field comm-field--compact">
+                                    <input type="text" name="signed_off_by" value="{{ prod.signed_off_by or '' }}" placeholder="Signed off by" class="comm-field comm-field--compact">
+                                    <input type="text" name="production_notes" value="{{ prod.notes or '' }}" placeholder="Production notes" class="comm-field comm-field--compact">
+                                    <label class="line-log-check">
+                                        <input type="checkbox" name="signed_off" value="1" {% if prod.signed_off %}checked{% endif %}>
+                                        Signed off
+                                    </label>
+                                    <button type="submit" class="fhq-btn fhq-btn--primary">Save Log</button>
+                                </form>
+                                {% if prod.updated_at %}
+                                <div class="line-log-updated">Last updated {{ prod.updated_at.strftime('%b %d, %Y %I:%M %p') if prod.updated_at else '' }}</div>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </article>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="empty-note">No daily production lines in this week.</p>
             {% endif %}
         </section>
     </div>

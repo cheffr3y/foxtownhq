@@ -37,6 +37,63 @@ def list_commissary_recipe_options(cur):
     return rows
 
 
+def upsert_commissary_line_production_log(cur, order_id, line_id, production_date, line):
+    if not line_id or not production_date:
+        return False
+
+    made_by = clean_menu_text(line.get('production_made_by'))
+    tasted_by = clean_menu_text(line.get('production_tasted_by'))
+    signed_off_by = clean_menu_text(line.get('production_signed_off_by'))
+    production_notes = clean_menu_text(line.get('production_notes'))
+    signed_off = bool(line.get('production_signed_off'))
+    has_values = any([made_by, tasted_by, signed_off_by, production_notes, signed_off])
+
+    if has_values:
+        cur.execute("""
+            INSERT INTO commissary_production_logs (
+                order_id,
+                order_item_id,
+                production_date,
+                made_by,
+                signed_off,
+                signed_off_by,
+                tasted_by,
+                notes,
+                signed_off_at
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, CASE WHEN %s THEN CURRENT_TIMESTAMP ELSE NULL END)
+            ON CONFLICT (order_item_id, production_date)
+            DO UPDATE SET
+                made_by = EXCLUDED.made_by,
+                signed_off = EXCLUDED.signed_off,
+                signed_off_by = EXCLUDED.signed_off_by,
+                tasted_by = EXCLUDED.tasted_by,
+                notes = EXCLUDED.notes,
+                signed_off_at = CASE
+                    WHEN EXCLUDED.signed_off THEN COALESCE(commissary_production_logs.signed_off_at, CURRENT_TIMESTAMP)
+                    ELSE NULL
+                END,
+                updated_at = CURRENT_TIMESTAMP
+        """, (
+            order_id,
+            line_id,
+            production_date,
+            made_by or None,
+            signed_off,
+            signed_off_by or None,
+            tasted_by or None,
+            production_notes or None,
+            signed_off
+        ))
+        return True
+
+    cur.execute("""
+        DELETE FROM commissary_production_logs
+        WHERE order_item_id = %s AND production_date = %s
+    """, (line_id, production_date))
+    return False
+
+
 @bp.route('/commissary-planner')
 @login_required
 def commissary_planner():
@@ -45,7 +102,8 @@ def commissary_planner():
 
     ensure_commissary_tables(cur)
     conn.commit()
-    start_date, end_date = get_banquet_date_window(request.args.get('start_date'), request.args.get('end_date'))
+    week_start_raw = (request.args.get('week_start') or request.args.get('start_date') or '').strip()
+    start_date, end_date = get_commissary_week_window(week_start_raw)
     selected_outlet = clean_menu_text(request.args.get('outlet'))
     selected_units = get_unit_system()
     outlet_options = get_commissary_outlet_options(cur)
@@ -57,13 +115,23 @@ def commissary_planner():
     metrics = {
         'open_orders': sum(1 for order in orders if (order.get('status') or '').lower() in open_statuses),
         'completed_orders': sum(1 for order in orders if (order.get('status') or '').lower() == 'completed'),
+        'logged_lines': datasets.get('logged_line_count', 0),
+        'signed_off_lines': datasets.get('signed_off_line_count', 0),
     }
+
+    prev_week_start = start_date - timedelta(days=7)
+    next_week_start = start_date + timedelta(days=7)
+    current_week_start, _ = get_commissary_week_window('')
 
     cur.close()
     return render_template(
         'commissary_planner.html',
         start_date=start_date.isoformat(),
         end_date=end_date.isoformat(),
+        week_start=start_date.isoformat(),
+        prev_week_start=prev_week_start.isoformat(),
+        next_week_start=next_week_start.isoformat(),
+        current_week_start=current_week_start.isoformat(),
         selected_outlet=selected_outlet,
         selected_units=selected_units,
         outlet_options=outlet_options,
@@ -156,6 +224,7 @@ def commissary_order_new():
                             sort_order
                         )
                         VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        RETURNING id
                     """, (
                         order_id,
                         recipe_id,
@@ -165,6 +234,9 @@ def commissary_order_new():
                         line.get('notes'),
                         idx
                     ))
+                    inserted_row = cur.fetchone() or {}
+                    line_id = inserted_row.get('id')
+                    upsert_commissary_line_production_log(cur, order_id, line_id, needed_date, line)
 
                 conn.commit()
                 flash('Commissary order created.', 'success')
@@ -272,6 +344,7 @@ def commissary_order_edit(order_id):
                             sort_order
                         )
                         VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        RETURNING id
                     """, (
                         order_id,
                         recipe_id,
@@ -281,6 +354,9 @@ def commissary_order_edit(order_id):
                         line.get('notes'),
                         idx
                     ))
+                    inserted_row = cur.fetchone() or {}
+                    line_id = inserted_row.get('id')
+                    upsert_commissary_line_production_log(cur, order_id, line_id, needed_date, line)
 
                 conn.commit()
                 flash('Commissary order updated.', 'success')
@@ -351,6 +427,76 @@ def commissary_order_delete(order_id):
     return redirect(url_for('commissary_planner'))
 
 
+@bp.route('/commissary-planner/logs/<int:line_id>', methods=['POST'])
+@login_required
+def commissary_production_log_update(line_id):
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+
+    ensure_commissary_tables(cur)
+    conn.commit()
+
+    cur.execute("""
+        SELECT oi.id AS line_id,
+               oi.order_id,
+               o.outlet,
+               o.needed_date
+        FROM outlet_order_items oi
+        JOIN outlet_orders o ON o.id = oi.order_id
+        WHERE oi.id = %s
+        LIMIT 1
+    """, (line_id,))
+    line = cur.fetchone()
+    if not line:
+        cur.close()
+        flash('Commissary production line not found.', 'error')
+        return redirect(url_for('commissary_planner'))
+
+    production_date_raw = (request.form.get('production_date') or '').strip()
+    try:
+        production_date = datetime.strptime(production_date_raw, '%Y-%m-%d').date() if production_date_raw else line.get('needed_date')
+    except ValueError:
+        production_date = line.get('needed_date')
+
+    made_by = clean_menu_text(request.form.get('made_by'))
+    tasted_by = clean_menu_text(request.form.get('tasted_by'))
+    signed_off_by = clean_menu_text(request.form.get('signed_off_by'))
+    production_notes = clean_menu_text(request.form.get('production_notes'))
+    signed_off = (request.form.get('signed_off') or '').strip().lower() in ('1', 'true', 'on', 'yes')
+
+    week_start = (request.form.get('week_start') or '').strip()
+    selected_outlet = clean_menu_text(request.form.get('outlet'))
+    selected_units = (request.form.get('units') or 'auto').strip().lower()
+    if selected_units not in ('auto', 'imperial', 'metric', 'hybrid'):
+        selected_units = 'auto'
+
+    try:
+        if upsert_commissary_line_production_log(cur, line.get('order_id'), line_id, production_date, {
+            'production_made_by': made_by,
+            'production_tasted_by': tasted_by,
+            'production_signed_off_by': signed_off_by,
+            'production_notes': production_notes,
+            'production_signed_off': signed_off
+        }):
+            flash('Production log updated.', 'success')
+        else:
+            flash('Production log cleared.', 'success')
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        flash('Could not save production log.', 'error')
+
+    redirect_params = {
+        'week_start': week_start or (production_date.isoformat() if production_date else '')
+    }
+    if selected_outlet:
+        redirect_params['outlet'] = selected_outlet
+    if selected_units:
+        redirect_params['units'] = selected_units
+    cur.close()
+    return redirect(url_for('commissary_planner', **redirect_params))
+
+
 @bp.route('/commissary-planner/packet/print')
 @login_required
 def commissary_packet_print():
@@ -361,7 +507,8 @@ def commissary_packet_print():
     conn.commit()
     selected_outlet = clean_menu_text(request.args.get('outlet'))
     selected_units = get_unit_system()
-    start_date, end_date = get_banquet_date_window(request.args.get('start_date'), request.args.get('end_date'))
+    week_start_raw = (request.args.get('week_start') or request.args.get('start_date') or '').strip()
+    start_date, end_date = get_commissary_week_window(week_start_raw)
     include_shopping_raw = request.args.get('include_shopping')
     if include_shopping_raw is None:
         include_shopping = True
@@ -377,6 +524,7 @@ def commissary_packet_print():
         'commissary_packet_print.html',
         selected_outlet=selected_outlet,
         selected_units=selected_units,
+        week_start=start_date.isoformat(),
         start_date=start_date.isoformat(),
         end_date=end_date.isoformat(),
         include_shopping=include_shopping,

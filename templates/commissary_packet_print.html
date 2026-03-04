@@ -106,31 +106,31 @@
         </div>
         <div class="flex items-center gap-2 flex-wrap justify-end">
             <a
-                href="{{ url_for('commissary_packet_print', outlet=selected_outlet, start_date=start_date, end_date=end_date, include_shopping=include_shopping, units='auto') }}"
+                href="{{ url_for('commissary_packet_print', outlet=selected_outlet, week_start=week_start, include_shopping=include_shopping, units='auto') }}"
                 class="px-3 py-2 rounded-xl border {% if selected_units == 'auto' %}border-foxtown-ember text-foxtown-ember bg-orange-50{% else %}border-stone-300 text-stone-700 hover:bg-stone-50{% endif %} font-semibold text-sm"
             >
                 Auto
             </a>
             <a
-                href="{{ url_for('commissary_packet_print', outlet=selected_outlet, start_date=start_date, end_date=end_date, include_shopping=include_shopping, units='imperial') }}"
+                href="{{ url_for('commissary_packet_print', outlet=selected_outlet, week_start=week_start, include_shopping=include_shopping, units='imperial') }}"
                 class="px-3 py-2 rounded-xl border {% if selected_units == 'imperial' %}border-foxtown-ember text-foxtown-ember bg-orange-50{% else %}border-stone-300 text-stone-700 hover:bg-stone-50{% endif %} font-semibold text-sm"
             >
                 Imperial
             </a>
             <a
-                href="{{ url_for('commissary_packet_print', outlet=selected_outlet, start_date=start_date, end_date=end_date, include_shopping=include_shopping, units='metric') }}"
+                href="{{ url_for('commissary_packet_print', outlet=selected_outlet, week_start=week_start, include_shopping=include_shopping, units='metric') }}"
                 class="px-3 py-2 rounded-xl border {% if selected_units == 'metric' %}border-foxtown-ember text-foxtown-ember bg-orange-50{% else %}border-stone-300 text-stone-700 hover:bg-stone-50{% endif %} font-semibold text-sm"
             >
                 Metric
             </a>
             <a
-                href="{{ url_for('commissary_packet_print', outlet=selected_outlet, start_date=start_date, end_date=end_date, include_shopping=include_shopping, units='hybrid') }}"
+                href="{{ url_for('commissary_packet_print', outlet=selected_outlet, week_start=week_start, include_shopping=include_shopping, units='hybrid') }}"
                 class="px-3 py-2 rounded-xl border {% if selected_units == 'hybrid' %}border-foxtown-ember text-foxtown-ember bg-orange-50{% else %}border-stone-300 text-stone-700 hover:bg-stone-50{% endif %} font-semibold text-sm"
             >
                 Grams + qt/gal
             </a>
             <a
-                href="{{ url_for('commissary_packet_print', outlet=selected_outlet, start_date=start_date, end_date=end_date, include_shopping=(0 if include_shopping else 1), units=selected_units) }}"
+                href="{{ url_for('commissary_packet_print', outlet=selected_outlet, week_start=week_start, include_shopping=(0 if include_shopping else 1), units=selected_units) }}"
                 class="px-4 py-2 rounded-xl border border-stone-300 text-stone-700 hover:bg-stone-50 font-semibold"
             >
                 {% if include_shopping %}Hide Shopping{% else %}Include Shopping{% endif %}
@@ -380,6 +380,16 @@
                         <span class="pkt-mono pkt-qty pkt-qty-strong">{{ line.quantity }} {{ line.quantity_unit }}</span>
                         {% if line.notes %}<span class="pkt-mod-tag">{{ line.notes }}</span>{% endif %}
                     </div>
+                    {% set prod = line.production_log or {} %}
+                    {% if prod.made_by or prod.tasted_by or prod.signed_off_by or prod.signed_off or prod.notes %}
+                    <div class="pkt-day-log">
+                        {% if prod.made_by %}<span>Made by: <strong>{{ prod.made_by }}</strong></span>{% endif %}
+                        {% if prod.tasted_by %}<span>Tasted by: <strong>{{ prod.tasted_by }}</strong></span>{% endif %}
+                        {% if prod.signed_off_by %}<span>Sign-off: <strong>{{ prod.signed_off_by }}</strong></span>{% endif %}
+                        {% if prod.signed_off and not prod.signed_off_by %}<span>Sign-off: <strong>Yes</strong></span>{% endif %}
+                        {% if prod.notes %}<span>Notes: {{ prod.notes }}</span>{% endif %}
+                    </div>
+                    {% endif %}
                     {% endfor %}
                 </div>
             </div>
@@ -684,6 +694,19 @@
     gap: 0.5rem;
     align-items: center;
     font-size: 0.86rem;
+}
+.pkt-day-log {
+    margin-left: 1.6rem;
+    margin-top: 0.18rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 0.6rem;
+    font-size: 0.73rem;
+    color: #57534e;
+}
+.pkt-day-log strong {
+    font-weight: 700;
+    color: #1c1917;
 }
 .pkt-mod-tag {
     background: #f1f5f9;

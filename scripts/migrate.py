@@ -233,6 +233,23 @@ MIGRATIONS = [
         sort_order INTEGER DEFAULT 0
     )
     """,
+    """
+    CREATE TABLE IF NOT EXISTS commissary_production_logs (
+        id BIGSERIAL PRIMARY KEY,
+        order_id TEXT NOT NULL REFERENCES outlet_orders(id) ON DELETE CASCADE,
+        order_item_id BIGINT NOT NULL REFERENCES outlet_order_items(id) ON DELETE CASCADE,
+        production_date DATE NOT NULL,
+        made_by TEXT,
+        signed_off BOOLEAN NOT NULL DEFAULT FALSE,
+        signed_off_by TEXT,
+        tasted_by TEXT,
+        notes TEXT,
+        signed_off_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE (order_item_id, production_date)
+    )
+    """,
     "ALTER TABLE outlet_orders ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'pending'",
     "ALTER TABLE outlet_orders ADD COLUMN IF NOT EXISTS notes TEXT",
     "ALTER TABLE outlet_orders ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
@@ -242,10 +259,24 @@ MIGRATIONS = [
     "ALTER TABLE outlet_order_items ADD COLUMN IF NOT EXISTS notes TEXT",
     "ALTER TABLE outlet_order_items ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0",
     "ALTER TABLE outlet_order_items ALTER COLUMN quantity SET DEFAULT 1",
+    "ALTER TABLE commissary_production_logs ADD COLUMN IF NOT EXISTS order_id TEXT",
+    "ALTER TABLE commissary_production_logs ADD COLUMN IF NOT EXISTS order_item_id BIGINT",
+    "ALTER TABLE commissary_production_logs ADD COLUMN IF NOT EXISTS production_date DATE",
+    "ALTER TABLE commissary_production_logs ADD COLUMN IF NOT EXISTS made_by TEXT",
+    "ALTER TABLE commissary_production_logs ADD COLUMN IF NOT EXISTS signed_off BOOLEAN NOT NULL DEFAULT FALSE",
+    "ALTER TABLE commissary_production_logs ADD COLUMN IF NOT EXISTS signed_off_by TEXT",
+    "ALTER TABLE commissary_production_logs ADD COLUMN IF NOT EXISTS tasted_by TEXT",
+    "ALTER TABLE commissary_production_logs ADD COLUMN IF NOT EXISTS notes TEXT",
+    "ALTER TABLE commissary_production_logs ADD COLUMN IF NOT EXISTS signed_off_at TIMESTAMP",
+    "ALTER TABLE commissary_production_logs ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+    "ALTER TABLE commissary_production_logs ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
     "CREATE INDEX IF NOT EXISTS idx_outlet_orders_needed_date ON outlet_orders (needed_date)",
     "CREATE INDEX IF NOT EXISTS idx_outlet_orders_status ON outlet_orders (status)",
     "CREATE INDEX IF NOT EXISTS idx_outlet_order_items_order_id ON outlet_order_items (order_id)",
     "CREATE INDEX IF NOT EXISTS idx_outlet_order_items_recipe_id ON outlet_order_items (recipe_id)",
+    "CREATE UNIQUE INDEX IF NOT EXISTS idx_comm_prod_logs_line_date ON commissary_production_logs (order_item_id, production_date)",
+    "CREATE INDEX IF NOT EXISTS idx_comm_prod_logs_order_id ON commissary_production_logs (order_id)",
+    "CREATE INDEX IF NOT EXISTS idx_comm_prod_logs_production_date ON commissary_production_logs (production_date)",
     "ALTER TABLE banquet_event_menu_items ADD COLUMN IF NOT EXISTS choice_selections TEXT",
 ]
 

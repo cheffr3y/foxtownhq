@@ -86,7 +86,7 @@
 
     .lines-table {
         width: 100%;
-        min-width: 1120px;
+        min-width: 1780px;
         border-collapse: collapse;
     }
 
@@ -179,7 +179,7 @@
             <div class="section-head">
                 <div>
                     <h2 class="section-title">Order Items</h2>
-                    <p class="section-copy">Search recipes from your DB, set requested output quantity, and add line notes.</p>
+                    <p class="section-copy">Search recipes, set requested quantity, and capture production tracking per line.</p>
                 </div>
                 <button type="button" id="addLineBtn" class="fhq-btn fhq-btn--outline">+ Add line</button>
             </div>
@@ -192,7 +192,12 @@
                             <th class="min-w-[260px]">Item Name Override</th>
                             <th class="min-w-[120px]">Qty</th>
                             <th class="min-w-[110px]">Unit</th>
-                            <th class="min-w-[220px]">Notes</th>
+                            <th class="min-w-[220px]">Line Notes</th>
+                            <th class="min-w-[160px]">Made By</th>
+                            <th class="min-w-[160px]">Chef Tasted</th>
+                            <th class="min-w-[160px]">Sign-Off By</th>
+                            <th class="min-w-[140px]">Signed Off</th>
+                            <th class="min-w-[280px]">Production Notes</th>
                             <th class="min-w-[100px]">Action</th>
                         </tr>
                     </thead>
@@ -218,6 +223,16 @@
                             <td><input type="number" step="0.01" min="0" name="line_qty[]" value="{{ line.quantity or '' }}" class="field"></td>
                             <td><input name="line_unit[]" data-role="line-unit" value="{{ line.quantity_unit or line.yield_unit or 'each' }}" class="field"></td>
                             <td><input name="line_notes[]" value="{{ line.notes or line.line_notes or '' }}" class="field" placeholder="Pack size, delivery notes"></td>
+                            <td><input name="line_made_by[]" value="{{ line.production_made_by or '' }}" class="field" placeholder="Prep cook / employee"></td>
+                            <td><input name="line_tasted_by[]" value="{{ line.production_tasted_by or '' }}" class="field" placeholder="Chef or QA taster"></td>
+                            <td><input name="line_signed_off_by[]" value="{{ line.production_signed_off_by or '' }}" class="field" placeholder="Chef manager"></td>
+                            <td>
+                                <select name="line_signed_off[]" class="field">
+                                    <option value="">No</option>
+                                    <option value="1" {% if line.production_signed_off %}selected{% endif %}>Yes</option>
+                                </select>
+                            </td>
+                            <td><input name="line_production_notes[]" value="{{ line.production_notes or '' }}" class="field" placeholder="Batch observations, quality notes"></td>
                             <td><button type="button" class="removeRow remove-btn">Remove</button></td>
                         </tr>
                         {% endfor %}
@@ -271,6 +286,16 @@
     <td><input type="number" step="0.01" min="0" name="line_qty[]" value="1" class="field"></td>
     <td><input name="line_unit[]" data-role="line-unit" value="each" class="field"></td>
     <td><input name="line_notes[]" class="field" placeholder="Pack size, delivery notes"></td>
+    <td><input name="line_made_by[]" class="field" placeholder="Prep cook / employee"></td>
+    <td><input name="line_tasted_by[]" class="field" placeholder="Chef or QA taster"></td>
+    <td><input name="line_signed_off_by[]" class="field" placeholder="Chef manager"></td>
+    <td>
+        <select name="line_signed_off[]" class="field">
+            <option value="">No</option>
+            <option value="1">Yes</option>
+        </select>
+    </td>
+    <td><input name="line_production_notes[]" class="field" placeholder="Batch observations, quality notes"></td>
     <td><button type="button" class="removeRow remove-btn">Remove</button></td>
 </tr>
 </template>
