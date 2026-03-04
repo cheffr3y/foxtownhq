@@ -11,9 +11,9 @@
 
     .cost-panel {
         border-radius: 16px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        background: rgba(15, 17, 21, 0.86);
-        box-shadow: 0 0 36px -14px rgba(77, 124, 255, 0.24);
+        border: 1px solid rgba(15, 23, 42, 0.12);
+        background: rgba(255, 255, 255, 0.96);
+        box-shadow: 0 18px 32px -26px rgba(15, 23, 42, 0.24);
     }
 
     .cost-grid {
@@ -37,7 +37,7 @@
     }
 
     .section-title {
-        color: #fff;
+        color: #0F172A;
         font-size: 1.38rem;
         letter-spacing: -0.03em;
         font-family: 'Calistoga', Inter, sans-serif;
@@ -45,7 +45,7 @@
 
     .section-copy {
         margin-top: 0.3rem;
-        color: #94A3B8;
+        color: #64748B;
         font-size: 0.86rem;
     }
 
@@ -55,7 +55,7 @@
         font-size: 0.67rem;
         letter-spacing: 0.12em;
         text-transform: uppercase;
-        color: #94A3B8;
+        color: #64748B;
         font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
     }
 
@@ -74,7 +74,7 @@
         font-size: 0.67rem;
         letter-spacing: 0.13em;
         text-transform: uppercase;
-        color: #94A3B8;
+        color: #64748B;
         padding: 0.7rem 0.8rem;
         border-bottom: 1px solid rgba(148, 163, 184, 0.24);
         font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
@@ -82,8 +82,8 @@
 
     .cost-table td {
         padding: 0.75rem 0.8rem;
-        border-top: 1px solid rgba(148, 163, 184, 0.2);
-        color: #cbd5e1;
+        border-top: 1px solid rgba(148, 163, 184, 0.24);
+        color: #334155;
         font-size: 0.88rem;
         vertical-align: top;
     }
@@ -91,10 +91,10 @@
     .field {
         width: 100%;
         min-height: 42px;
-        border: 1px solid rgba(255, 255, 255, 0.15);
+        border: 1px solid rgba(15, 23, 42, 0.16);
         border-radius: 10px;
-        background: rgba(3, 3, 4, 0.6);
-        color: #fff;
+        background: rgba(255, 255, 255, 0.98);
+        color: #0F172A;
         padding: 0.56rem 0.75rem;
         transition: all 0.2s ease;
     }
@@ -106,7 +106,7 @@
     }
 
     .field::placeholder {
-        color: rgba(255, 255, 255, 0.35);
+        color: rgba(100, 116, 139, 0.65);
     }
 
     .summary-row {
@@ -114,18 +114,18 @@
         justify-content: space-between;
         align-items: center;
         gap: 0.8rem;
-        color: #94A3B8;
+        color: #475569;
         font-size: 0.9rem;
     }
 
     .summary-value {
-        color: #fff;
+        color: #0F172A;
         font-family: 'Calistoga', Inter, sans-serif;
         font-size: 1.05rem;
     }
 
     .summary-divider {
-        border-top: 1px solid rgba(148, 163, 184, 0.24);
+        border-top: 1px solid rgba(148, 163, 184, 0.28);
         padding-top: 0.8rem;
     }
 
@@ -168,7 +168,7 @@
         font-size: 0.67rem;
         letter-spacing: 0.13em;
         text-transform: uppercase;
-        color: #94A3B8;
+        color: #64748B;
         padding: 0.7rem 0.8rem;
         border-bottom: 1px solid rgba(148, 163, 184, 0.24);
         font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
@@ -176,8 +176,8 @@
 
     .breakdown-table td {
         padding: 0.75rem 0.8rem;
-        border-top: 1px solid rgba(148, 163, 184, 0.2);
-        color: #cbd5e1;
+        border-top: 1px solid rgba(148, 163, 184, 0.24);
+        color: #334155;
         font-size: 0.88rem;
     }
 </style>
@@ -196,7 +196,7 @@
                     <div class="section-head">
                         <div>
                             <h2 class="section-title">Menu Items</h2>
-                            <p class="section-copy">Add recipes and batch counts to estimate total cost.</p>
+                            <p class="section-copy">Add recipes and amount multipliers to estimate total cost.</p>
                         </div>
                         <button type="button" id="addMenuRow" class="link-accent">+ Add Item</button>
                     </div>
@@ -206,7 +206,7 @@
                             <thead>
                                 <tr>
                                     <th>Recipe</th>
-                                    <th>Batches</th>
+                                    <th>Amount (x)</th>
                                     <th class="text-right">Remove</th>
                                 </tr>
                             </thead>
@@ -294,7 +294,7 @@
                     <thead>
                         <tr>
                             <th>Recipe</th>
-                            <th>Batches</th>
+                            <th>Amount (x)</th>
                             <th>Cost / Batch</th>
                             <th>Total</th>
                         </tr>
@@ -305,7 +305,7 @@
                             <td>{{ item.recipe.name }}</td>
                             <td>{{ item.batches }}</td>
                             <td>${{ "%.2f"|format(item.base_cost) }}</td>
-                            <td class="text-white font-semibold">${{ "%.2f"|format(item.item_total) }}</td>
+                            <td class="text-[#0F172A] font-semibold">${{ "%.2f"|format(item.item_total) }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
