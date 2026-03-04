@@ -115,36 +115,42 @@
         <div>
             <h1 class="text-3xl font-display text-foxtown-ink">Commissary Production Packet</h1>
             <p class="text-stone-600">
-                {{ (selected_outlet or 'All Outlets') }} · {{ start_date }} to {{ end_date }} · {{ unit_label }} · Generated {{ generated_at }}
+                {{ (selected_outlet or 'All Outlets') }} ·
+                {% if selected_day %}
+                Day {{ selected_day }}
+                {% else %}
+                {{ start_date }} to {{ end_date }}
+                {% endif %}
+                · {{ unit_label }} · Generated {{ generated_at }}
             </p>
         </div>
         <div class="flex items-center gap-2 flex-wrap justify-end">
             <a
-                href="{{ url_for('commissary_packet_print', outlet=selected_outlet, week_start=week_start, include_shopping=include_shopping, units='auto') }}"
+                href="{{ url_for('commissary_packet_print', outlet=selected_outlet, week_start=week_start, day=selected_day, include_shopping=include_shopping, units='auto') }}"
                 class="px-3 py-2 rounded-xl border {% if selected_units == 'auto' %}border-foxtown-ember text-foxtown-ember bg-orange-50{% else %}border-stone-300 text-stone-700 hover:bg-stone-50{% endif %} font-semibold text-sm"
             >
                 Auto
             </a>
             <a
-                href="{{ url_for('commissary_packet_print', outlet=selected_outlet, week_start=week_start, include_shopping=include_shopping, units='imperial') }}"
+                href="{{ url_for('commissary_packet_print', outlet=selected_outlet, week_start=week_start, day=selected_day, include_shopping=include_shopping, units='imperial') }}"
                 class="px-3 py-2 rounded-xl border {% if selected_units == 'imperial' %}border-foxtown-ember text-foxtown-ember bg-orange-50{% else %}border-stone-300 text-stone-700 hover:bg-stone-50{% endif %} font-semibold text-sm"
             >
                 Imperial
             </a>
             <a
-                href="{{ url_for('commissary_packet_print', outlet=selected_outlet, week_start=week_start, include_shopping=include_shopping, units='metric') }}"
+                href="{{ url_for('commissary_packet_print', outlet=selected_outlet, week_start=week_start, day=selected_day, include_shopping=include_shopping, units='metric') }}"
                 class="px-3 py-2 rounded-xl border {% if selected_units == 'metric' %}border-foxtown-ember text-foxtown-ember bg-orange-50{% else %}border-stone-300 text-stone-700 hover:bg-stone-50{% endif %} font-semibold text-sm"
             >
                 Metric
             </a>
             <a
-                href="{{ url_for('commissary_packet_print', outlet=selected_outlet, week_start=week_start, include_shopping=include_shopping, units='hybrid') }}"
+                href="{{ url_for('commissary_packet_print', outlet=selected_outlet, week_start=week_start, day=selected_day, include_shopping=include_shopping, units='hybrid') }}"
                 class="px-3 py-2 rounded-xl border {% if selected_units == 'hybrid' %}border-foxtown-ember text-foxtown-ember bg-orange-50{% else %}border-stone-300 text-stone-700 hover:bg-stone-50{% endif %} font-semibold text-sm"
             >
                 Grams + qt/gal
             </a>
             <a
-                href="{{ url_for('commissary_packet_print', outlet=selected_outlet, week_start=week_start, include_shopping=(0 if include_shopping else 1), units=selected_units) }}"
+                href="{{ url_for('commissary_packet_print', outlet=selected_outlet, week_start=week_start, day=selected_day, include_shopping=(0 if include_shopping else 1), units=selected_units) }}"
                 class="px-4 py-2 rounded-xl border border-stone-300 text-stone-700 hover:bg-stone-50 font-semibold"
             >
                 {% if include_shopping %}Hide Shopping{% else %}Include Shopping{% endif %}
@@ -156,7 +162,13 @@
     <div class="pkt-section break-inside-avoid">
         <div class="pkt-section-header">
             <h2>Order Summary</h2>
-            <span class="pkt-date-range">{{ start_date }} - {{ end_date }}</span>
+            <span class="pkt-date-range">
+                {% if selected_day %}
+                {{ selected_day }}
+                {% else %}
+                {{ start_date }} - {{ end_date }}
+                {% endif %}
+            </span>
         </div>
         {% if datasets.orders %}
             {% for order in datasets.orders %}

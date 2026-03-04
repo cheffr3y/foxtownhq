@@ -73,6 +73,51 @@
         }
     }
 
+    .day-ops-row {
+        display: grid;
+        gap: 0.55rem;
+        grid-template-columns: repeat(1, minmax(0, 1fr));
+        align-items: end;
+        border-radius: 12px;
+        border: 1px solid rgba(247, 147, 26, 0.36);
+        background: rgba(247, 147, 26, 0.08);
+        padding: 0.68rem;
+    }
+
+    @media (min-width: 980px) {
+        .day-ops-row {
+            grid-template-columns: minmax(0, 0.95fr) auto auto auto auto;
+        }
+    }
+
+    .day-view-toggle {
+        min-height: 42px;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        background: rgba(3, 3, 4, 0.6);
+        display: inline-flex;
+        overflow: hidden;
+    }
+
+    .day-view-toggle a {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 84px;
+        padding: 0.35rem 0.7rem;
+        color: #cbd5e1;
+        font-size: 0.68rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    }
+
+    .day-view-toggle a.is-active {
+        color: #fff;
+        background: linear-gradient(to right, rgba(234, 88, 12, 0.85), rgba(247, 147, 26, 0.85));
+        box-shadow: 0 0 16px -8px rgba(247, 147, 26, 0.8);
+    }
+
     .comm-label {
         display: block;
         margin-bottom: 0.32rem;
@@ -210,6 +255,13 @@
         background: rgba(234, 88, 12, 0.13);
         border-bottom: 1px solid rgba(247, 147, 26, 0.35);
         padding: 0.78rem 0.9rem;
+    }
+
+    .day-head-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        flex-wrap: wrap;
     }
 
     .day-title {
@@ -522,12 +574,14 @@
             <div class="week-row">
                 <div class="week-title">Week of {{ start_date }} to {{ end_date }}</div>
                 <div class="week-links">
-                    <a href="{{ url_for('commissary_planner', week_start=prev_week_start, outlet=(selected_outlet or None), units=selected_units) }}" class="week-link">Prev Week</a>
-                    <a href="{{ url_for('commissary_planner', week_start=current_week_start, outlet=(selected_outlet or None), units=selected_units) }}" class="week-link">This Week</a>
-                    <a href="{{ url_for('commissary_planner', week_start=next_week_start, outlet=(selected_outlet or None), units=selected_units) }}" class="week-link">Next Week</a>
+                    <a href="{{ url_for('commissary_planner', week_start=prev_week_start, outlet=(selected_outlet or None), units=selected_units, day=selected_day, view=view_mode) }}" class="week-link">Prev Week</a>
+                    <a href="{{ url_for('commissary_planner', week_start=current_week_start, outlet=(selected_outlet or None), units=selected_units, day=selected_day, view=view_mode) }}" class="week-link">This Week</a>
+                    <a href="{{ url_for('commissary_planner', week_start=next_week_start, outlet=(selected_outlet or None), units=selected_units, day=selected_day, view=view_mode) }}" class="week-link">Next Week</a>
                 </div>
             </div>
             <form method="GET" class="filter-row">
+                <input type="hidden" name="day" value="{{ selected_day }}">
+                <input type="hidden" name="view" value="{{ view_mode }}">
                 <div>
                     <label class="comm-label">Outlet</label>
                     <select name="outlet" class="comm-field">
@@ -553,6 +607,26 @@
                 <button type="submit" class="fhq-btn fhq-btn--primary">Apply</button>
                 <a href="{{ url_for('commissary_planner') }}" class="fhq-btn fhq-btn--outline text-center">Reset</a>
             </form>
+            <form method="GET" class="day-ops-row">
+                <input type="hidden" name="outlet" value="{{ selected_outlet }}">
+                <input type="hidden" name="week_start" value="{{ week_start }}">
+                <input type="hidden" name="units" value="{{ selected_units }}">
+                <div>
+                    <label class="comm-label">Production Day</label>
+                    <input type="date" name="day" value="{{ selected_day }}" class="comm-field">
+                </div>
+                <div>
+                    <label class="comm-label">View</label>
+                    <input type="hidden" name="view" value="day">
+                    <div class="day-view-toggle" role="group" aria-label="Planner view mode">
+                        <a href="{{ url_for('commissary_planner', outlet=(selected_outlet or None), week_start=week_start, units=selected_units, day=selected_day, view='day') }}" class="{% if view_mode == 'day' %}is-active{% endif %}">Day</a>
+                        <a href="{{ url_for('commissary_planner', outlet=(selected_outlet or None), week_start=week_start, units=selected_units, day=selected_day, view='week') }}" class="{% if view_mode == 'week' %}is-active{% endif %}">Week</a>
+                    </div>
+                </div>
+                <button type="submit" class="fhq-btn fhq-btn--primary">View Day</button>
+                <a href="{{ url_for('commissary_packet_print', outlet=(selected_outlet or None), week_start=week_start, day=selected_day, include_shopping=0, units=selected_units) }}" target="_blank" class="fhq-btn fhq-btn--outline text-center">Print Day Packet</a>
+                <a href="{{ url_for('commissary_packet_print', outlet=(selected_outlet or None), week_start=week_start, include_shopping=1, units=selected_units) }}" target="_blank" class="fhq-btn fhq-btn--ghost text-center">Print Week + Shopping</a>
+            </form>
         </section>
 
         {% set total_lines = datasets.line_count or 0 %}
@@ -571,7 +645,7 @@
                 <span class="ribbon-chip">Completed {{ metrics.completed_orders }}</span>
                 <span class="ribbon-chip">Logged {{ logged_lines }}</span>
                 <span class="ribbon-chip">Production Cards {{ datasets.weekly_prep|length }}</span>
-                <span class="ribbon-chip">Shopping Items {{ datasets.shopping_ingredients|length }}</span>
+                <span class="ribbon-chip">Shopping Forecast {{ datasets.shopping_ingredients|length }}</span>
             </div>
         </section>
 
@@ -581,9 +655,9 @@
         </div>
 
         <section class="comm-panel p-4" data-planner-tab-panel="work">
-            {% if datasets.daily_groups %}
+            {% if filtered_daily_groups %}
             <div class="day-stack">
-                {% for day in datasets.daily_groups %}
+                {% for day in filtered_daily_groups %}
                 {% set counts = namespace(total=0, done=0) %}
                 {% for order in day.orders %}
                     {% set counts.total = counts.total + (order.line_count or 0) %}
@@ -595,7 +669,10 @@
                             <h2 class="day-title">{{ day.date.strftime('%A, %B %-d') if day.date else 'Unscheduled Day' }}</h2>
                             <div class="day-meta"><span data-day-progress>{{ counts.done }}/{{ counts.total }} done</span> · {{ day.orders|length }} orders</div>
                         </div>
-                        <button type="button" class="fhq-btn fhq-btn--primary" data-complete-day>Complete All</button>
+                        <div class="day-head-actions">
+                            <a href="{{ url_for('commissary_packet_print', outlet=(selected_outlet or None), week_start=week_start, day=(day.date.isoformat() if day.date else selected_day), include_shopping=0, units=selected_units) }}" target="_blank" class="fhq-btn fhq-btn--outline">Print Day Packet</a>
+                            <button type="button" class="fhq-btn fhq-btn--primary" data-complete-day>Complete All</button>
+                        </div>
                     </header>
 
                     <div class="day-lines">
@@ -611,6 +688,8 @@
                                 <input type="hidden" name="week_start" value="{{ week_start }}">
                                 <input type="hidden" name="outlet" value="{{ selected_outlet }}">
                                 <input type="hidden" name="units" value="{{ selected_units }}">
+                                <input type="hidden" name="day" value="{{ selected_day }}">
+                                <input type="hidden" name="view" value="{{ view_mode }}">
                                 <input type="hidden" name="ajax" value="1">
 
                                 <input type="checkbox" name="signed_off" value="1" data-role="signed-off" class="sr-only" {% if is_done %}checked{% endif %}>
@@ -659,7 +738,13 @@
                 {% endfor %}
             </div>
             {% else %}
-            <p class="empty-note">No daily production lines in this week.</p>
+            <p class="empty-note">
+                {% if view_mode == 'day' %}
+                No production lines for the selected day.
+                {% else %}
+                No daily production lines in this week.
+                {% endif %}
+            </p>
             {% endif %}
         </section>
 
@@ -669,7 +754,8 @@
                     <h2 class="section-title">Manager Summary</h2>
                 </div>
                 <div class="flex items-center gap-3">
-                    <a href="{{ url_for('commissary_packet_print', outlet=selected_outlet, week_start=week_start, include_shopping=1, units=selected_units) }}" target="_blank" class="link-accent">Print / Save Weekly Production Packet</a>
+                    <a href="{{ url_for('commissary_packet_print', outlet=selected_outlet, week_start=week_start, day=selected_day, include_shopping=0, units=selected_units) }}" target="_blank" class="link-accent">Print Day Packet</a>
+                    <a href="{{ url_for('commissary_packet_print', outlet=selected_outlet, week_start=week_start, include_shopping=1, units=selected_units) }}" target="_blank" class="link-accent">Print Week + Shopping</a>
                     <a href="{{ url_for('commissary_order_new') }}" class="link-accent">+ New Order</a>
                 </div>
             </div>

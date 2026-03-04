@@ -103,12 +103,34 @@ def commissary_planner():
     ensure_commissary_tables(cur)
     conn.commit()
     week_start_raw = (request.args.get('week_start') or request.args.get('start_date') or '').strip()
+    selected_day_raw = (request.args.get('day') or '').strip()
+    view_mode = (request.args.get('view') or 'day').strip().lower()
+    if view_mode not in ('day', 'week'):
+        view_mode = 'day'
     start_date, end_date = get_commissary_week_window(week_start_raw)
     selected_outlet = clean_menu_text(request.args.get('outlet'))
     selected_units = get_unit_system()
     outlet_options = get_commissary_outlet_options(cur)
 
     datasets = build_commissary_datasets(cur, start_date, end_date, selected_outlet, selected_units)
+    selected_day = None
+    if selected_day_raw:
+        try:
+            selected_day = datetime.strptime(selected_day_raw, '%Y-%m-%d').date()
+        except ValueError:
+            selected_day = None
+    if not selected_day:
+        today = date.today()
+        selected_day = today if start_date <= today <= end_date else start_date
+    if selected_day < start_date or selected_day > end_date:
+        selected_day = start_date
+
+    all_daily_groups = datasets.get('daily_groups', []) or []
+    if view_mode == 'day':
+        filtered_daily_groups = [group for group in all_daily_groups if group.get('date') == selected_day]
+    else:
+        filtered_daily_groups = all_daily_groups
+
     orders = datasets.get('orders', [])
     open_statuses = set(COMMISSARY_ACTIVE_STATUSES)
 
@@ -136,8 +158,11 @@ def commissary_planner():
         selected_units=selected_units,
         outlet_options=outlet_options,
         datasets=datasets,
+        filtered_daily_groups=filtered_daily_groups,
         orders=orders,
-        metrics=metrics
+        metrics=metrics,
+        selected_day=selected_day.isoformat(),
+        view_mode=view_mode
     )
 
 
@@ -472,6 +497,8 @@ def commissary_production_log_update(line_id):
     signed_off = (request.form.get('signed_off') or '').strip().lower() in ('1', 'true', 'on', 'yes')
 
     week_start = (request.form.get('week_start') or '').strip()
+    selected_day = (request.form.get('day') or '').strip()
+    view_mode = (request.form.get('view') or '').strip().lower()
     selected_outlet = clean_menu_text(request.form.get('outlet'))
     selected_units = (request.form.get('units') or 'auto').strip().lower()
     if selected_units not in ('auto', 'imperial', 'metric', 'hybrid'):
@@ -530,6 +557,10 @@ def commissary_production_log_update(line_id):
         redirect_params['outlet'] = selected_outlet
     if selected_units:
         redirect_params['units'] = selected_units
+    if selected_day:
+        redirect_params['day'] = selected_day
+    if view_mode in ('day', 'week'):
+        redirect_params['view'] = view_mode
     if is_ajax:
         cur.close()
         return jsonify(response_payload or {'ok': True, 'saved': False, 'message': 'No changes saved.'})
@@ -549,9 +580,19 @@ def commissary_packet_print():
     selected_units = get_unit_system()
     week_start_raw = (request.args.get('week_start') or request.args.get('start_date') or '').strip()
     start_date, end_date = get_commissary_week_window(week_start_raw)
+    selected_day_raw = (request.args.get('day') or '').strip()
+    if selected_day_raw:
+        try:
+            selected_day = datetime.strptime(selected_day_raw, '%Y-%m-%d').date()
+            start_date = selected_day
+            end_date = selected_day
+        except ValueError:
+            selected_day = None
+    else:
+        selected_day = None
     include_shopping_raw = request.args.get('include_shopping')
     if include_shopping_raw is None:
-        include_shopping = True
+        include_shopping = False
     else:
         include_shopping = (include_shopping_raw or '').strip().lower() in ('1', 'true', 'yes', 'on')
     datasets = build_commissary_datasets(cur, start_date, end_date, selected_outlet, selected_units)
@@ -567,6 +608,7 @@ def commissary_packet_print():
         week_start=start_date.isoformat(),
         start_date=start_date.isoformat(),
         end_date=end_date.isoformat(),
+        selected_day=selected_day.isoformat() if selected_day else '',
         include_shopping=include_shopping,
         generated_at=datetime.now().strftime('%b %d, %Y %I:%M %p'),
         datasets=datasets,
