@@ -5,6 +5,7 @@
 {% block content %}
 {% set simple_raw = (request.args.get('simple') or '').strip().lower() %}
 {% set simplified_view = simple_raw in ('1', 'true', 'yes', 'on') %}
+{% set print_lite = print_lite|default(false) %}
 {% macro render_sub_card(card, depth=1) -%}
 <div class="pkt-sub-prep-card" style="margin-left: {{ depth * 1.1 }}rem;">
     <div class="pkt-sub-prep-header">
@@ -63,26 +64,39 @@
         </div>
         <div class="flex items-center gap-2 flex-wrap justify-end">
             <a
-                href="{{ url_for('banquet_packet_print', venue=selected_venue, start_date=start_date, end_date=end_date, include_shopping=include_shopping, include_beo=include_beo, simple=(0 if simplified_view else 1)) }}"
+                href="{{ url_for('banquet_packet_print', venue=selected_venue, start_date=start_date, end_date=end_date, include_shopping=include_shopping, include_beo=include_beo, simple=(0 if simplified_view else 1), print_lite=(1 if print_lite else 0)) }}"
                 class="px-4 py-2 rounded-xl border border-stone-300 text-stone-700 hover:bg-stone-50 font-semibold"
             >
                 {% if simplified_view %}Full View{% else %}Simplified View{% endif %}
             </a>
             <a
-                href="{{ url_for('banquet_packet_print', venue=selected_venue, start_date=start_date, end_date=end_date, include_shopping=include_shopping, include_beo=(0 if include_beo else 1), simple=(1 if simplified_view else 0)) }}"
+                href="{{ url_for('banquet_packet_print', venue=selected_venue, start_date=start_date, end_date=end_date, include_shopping=include_shopping, include_beo=(0 if include_beo else 1), simple=(1 if simplified_view else 0), print_lite=(1 if print_lite else 0)) }}"
                 class="px-4 py-2 rounded-xl border border-stone-300 text-stone-700 hover:bg-stone-50 font-semibold"
             >
                 {% if include_beo %}Hide BEO{% else %}Include BEO{% endif %}
             </a>
             <a
-                href="{{ url_for('banquet_packet_print', venue=selected_venue, start_date=start_date, end_date=end_date, include_shopping=(0 if include_shopping else 1), include_beo=include_beo, simple=(1 if simplified_view else 0)) }}"
+                href="{{ url_for('banquet_packet_print', venue=selected_venue, start_date=start_date, end_date=end_date, include_shopping=include_shopping, include_beo=include_beo, simple=(1 if simplified_view else 0), print_lite=(0 if print_lite else 1)) }}"
+                class="px-4 py-2 rounded-xl border border-stone-300 text-stone-700 hover:bg-stone-50 font-semibold"
+            >
+                {% if print_lite %}Disable Print Lite{% else %}Enable Print Lite{% endif %}
+            </a>
+            {% if not print_lite %}
+            <a
+                href="{{ url_for('banquet_packet_print', venue=selected_venue, start_date=start_date, end_date=end_date, include_shopping=(0 if include_shopping else 1), include_beo=include_beo, simple=(1 if simplified_view else 0), print_lite=(1 if print_lite else 0)) }}"
                 class="px-4 py-2 rounded-xl border border-stone-300 text-stone-700 hover:bg-stone-50 font-semibold"
             >
                 {% if include_shopping %}Hide Shopping{% else %}Include Shopping{% endif %}
             </a>
+            {% endif %}
             <button onclick="window.print()" class="bg-foxtown-ember hover:bg-orange-700 text-white px-4 py-2 rounded-xl font-semibold">Print / Save PDF</button>
         </div>
     </div>
+    {% if print_lite %}
+    <div class="pkt-section screen-only">
+        <p class="pkt-subtitle">Print Lite is on. Shopping, prep cards, direct pulls, and daily prep sections are excluded to reduce spooler load.</p>
+    </div>
+    {% endif %}
 
     {# ═══════════════════════════════════════════════════ #}
     {#  SECTION 1 — BEO SERVICE BRIEF (optional)          #}
@@ -207,6 +221,7 @@
         </div>
     </div>
 
+    {% if not print_lite %}
     {# ═══════════════════════════════════════════════════ #}
     {#  SECTION 3 — SHOPPING LIST (optional)              #}
     {# ═══════════════════════════════════════════════════ #}
@@ -446,6 +461,7 @@
         </div>
         {% endfor %}
     </div>
+    {% endif %}
 </div>
 
 {# ═══════════════════════════════════════════════════════ #}
@@ -906,12 +922,13 @@
     nav, .print\:hidden, .screen-only { display: none !important; }
     body {
         background: #fff !important;
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
     }
     * {
+        background: transparent !important;
+        color: #000 !important;
         border-radius: 0 !important;
         box-shadow: none !important;
+        text-shadow: none !important;
     }
     #printRoot {
         max-width: none !important;
@@ -933,33 +950,22 @@
         page-break-before: always;
     }
     .pkt-card-header {
-        background: #1c1917 !important;
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
+        border-bottom: 1px solid #000 !important;
     }
     .pkt-step-num {
-        background: #1c1917 !important;
-        color: #fff !important;
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
+        border: 1px solid #000 !important;
     }
     .pkt-guests {
-        background: #1c1917 !important;
-        color: #fff !important;
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
+        border: 1px solid #000 !important;
     }
     .pkt-vendor-label {
-        background: #1c1917 !important;
-        color: #fff !important;
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
+        border: 1px solid #000 !important;
     }
     .pkt-prep-family-header {
         border: 1px solid #000;
         border-left: 6px solid #000;
         border-radius: 0;
-        background: #f5f5f4 !important;
+        background: transparent !important;
     }
     .break-inside-avoid { break-inside: avoid; page-break-inside: avoid; }
     .break-before-page { break-before: page; page-break-before: always; }
