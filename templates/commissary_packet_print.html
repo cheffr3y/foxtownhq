@@ -44,8 +44,8 @@
             <tr class="pkt-alt-row">
                 <td class="text-center"><span class="pkt-checkbox"></span></td>
                 <td class="pkt-bold pkt-ingredient-name">{{ ing.name }}</td>
-                <td class="text-right pkt-mono pkt-qty">{{ ing.display_quantity }}</td>
-                <td>{{ ing.display_unit }}</td>
+                <td class="text-right pkt-mono pkt-qty">{{ ing.display_quantity if ing.display_quantity not in (None, '') else '—' }}</td>
+                <td>{{ ing.display_unit or '—' }}</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -72,8 +72,8 @@
             <tr class="pkt-alt-row">
                 <td class="text-center"><span class="pkt-checkbox"></span></td>
                 <td class="pkt-bold">{{ sub.recipe_name }}</td>
-                <td class="text-right pkt-mono pkt-qty">{{ sub.display_required.quantity }}</td>
-                <td>{{ sub.display_required.unit }}</td>
+                <td class="text-right pkt-mono pkt-qty">{{ sub.display_required.quantity if sub.display_required.quantity not in (None, '') else '—' }}</td>
+                <td>{{ sub.display_required.unit or '—' }}</td>
                 <td class="text-right pkt-mono">{{ "%.2f"|format(sub.required_batches or 0) }}</td>
                 <td>
                     {% if sub.covered_by_stock_prep %}
@@ -244,8 +244,8 @@
                         <tr>
                             <td class="text-center"><span class="pkt-checkbox"></span></td>
                             <td class="pkt-bold">{{ item.name }}</td>
-                            <td class="text-right pkt-mono pkt-qty">{{ item.display_quantity }}</td>
-                            <td>{{ item.display_unit }}</td>
+                            <td class="text-right pkt-mono pkt-qty">{{ item.display_quantity if item.display_quantity not in (None, '') else '—' }}</td>
+                            <td>{{ item.display_unit or '—' }}</td>
                             <td class="pkt-muted">{{ item.category or 'Uncategorized' }}</td>
                         </tr>
                         {% endfor %}
@@ -307,8 +307,8 @@
                         <tr class="pkt-alt-row">
                             <td class="text-center"><span class="pkt-checkbox"></span></td>
                             <td class="pkt-bold pkt-ingredient-name">{{ ing.name }}</td>
-                            <td class="text-right pkt-mono pkt-qty pkt-qty-strong">{{ ing.display_quantity }}</td>
-                            <td>{{ ing.display_unit }}</td>
+                            <td class="text-right pkt-mono pkt-qty pkt-qty-strong">{{ ing.display_quantity if ing.display_quantity not in (None, '') else '—' }}</td>
+                            <td>{{ ing.display_unit or '—' }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -339,8 +339,8 @@
                         <tr class="pkt-alt-row">
                             <td class="text-center"><span class="pkt-checkbox"></span></td>
                             <td class="pkt-bold">{{ sub.recipe_name }}</td>
-                            <td class="text-right pkt-mono pkt-qty pkt-qty-strong">{{ sub.display_required.quantity }}</td>
-                            <td>{{ sub.display_required.unit }}</td>
+                            <td class="text-right pkt-mono pkt-qty pkt-qty-strong">{{ sub.display_required.quantity if sub.display_required.quantity not in (None, '') else '—' }}</td>
+                            <td>{{ sub.display_required.unit or '—' }}</td>
                             <td class="text-right pkt-mono">{{ "%.2f"|format(sub.required_batches or 0) }}</td>
                             <td>
                                 {% if sub.covered_by_stock_prep %}
@@ -399,6 +399,9 @@
 </div>
 
 <style>
+#printRoot {
+    color: #1c1917;
+}
 .pkt-section {
     background: #fff;
     border: 1px solid #d6d3d1;
@@ -454,6 +457,7 @@
     padding: 0.35rem 0.5rem;
     border: 1pt solid #000;
     vertical-align: top;
+    color: #1c1917;
 }
 .pkt-table-compact tbody td {
     padding: 0.25rem 0.5rem;
@@ -574,6 +578,9 @@
     align-items: flex-start;
     padding: 0.75rem 1rem;
     background: #1c1917;
+    color: #fff;
+}
+.pkt-card-header * {
     color: #fff;
 }
 .pkt-card-title h3 {
