@@ -11,6 +11,18 @@
 {% elif selected_units == 'hybrid' %}
 {% set unit_label = 'Grams + qt/gal/fl oz' %}
 {% endif %}
+{% macro batch_validation_block() %}
+<div class="pkt-validation-block">
+    <div class="pkt-validation-row">
+        <span>Cook Name: ________________________</span>
+        <span>Final Temp: ______&deg;F</span>
+    </div>
+    <div class="pkt-validation-row">
+        <span>Quality Check (Salt/Texture): [ ] Pass&nbsp;&nbsp;[ ] Fail</span>
+        <span>Chef Signature: ________________________</span>
+    </div>
+</div>
+{% endmacro %}
 {% macro render_sub_card(sub_card, level=0) %}
 <div class="pkt-sub-card{% if level > 0 %} pkt-sub-card-nested{% endif %}">
     <div class="pkt-sub-card-header">
@@ -94,6 +106,8 @@
         {% endfor %}
     </div>
     {% endif %}
+
+    {{ batch_validation_block() }}
 </div>
 {% endmacro %}
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6" id="printRoot">
@@ -157,27 +171,32 @@
                 {% if order.notes %}
                 <div class="pkt-order-notes"><span class="pkt-label-inline">Order Notes:</span> {{ order.notes }}</div>
                 {% endif %}
-                <table class="pkt-table pkt-table-compact">
+                <table class="pkt-table pkt-table-accountability">
                     <thead>
                         <tr>
-                            <th style="width:4%">✓</th>
-                            <th>Item</th>
-                            <th class="text-right" style="width:20%">Qty</th>
-                            <th style="width:30%">Notes</th>
+                            <th style="width:4%">[ ]</th>
+                            <th style="width:34%">Item Name &amp; Qty</th>
+                            <th style="width:18%">Produced By</th>
+                            <th style="width:18%">Chef Sign-off</th>
+                            <th style="width:26%">Comments / Temp</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for line in order.lines %}
-                        <tr>
+                        <tr class="pkt-account-row">
                             <td class="text-center"><span class="pkt-checkbox"></span></td>
-                            <td class="pkt-bold">
+                            <td>
+                                <div class="pkt-bold">
                                 {{ line.item_name }}
                                 {% if line.recipe_name and line.recipe_name != line.item_name %}
                                 <div class="pkt-muted">Recipe: {{ line.recipe_name }}</div>
                                 {% endif %}
+                                </div>
+                                <div class="pkt-mono pkt-qty">{{ line.quantity }} {{ line.quantity_unit }}</div>
                             </td>
-                            <td class="text-right pkt-mono pkt-qty">{{ line.quantity }} {{ line.quantity_unit }}</td>
-                            <td>{{ line.notes or '—' }}</td>
+                            <td><span class="pkt-write-line"></span></td>
+                            <td><span class="pkt-write-line"></span></td>
+                            <td><span class="pkt-write-box"></span></td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -190,7 +209,7 @@
     </div>
 
     {% if include_shopping %}
-    <div class="pkt-section break-before-page">
+    <div class="pkt-section break-before-page pkt-section-shopping">
         <div class="pkt-section-header">
             <h2>Shopping List</h2>
         </div>
@@ -234,7 +253,8 @@
         </div>
 
         {% for group in prep_groups %}
-        <div class="pkt-prep-family-header {% if not loop.first %}break-before-page{% endif %}">
+        <div class="pkt-prep-group break-before-page">
+        <div class="pkt-prep-family-header">
             <span class="pkt-prep-family-label">Main Item</span>
             <h3>{{ group.main_label }}</h3>
         </div>
@@ -318,20 +338,24 @@
                                 {% endif %}
                             </td>
                         </tr>
+                        {% set sub_card_match = namespace(card=None) %}
+                        {% for sub_card in group.sub_cards %}
+                            {% if sub_card.recipe_id == sub.recipe_id %}
+                                {% set sub_card_match.card = sub_card %}
+                            {% endif %}
+                        {% endfor %}
+                        {% if sub_card_match.card and not sub.covered_by_stock_prep %}
+                        <tr class="pkt-sub-detail-row">
+                            <td colspan="6">
+                                <div class="pkt-sub-detail-wrap">
+                                    {{ render_sub_card(sub_card_match.card, 0) }}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endif %}
                         {% endfor %}
                     </tbody>
                 </table>
-            </div>
-            {% endif %}
-
-            {% if group.sub_cards %}
-            <div class="pkt-card-body pkt-sub-section">
-                <div class="pkt-label">Sub-Recipe Prep Details</div>
-                {% for sub_card in group.sub_cards %}
-                <div class="{% if not loop.first %}mt-3{% endif %}">
-                    {{ render_sub_card(sub_card, 0) }}
-                </div>
-                {% endfor %}
             </div>
             {% endif %}
 
@@ -348,6 +372,8 @@
                 </div>
             </div>
             {% endif %}
+            {{ batch_validation_block() }}
+        </div>
         </div>
         {% endfor %}
 
@@ -358,45 +384,6 @@
         {% endif %}
     </div>
 
-    <div class="break-before-page">
-        <div class="pkt-section-header pkt-section-header-standalone">
-            <h2>Daily Production</h2>
-        </div>
-
-        {% for day in datasets.daily_groups %}
-        <div class="pkt-day-block break-inside-avoid">
-            <div class="pkt-day-header">{{ day.date }}</div>
-            {% for order in day.orders %}
-            <div class="pkt-day-event">
-                <div class="pkt-day-event-header">
-                    <span class="pkt-bold">{{ order.outlet }}</span>
-                    <span class="pkt-muted">{{ (order.status or 'pending')|replace('_', ' ')|title }}</span>
-                </div>
-                <div class="pkt-day-lines">
-                    {% for line in order.lines %}
-                    <div class="pkt-day-line">
-                        <span class="pkt-checkbox"></span>
-                        <span class="pkt-bold">{{ line.item_name }}</span>
-                        <span class="pkt-mono pkt-qty pkt-qty-strong">{{ line.quantity }} {{ line.quantity_unit }}</span>
-                        {% if line.notes %}<span class="pkt-mod-tag">{{ line.notes }}</span>{% endif %}
-                    </div>
-                    {% set prod = line.production_log or {} %}
-                    {% if prod.made_by or prod.tasted_by or prod.signed_off_by or prod.signed_off or prod.notes %}
-                    <div class="pkt-day-log">
-                        {% if prod.made_by %}<span>Made by: <strong>{{ prod.made_by }}</strong></span>{% endif %}
-                        {% if prod.tasted_by %}<span>Tasted by: <strong>{{ prod.tasted_by }}</strong></span>{% endif %}
-                        {% if prod.signed_off_by %}<span>Sign-off: <strong>{{ prod.signed_off_by }}</strong></span>{% endif %}
-                        {% if prod.signed_off and not prod.signed_off_by %}<span>Sign-off: <strong>Yes</strong></span>{% endif %}
-                        {% if prod.notes %}<span>Notes: {{ prod.notes }}</span>{% endif %}
-                    </div>
-                    {% endif %}
-                    {% endfor %}
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-        {% endfor %}
-    </div>
 </div>
 
 <style>
@@ -416,11 +403,14 @@
     border-bottom: 2px solid #1c1917;
 }
 .pkt-section-header h2 {
-    font-size: 1.1rem;
+    font-size: 1rem;
     font-weight: 700;
     color: #1c1917;
     margin: 0;
     letter-spacing: -0.01em;
+}
+.pkt-section-shopping .pkt-section-header h2 {
+    font-size: 0.88rem;
 }
 .pkt-section-header-standalone {
     border: none;
@@ -436,27 +426,46 @@
     border-collapse: collapse;
     font-size: 0.9rem;
     line-height: 1.4;
+    border: 1pt solid #000;
 }
 .pkt-table thead th {
     font-size: 0.65rem;
     text-transform: uppercase;
     letter-spacing: 0.06em;
     color: #78716c;
-    border-bottom: 1.5px solid #a8a29e;
+    border: 1pt solid #000;
     padding: 0.35rem 0.5rem;
     text-align: left;
     font-weight: 600;
 }
 .pkt-table tbody td {
     padding: 0.35rem 0.5rem;
-    border-bottom: 1px solid #e7e5e4;
+    border: 1pt solid #000;
     vertical-align: top;
-}
-.pkt-table tbody tr:last-child td {
-    border-bottom: none;
 }
 .pkt-table-compact tbody td {
     padding: 0.25rem 0.5rem;
+}
+.pkt-table-accountability tbody td {
+    min-height: 45px;
+    height: 45px;
+    vertical-align: middle;
+}
+.pkt-account-row td {
+    padding-top: 0.45rem;
+    padding-bottom: 0.45rem;
+}
+.pkt-write-line {
+    display: block;
+    width: 100%;
+    border-bottom: 1pt solid #000;
+    min-height: 20px;
+}
+.pkt-write-box {
+    display: block;
+    width: 100%;
+    border: 1pt solid #000;
+    min-height: 32px;
 }
 .pkt-checkbox {
     display: inline-block;
@@ -474,6 +483,12 @@
 .pkt-qty-strong { font-size: 1rem; font-weight: 800; }
 .pkt-empty-note { font-size: 0.8rem; color: #a8a29e; padding: 0.5rem 0; }
 .pkt-vendor-group { margin-bottom: 0.7rem; }
+.pkt-section-shopping .pkt-table {
+    font-size: 0.8rem;
+}
+.pkt-section-shopping .pkt-vendor-label {
+    font-size: 0.68rem;
+}
 .pkt-vendor-label {
     font-size: 0.75rem;
     text-transform: uppercase;
@@ -530,6 +545,9 @@
     font-weight: 700;
     color: #1c1917;
     letter-spacing: -0.01em;
+}
+.pkt-prep-group {
+    margin-bottom: 0.8rem;
 }
 .pkt-prep-card {
     background: #fff;
@@ -602,6 +620,13 @@
 .pkt-sub-card-children {
     margin-top: 0.5rem;
 }
+.pkt-sub-detail-row td {
+    background: #fff !important;
+    padding: 0.35rem !important;
+}
+.pkt-sub-detail-wrap {
+    margin: 0.2rem 0;
+}
 .pkt-plan-badge {
     display: inline-flex;
     align-items: center;
@@ -621,6 +646,21 @@
 }
 .pkt-method-section {
     border-top: 1px solid #e7e5e4;
+}
+.pkt-validation-block {
+    border-top: 1pt solid #000;
+    padding: 0.55rem 1rem 0.75rem;
+    background: #fff;
+    display: grid;
+    gap: 0.32rem;
+    font-size: 0.8rem;
+    color: #1c1917;
+}
+.pkt-validation-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
 }
 .pkt-label {
     font-size: 0.62rem;
@@ -716,7 +756,8 @@
     border-radius: 999px;
 }
 @media print {
-    .screen-only { display: none !important; }
+    .screen-only,
+    .screen-only * { display: none !important; }
     body {
         background: #fff !important;
         color: #000;
@@ -729,9 +770,24 @@
         padding: 0 !important;
         margin: 0 !important;
     }
-    .pkt-section, .pkt-prep-card, .pkt-day-block, .pkt-order-card {
-        border-color: #444 !important;
+    .pkt-section, .pkt-prep-card, .pkt-order-card, .pkt-sub-card {
+        border-color: #000 !important;
         box-shadow: none !important;
+    }
+    .pkt-table,
+    .pkt-table th,
+    .pkt-table td {
+        border: 1pt solid #000 !important;
+    }
+    .pkt-section-header h2 {
+        font-size: 0.92rem !important;
+    }
+    .pkt-section-shopping .pkt-section-header h2 {
+        font-size: 0.8rem !important;
+    }
+    .pkt-prep-group {
+        page-break-before: always;
+        break-before: page;
     }
     .break-before-page {
         page-break-before: always;
