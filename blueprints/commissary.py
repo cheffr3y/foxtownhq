@@ -432,6 +432,11 @@ def commissary_order_delete(order_id):
 def commissary_production_log_update(line_id):
     conn = get_db()
     cur = conn.cursor(cursor_factory=RealDictCursor)
+    is_ajax = (
+        (request.form.get('ajax') or '').strip().lower() in ('1', 'true', 'yes', 'on')
+        or (request.headers.get('X-Requested-With') or '').strip().lower() == 'xmlhttprequest'
+        or 'application/json' in (request.headers.get('Accept') or '')
+    )
 
     ensure_commissary_tables(cur)
     conn.commit()
@@ -449,6 +454,8 @@ def commissary_production_log_update(line_id):
     line = cur.fetchone()
     if not line:
         cur.close()
+        if is_ajax:
+            return jsonify({'ok': False, 'error': 'Commissary production line not found.'}), 404
         flash('Commissary production line not found.', 'error')
         return redirect(url_for('commissary_planner'))
 
@@ -470,20 +477,50 @@ def commissary_production_log_update(line_id):
     if selected_units not in ('auto', 'imperial', 'metric', 'hybrid'):
         selected_units = 'auto'
 
+    response_payload = None
     try:
-        if upsert_commissary_line_production_log(cur, line.get('order_id'), line_id, production_date, {
+        saved = upsert_commissary_line_production_log(cur, line.get('order_id'), line_id, production_date, {
             'production_made_by': made_by,
             'production_tasted_by': tasted_by,
             'production_signed_off_by': signed_off_by,
             'production_notes': production_notes,
             'production_signed_off': signed_off
-        }):
-            flash('Production log updated.', 'success')
+        })
+        if saved:
+            cur.execute("""
+                SELECT updated_at
+                FROM commissary_production_logs
+                WHERE order_item_id = %s
+                  AND production_date = %s
+                LIMIT 1
+            """, (line_id, production_date))
+            saved_row = cur.fetchone() or {}
+            updated_at = saved_row.get('updated_at')
+            response_payload = {
+                'ok': True,
+                'saved': True,
+                'signed_off': signed_off,
+                'updated_at': updated_at.isoformat() if updated_at else None,
+                'message': 'Production log updated.'
+            }
+            if not is_ajax:
+                flash('Production log updated.', 'success')
         else:
-            flash('Production log cleared.', 'success')
+            response_payload = {
+                'ok': True,
+                'saved': False,
+                'signed_off': False,
+                'updated_at': None,
+                'message': 'Production log cleared.'
+            }
+            if not is_ajax:
+                flash('Production log cleared.', 'success')
         conn.commit()
     except Exception:
         conn.rollback()
+        if is_ajax:
+            cur.close()
+            return jsonify({'ok': False, 'error': 'Could not save production log.'}), 500
         flash('Could not save production log.', 'error')
 
     redirect_params = {
@@ -493,6 +530,9 @@ def commissary_production_log_update(line_id):
         redirect_params['outlet'] = selected_outlet
     if selected_units:
         redirect_params['units'] = selected_units
+    if is_ajax:
+        cur.close()
+        return jsonify(response_payload or {'ok': True, 'saved': False, 'message': 'No changes saved.'})
     cur.close()
     return redirect(url_for('commissary_planner', **redirect_params))
 
