@@ -146,6 +146,34 @@ def dashboard():
         except (TypeError, ValueError):
             return 0.0
 
+    def format_quantity(value):
+        number = as_float(value)
+        if abs(number - round(number)) < 1e-9:
+            return f"{int(round(number)):,}"
+        return f"{number:,.2f}".rstrip('0').rstrip('.')
+
+    def add_amount(accumulator, quantity, unit):
+        qty = as_float(quantity)
+        if qty <= 0:
+            return
+        clean_unit = (unit or '').strip() or 'units'
+        key = clean_unit.lower()
+        if key not in accumulator:
+            accumulator[key] = {
+                'unit': clean_unit,
+                'qty': 0.0,
+            }
+        accumulator[key]['qty'] += qty
+
+    def amount_label(accumulator, max_parts=2):
+        if not accumulator:
+            return '0 units'
+        ordered = sorted(accumulator.values(), key=lambda item: (-as_float(item.get('qty')), (item.get('unit') or '').lower()))
+        parts = [f"{format_quantity(item.get('qty'))} {item.get('unit')}" for item in ordered[:max_parts]]
+        if len(ordered) > max_parts:
+            parts.append(f"+{len(ordered) - max_parts} more")
+        return ' · '.join(parts)
+
     def event_status_tone(status):
         key = (status or '').strip().lower()
         if key in ('confirmed', 'completed', 'executed'):
@@ -216,9 +244,15 @@ def dashboard():
                     'recipe_id': prep.get('recipe_id'),
                     'recipe_name': prep.get('recipe_name') or 'Prep Item',
                     'required_batches': 0.0,
+                    'required_amounts': {},
                     'used_in_preps': set(),
                 }
             pulse_map[fallback_key]['required_batches'] += as_float(prep.get('required_batches'))
+            add_amount(
+                pulse_map[fallback_key]['required_amounts'],
+                prep.get('required_qty'),
+                prep.get('required_unit') or prep.get('yield_unit'),
+            )
             pulse_map[fallback_key]['used_in_preps'].add(root_name)
 
         for sub in sub_rows:
@@ -233,21 +267,33 @@ def dashboard():
                     'recipe_id': recipe_id,
                     'recipe_name': recipe_name,
                     'required_batches': 0.0,
+                    'required_amounts': {},
                     'used_in_preps': set(),
                 }
             pulse_map[pulse_key]['required_batches'] += as_float(sub.get('required_batches'))
+            add_amount(
+                pulse_map[pulse_key]['required_amounts'],
+                sub.get('required_qty'),
+                sub.get('required_unit') or sub.get('yield_unit'),
+            )
             pulse_map[pulse_key]['used_in_preps'].add(root_name)
 
     production_pulse_items = []
+    production_pulse_amounts = {}
     for row in pulse_map.values():
+        row_amounts = row.get('required_amounts') or {}
+        for amount in row_amounts.values():
+            add_amount(production_pulse_amounts, amount.get('qty'), amount.get('unit'))
         production_pulse_items.append({
             'recipe_id': row.get('recipe_id'),
             'recipe_name': row.get('recipe_name'),
             'required_batches': round(as_float(row.get('required_batches')), 2),
+            'required_amount_label': amount_label(row_amounts),
             'used_in_preps': sorted(row.get('used_in_preps') or []),
         })
     production_pulse_items.sort(key=lambda item: (-as_float(item.get('required_batches')), (item.get('recipe_name') or '').lower()))
     production_pulse_total_batches = round(sum(as_float(item.get('required_batches')) for item in production_pulse_items), 2)
+    production_pulse_total_amount = amount_label(production_pulse_amounts, max_parts=3)
     production_pulse_total_subrecipes = len(production_pulse_items)
     production_pulse_items = production_pulse_items[:8]
     production_pulse_event_count = as_int(pulse_datasets.get('event_count'))
@@ -367,6 +413,7 @@ def dashboard():
         production_board_active_tasks=production_board_active_tasks,
         production_pulse_items=production_pulse_items,
         production_pulse_total_batches=production_pulse_total_batches,
+        production_pulse_total_amount=production_pulse_total_amount,
         production_pulse_total_subrecipes=production_pulse_total_subrecipes,
         production_pulse_event_count=production_pulse_event_count,
         pinned_recipes=pinned_recipes,

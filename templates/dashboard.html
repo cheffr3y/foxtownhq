@@ -660,6 +660,79 @@
         font-size: 0.8rem;
         color: #94A3B8;
     }
+
+    /* Light theme overrides for dashboard surfaces and typography */
+    .dashboard-search {
+        border-color: rgba(15, 23, 42, 0.14);
+        background: rgba(255, 255, 255, 0.94);
+    }
+    .dashboard-search svg { color: #64748B; }
+    .dashboard-search input { color: #0F172A; }
+
+    .shortcut-badge {
+        border-color: rgba(15, 23, 42, 0.14);
+        background: rgba(248, 250, 252, 0.95);
+        color: #475569;
+    }
+
+    .summary-metric,
+    .health-chip,
+    .ops-tool,
+    .event-card,
+    .pulse-metric,
+    .pulse-item,
+    .recipe-list,
+    .empty-note {
+        border-color: rgba(15, 23, 42, 0.12);
+        background: rgba(255, 255, 255, 0.96);
+    }
+
+    .section-label,
+    .summary-label,
+    .section-caption,
+    .event-meta,
+    .event-card-foot,
+    .pulse-metric .label,
+    .pulse-item-copy,
+    .recipe-tag,
+    .ops-tool-copy,
+    .ops-tool-stat,
+    .health-chip-copy,
+    .upcoming-table th {
+        color: #64748B;
+    }
+
+    .summary-value,
+    .health-chip-value,
+    .ops-tool-title,
+    .section-title,
+    .event-name,
+    .pulse-metric .value,
+    .pulse-item-name,
+    .recipe-list-title {
+        color: #0F172A;
+    }
+
+    .health-chip-label,
+    .prep-track-head,
+    .recipe-link,
+    .upcoming-table td {
+        color: #334155;
+    }
+
+    .recipe-link {
+        border-color: rgba(15, 23, 42, 0.12);
+        background: rgba(248, 250, 252, 0.9);
+    }
+
+    .prep-track {
+        background: rgba(148, 163, 184, 0.24);
+    }
+
+    .pulse-item-amount,
+    .pulse-item-batches {
+        color: #0052FF;
+    }
 </style>
 {% endblock %}
 
@@ -881,7 +954,7 @@
                                     <tr onclick="if (!event.target.closest('a,button,input,select,textarea,form,label')) { window.location='{{ url_for('banquet_event_edit', event_id=event.id) }}'; }" class="cursor-pointer">
                                         <td class="whitespace-nowrap">{{ event.event_date.strftime('%a %b %-d') if event.event_date else '-' }}</td>
                                         <td>
-                                            <div class="font-semibold text-white">{{ event.name }}</div>
+                                            <div class="font-semibold text-[#0F172A]">{{ event.name }}</div>
                                             <div class="text-xs text-[#94A3B8]">{{ event.venue_name or banquet_venue_name }}</div>
                                         </td>
                                         <td>{{ event.guests or 0 }}</td>
@@ -915,8 +988,8 @@
                             <div class="value fhq-countup" data-count="{{ production_pulse_total_subrecipes }}">{{ production_pulse_total_subrecipes }}</div>
                         </div>
                         <div class="pulse-metric">
-                            <div class="label">Batches</div>
-                            <div class="value">{{ '%.2f'|format(production_pulse_total_batches) }}</div>
+                            <div class="label">Total Amount</div>
+                            <div class="value">{{ production_pulse_total_amount }}</div>
                         </div>
                         <div class="pulse-metric">
                             <div class="label">Banquets</div>
@@ -934,9 +1007,9 @@
                                 {% else %}
                                 <div class="pulse-item-name">{{ item.recipe_name }}</div>
                                 {% endif %}
-                                <span class="pulse-item-batches">{{ '%.2f'|format(item.required_batches) }} batches</span>
+                                <span class="pulse-item-amount">{{ item.required_amount_label }}</span>
                             </div>
-                            <div class="pulse-item-copy">Feeds: {{ (item.used_in_preps[:3]|join(', ')) if item.used_in_preps else 'General prep pipeline' }}</div>
+                            <div class="pulse-item-copy">Used in: {{ (item.used_in_preps[:3]|join(', ')) if item.used_in_preps else 'General prep pipeline' }}</div>
                         </article>
                         {% endfor %}
                     </div>

@@ -1,5 +1,5 @@
 {% macro page_nav(title, subtitle=None, back_url=None) %}
-<nav class="fhq-nav border-b border-white/10">
+<nav class="fhq-nav border-b border-slate-200/80">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between py-4">
             <div class="flex items-center gap-3 min-w-0">
@@ -11,7 +11,7 @@
                 </a>
                 {% endif %}
                 <div class="min-w-0">
-                    <h1 class="text-2xl md:text-3xl font-heading tracking-tight text-white truncate">{{ title }}</h1>
+                    <h1 class="text-2xl md:text-3xl font-heading tracking-tight text-[#0F172A] truncate">{{ title }}</h1>
                     {% if subtitle %}
                     <p class="text-xs md:text-sm font-mono tracking-widest uppercase text-[#94A3B8] truncate">{{ subtitle }}</p>
                     {% endif %}
@@ -94,12 +94,12 @@
     </script>
     <style>
         :root {
-            color-scheme: dark;
-            --void: #020617;
-            --surface: #0F172A;
-            --fg: #F8FAFC;
-            --muted: #94A3B8;
-            --border: #1E293B;
+            color-scheme: light;
+            --void: #FAFAFA;
+            --surface: #FFFFFF;
+            --fg: #0F172A;
+            --muted: #64748B;
+            --border: #E2E8F0;
             --orange: #0052FF;
             --ember: #0052FF;
             --gold: #4D7CFF;
@@ -133,7 +133,7 @@
         }
 
         ::selection {
-            background: rgba(77, 124, 255, 0.28);
+            background: rgba(0, 82, 255, 0.18);
             color: #fff;
         }
 
@@ -159,8 +159,8 @@
         .bg-grid-pattern {
             background-size: 50px 50px;
             background-image:
-                linear-gradient(to right, rgba(30, 41, 59, 0.5) 1px, transparent 1px),
-                linear-gradient(to bottom, rgba(30, 41, 59, 0.5) 1px, transparent 1px);
+                linear-gradient(to right, rgba(15, 23, 42, 0.08) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(15, 23, 42, 0.08) 1px, transparent 1px);
             mask-image: radial-gradient(circle at center, black 38%, transparent 100%);
         }
 
@@ -198,16 +198,16 @@
 
         .holographic-gradient {
             background:
-                radial-gradient(circle at 20% -10%, rgba(0, 82, 255, 0.14), transparent 42%),
-                radial-gradient(circle at 80% 0%, rgba(77, 124, 255, 0.1), transparent 36%),
-                rgba(15, 23, 42, 0.88);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+                radial-gradient(circle at 20% -10%, rgba(0, 82, 255, 0.08), transparent 42%),
+                radial-gradient(circle at 80% 0%, rgba(77, 124, 255, 0.06), transparent 36%),
+                rgba(255, 255, 255, 0.92);
+            border: 1px solid rgba(15, 23, 42, 0.1);
             backdrop-filter: blur(14px);
         }
 
         .fhq-nav {
             background:
-                linear-gradient(180deg, rgba(2, 6, 23, 0.98), rgba(2, 6, 23, 0.9));
+                linear-gradient(180deg, rgba(250, 250, 250, 0.97), rgba(248, 250, 252, 0.94));
             backdrop-filter: blur(14px);
         }
 
@@ -267,8 +267,8 @@
         }
 
         .fhq-btn--outline {
-            border-color: rgba(255, 255, 255, 0.2);
-            color: #fff;
+            border-color: rgba(15, 23, 42, 0.18);
+            color: #0F172A;
             background: transparent;
         }
 
@@ -279,7 +279,7 @@
         }
 
         .fhq-btn--ghost {
-            color: #fff;
+            color: #334155;
             background: transparent;
         }
 
@@ -289,16 +289,16 @@
         }
 
         .fhq-card {
-            background: rgba(15, 23, 42, 0.88);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.96);
+            border: 1px solid rgba(15, 23, 42, 0.1);
             border-radius: 16px;
-            box-shadow: 0 0 50px -10px rgba(0, 82, 255, 0.14);
+            box-shadow: 0 16px 36px -24px rgba(15, 23, 42, 0.22);
             transition: all 0.28s ease;
         }
 
         .fhq-card:hover {
             border-color: rgba(0, 82, 255, 0.55);
-            box-shadow: 0 0 36px -10px rgba(0, 82, 255, 0.26);
+            box-shadow: 0 20px 38px -24px rgba(0, 82, 255, 0.28);
         }
 
         .fhq-chip {
@@ -329,11 +329,10 @@
         .fhq-input,
         .fhq-input-legacy {
             width: 100%;
-            border: 0;
-            border-bottom: 2px solid rgba(255, 255, 255, 0.2);
-            border-radius: 8px 8px 0 0;
-            background: rgba(0, 0, 0, 0.48);
-            color: #fff;
+            border: 1px solid rgba(15, 23, 42, 0.14);
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.95);
+            color: #0F172A;
             padding: 0.72rem 0.9rem;
             min-height: 48px;
             transition: all 0.2s ease;
@@ -341,7 +340,7 @@
 
         .fhq-input::placeholder,
         .fhq-input-legacy::placeholder {
-            color: rgba(255, 255, 255, 0.34);
+            color: rgba(100, 116, 139, 0.65);
         }
 
         .fhq-input:focus,
@@ -350,15 +349,15 @@
         select:focus,
         textarea:focus {
             outline: none;
-            border-bottom-color: #0052FF;
-            box-shadow: 0 10px 20px -10px rgba(0, 82, 255, 0.35);
+            border-color: #0052FF;
+            box-shadow: 0 0 0 3px rgba(0, 82, 255, 0.14);
         }
 
         /* Legacy utility remap so existing pages inherit DeFi styling. */
         .text-foxtown-ink,
         .text-stone-700,
         .text-slate-900 {
-            color: #FFFFFF !important;
+            color: #0F172A !important;
         }
 
         .text-stone-600,
@@ -368,7 +367,7 @@
         .text-slate-500,
         .text-gray-600,
         .text-gray-500 {
-            color: #94A3B8 !important;
+            color: #64748B !important;
         }
 
         .bg-white,
@@ -381,7 +380,7 @@
         .bg-stone-100,
         .bg-slate-50,
         .bg-slate-100 {
-            background-color: rgba(15, 23, 42, 0.88) !important;
+            background-color: rgba(255, 255, 255, 0.95) !important;
         }
 
         .bg-foxtown-emberSoft,
@@ -399,11 +398,11 @@
         }
 
         .bg-foxtown-charcoal {
-            background-color: #020617 !important;
+            background-color: #FAFAFA !important;
         }
 
         .bg-foxtown-canvas {
-            background-color: #020617 !important;
+            background-color: #FAFAFA !important;
         }
 
         .bg-foxtown-ember {
@@ -442,13 +441,18 @@
         }
 
         nav.bg-foxtown-charcoal {
-            background: linear-gradient(180deg, rgba(2, 6, 23, 0.98), rgba(2, 6, 23, 0.9)) !important;
+            background: linear-gradient(180deg, rgba(250, 250, 250, 0.97), rgba(248, 250, 252, 0.94)) !important;
             backdrop-filter: blur(14px);
+            color: #0F172A !important;
         }
 
         nav.bg-foxtown-charcoal h1 {
             font-family: 'Calistoga', Inter, system-ui, sans-serif;
             letter-spacing: -0.03em;
+        }
+
+        nav.bg-foxtown-charcoal .text-white {
+            color: #0F172A !important;
         }
 
         nav.bg-foxtown-charcoal .text-amber-200 {
@@ -460,20 +464,20 @@
         }
 
         nav.bg-foxtown-charcoal .text-stone-200 {
-            color: #94A3B8 !important;
+            color: #64748B !important;
         }
 
         input.w-full:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]),
         select.w-full,
         textarea.w-full {
-            background-color: rgba(2, 6, 23, 0.6) !important;
-            border-color: rgba(148, 163, 184, 0.3) !important;
-            color: #FFFFFF !important;
+            background-color: rgba(255, 255, 255, 0.95) !important;
+            border-color: rgba(15, 23, 42, 0.16) !important;
+            color: #0F172A !important;
         }
 
         input.w-full::placeholder,
         textarea.w-full::placeholder {
-            color: rgba(255, 255, 255, 0.35) !important;
+            color: rgba(100, 116, 139, 0.65) !important;
         }
 
         input.w-full:focus,
@@ -496,12 +500,12 @@
     </style>
     {% block extra_head %}{% endblock %}
 </head>
-<body class="min-h-screen bg-foxtown-canvas text-white font-body antialiased">
+<body class="min-h-screen bg-foxtown-canvas text-[#0F172A] font-body antialiased">
     <div class="fixed inset-0 -z-10 pointer-events-none">
-        <div class="absolute inset-0 bg-grid-pattern opacity-[0.65]"></div>
-        <div class="absolute -top-40 -left-24 h-[380px] w-[380px] rounded-full bg-[#0052FF] opacity-[0.14] blur-[120px]"></div>
-        <div class="absolute top-24 right-[-130px] h-[360px] w-[360px] rounded-full bg-[#0052FF] opacity-[0.14] blur-[130px]"></div>
-        <div class="absolute bottom-[-140px] left-1/2 h-[320px] w-[320px] -translate-x-1/2 rounded-full bg-[#4D7CFF] opacity-[0.12] blur-[140px]"></div>
+        <div class="absolute inset-0 bg-grid-pattern opacity-[0.34]"></div>
+        <div class="absolute -top-40 -left-24 h-[380px] w-[380px] rounded-full bg-[#0052FF] opacity-[0.07] blur-[120px]"></div>
+        <div class="absolute top-24 right-[-130px] h-[360px] w-[360px] rounded-full bg-[#0052FF] opacity-[0.07] blur-[130px]"></div>
+        <div class="absolute bottom-[-140px] left-1/2 h-[320px] w-[320px] -translate-x-1/2 rounded-full bg-[#4D7CFF] opacity-[0.06] blur-[140px]"></div>
     </div>
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
