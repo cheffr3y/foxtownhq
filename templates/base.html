@@ -33,7 +33,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Foxtown HQ{% endblock %}</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Calistoga&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -41,41 +41,43 @@
                 extend: {
                     colors: {
                         bitcoin: {
-                            void: '#030304',
-                            surface: '#0F1115',
-                            foreground: '#FFFFFF',
+                            void: '#020617',
+                            surface: '#0F172A',
+                            foreground: '#F8FAFC',
                             muted: '#94A3B8',
                             border: '#1E293B',
-                            orange: '#F7931A',
-                            ember: '#EA580C',
-                            gold: '#FFD600'
+                            orange: '#0052FF',
+                            ember: '#0052FF',
+                            gold: '#4D7CFF'
                         },
                         foxtown: {
-                            orange: '#F7931A',
-                            blue: '#FFD600',
+                            orange: '#0052FF',
+                            blue: '#4D7CFF',
                             slate: '#1E293B',
-                            dark: '#0F1115',
-                            ink: '#FFFFFF',
-                            ember: '#F7931A',
-                            emberSoft: '#1A1206',
+                            dark: '#0F172A',
+                            ink: '#F8FAFC',
+                            ember: '#0052FF',
+                            emberSoft: '#0A1228',
                             stone: '#94A3B8',
-                            stoneSoft: '#0F1115',
-                            canvas: '#030304',
-                            charcoal: '#030304',
-                            glow: '#EA580C',
-                            black: '#030304'
+                            stoneSoft: '#0F172A',
+                            canvas: '#020617',
+                            charcoal: '#020617',
+                            glow: '#4D7CFF',
+                            black: '#020617',
+                            accent: '#0052FF',
+                            accentSecondary: '#4D7CFF'
                         }
                     },
                     fontFamily: {
                         sans: ['Inter', 'system-ui', 'sans-serif'],
                         body: ['Inter', 'system-ui', 'sans-serif'],
-                        display: ['Space Grotesk', 'Inter', 'system-ui', 'sans-serif'],
-                        heading: ['Space Grotesk', 'Inter', 'system-ui', 'sans-serif'],
+                        display: ['Calistoga', 'Inter', 'system-ui', 'sans-serif'],
+                        heading: ['Calistoga', 'Inter', 'system-ui', 'sans-serif'],
                         mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'monospace']
                     },
                     boxShadow: {
-                        soft: '0 0 30px -10px rgba(247, 147, 26, 0.24)',
-                        lift: '0 0 42px -12px rgba(247, 147, 26, 0.34)'
+                        soft: '0 0 30px -10px rgba(0, 82, 255, 0.24)',
+                        lift: '0 0 42px -12px rgba(0, 82, 255, 0.34)'
                     },
                     keyframes: {
                         float: {
@@ -93,16 +95,18 @@
     <style>
         :root {
             color-scheme: dark;
-            --void: #030304;
-            --surface: #0F1115;
-            --fg: #FFFFFF;
+            --void: #020617;
+            --surface: #0F172A;
+            --fg: #F8FAFC;
             --muted: #94A3B8;
             --border: #1E293B;
-            --orange: #F7931A;
-            --ember: #EA580C;
-            --gold: #FFD600;
-            --glow-orange: 0 0 30px -5px rgba(247, 147, 26, 0.58);
-            --glow-gold: 0 0 24px -5px rgba(255, 214, 0, 0.35);
+            --orange: #0052FF;
+            --ember: #0052FF;
+            --gold: #4D7CFF;
+            --accent: #0052FF;
+            --accent-secondary: #4D7CFF;
+            --glow-orange: 0 0 30px -5px rgba(0, 82, 255, 0.58);
+            --glow-gold: 0 0 24px -5px rgba(77, 124, 255, 0.35);
         }
 
         html,
@@ -117,7 +121,7 @@
         }
 
         .font-heading {
-            font-family: 'Space Grotesk', Inter, system-ui, sans-serif;
+            font-family: 'Calistoga', Inter, system-ui, sans-serif;
         }
 
         .font-body {
@@ -129,7 +133,7 @@
         }
 
         ::selection {
-            background: rgba(247, 147, 26, 0.28);
+            background: rgba(77, 124, 255, 0.28);
             color: #fff;
         }
 
@@ -144,8 +148,8 @@
         }
 
         @keyframes pulseGlow {
-            0%, 100% { box-shadow: 0 0 0 0 rgba(247, 147, 26, 0.45); }
-            70% { box-shadow: 0 0 0 12px rgba(247, 147, 26, 0); }
+            0%, 100% { box-shadow: 0 0 0 0 rgba(77, 124, 255, 0.45); }
+            70% { box-shadow: 0 0 0 12px rgba(77, 124, 255, 0); }
         }
 
         .fhq-fade {
@@ -160,18 +164,50 @@
             mask-image: radial-gradient(circle at center, black 38%, transparent 100%);
         }
 
+        .gradient-text {
+            background: linear-gradient(to right, var(--accent), var(--accent-secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .fhq-section-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.6rem;
+            border-radius: 999px;
+            border: 1px solid rgba(0, 82, 255, 0.36);
+            background: rgba(0, 82, 255, 0.08);
+            padding: 0.4rem 0.9rem;
+            color: #93C5FD;
+            font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+            font-size: 0.68rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        .fhq-section-label::before {
+            content: '';
+            width: 0.5rem;
+            height: 0.5rem;
+            border-radius: 999px;
+            background: var(--accent);
+            box-shadow: 0 0 0 0 rgba(0, 82, 255, 0.45);
+            animation: pulseGlow 2s infinite;
+        }
+
         .holographic-gradient {
             background:
-                radial-gradient(circle at 20% -10%, rgba(247, 147, 26, 0.14), transparent 42%),
-                radial-gradient(circle at 80% 0%, rgba(255, 214, 0, 0.1), transparent 36%),
-                rgba(15, 17, 21, 0.88);
+                radial-gradient(circle at 20% -10%, rgba(0, 82, 255, 0.14), transparent 42%),
+                radial-gradient(circle at 80% 0%, rgba(77, 124, 255, 0.1), transparent 36%),
+                rgba(15, 23, 42, 0.88);
             border: 1px solid rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(14px);
         }
 
         .fhq-nav {
             background:
-                linear-gradient(180deg, rgba(3, 3, 4, 0.98), rgba(3, 3, 4, 0.9));
+                linear-gradient(180deg, rgba(2, 6, 23, 0.98), rgba(2, 6, 23, 0.9));
             backdrop-filter: blur(14px);
         }
 
@@ -182,14 +218,14 @@
             width: 40px;
             height: 40px;
             border-radius: 999px;
-            border: 1px solid rgba(247, 147, 26, 0.45);
-            color: #F7931A;
+            border: 1px solid rgba(0, 82, 255, 0.45);
+            color: #4D7CFF;
             transition: all 0.25s ease;
         }
 
         .fhq-nav-back:hover {
             color: #fff;
-            border-color: rgba(247, 147, 26, 0.9);
+            border-color: rgba(0, 82, 255, 0.9);
             box-shadow: var(--glow-orange);
             transform: translateY(-1px);
         }
@@ -216,18 +252,18 @@
         button:focus-visible,
         a:focus-visible {
             outline: none;
-            box-shadow: 0 0 0 2px rgba(247, 147, 26, 0.52);
+            box-shadow: 0 0 0 2px rgba(0, 82, 255, 0.52);
         }
 
         .fhq-btn--primary {
-            background: linear-gradient(to right, #EA580C, #F7931A);
+            background: linear-gradient(to right, #0052FF, #4D7CFF);
             color: #fff;
-            box-shadow: 0 0 20px -5px rgba(234, 88, 12, 0.5);
+            box-shadow: 0 0 20px -5px rgba(0, 82, 255, 0.5);
         }
 
         .fhq-btn--primary:hover {
             transform: translateY(-1px) scale(1.02);
-            box-shadow: 0 0 30px -5px rgba(247, 147, 26, 0.62);
+            box-shadow: 0 8px 24px rgba(0, 82, 255, 0.35);
         }
 
         .fhq-btn--outline {
@@ -237,9 +273,9 @@
         }
 
         .fhq-btn--outline:hover {
-            border-color: rgba(247, 147, 26, 0.75);
-            background: rgba(247, 147, 26, 0.1);
-            color: #FFD600;
+            border-color: rgba(0, 82, 255, 0.75);
+            background: rgba(0, 82, 255, 0.1);
+            color: #BFDBFE;
         }
 
         .fhq-btn--ghost {
@@ -249,20 +285,20 @@
 
         .fhq-btn--ghost:hover {
             background: rgba(255, 255, 255, 0.08);
-            color: #F7931A;
+            color: #93C5FD;
         }
 
         .fhq-card {
-            background: rgba(15, 17, 21, 0.88);
+            background: rgba(15, 23, 42, 0.88);
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 16px;
-            box-shadow: 0 0 50px -10px rgba(247, 147, 26, 0.14);
+            box-shadow: 0 0 50px -10px rgba(0, 82, 255, 0.14);
             transition: all 0.28s ease;
         }
 
         .fhq-card:hover {
-            border-color: rgba(247, 147, 26, 0.55);
-            box-shadow: 0 0 36px -10px rgba(247, 147, 26, 0.26);
+            border-color: rgba(0, 82, 255, 0.55);
+            box-shadow: 0 0 36px -10px rgba(0, 82, 255, 0.26);
         }
 
         .fhq-chip {
@@ -270,10 +306,10 @@
             align-items: center;
             gap: 0.4rem;
             border-radius: 999px;
-            border: 1px solid rgba(247, 147, 26, 0.46);
-            background: rgba(234, 88, 12, 0.12);
+            border: 1px solid rgba(0, 82, 255, 0.46);
+            background: rgba(0, 82, 255, 0.12);
             padding: 0.3rem 0.7rem;
-            color: #FFD600;
+            color: #BFDBFE;
             font-size: 0.68rem;
             font-weight: 600;
             letter-spacing: 0.16em;
@@ -285,8 +321,8 @@
             width: 0.45rem;
             height: 0.45rem;
             border-radius: 999px;
-            background: #F7931A;
-            box-shadow: 0 0 14px rgba(247, 147, 26, 0.85);
+            background: #0052FF;
+            box-shadow: 0 0 14px rgba(0, 82, 255, 0.85);
             animation: pulseGlow 2s infinite;
         }
 
@@ -314,8 +350,8 @@
         select:focus,
         textarea:focus {
             outline: none;
-            border-bottom-color: #F7931A;
-            box-shadow: 0 10px 20px -10px rgba(247, 147, 26, 0.35);
+            border-bottom-color: #0052FF;
+            box-shadow: 0 10px 20px -10px rgba(0, 82, 255, 0.35);
         }
 
         /* Legacy utility remap so existing pages inherit DeFi styling. */
@@ -345,12 +381,12 @@
         .bg-stone-100,
         .bg-slate-50,
         .bg-slate-100 {
-            background-color: rgba(15, 17, 21, 0.88) !important;
+            background-color: rgba(15, 23, 42, 0.88) !important;
         }
 
         .bg-foxtown-emberSoft,
         .bg-orange-50 {
-            background-color: rgba(234, 88, 12, 0.13) !important;
+            background-color: rgba(0, 82, 255, 0.13) !important;
         }
 
         .border-stone-300,
@@ -363,60 +399,60 @@
         }
 
         .bg-foxtown-charcoal {
-            background-color: #030304 !important;
+            background-color: #020617 !important;
         }
 
         .bg-foxtown-canvas {
-            background-color: #030304 !important;
+            background-color: #020617 !important;
         }
 
         .bg-foxtown-ember {
-            background-image: linear-gradient(to right, #EA580C, #F7931A) !important;
-            box-shadow: 0 0 20px -5px rgba(234, 88, 12, 0.5);
+            background-image: linear-gradient(to right, #0052FF, #4D7CFF) !important;
+            box-shadow: 0 0 20px -5px rgba(0, 82, 255, 0.5);
         }
 
         .hover\:bg-orange-700:hover {
-            background-image: linear-gradient(to right, #F7931A, #FFD600) !important;
+            background-image: linear-gradient(to right, #4D7CFF, #BFDBFE) !important;
         }
 
         .text-foxtown-ember,
         .text-orange-700 {
-            color: #F7931A !important;
+            color: #60A5FA !important;
         }
 
         .hover\:text-orange-700:hover {
-            color: #FFD600 !important;
+            color: #BFDBFE !important;
         }
 
         .shadow-soft {
-            box-shadow: 0 0 34px -12px rgba(247, 147, 26, 0.26) !important;
+            box-shadow: 0 0 34px -12px rgba(0, 82, 255, 0.26) !important;
         }
 
         .shadow-lift {
-            box-shadow: 0 0 46px -12px rgba(247, 147, 26, 0.38) !important;
+            box-shadow: 0 0 46px -12px rgba(0, 82, 255, 0.38) !important;
         }
 
         .hover\:bg-stone-50:hover,
         .hover\:bg-stone-50\/70:hover {
-            background-color: rgba(247, 147, 26, 0.1) !important;
+            background-color: rgba(0, 82, 255, 0.1) !important;
         }
 
         .hover\:text-slate-900:hover {
-            color: #FFD600 !important;
+            color: #BFDBFE !important;
         }
 
         nav.bg-foxtown-charcoal {
-            background: linear-gradient(180deg, rgba(3, 3, 4, 0.98), rgba(3, 3, 4, 0.9)) !important;
+            background: linear-gradient(180deg, rgba(2, 6, 23, 0.98), rgba(2, 6, 23, 0.9)) !important;
             backdrop-filter: blur(14px);
         }
 
         nav.bg-foxtown-charcoal h1 {
-            font-family: 'Space Grotesk', Inter, system-ui, sans-serif;
+            font-family: 'Calistoga', Inter, system-ui, sans-serif;
             letter-spacing: -0.03em;
         }
 
         nav.bg-foxtown-charcoal .text-amber-200 {
-            color: #F7931A !important;
+            color: #60A5FA !important;
         }
 
         nav.bg-foxtown-charcoal .text-amber-200:hover {
@@ -430,7 +466,7 @@
         input.w-full:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]),
         select.w-full,
         textarea.w-full {
-            background-color: rgba(3, 3, 4, 0.6) !important;
+            background-color: rgba(2, 6, 23, 0.6) !important;
             border-color: rgba(148, 163, 184, 0.3) !important;
             color: #FFFFFF !important;
         }
@@ -443,8 +479,8 @@
         input.w-full:focus,
         select.w-full:focus,
         textarea.w-full:focus {
-            border-color: rgba(247, 147, 26, 0.72) !important;
-            box-shadow: 0 0 20px -10px rgba(247, 147, 26, 0.55) !important;
+            border-color: rgba(0, 82, 255, 0.72) !important;
+            box-shadow: 0 0 20px -10px rgba(0, 82, 255, 0.55) !important;
         }
 
         @media (prefers-reduced-motion: reduce) {
@@ -463,9 +499,9 @@
 <body class="min-h-screen bg-foxtown-canvas text-white font-body antialiased">
     <div class="fixed inset-0 -z-10 pointer-events-none">
         <div class="absolute inset-0 bg-grid-pattern opacity-[0.65]"></div>
-        <div class="absolute -top-40 -left-24 h-[380px] w-[380px] rounded-full bg-[#F7931A] opacity-[0.14] blur-[120px]"></div>
-        <div class="absolute top-24 right-[-130px] h-[360px] w-[360px] rounded-full bg-[#EA580C] opacity-[0.14] blur-[130px]"></div>
-        <div class="absolute bottom-[-140px] left-1/2 h-[320px] w-[320px] -translate-x-1/2 rounded-full bg-[#FFD600] opacity-[0.12] blur-[140px]"></div>
+        <div class="absolute -top-40 -left-24 h-[380px] w-[380px] rounded-full bg-[#0052FF] opacity-[0.14] blur-[120px]"></div>
+        <div class="absolute top-24 right-[-130px] h-[360px] w-[360px] rounded-full bg-[#0052FF] opacity-[0.14] blur-[130px]"></div>
+        <div class="absolute bottom-[-140px] left-1/2 h-[320px] w-[320px] -translate-x-1/2 rounded-full bg-[#4D7CFF] opacity-[0.12] blur-[140px]"></div>
     </div>
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
@@ -473,7 +509,7 @@
             <div class="space-y-2">
                 {% for category, message in messages %}
                     <div class="rounded-xl px-4 py-3 text-sm font-medium border
-                        {% if category == 'success' %}bg-emerald-500/10 text-emerald-200 border-emerald-500/25{% elif category == 'error' %}bg-red-500/12 text-red-200 border-red-500/35{% else %}bg-[#EA580C]/20 text-amber-100 border-[#F7931A]/45{% endif %}">
+                        {% if category == 'success' %}bg-emerald-500/10 text-emerald-200 border-emerald-500/25{% elif category == 'error' %}bg-red-500/12 text-red-200 border-red-500/35{% else %}bg-[#0052FF]/20 text-blue-100 border-[#4D7CFF]/45{% endif %}">
                         {{ message }}
                     </div>
                 {% endfor %}

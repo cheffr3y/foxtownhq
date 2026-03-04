@@ -301,7 +301,7 @@ function exportRecipePdf() {
 
     function drawBrandHeader(isContinuation = false) {
         doc.setFontSize(9);
-        doc.setTextColor(234, 88, 12);
+        doc.setTextColor(0, 82, 255);
         doc.setFont(undefined, 'bold');
         doc.text(
             isContinuation ? 'FOXTOWN HOSPITALITY GROUP · CONTINUED' : 'FOXTOWN HOSPITALITY GROUP',
@@ -311,7 +311,7 @@ function exportRecipePdf() {
         );
         yPos += 12;
 
-        doc.setDrawColor(234, 88, 12);
+        doc.setDrawColor(0, 82, 255);
         doc.setLineWidth(2);
         doc.line(margin, yPos, pageWidth - margin, yPos);
         yPos += 18;
@@ -322,7 +322,7 @@ function exportRecipePdf() {
         doc.setFontSize(11);
         doc.setFont(undefined, 'bold');
         doc.setTextColor(255, 255, 255);
-        doc.setFillColor(234, 88, 12);
+        doc.setFillColor(0, 82, 255);
         doc.rect(margin, yPos - 10, contentWidth, 14, 'F');
         doc.text(title, margin + 5, yPos);
         yPos += 16;
@@ -360,7 +360,7 @@ function exportRecipePdf() {
 
     if (recipePdfData.venue) {
         doc.setFontSize(10);
-        doc.setTextColor(234, 88, 12);
+        doc.setTextColor(0, 82, 255);
         doc.setFont(undefined, 'bold');
         doc.text('VENUE:', pageWidth - margin - 160, yPos);
         doc.setFont(undefined, 'normal');
@@ -373,14 +373,14 @@ function exportRecipePdf() {
     ensureSpace(24, () => drawBrandHeader(true));
     doc.setFontSize(9);
     doc.setFont(undefined, 'bold');
-    doc.setTextColor(234, 88, 12);
+    doc.setTextColor(0, 82, 255);
     doc.text('Yield:', margin, yPos);
     doc.setFont(undefined, 'normal');
     doc.setTextColor(0, 0, 0);
     doc.text(recipePdfData.yield || 'N/A', margin + 40, yPos);
 
     doc.setFont(undefined, 'bold');
-    doc.setTextColor(234, 88, 12);
+    doc.setTextColor(0, 82, 255);
     doc.text('Equipment:', margin + 170, yPos);
     doc.setFont(undefined, 'normal');
     doc.setTextColor(0, 0, 0);
@@ -403,7 +403,7 @@ function exportRecipePdf() {
                 drawSectionBanner('INGREDIENTS');
             });
             doc.setFontSize(8);
-            doc.setFillColor(234, 88, 12);
+            doc.setFillColor(0, 82, 255);
             doc.rect(margin, yPos, totalTableWidth, 18, 'F');
             doc.setTextColor(255, 255, 255);
             doc.setFont(undefined, 'bold');

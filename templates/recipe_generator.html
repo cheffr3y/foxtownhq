@@ -295,7 +295,7 @@ document.getElementById('generatePdf').addEventListener('click', () => {
     doc.text('FOXTOWN HOSPITALITY GROUP', pageWidth / 2, yPos, { align: 'center' });
     yPos += 14;
 
-    doc.setDrawColor(249, 115, 22);
+    doc.setDrawColor(0, 82, 255);
     doc.setLineWidth(2);
     doc.line(margin, yPos, pageWidth - margin, yPos);
     yPos += 20;
@@ -314,7 +314,7 @@ document.getElementById('generatePdf').addEventListener('click', () => {
 
     doc.setFontSize(11);
     doc.setTextColor(255, 255, 255);
-    doc.setFillColor(249, 115, 22);
+    doc.setFillColor(0, 82, 255);
     doc.rect(margin, yPos - 10, pageWidth - margin * 2, 14, 'F');
     doc.text('INGREDIENTS', margin + 6, yPos);
     yPos += 16;
@@ -329,7 +329,7 @@ document.getElementById('generatePdf').addEventListener('click', () => {
     const totalTableWidth = colWidths.reduce((a, b) => a + b, 0);
 
     doc.setFontSize(8);
-    doc.setFillColor(249, 115, 22);
+    doc.setFillColor(0, 82, 255);
     doc.rect(margin, yPos - 2, totalTableWidth, 18, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFont(undefined, 'bold');
@@ -364,7 +364,7 @@ document.getElementById('generatePdf').addEventListener('click', () => {
     yPos += 8;
     doc.setFontSize(11);
     doc.setTextColor(255, 255, 255);
-    doc.setFillColor(249, 115, 22);
+    doc.setFillColor(0, 82, 255);
     doc.rect(margin, yPos - 10, pageWidth - margin * 2, 14, 'F');
     doc.text('PREPARATION STEPS', margin + 6, yPos);
     yPos += 16;
