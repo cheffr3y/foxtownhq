@@ -21,6 +21,37 @@
         gap: 0.75rem;
     }
 
+    .advanced-controls {
+        border-radius: 12px;
+        border: 1px dashed rgba(148, 163, 184, 0.4);
+        background: rgba(3, 3, 4, 0.34);
+    }
+
+    .advanced-controls > summary {
+        list-style: none;
+        cursor: pointer;
+        padding: 0.58rem 0.72rem;
+        color: #cbd5e1;
+        font-size: 0.72rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    }
+
+    .advanced-controls > summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .advanced-controls[open] > summary {
+        border-bottom: 1px dashed rgba(148, 163, 184, 0.36);
+    }
+
+    .advanced-controls-body {
+        padding: 0.62rem 0.72rem 0.72rem;
+        display: grid;
+        gap: 0.62rem;
+    }
+
     .week-row {
         display: flex;
         align-items: center;
@@ -571,42 +602,6 @@
 
     <div class="max-w-[96rem] mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-4 comm-shell fhq-fade" id="plannerRoot" data-current-user="{{ (current_user.username or '')|trim }}">
         <section class="comm-panel p-4 planner-head">
-            <div class="week-row">
-                <div class="week-title">Week of {{ start_date }} to {{ end_date }}</div>
-                <div class="week-links">
-                    <a href="{{ url_for('commissary_planner', week_start=prev_week_start, outlet=(selected_outlet or None), units=selected_units, day=selected_day, view=view_mode) }}" class="week-link">Prev Week</a>
-                    <a href="{{ url_for('commissary_planner', week_start=current_week_start, outlet=(selected_outlet or None), units=selected_units, day=selected_day, view=view_mode) }}" class="week-link">This Week</a>
-                    <a href="{{ url_for('commissary_planner', week_start=next_week_start, outlet=(selected_outlet or None), units=selected_units, day=selected_day, view=view_mode) }}" class="week-link">Next Week</a>
-                </div>
-            </div>
-            <form method="GET" class="filter-row">
-                <input type="hidden" name="day" value="{{ selected_day }}">
-                <input type="hidden" name="view" value="{{ view_mode }}">
-                <div>
-                    <label class="comm-label">Outlet</label>
-                    <select name="outlet" class="comm-field">
-                        <option value="">All Outlets</option>
-                        {% for outlet in outlet_options %}
-                        <option value="{{ outlet }}" {% if selected_outlet == outlet %}selected{% endif %}>{{ outlet }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div>
-                    <label class="comm-label">Week Start</label>
-                    <input type="date" name="week_start" value="{{ week_start }}" class="comm-field">
-                </div>
-                <div>
-                    <label class="comm-label">Units</label>
-                    <select name="units" class="comm-field">
-                        <option value="auto" {% if selected_units == 'auto' %}selected{% endif %}>Auto</option>
-                        <option value="imperial" {% if selected_units == 'imperial' %}selected{% endif %}>Imperial</option>
-                        <option value="metric" {% if selected_units == 'metric' %}selected{% endif %}>Metric</option>
-                        <option value="hybrid" {% if selected_units == 'hybrid' %}selected{% endif %}>Hybrid</option>
-                    </select>
-                </div>
-                <button type="submit" class="fhq-btn fhq-btn--primary">Apply</button>
-                <a href="{{ url_for('commissary_planner') }}" class="fhq-btn fhq-btn--outline text-center">Reset</a>
-            </form>
             <form method="GET" class="day-ops-row">
                 <input type="hidden" name="outlet" value="{{ selected_outlet }}">
                 <input type="hidden" name="week_start" value="{{ week_start }}">
@@ -627,6 +622,47 @@
                 <a href="{{ url_for('commissary_packet_print', outlet=(selected_outlet or None), week_start=week_start, day=selected_day, include_shopping=0, units=selected_units) }}" target="_blank" class="fhq-btn fhq-btn--outline text-center">Print Day Packet</a>
                 <a href="{{ url_for('commissary_packet_print', outlet=(selected_outlet or None), week_start=week_start, include_shopping=1, units=selected_units) }}" target="_blank" class="fhq-btn fhq-btn--ghost text-center">Print Week + Shopping</a>
             </form>
+            <details class="advanced-controls">
+                <summary>Advanced filters, week navigation, and review tools</summary>
+                <div class="advanced-controls-body">
+                    <div class="week-row">
+                        <div class="week-title">Week of {{ start_date }} to {{ end_date }}</div>
+                        <div class="week-links">
+                            <a href="{{ url_for('commissary_planner', week_start=prev_week_start, outlet=(selected_outlet or None), units=selected_units, day=selected_day, view=view_mode) }}" class="week-link">Prev Week</a>
+                            <a href="{{ url_for('commissary_planner', week_start=current_week_start, outlet=(selected_outlet or None), units=selected_units, day=selected_day, view=view_mode) }}" class="week-link">This Week</a>
+                            <a href="{{ url_for('commissary_planner', week_start=next_week_start, outlet=(selected_outlet or None), units=selected_units, day=selected_day, view=view_mode) }}" class="week-link">Next Week</a>
+                        </div>
+                    </div>
+                    <form method="GET" class="filter-row">
+                        <input type="hidden" name="day" value="{{ selected_day }}">
+                        <input type="hidden" name="view" value="{{ view_mode }}">
+                        <div>
+                            <label class="comm-label">Outlet</label>
+                            <select name="outlet" class="comm-field">
+                                <option value="">All Outlets</option>
+                                {% for outlet in outlet_options %}
+                                <option value="{{ outlet }}" {% if selected_outlet == outlet %}selected{% endif %}>{{ outlet }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="comm-label">Week Start</label>
+                            <input type="date" name="week_start" value="{{ week_start }}" class="comm-field">
+                        </div>
+                        <div>
+                            <label class="comm-label">Units</label>
+                            <select name="units" class="comm-field">
+                                <option value="auto" {% if selected_units == 'auto' %}selected{% endif %}>Auto</option>
+                                <option value="imperial" {% if selected_units == 'imperial' %}selected{% endif %}>Imperial</option>
+                                <option value="metric" {% if selected_units == 'metric' %}selected{% endif %}>Metric</option>
+                                <option value="hybrid" {% if selected_units == 'hybrid' %}selected{% endif %}>Hybrid</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="fhq-btn fhq-btn--primary">Apply</button>
+                        <a href="{{ url_for('commissary_planner') }}" class="fhq-btn fhq-btn--outline text-center">Reset</a>
+                    </form>
+                </div>
+            </details>
         </section>
 
         {% set total_lines = datasets.line_count or 0 %}
@@ -642,9 +678,7 @@
             <div class="ribbon-track"><span style="width: {{ progress_pct }}%"></span></div>
             <div class="ribbon-chips">
                 <span class="ribbon-chip">Open Orders {{ metrics.open_orders }}</span>
-                <span class="ribbon-chip">Completed {{ metrics.completed_orders }}</span>
                 <span class="ribbon-chip">Logged {{ logged_lines }}</span>
-                <span class="ribbon-chip">Production Cards {{ datasets.weekly_prep|length }}</span>
                 <span class="ribbon-chip">Shopping Forecast {{ datasets.shopping_ingredients|length }}</span>
             </div>
         </section>
@@ -705,7 +739,6 @@
                                 <div class="task-actions">
                                     <button type="button" class="fhq-btn fhq-btn--primary" data-quick-signoff>Quick Sign-off</button>
                                     <button type="button" class="fhq-btn fhq-btn--outline" data-mark-progress>Mark In Progress</button>
-                                    <a href="{{ url_for('commissary_order_edit', order_id=order.id) }}" class="fhq-btn fhq-btn--ghost">Open Order</a>
                                     <span class="task-save-state" data-save-state>
                                         {% if prod.updated_at %}
                                             Saved {{ prod.updated_at.strftime('%b %-d %I:%M %p') }}
