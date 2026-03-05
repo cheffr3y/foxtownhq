@@ -8,7 +8,6 @@ from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 
 from helpers.commissary import (
-    COMMISSARY_ACTIVE_STATUSES,
     COMMISSARY_SOURCE_CHOICES,
     COMMISSARY_STATUS_CHOICES,
     DEFAULT_COMMISSARY_OUTLET,
@@ -344,112 +343,114 @@ def commissary_planner():
         ensure_commissary_tables(cur)
         conn.commit()
 
-        week_start_raw = (request.args.get('week_start') or request.args.get('start_date') or '').strip()
         selected_day_raw = (request.args.get('day') or '').strip()
-        view_mode = (request.args.get('view') or 'day').strip().lower()
-        active_tab = (request.args.get('tab') or 'work').strip().lower()
-        if view_mode not in ('day', 'week'):
-            view_mode = 'day'
-        if active_tab not in ('work', 'manager'):
-            active_tab = 'work'
+        today = date.today()
+        try:
+            selected_day = datetime.strptime(selected_day_raw, '%Y-%m-%d').date() if selected_day_raw else today
+        except ValueError:
+            selected_day = today
 
-        start_date, end_date = get_commissary_week_window(week_start_raw)
+        start_date, end_date = get_commissary_week_window(selected_day.isoformat())
+        if selected_day < start_date or selected_day > end_date:
+            selected_day = today if start_date <= today <= end_date else start_date
+
+        signoff_day_raw = (request.args.get('signoff_day') or '').strip()
+        try:
+            signoff_day = datetime.strptime(signoff_day_raw, '%Y-%m-%d').date() if signoff_day_raw else None
+        except ValueError:
+            signoff_day = None
+        if not signoff_day:
+            signoff_day = today if start_date <= today <= end_date else selected_day
+        if signoff_day < start_date or signoff_day > end_date:
+            signoff_day = selected_day
+
+        active_tab = (request.args.get('tab') or 'production').strip().lower()
+        if active_tab not in ('production', 'signoff', 'transfers'):
+            active_tab = 'production'
+
         selected_outlet = clean_menu_text(request.args.get('outlet'))
         selected_units = get_unit_system()
         outlet_options = get_commissary_outlet_options(cur)
 
         datasets = build_commissary_datasets(cur, start_date, end_date, selected_outlet, selected_units)
-
-        selected_day = None
-        if selected_day_raw:
-            try:
-                selected_day = datetime.strptime(selected_day_raw, '%Y-%m-%d').date()
-            except ValueError:
-                selected_day = None
-        if not selected_day:
-            today = date.today()
-            selected_day = today if start_date <= today <= end_date else start_date
-        if selected_day < start_date or selected_day > end_date:
-            selected_day = start_date
-
         all_daily_days = datasets.get('daily_production_days', []) or []
-        days_with_entries = [
-            day_data.get('date').isoformat()
-            for day_data in all_daily_days
-            if day_data.get('date') and int(day_data.get('entry_count') or 0) > 0
-        ]
-        if view_mode == 'day':
-            filtered_daily_days = [day_data for day_data in all_daily_days if day_data.get('date') == selected_day]
-        else:
-            filtered_daily_days = all_daily_days
+        day_map = {day_row.get('date'): day_row for day_row in all_daily_days if day_row.get('date')}
 
-        orders = datasets.get('orders', [])
-        open_statuses = set(COMMISSARY_ACTIVE_STATUSES)
+        selected_day_data = day_map.get(selected_day) or {'source_groups': []}
+        production_by_outlet = {}
+        for source_group in selected_day_data.get('source_groups', []):
+            for entry in source_group.get('entries', []):
+                outlet_name = entry.get('outlet') or DEFAULT_COMMISSARY_OUTLET
+                if outlet_name not in production_by_outlet:
+                    production_by_outlet[outlet_name] = []
+                production_by_outlet[outlet_name].append(
+                    {
+                        'item_name': entry.get('item_name') or 'Item',
+                        'quantity': entry.get('quantity'),
+                        'quantity_unit': entry.get('quantity_unit') or 'each',
+                        'outlet': outlet_name,
+                    }
+                )
+        production_groups = []
+        for outlet_name in sorted(production_by_outlet.keys(), key=lambda text: text.lower()):
+            entries = production_by_outlet.get(outlet_name) or []
+            entries.sort(key=lambda row: (row.get('item_name') or '').lower())
+            production_groups.append({'outlet': outlet_name, 'entries': entries})
 
-        metrics = {
-            'open_orders': sum(1 for order in orders if (order.get('status') or '').lower() in open_statuses),
-            'completed_orders': sum(1 for order in orders if (order.get('status') or '').lower() == 'completed'),
-            'logged_lines': datasets.get('logged_line_count', 0),
-            'signed_off_lines': datasets.get('signed_off_line_count', 0),
-        }
-
-        recent_params = []
-        recent_outlet_sql = ""
-        if selected_outlet:
-            recent_outlet_sql = "WHERE o.outlet = %s"
-            recent_params.append(selected_outlet)
-        cur.execute(
-            f"""
-            SELECT
-                o.id,
-                o.needed_date,
-                o.outlet,
-                o.status,
-                o.source,
-                o.updated_at,
-                COUNT(line.id) AS line_count
-            FROM commissary_orders o
-            LEFT JOIN commissary_order_lines line ON line.order_id = o.id
-            {recent_outlet_sql}
-            GROUP BY o.id
-            ORDER BY o.needed_date DESC NULLS LAST, o.updated_at DESC NULLS LAST, o.id DESC
-            LIMIT 40
-        """,
-            recent_params,
-        )
-        recent_orders = cur.fetchall()
-        source_label_map = {value: label for value, label in COMMISSARY_SOURCE_CHOICES}
-        for row in recent_orders:
-            row['source_label'] = source_label_map.get(
-                normalize_commissary_source(row.get('source')),
-                'Outlet Request',
+        signoff_entries_by_day = {}
+        week_signoff_summary = []
+        day_cursor = start_date
+        while day_cursor <= end_date:
+            day_data = day_map.get(day_cursor) or {'source_groups': []}
+            entries = []
+            for source_group in day_data.get('source_groups', []):
+                for entry in source_group.get('entries', []):
+                    if not entry.get('line_id'):
+                        continue
+                    entries.append(
+                        {
+                            'line_id': entry.get('line_id'),
+                            'item_name': entry.get('item_name') or 'Item',
+                            'quantity': entry.get('quantity'),
+                            'quantity_unit': entry.get('quantity_unit') or 'each',
+                            'outlet': entry.get('outlet') or DEFAULT_COMMISSARY_OUTLET,
+                            'signed_off': bool(entry.get('signed_off')),
+                            'made_by': entry.get('made_by') or '',
+                            'tasted_by': entry.get('tasted_by') or '',
+                            'production_notes': entry.get('production_notes') or '',
+                        }
+                    )
+            entries.sort(key=lambda row: ((row.get('signed_off') is True), (row.get('item_name') or '').lower()))
+            signed_count = sum(1 for row in entries if row.get('signed_off'))
+            day_iso = day_cursor.isoformat()
+            signoff_entries_by_day[day_iso] = entries
+            week_signoff_summary.append(
+                {
+                    'date': day_cursor,
+                    'date_iso': day_iso,
+                    'day_label': day_cursor.strftime('%a'),
+                    'entry_count': len(entries),
+                    'signed_off_count': signed_count,
+                }
             )
-
-        prev_week_start = start_date - timedelta(days=7)
-        next_week_start = start_date + timedelta(days=7)
-        current_week_start, _ = get_commissary_week_window('')
+            day_cursor += timedelta(days=1)
 
     return render_template(
         'commissary_planner.html',
         start_date=start_date.isoformat(),
         end_date=end_date.isoformat(),
         week_start=start_date.isoformat(),
-        prev_week_start=prev_week_start.isoformat(),
-        next_week_start=next_week_start.isoformat(),
-        current_week_start=current_week_start.isoformat(),
         selected_outlet=selected_outlet,
         selected_units=selected_units,
         outlet_options=outlet_options,
         datasets=datasets,
-        filtered_daily_days=filtered_daily_days,
-        days_with_entries=days_with_entries,
-        orders=orders,
-        metrics=metrics,
-        recent_orders=recent_orders,
+        production_groups=production_groups,
+        signoff_entries_by_day=signoff_entries_by_day,
+        week_signoff_summary=week_signoff_summary,
         selected_day=selected_day.isoformat(),
-        view_mode=view_mode,
+        signoff_day=signoff_day.isoformat(),
         active_tab=active_tab,
-        source_options=COMMISSARY_SOURCE_CHOICES,
+        current_user_name=clean_menu_text(getattr(current_user, 'username', '') or 'Chef'),
     )
 
 
