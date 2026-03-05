@@ -155,6 +155,18 @@
             >
                 {% if include_shopping %}Hide Shopping{% else %}Include Shopping{% endif %}
             </a>
+            <a
+                href="{{ url_for('commissary_packet_print', outlet=selected_outlet, week_start=week_start, day=selected_day, include_shopping=include_shopping, units=selected_units, deep=(0 if include_sub_cards else 1)) }}"
+                class="px-4 py-2 rounded-xl border border-stone-300 text-stone-700 hover:bg-stone-50 font-semibold"
+            >
+                {% if include_sub_cards %}Disable Deep Sub-Cards{% else %}Enable Deep Sub-Cards{% endif %}
+            </a>
+            <a
+                href="{{ url_for('commissary_packet_print_pdf', outlet=selected_outlet, week_start=week_start, day=selected_day, include_shopping=include_shopping, units=selected_units, deep=include_sub_cards) }}"
+                class="bg-emerald-700 hover:bg-emerald-800 text-white px-4 py-2 rounded-xl font-semibold"
+            >
+                Fast PDF (No Spool)
+            </a>
             <button onclick="window.print()" class="bg-foxtown-ember hover:bg-orange-700 text-white px-4 py-2 rounded-xl font-semibold">Print / Save PDF</button>
         </div>
     </div>
@@ -413,7 +425,7 @@
                                 {% set sub_card_match.card = sub_card %}
                             {% endif %}
                         {% endfor %}
-                        {% if sub_card_match.card and not sub.covered_by_stock_prep %}
+                        {% if include_sub_cards and sub_card_match.card and not sub.covered_by_stock_prep %}
                         <tr class="pkt-sub-detail-row">
                             <td colspan="6">
                                 <div class="pkt-sub-detail-wrap">
@@ -870,8 +882,8 @@
         break-before: page;
     }
     .break-inside-avoid {
-        page-break-inside: avoid;
-        break-inside: avoid;
+        page-break-inside: auto;
+        break-inside: auto;
     }
 }
 </style>
