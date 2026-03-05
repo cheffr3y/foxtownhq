@@ -1,8 +1,11 @@
+import io
 from datetime import date, datetime, timedelta
 
 from db import get_cursor, get_db
-from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
+from flask import Blueprint, Response, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
 
 from helpers.commissary import (
     COMMISSARY_ACTIVE_STATUSES,
@@ -64,6 +67,81 @@ def get_stats_window(preset, start_raw='', end_raw=''):
     if start_date > end_date:
         start_date, end_date = end_date, start_date
     return preset, start_date, end_date
+
+
+def get_review_window(week_start_raw=''):
+    today = date.today()
+    if week_start_raw:
+        try:
+            selected = datetime.strptime((week_start_raw or '').strip(), '%Y-%m-%d').date()
+        except ValueError:
+            selected = today
+    else:
+        selected = today
+    week_start = selected - timedelta(days=selected.weekday())
+    week_end = week_start + timedelta(days=6)
+    return week_start, week_end
+
+
+def build_weekly_review_context(cur, week_start, week_end, selected_outlet=''):
+    datasets = build_commissary_datasets(cur, week_start, week_end, selected_outlet, get_unit_system())
+    orders = datasets.get('orders', [])
+    total_lines = datasets.get('line_count', 0)
+    signed_off_lines = datasets.get('signed_off_line_count', 0)
+    completion_rate = round((signed_off_lines / total_lines) * 100, 1) if total_lines else 0
+
+    items_by_outlet = {}
+    incomplete_lines = []
+    for order in orders:
+        outlet_name = order.get('outlet') or DEFAULT_COMMISSARY_OUTLET
+        items_by_outlet[outlet_name] = items_by_outlet.get(outlet_name, 0) + int(order.get('line_count') or 0)
+        for line in order.get('lines', []):
+            production_log = line.get('production_log') or {}
+            if production_log.get('signed_off'):
+                continue
+            incomplete_lines.append({
+                'needed_date': order.get('needed_date'),
+                'outlet': outlet_name,
+                'item_name': line.get('item_name') or line.get('recipe_name') or 'Item',
+                'assigned_to': production_log.get('assigned_to') or '',
+                'notes': production_log.get('notes') or line.get('notes') or '',
+            })
+
+    cur.execute(
+        """
+        SELECT
+            t.id,
+            t.production_date,
+            t.from_location,
+            t.to_outlet,
+            t.transferred_by,
+            t.transfer_method,
+            t.notes,
+            COUNT(line.id) AS line_count
+        FROM commissary_transfers t
+        LEFT JOIN commissary_transfer_lines line ON line.transfer_id = t.id
+        WHERE t.production_date BETWEEN %s AND %s
+          AND (%s = '' OR t.to_outlet = %s)
+        GROUP BY t.id
+        ORDER BY t.production_date, t.created_at
+    """,
+        (week_start, week_end, selected_outlet or '', selected_outlet or ''),
+    )
+    transfers = cur.fetchall()
+
+    outlet_rows = [{'outlet': outlet, 'line_count': count} for outlet, count in items_by_outlet.items()]
+    outlet_rows.sort(key=lambda row: (-row.get('line_count', 0), (row.get('outlet') or '').lower()))
+
+    return {
+        'datasets': datasets,
+        'orders': orders,
+        'total_lines': total_lines,
+        'signed_off_lines': signed_off_lines,
+        'completion_rate': completion_rate,
+        'items_by_outlet': outlet_rows,
+        'incomplete_lines': incomplete_lines,
+        'transfers': transfers,
+    }
 
 
 def list_commissary_recipe_options(cur):
@@ -1266,6 +1344,116 @@ def commissary_stats():
         ingredient_usage_rows=ingredient_usage_rows,
         most_requested_count=most_requested_count,
         most_requested_volume=most_requested_volume,
+    )
+
+
+@bp.route('/commissary/review')
+@bp.route('/commissary/review/<week_start>')
+@login_required
+def commissary_review(week_start=None):
+    selected_outlet = clean_menu_text(request.args.get('outlet'))
+    week_start_input = (request.args.get('week_start') or week_start or '').strip()
+    week_start_date, week_end_date = get_review_window(week_start_input)
+    with get_cursor() as cur:
+        ensure_commissary_tables(cur)
+        outlet_options = get_commissary_outlet_options(cur)
+        review = build_weekly_review_context(cur, week_start_date, week_end_date, selected_outlet)
+
+    return render_template(
+        'commissary_review.html',
+        week_start=week_start_date.isoformat(),
+        week_end=week_end_date.isoformat(),
+        selected_outlet=selected_outlet,
+        outlet_options=outlet_options,
+        review=review,
+    )
+
+
+@bp.route('/commissary/review/<week_start>/pdf')
+@login_required
+def commissary_review_pdf(week_start):
+    selected_outlet = clean_menu_text(request.args.get('outlet'))
+    week_start_date, week_end_date = get_review_window(week_start)
+    with get_cursor() as cur:
+        ensure_commissary_tables(cur)
+        review = build_weekly_review_context(cur, week_start_date, week_end_date, selected_outlet)
+
+    buffer = io.BytesIO()
+    pdf = canvas.Canvas(buffer, pagesize=letter)
+    width, height = letter
+    y = height - 48
+
+    def line(text, size=10, gap=14):
+        nonlocal y
+        pdf.setFont('Helvetica', size)
+        pdf.drawString(42, y, text)
+        y -= gap
+        if y < 60:
+            pdf.showPage()
+            y = height - 48
+
+    pdf.setTitle(f'Commissary Weekly Review {week_start_date.isoformat()}')
+    line('Foxtown HQ - Commissary Weekly Review', size=14, gap=20)
+    line(f'Week: {week_start_date.isoformat()} to {week_end_date.isoformat()}', size=10)
+    if selected_outlet:
+        line(f'Outlet Filter: {selected_outlet}', size=10)
+    line(f"Generated: {datetime.now().strftime('%b %d, %Y %I:%M %p')}", size=10, gap=18)
+
+    line('Summary', size=12, gap=16)
+    line(f"Total production lines: {review.get('total_lines', 0)}")
+    line(f"Signed off lines: {review.get('signed_off_lines', 0)}")
+    line(f"Completion rate: {review.get('completion_rate', 0)}%")
+    line(f"Transfers logged: {len(review.get('transfers', []))}", gap=18)
+
+    line('Items by Outlet', size=12, gap=16)
+    if review.get('items_by_outlet'):
+        for row in review.get('items_by_outlet', []):
+            line(f"- {row.get('outlet')}: {row.get('line_count')} lines")
+    else:
+        line('- No outlet production lines in this week.')
+    y -= 4
+
+    line('Daily Breakdown', size=12, gap=16)
+    if review.get('orders'):
+        for order in review.get('orders', []):
+            line_count = int(order.get('line_count') or 0)
+            signed_count = int(order.get('signed_off_line_count') or 0)
+            line(
+                f"- {order.get('needed_date')} | {order.get('outlet')} | {line_count} lines | {signed_count} signed"
+            )
+    else:
+        line('- No orders in this week.')
+    y -= 4
+
+    line('Transfers', size=12, gap=16)
+    if review.get('transfers'):
+        for transfer in review.get('transfers', []):
+            line(
+                f"- {transfer.get('production_date')} | {transfer.get('to_outlet')} | {transfer.get('line_count')} items | {transfer.get('transfer_method')}"
+            )
+    else:
+        line('- No transfers in this week.')
+    y -= 4
+
+    line('Issues / Flags', size=12, gap=16)
+    if review.get('incomplete_lines'):
+        for line_row in review.get('incomplete_lines')[:40]:
+            line(
+                f"- {line_row.get('needed_date')} | {line_row.get('outlet')} | {line_row.get('item_name')} (assigned: {line_row.get('assigned_to') or 'unassigned'})"
+            )
+    else:
+        line('- No unsigned production lines.')
+
+    pdf.showPage()
+    pdf.save()
+    payload = buffer.getvalue()
+    buffer.close()
+
+    filename = f'commissary-review-{week_start_date.isoformat()}.pdf'
+    return Response(
+        payload,
+        mimetype='application/pdf',
+        headers={'Content-Disposition': f'attachment; filename={filename}'},
     )
 
 

@@ -373,6 +373,7 @@
                 <a href="{{ url_for('commissary_standing_prep') }}" class="fhq-btn fhq-btn--outline">Standing Prep</a>
                 <a href="{{ url_for('commissary_transfers') }}" class="fhq-btn fhq-btn--outline">Transfers</a>
                 <a href="{{ url_for('commissary_stats') }}" class="fhq-btn fhq-btn--outline">Stats</a>
+                <a href="{{ url_for('commissary_review', week_start=week_start, outlet=(selected_outlet or None)) }}" class="fhq-btn fhq-btn--outline">Weekly Review</a>
             </div>
         </section>
 
@@ -491,6 +492,7 @@
                     <a href="{{ url_for('commissary_standing_prep') }}" class="link-accent">Standing Prep</a>
                     <a href="{{ url_for('commissary_transfers') }}" class="link-accent">Transfers</a>
                     <a href="{{ url_for('commissary_stats') }}" class="link-accent">Stats</a>
+                    <a href="{{ url_for('commissary_review', week_start=week_start, outlet=(selected_outlet or None)) }}" class="link-accent">Weekly Review</a>
                 </div>
             </div>
             {% if orders %}
