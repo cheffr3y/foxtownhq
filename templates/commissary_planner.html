@@ -369,7 +369,7 @@
                 <a href="{{ url_for('commissary_planner', week_start=next_week_start, outlet=(selected_outlet or None), day=selected_day, view=view_mode) }}" class="fhq-btn fhq-btn--ghost">Next Week</a>
                 <a href="{{ url_for('commissary_packet_print', outlet=(selected_outlet or None), week_start=week_start, day=selected_day, include_shopping=0) }}" target="_blank" class="fhq-btn fhq-btn--outline">Print Day Packet</a>
                 <a href="{{ url_for('commissary_packet_print', outlet=(selected_outlet or None), week_start=week_start, include_shopping=1) }}" target="_blank" class="fhq-btn fhq-btn--outline">Print Week + Shopping</a>
-                <a href="{{ url_for('commissary_production_log', date=selected_day, outlet=(selected_outlet or None), remaining=1) }}" class="fhq-btn fhq-btn--outline">Open Production Log</a>
+                <a href="{{ url_for('commissary_production_log', log_date=selected_day, outlet=(selected_outlet or None), remaining=1) }}" class="fhq-btn fhq-btn--outline">Open Production Log</a>
                 <a href="{{ url_for('commissary_standing_prep') }}" class="fhq-btn fhq-btn--outline">Standing Prep</a>
                 <a href="{{ url_for('commissary_transfers') }}" class="fhq-btn fhq-btn--outline">Transfers</a>
                 <a href="{{ url_for('commissary_stats') }}" class="fhq-btn fhq-btn--outline">Stats</a>
