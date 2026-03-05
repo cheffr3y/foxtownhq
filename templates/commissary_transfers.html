@@ -134,12 +134,22 @@
                         <label class="field-label">Transfer Notes</label>
                         <input type="text" name="notes" class="field" value="{{ transfer.notes or '' }}" placeholder="Driver, condition, timing notes">
                     </div>
+                    <div>
+                        <label class="field-label">Production Log Filter</label>
+                        <select name="outlet_filter" class="field">
+                            <option value="">All Outlets</option>
+                            {% for outlet in outlet_options %}
+                            <option value="{{ outlet }}" {% if selected_outlet_filter == outlet %}selected{% endif %}>{{ outlet }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
                 </div>
 
                 <div class="table-wrap">
                     <table class="transfer-table" id="transferLinesTable">
                         <thead>
                             <tr>
+                                <th>From Production Log (Optional)</th>
                                 <th>Item Name</th>
                                 <th>Qty</th>
                                 <th>Unit</th>
@@ -150,6 +160,22 @@
                         <tbody id="transferLineRows">
                             {% for line in transfer_lines %}
                             <tr>
+                                <td>
+                                    <select name="line_production_log_id[]" class="field" data-role="production-log">
+                                        <option value="">Manual line</option>
+                                        {% for option in production_log_options %}
+                                        <option
+                                            value="{{ option.production_log_id }}"
+                                            data-item="{{ option.item_name }}"
+                                            data-qty="{{ option.quantity }}"
+                                            data-unit="{{ option.quantity_unit }}"
+                                            {% if (line.production_log_id and line.production_log_id == option.production_log_id) %}selected{% endif %}
+                                        >
+                                            {{ option.display_label }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </td>
                                 <td><input type="text" name="line_item_name[]" class="field" value="{{ line.item_name or '' }}"></td>
                                 <td><input type="number" step="0.01" min="0" name="line_qty[]" class="field" value="{{ line.quantity or '' }}"></td>
                                 <td><input type="text" name="line_unit[]" class="field" value="{{ line.quantity_unit or '' }}"></td>
@@ -195,6 +221,9 @@
                                 {% if transfer_lines %}
                                 {% for line in transfer_lines %}
                                 <div>{{ line.item_name }}: {{ line.quantity }} {{ line.quantity_unit }}</div>
+                                {% if line.production_log_id %}
+                                <div class="line-note">From production log #{{ line.production_log_id }}{% if line.source_item_name %} ({{ line.source_item_name }}){% endif %}</div>
+                                {% endif %}
                                 {% if line.notes %}
                                 <div class="line-note">{{ line.notes }}</div>
                                 {% endif %}
@@ -218,6 +247,21 @@
 
 <template id="transferLineTemplate">
 <tr>
+    <td>
+        <select name="line_production_log_id[]" class="field" data-role="production-log">
+            <option value="">Manual line</option>
+            {% for option in production_log_options %}
+            <option
+                value="{{ option.production_log_id }}"
+                data-item="{{ option.item_name }}"
+                data-qty="{{ option.quantity }}"
+                data-unit="{{ option.quantity_unit }}"
+            >
+                {{ option.display_label }}
+            </option>
+            {% endfor %}
+        </select>
+    </td>
     <td><input type="text" name="line_item_name[]" class="field" placeholder="Item"></td>
     <td><input type="number" step="0.01" min="0" name="line_qty[]" class="field" value="1"></td>
     <td><input type="text" name="line_unit[]" class="field" value="each"></td>
@@ -244,13 +288,32 @@
             });
         }
 
+        function bindProductionLogSelects(root) {
+            root.querySelectorAll('select[data-role=\"production-log\"]').forEach((select) => {
+                select.addEventListener('change', () => {
+                    const tr = select.closest('tr');
+                    if (!tr) return;
+                    const selectedOption = select.options[select.selectedIndex];
+                    if (!selectedOption || !selectedOption.value) return;
+                    const itemInput = tr.querySelector('input[name=\"line_item_name[]\"]');
+                    const qtyInput = tr.querySelector('input[name=\"line_qty[]\"]');
+                    const unitInput = tr.querySelector('input[name=\"line_unit[]\"]');
+                    if (itemInput && !itemInput.value.trim()) itemInput.value = selectedOption.dataset.item || '';
+                    if (qtyInput && (!qtyInput.value || Number(qtyInput.value) <= 0)) qtyInput.value = selectedOption.dataset.qty || '';
+                    if (unitInput && !unitInput.value.trim()) unitInput.value = selectedOption.dataset.unit || '';
+                });
+            });
+        }
+
         addBtn.addEventListener('click', () => {
             const clone = template.content.cloneNode(true);
             rows.appendChild(clone);
             bindRemoveButtons(rows);
+            bindProductionLogSelects(rows);
         });
 
         bindRemoveButtons(rows);
+        bindProductionLogSelects(rows);
         if (!rows.querySelector('tr')) {
             addBtn.click();
         }

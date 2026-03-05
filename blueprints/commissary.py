@@ -27,9 +27,9 @@ from helpers.commissary import (
 )
 from helpers.formatting import split_instruction_steps
 from helpers.menu import clean_menu_text
-from helpers.recipes import normalize_recipe_type
+from helpers.recipes import build_component_tree, collect_ingredients_from_components, normalize_recipe_type, ratio_from_line_quantity
 from helpers.shared import generate_id, handle_route_error, to_float
-from helpers.units import format_number, get_unit_system
+from helpers.units import format_number, get_unit_system, smart_quantity
 
 bp = Blueprint('commissary', __name__)
 
@@ -168,6 +168,43 @@ def list_commissary_recipe_options(cur):
         if yield_qty > 0 and yield_unit:
             display = f"{display} - yield {format_number(yield_qty)} {yield_unit}"
         row['display_label'] = display
+    return rows
+
+
+def list_transfer_production_log_options(cur, production_date, outlet=''):
+    if not production_date:
+        return []
+    cur.execute(
+        """
+        SELECT
+            pl.id AS production_log_id,
+            pl.line_id,
+            pl.production_date,
+            pl.assigned_to,
+            pl.made_by,
+            pl.signed_off,
+            COALESCE(line.item_name, r.name, 'Item') AS item_name,
+            COALESCE(pl.actual_yield, line.quantity, 0) AS quantity,
+            COALESCE(NULLIF(TRIM(pl.actual_yield_unit), ''), NULLIF(TRIM(line.quantity_unit), ''), 'each') AS quantity_unit,
+            o.outlet
+        FROM commissary_production_logs pl
+        JOIN commissary_order_lines line ON line.id = pl.line_id
+        JOIN commissary_orders o ON o.id = line.order_id
+        LEFT JOIN recipes r ON r.id = line.recipe_id
+        WHERE pl.production_date = %s
+          AND (%s = '' OR o.outlet = %s)
+        ORDER BY o.outlet, LOWER(COALESCE(line.item_name, r.name, '')), pl.id
+    """,
+        (production_date, outlet or '', outlet or ''),
+    )
+    rows = cur.fetchall()
+    for row in rows:
+        qty = to_float(row.get('quantity'))
+        unit = row.get('quantity_unit') or 'each'
+        row['display_label'] = (
+            f"#{row.get('production_log_id')} - "
+            f"{row.get('item_name')} ({qty} {unit}) - {row.get('outlet')}"
+        )
     return rows
 
 
@@ -856,6 +893,99 @@ def commissary_production_log_update(line_id):
         return redirect(url_for('commissary_planner', **redirect_params))
 
 
+@bp.route('/commissary/log/bulk-signoff', methods=['POST'])
+@login_required
+def commissary_production_log_bulk_signoff():
+    conn = get_db()
+    is_ajax = (
+        (request.form.get('ajax') or '').strip().lower() in ('1', 'true', 'yes', 'on')
+        or (request.headers.get('X-Requested-With') or '').strip().lower() == 'xmlhttprequest'
+        or 'application/json' in (request.headers.get('Accept') or '')
+    )
+    selected_outlet = clean_menu_text(request.form.get('outlet'))
+    remaining = (request.form.get('remaining') or '1').strip()
+    view_mode = (request.form.get('mode') or 'cards').strip().lower()
+    if view_mode not in ('cards', 'table'):
+        view_mode = 'cards'
+    selected_date_raw = (request.form.get('production_date') or '').strip()
+    signed_off_by = clean_menu_text(request.form.get('signed_off_by')) or clean_menu_text(getattr(current_user, 'username', '') or 'Chef')
+    try:
+        selected_date = datetime.strptime(selected_date_raw, '%Y-%m-%d').date() if selected_date_raw else date.today()
+    except ValueError:
+        selected_date = date.today()
+
+    with get_cursor() as cur:
+        ensure_commissary_tables(cur)
+        cur.execute(
+            """
+            SELECT line.id AS line_id
+            FROM commissary_order_lines line
+            JOIN commissary_orders o ON o.id = line.order_id
+            LEFT JOIN commissary_production_logs pl
+                   ON pl.line_id = line.id
+                  AND pl.production_date = %s
+            WHERE o.needed_date = %s
+              AND (%s = '' OR o.outlet = %s)
+              AND COALESCE(NULLIF(TRIM(o.status), ''), 'draft') <> 'cancelled'
+              AND COALESCE(pl.signed_off, FALSE) = FALSE
+            ORDER BY line.id
+        """,
+            (selected_date, selected_date, selected_outlet or '', selected_outlet or ''),
+        )
+        line_ids = [row.get('line_id') for row in cur.fetchall() if row.get('line_id')]
+
+        try:
+            for line_id in line_ids:
+                cur.execute(
+                    """
+                    INSERT INTO commissary_production_logs (
+                        line_id,
+                        production_date,
+                        signed_off,
+                        signed_off_by,
+                        signed_off_at,
+                        updated_at
+                    )
+                    VALUES (%s, %s, TRUE, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    ON CONFLICT (line_id, production_date)
+                    DO UPDATE SET
+                        signed_off = TRUE,
+                        signed_off_by = EXCLUDED.signed_off_by,
+                        signed_off_at = COALESCE(commissary_production_logs.signed_off_at, CURRENT_TIMESTAMP),
+                        updated_at = CURRENT_TIMESTAMP
+                """,
+                    (line_id, selected_date, signed_off_by or None),
+                )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            if is_ajax:
+                return jsonify({'ok': False, 'error': 'Bulk sign-off failed.'}), 500
+            flash('Bulk sign-off failed.', 'error')
+            return redirect(
+                url_for(
+                    'commissary_production_log',
+                    log_date=selected_date.isoformat(),
+                    outlet=selected_outlet or None,
+                    remaining=remaining,
+                    mode=view_mode,
+                )
+            )
+
+    if is_ajax:
+        return jsonify({'ok': True, 'updated_count': len(line_ids), 'message': f'Signed off {len(line_ids)} remaining item(s).'})
+    flash(f'Signed off {len(line_ids)} remaining item(s).', 'success')
+    return redirect(
+        url_for(
+            'commissary_production_log',
+            log_date=selected_date.isoformat(),
+            outlet=selected_outlet or None,
+            remaining=remaining,
+            mode=view_mode,
+        )
+    )
+
+
 @bp.route('/commissary/log')
 @bp.route('/commissary/log/<log_date>')
 @login_required
@@ -863,6 +993,9 @@ def commissary_production_log(log_date=None):
     selected_date_raw = (log_date or request.args.get('date') or '').strip()
     selected_outlet = clean_menu_text(request.args.get('outlet'))
     show_remaining_only = (request.args.get('remaining') or '1').strip().lower() in ('1', 'true', 'yes', 'on')
+    view_mode = (request.args.get('mode') or 'cards').strip().lower()
+    if view_mode not in ('cards', 'table'):
+        view_mode = 'cards'
     try:
         selected_date = datetime.strptime(selected_date_raw, '%Y-%m-%d').date() if selected_date_raw else date.today()
     except ValueError:
@@ -901,6 +1034,7 @@ def commissary_production_log(log_date=None):
         signed_count=signed_count,
         remaining_count=max(0, total_count - signed_count),
         show_remaining_only=show_remaining_only,
+        view_mode=view_mode,
         current_user_name=clean_menu_text(getattr(current_user, 'username', '') or 'Chef'),
     )
 
@@ -1081,6 +1215,7 @@ def commissary_transfers():
         conn.commit()
 
         outlet_options = get_commissary_outlet_options(cur)
+        selected_outlet_filter = clean_menu_text(request.args.get('outlet_filter') or request.form.get('outlet_filter'))
         default_transfer = {
             'production_date': date.today().isoformat(),
             'from_location': 'Commissary',
@@ -1111,18 +1246,40 @@ def commissary_transfers():
             if transfer_method not in ('delivery', 'pickup'):
                 transfer_method = 'delivery'
 
+            production_log_options = list_transfer_production_log_options(cur, production_date, selected_outlet_filter) if production_date else []
+            production_log_option_map = {str(row.get('production_log_id')): row for row in production_log_options if row.get('production_log_id')}
             item_names = request.form.getlist('line_item_name[]')
             quantities = request.form.getlist('line_qty[]')
             units = request.form.getlist('line_unit[]')
             line_notes = request.form.getlist('line_notes[]')
-            max_len = max(len(item_names), len(quantities), len(units), len(line_notes), 0)
+            production_log_ids = request.form.getlist('line_production_log_id[]')
+            max_len = max(len(item_names), len(quantities), len(units), len(line_notes), len(production_log_ids), 0)
             for idx in range(max_len):
                 item_name = clean_menu_text(item_names[idx] if idx < len(item_names) else '')
                 qty_raw = (quantities[idx] if idx < len(quantities) else '').strip()
                 unit = clean_menu_text(units[idx] if idx < len(units) else '')
                 row_note = clean_menu_text(line_notes[idx] if idx < len(line_notes) else '')
-                if not any([item_name, qty_raw, unit, row_note]):
+                production_log_id_raw = (production_log_ids[idx] if idx < len(production_log_ids) else '').strip()
+                source_log = None
+                production_log_id = None
+                if production_log_id_raw:
+                    if not production_log_id_raw.isdigit():
+                        errors.append('Production log reference must be valid.')
+                        continue
+                    production_log_id = int(production_log_id_raw)
+                    source_log = production_log_option_map.get(production_log_id_raw)
+                    if not source_log:
+                        errors.append('Selected production log line was not found for this date/filter.')
+                        continue
+                if not any([item_name, qty_raw, unit, row_note, production_log_id]):
                     continue
+                if source_log:
+                    if not item_name:
+                        item_name = clean_menu_text(source_log.get('item_name')) or item_name
+                    if not qty_raw:
+                        qty_raw = str(source_log.get('quantity') or '')
+                    if not unit:
+                        unit = clean_menu_text(source_log.get('quantity_unit')) or unit
                 qty = to_float(qty_raw)
                 if qty <= 0:
                     errors.append('Transfer line quantities must be greater than zero.')
@@ -1132,6 +1289,7 @@ def commissary_transfers():
                     'quantity': qty,
                     'quantity_unit': unit or 'each',
                     'notes': row_note or None,
+                    'production_log_id': production_log_id,
                 })
             if not transfer_lines:
                 errors.append('Add at least one transfer line item.')
@@ -1178,15 +1336,17 @@ def commissary_transfers():
                             """
                             INSERT INTO commissary_transfer_lines (
                                 transfer_id,
+                                production_log_id,
                                 item_name,
                                 quantity,
                                 quantity_unit,
                                 notes
                             )
-                            VALUES (%s, %s, %s, %s, %s)
+                            VALUES (%s, %s, %s, %s, %s, %s)
                         """,
                             (
                                 transfer_id,
+                                line.get('production_log_id'),
                                 line.get('item_name'),
                                 line.get('quantity'),
                                 line.get('quantity_unit'),
@@ -1227,11 +1387,17 @@ def commissary_transfers():
                 """
                 SELECT
                     transfer_id,
+                    production_log_id,
                     item_name,
                     quantity,
                     quantity_unit,
-                    notes
+                    notes,
+                    pl.line_id,
+                    COALESCE(src_line.item_name, src_recipe.name, 'Item') AS source_item_name
                 FROM commissary_transfer_lines
+                LEFT JOIN commissary_production_logs pl ON pl.id = commissary_transfer_lines.production_log_id
+                LEFT JOIN commissary_order_lines src_line ON src_line.id = pl.line_id
+                LEFT JOIN recipes src_recipe ON src_recipe.id = src_line.recipe_id
                 WHERE transfer_id = ANY(%s)
                 ORDER BY transfer_id DESC, id
             """,
@@ -1243,14 +1409,138 @@ def commissary_transfers():
                     lines_by_transfer[transfer_id] = []
                 lines_by_transfer[transfer_id].append(row)
 
+        option_date_raw = (default_transfer.get('production_date') or '').strip()
+        try:
+            option_date = datetime.strptime(option_date_raw, '%Y-%m-%d').date() if option_date_raw else date.today()
+        except ValueError:
+            option_date = date.today()
+        production_log_options = list_transfer_production_log_options(cur, option_date, selected_outlet_filter)
+
     return render_template(
         'commissary_transfers.html',
         transfer=default_transfer,
         transfer_lines=transfer_lines,
         outlet_options=outlet_options,
+        selected_outlet_filter=selected_outlet_filter,
+        production_log_options=production_log_options,
         transfers=transfers,
         lines_by_transfer=lines_by_transfer,
     )
+
+
+def build_commissary_ingredient_usage_from_logs(cur, start_date, end_date, selected_outlet, unit_system):
+    cur.execute(
+        """
+        SELECT
+            pl.id AS production_log_id,
+            pl.line_id,
+            pl.actual_yield,
+            pl.actual_yield_unit,
+            pl.signed_off,
+            pl.made_by,
+            line.recipe_id,
+            line.quantity AS line_quantity,
+            line.quantity_unit AS line_quantity_unit,
+            r.yield_qty,
+            r.yield_unit
+        FROM commissary_production_logs pl
+        JOIN commissary_order_lines line ON line.id = pl.line_id
+        JOIN commissary_orders o ON o.id = line.order_id
+        LEFT JOIN recipes r ON r.id = line.recipe_id
+        WHERE pl.production_date BETWEEN %s AND %s
+          AND line.recipe_id IS NOT NULL
+          AND COALESCE(NULLIF(TRIM(o.status), ''), 'draft') <> 'cancelled'
+          AND (%s = '' OR o.outlet = %s)
+          AND (
+              COALESCE(pl.signed_off, FALSE) = TRUE
+              OR COALESCE(pl.actual_yield, 0) > 0
+              OR COALESCE(NULLIF(TRIM(pl.made_by), ''), '') <> ''
+          )
+    """,
+        (start_date, end_date, selected_outlet or '', selected_outlet or ''),
+    )
+    log_rows = cur.fetchall()
+    if not log_rows:
+        return []
+
+    ingredient_totals = {}
+    component_cache = {}
+    for row in log_rows:
+        recipe_id = row.get('recipe_id')
+        if not recipe_id:
+            continue
+
+        produced_qty = to_float(row.get('actual_yield'))
+        produced_unit = clean_menu_text(row.get('actual_yield_unit'))
+        if produced_qty <= 0:
+            produced_qty = to_float(row.get('line_quantity'))
+            produced_unit = clean_menu_text(row.get('line_quantity_unit'))
+        if produced_qty <= 0:
+            continue
+
+        ratio = ratio_from_line_quantity(
+            {
+                'quantity': produced_qty,
+                'quantity_unit': produced_unit,
+            },
+            {
+                'yield_qty': row.get('yield_qty'),
+                'yield_unit': row.get('yield_unit'),
+            },
+        )
+        if ratio <= 0:
+            continue
+
+        cache_key = (recipe_id, round(ratio, 6))
+        components = component_cache.get(cache_key)
+        if components is None:
+            components, _, _ = build_component_tree(
+                cur,
+                recipe_id,
+                ratio,
+                0,
+                set(),
+                unit_system,
+                apply_q_factor=False,
+            )
+            component_cache[cache_key] = components
+
+        collect_ingredients_from_components(components, ingredient_totals)
+
+    if not ingredient_totals:
+        return []
+
+    ingredient_ids = sorted({ing_id for ing_id, _ in ingredient_totals.keys() if ing_id})
+    ingredient_map = {}
+    if ingredient_ids:
+        cur.execute(
+            """
+            SELECT id, name, category
+            FROM ingredients
+            WHERE id = ANY(%s)
+        """,
+            (ingredient_ids,),
+        )
+        ingredient_map = {row['id']: row for row in cur.fetchall()}
+
+    ingredient_usage_rows = []
+    for (ing_id, unit), qty in ingredient_totals.items():
+        ingredient = ingredient_map.get(ing_id, {})
+        display = smart_quantity(qty, unit, unit_system)
+        ingredient_usage_rows.append(
+            {
+                'id': ing_id,
+                'name': ingredient.get('name') or 'Unknown',
+                'category': ingredient.get('category') or 'Uncategorized',
+                'quantity': qty,
+                'unit': unit,
+                'display_quantity': display.get('quantity'),
+                'display_unit': display.get('unit') or unit,
+            }
+        )
+
+    ingredient_usage_rows.sort(key=lambda row: to_float(row.get('quantity')), reverse=True)
+    return ingredient_usage_rows
 
 
 @bp.route('/commissary/stats')
@@ -1267,12 +1557,13 @@ def commissary_stats():
     with get_cursor() as cur:
         ensure_commissary_tables(cur)
         outlet_options = get_commissary_outlet_options(cur)
-        datasets = build_commissary_datasets(cur, start_date, end_date, selected_outlet, get_unit_system())
-
-        ingredient_usage_rows = sorted(
-            datasets.get('shopping_ingredients', []),
-            key=lambda row: to_float(row.get('quantity')),
-            reverse=True,
+        unit_system = get_unit_system()
+        ingredient_usage_rows = build_commissary_ingredient_usage_from_logs(
+            cur,
+            start_date,
+            end_date,
+            selected_outlet,
+            unit_system,
         )
 
         params = [start_date, end_date]

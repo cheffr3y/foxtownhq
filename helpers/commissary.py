@@ -213,11 +213,16 @@ def ensure_commissary_tables(cur):
     cur.execute("CREATE INDEX IF NOT EXISTS idx_comm_prod_logs_order_id ON commissary_production_logs (order_id)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_comm_prod_logs_production_date ON commissary_production_logs (production_date)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_comm_prod_logs_assigned_to ON commissary_production_logs (assigned_to)")
+    cur.execute(
+        "ALTER TABLE commissary_transfer_lines "
+        "ADD COLUMN IF NOT EXISTS production_log_id BIGINT REFERENCES commissary_production_logs(id) ON DELETE SET NULL"
+    )
 
     cur.execute("CREATE INDEX IF NOT EXISTS idx_comm_standing_items_recipe_id ON commissary_standing_items (recipe_id)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_comm_standing_items_active ON commissary_standing_items (active)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_comm_transfers_production_date ON commissary_transfers (production_date)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_comm_transfer_lines_transfer_id ON commissary_transfer_lines (transfer_id)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_comm_transfer_lines_production_log_id ON commissary_transfer_lines (production_log_id)")
 
     legacy_orders_ready = db_table_exists(cur, 'public.outlet_orders')
     legacy_lines_ready = db_table_exists(cur, 'public.outlet_order_items')

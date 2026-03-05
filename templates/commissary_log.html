@@ -25,7 +25,7 @@
 
     @media (min-width: 960px) {
         .log-controls {
-            grid-template-columns: minmax(0, 1fr) minmax(200px, 0.9fr) minmax(200px, 0.9fr) auto;
+            grid-template-columns: minmax(0, 1fr) minmax(200px, 0.9fr) minmax(200px, 0.9fr) minmax(160px, 0.72fr) auto;
         }
     }
 
@@ -248,6 +248,64 @@
         font-size: 0.82rem;
     }
 
+    .cleanup-grid {
+        display: grid;
+        gap: 0.42rem;
+    }
+
+    .cleanup-head,
+    .cleanup-row {
+        display: grid;
+        gap: 0.45rem;
+        grid-template-columns: minmax(220px, 2fr) minmax(120px, 1fr) minmax(120px, 1fr) minmax(120px, 1fr) minmax(170px, 1.2fr) minmax(160px, 1fr) minmax(140px, 0.8fr) minmax(180px, 1.2fr);
+        align-items: center;
+    }
+
+    .cleanup-head {
+        padding: 0.52rem 0.6rem;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.3);
+        font-size: 0.64rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #94A3B8;
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    }
+
+    .cleanup-row {
+        padding: 0.56rem 0.6rem;
+        border-top: 1px solid rgba(148, 163, 184, 0.15);
+    }
+
+    .cleanup-item {
+        color: #0F172A;
+        font-weight: 600;
+        font-size: 0.82rem;
+    }
+
+    .cleanup-meta {
+        color: #64748B;
+        font-size: 0.72rem;
+        margin-top: 0.1rem;
+    }
+
+    .cleanup-input {
+        width: 100%;
+        min-height: 34px;
+        border: 1px solid rgba(15, 23, 42, 0.13);
+        border-radius: 8px;
+        background: rgba(248, 250, 252, 0.92);
+        color: #0F172A;
+        padding: 0.35rem 0.5rem;
+        font-size: 0.76rem;
+    }
+
+    .cleanup-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.32rem;
+        align-items: center;
+    }
+
     .empty-note {
         color: #94A3B8;
         font-size: 0.88rem;
@@ -284,6 +342,13 @@
                         <option value="0" {% if not show_remaining_only %}selected{% endif %}>Show All</option>
                     </select>
                 </div>
+                <div>
+                    <label class="log-label">Mode</label>
+                    <select name="mode" class="log-field">
+                        <option value="cards" {% if view_mode == 'cards' %}selected{% endif %}>Mobile Cards</option>
+                        <option value="table" {% if view_mode == 'table' %}selected{% endif %}>Desktop Cleanup</option>
+                    </select>
+                </div>
                 <button type="submit" class="fhq-btn fhq-btn--primary">Refresh</button>
             </form>
         </section>
@@ -291,8 +356,18 @@
         {% set progress_pct = ((signed_count / total_count) * 100)|round|int if total_count else 0 %}
         <section class="log-panel progress-wrap">
             <div class="progress-head">
-                <div class="progress-title">Daily Sign-off Progress</div>
-                <div class="progress-meta" data-progress-text>{{ signed_count }} of {{ total_count }} signed off</div>
+                <div>
+                    <div class="progress-title">Daily Sign-off Progress</div>
+                    <div class="progress-meta" data-progress-text>{{ signed_count }} of {{ total_count }} signed off</div>
+                </div>
+                <form method="POST" action="{{ url_for('commissary_production_log_bulk_signoff') }}">
+                    <input type="hidden" name="production_date" value="{{ selected_date }}">
+                    <input type="hidden" name="outlet" value="{{ selected_outlet }}">
+                    <input type="hidden" name="remaining" value="{{ 1 if show_remaining_only else 0 }}">
+                    <input type="hidden" name="mode" value="{{ view_mode }}">
+                    <input type="hidden" name="signed_off_by" value="{{ current_user_name }}">
+                    <button type="submit" class="fhq-btn fhq-btn--outline">Sign Off Remaining</button>
+                </form>
             </div>
             <div class="progress-track"><span data-progress-bar style="width: {{ progress_pct }}%"></span></div>
             <div class="mt-2 text-xs text-slate-500">Remaining: <span data-remaining-count>{{ remaining_count }}</span></div>
@@ -300,53 +375,99 @@
 
         <section class="space-y-3">
             {% if entries %}
-            <div class="log-cards" data-log-list>
-                {% for entry in entries %}
-                <form method="POST"
-                      action="{{ url_for('commissary_production_log_update', line_id=entry.line_id) }}"
-                      class="log-card"
-                      data-log-form>
-                    <input type="hidden" name="production_date" value="{{ selected_date }}">
-                    <input type="hidden" name="ajax" value="1">
-                    <input type="checkbox" name="signed_off" value="1" data-role="signed-off" class="sr-only" {% if entry.signed_off %}checked{% endif %}>
-
-                    <div class="log-card-head">
-                        <div>
-                            <div class="log-item">{{ entry.item_name }}</div>
-                            <div class="log-meta">{{ entry.quantity }} {{ entry.quantity_unit }} · {{ entry.outlet }} · {{ entry.source_label }}</div>
+                {% if view_mode == 'table' %}
+                <div class="log-panel p-3">
+                    <div class="cleanup-grid">
+                        <div class="cleanup-head">
+                            <span>Item</span>
+                            <span>Assigned</span>
+                            <span>Made By</span>
+                            <span>Tasted By</span>
+                            <span>Notes</span>
+                            <span>Actual Yield</span>
+                            <span>Status</span>
+                            <span>Actions</span>
                         </div>
-                        <span class="log-status {% if entry.signed_off %}log-status--done{% else %}log-status--pending{% endif %}" data-status>
-                            {% if entry.signed_off %}Done{% else %}Pending{% endif %}
-                        </span>
-                    </div>
+                        {% for entry in entries %}
+                        <form method="POST" action="{{ url_for('commissary_production_log_update', line_id=entry.line_id) }}" class="cleanup-row" data-log-form>
+                            <input type="hidden" name="production_date" value="{{ selected_date }}">
+                            <input type="hidden" name="ajax" value="1">
+                            <input type="checkbox" name="signed_off" value="1" data-role="signed-off" class="sr-only" {% if entry.signed_off %}checked{% endif %}>
 
-                    <div class="log-actions">
-                        <button type="button" class="fhq-btn fhq-btn--primary" data-quick-signoff>One-Tap Sign-off</button>
-                        <button type="button" class="fhq-btn fhq-btn--outline" data-mark-pending>Mark Pending</button>
-                        <span class="save-state" data-save-state>Not saved yet</span>
+                            <div>
+                                <div class="cleanup-item">{{ entry.item_name }}</div>
+                                <div class="cleanup-meta">{{ entry.quantity }} {{ entry.quantity_unit }} · {{ entry.outlet }} · {{ entry.source_label }}</div>
+                            </div>
+                            <div><input type="text" name="assigned_to" value="{{ entry.assigned_to or '' }}" class="cleanup-input" placeholder="Assigned"></div>
+                            <div><input type="text" name="made_by" value="{{ entry.made_by or '' }}" class="cleanup-input" placeholder="Made"></div>
+                            <div><input type="text" name="tasted_by" value="{{ entry.tasted_by or '' }}" class="cleanup-input" placeholder="Tasted"></div>
+                            <div><input type="text" name="production_notes" value="{{ entry.production_notes or '' }}" class="cleanup-input" placeholder="Notes"></div>
+                            <div class="flex items-center gap-1">
+                                <input type="number" step="0.01" min="0" name="actual_yield" value="{{ entry.actual_yield or '' }}" class="cleanup-input" placeholder="Yield">
+                                <input type="text" name="actual_yield_unit" value="{{ entry.actual_yield_unit or entry.quantity_unit or '' }}" class="cleanup-input" placeholder="Unit">
+                            </div>
+                            <div>
+                                <span class="log-status {% if entry.signed_off %}log-status--done{% else %}log-status--pending{% endif %}" data-status>{% if entry.signed_off %}Done{% else %}Pending{% endif %}</span>
+                            </div>
+                            <div class="cleanup-actions">
+                                <input type="text" name="signed_off_by" value="{{ entry.signed_off_by or '' }}" class="cleanup-input" placeholder="Signed by">
+                                <button type="button" class="fhq-btn fhq-btn--primary" data-quick-signoff>Sign</button>
+                                <button type="button" class="fhq-btn fhq-btn--outline" data-mark-pending>Undo</button>
+                                <span class="save-state" data-save-state>Not saved</span>
+                            </div>
+                        </form>
+                        {% endfor %}
                     </div>
+                </div>
+                {% else %}
+                <div class="log-cards" data-log-list>
+                    {% for entry in entries %}
+                    <form method="POST"
+                          action="{{ url_for('commissary_production_log_update', line_id=entry.line_id) }}"
+                          class="log-card"
+                          data-log-form>
+                        <input type="hidden" name="production_date" value="{{ selected_date }}">
+                        <input type="hidden" name="ajax" value="1">
+                        <input type="checkbox" name="signed_off" value="1" data-role="signed-off" class="sr-only" {% if entry.signed_off %}checked{% endif %}>
 
-                    <details class="notes-details">
-                        <summary>Details: Assignment, QA, Notes, Yield</summary>
-                        <div class="notes-body">
-                            <div class="detail-grid">
-                                <input type="text" name="assigned_to" value="{{ entry.assigned_to or '' }}" placeholder="Assigned cook" class="detail-input">
-                                <input type="text" name="made_by" value="{{ entry.made_by or '' }}" placeholder="Made by" class="detail-input">
-                                <input type="text" name="tasted_by" value="{{ entry.tasted_by or '' }}" placeholder="Tasted by" class="detail-input">
+                        <div class="log-card-head">
+                            <div>
+                                <div class="log-item">{{ entry.item_name }}</div>
+                                <div class="log-meta">{{ entry.quantity }} {{ entry.quantity_unit }} · {{ entry.outlet }} · {{ entry.source_label }}</div>
                             </div>
-                            <div class="detail-grid">
-                                <input type="text" name="signed_off_by" value="{{ entry.signed_off_by or '' }}" placeholder="Signed off by" class="detail-input">
-                                <input type="number" step="0.01" min="0" name="actual_yield" value="{{ entry.actual_yield or '' }}" placeholder="Actual yield" class="detail-input">
-                                <input type="text" name="actual_yield_unit" value="{{ entry.actual_yield_unit or entry.quantity_unit or '' }}" placeholder="Yield unit" class="detail-input">
-                            </div>
-                            <textarea name="production_notes" class="notes-field" placeholder="Production notes, quality notes, issues...">{{ entry.production_notes or '' }}</textarea>
-                            <label class="log-label !mb-0">Quick Camera Capture</label>
-                            <input type="file" name="photo" accept="image/*" capture="environment" class="detail-input">
+                            <span class="log-status {% if entry.signed_off %}log-status--done{% else %}log-status--pending{% endif %}" data-status>
+                                {% if entry.signed_off %}Done{% else %}Pending{% endif %}
+                            </span>
                         </div>
-                    </details>
-                </form>
-                {% endfor %}
-            </div>
+
+                        <div class="log-actions">
+                            <button type="button" class="fhq-btn fhq-btn--primary" data-quick-signoff>One-Tap Sign-off</button>
+                            <button type="button" class="fhq-btn fhq-btn--outline" data-mark-pending>Mark Pending</button>
+                            <span class="save-state" data-save-state>Not saved yet</span>
+                        </div>
+
+                        <details class="notes-details">
+                            <summary>Details: Assignment, QA, Notes, Yield</summary>
+                            <div class="notes-body">
+                                <div class="detail-grid">
+                                    <input type="text" name="assigned_to" value="{{ entry.assigned_to or '' }}" placeholder="Assigned cook" class="detail-input">
+                                    <input type="text" name="made_by" value="{{ entry.made_by or '' }}" placeholder="Made by" class="detail-input">
+                                    <input type="text" name="tasted_by" value="{{ entry.tasted_by or '' }}" placeholder="Tasted by" class="detail-input">
+                                </div>
+                                <div class="detail-grid">
+                                    <input type="text" name="signed_off_by" value="{{ entry.signed_off_by or '' }}" placeholder="Signed off by" class="detail-input">
+                                    <input type="number" step="0.01" min="0" name="actual_yield" value="{{ entry.actual_yield or '' }}" placeholder="Actual yield" class="detail-input">
+                                    <input type="text" name="actual_yield_unit" value="{{ entry.actual_yield_unit or entry.quantity_unit or '' }}" placeholder="Yield unit" class="detail-input">
+                                </div>
+                                <textarea name="production_notes" class="notes-field" placeholder="Production notes, quality notes, issues...">{{ entry.production_notes or '' }}</textarea>
+                                <label class="log-label !mb-0">Quick Camera Capture</label>
+                                <input type="file" name="photo" accept="image/*" capture="environment" class="detail-input">
+                            </div>
+                        </details>
+                    </form>
+                    {% endfor %}
+                </div>
+                {% endif %}
             {% else %}
             <div class="log-panel p-4">
                 <p class="empty-note">No matching production lines for this date/filter.</p>
@@ -464,7 +585,7 @@
             if (signedInput) signedInput.checked = true;
             if (madeByInput && !madeByInput.value.trim()) madeByInput.value = currentUser;
             if (tastedByInput && !tastedByInput.value.trim()) tastedByInput.value = currentUser;
-            if (signedByInput) signedByInput.value = currentUser;
+            if (signedByInput && !signedByInput.value.trim()) signedByInput.value = currentUser;
             setStatus(form, true);
         }
 
