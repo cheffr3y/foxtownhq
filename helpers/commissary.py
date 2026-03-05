@@ -95,6 +95,8 @@ def ensure_commissary_tables(cur):
             item_name TEXT,
             quantity NUMERIC NOT NULL DEFAULT 1,
             quantity_unit TEXT DEFAULT 'each',
+            prep_start_date DATE,
+            prep_end_date DATE,
             sort_order INTEGER DEFAULT 0,
             notes TEXT
         )
@@ -164,6 +166,8 @@ def ensure_commissary_tables(cur):
 
     cur.execute("ALTER TABLE commissary_order_lines ADD COLUMN IF NOT EXISTS item_name TEXT")
     cur.execute("ALTER TABLE commissary_order_lines ADD COLUMN IF NOT EXISTS quantity_unit TEXT DEFAULT 'each'")
+    cur.execute("ALTER TABLE commissary_order_lines ADD COLUMN IF NOT EXISTS prep_start_date DATE")
+    cur.execute("ALTER TABLE commissary_order_lines ADD COLUMN IF NOT EXISTS prep_end_date DATE")
     cur.execute("ALTER TABLE commissary_order_lines ADD COLUMN IF NOT EXISTS notes TEXT")
     cur.execute("ALTER TABLE commissary_order_lines ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0")
     cur.execute("ALTER TABLE commissary_order_lines ALTER COLUMN quantity SET DEFAULT 1")
@@ -172,11 +176,27 @@ def ensure_commissary_tables(cur):
         SET quantity_unit = 'each'
         WHERE quantity_unit IS NULL OR TRIM(quantity_unit) = ''
     """)
+    cur.execute("""
+        UPDATE commissary_order_lines line
+        SET prep_start_date = o.needed_date
+        FROM commissary_orders o
+        WHERE line.order_id = o.id
+          AND line.prep_start_date IS NULL
+    """)
+    cur.execute("""
+        UPDATE commissary_order_lines line
+        SET prep_end_date = COALESCE(line.prep_start_date, o.needed_date)
+        FROM commissary_orders o
+        WHERE line.order_id = o.id
+          AND line.prep_end_date IS NULL
+    """)
     cur.execute("CREATE INDEX IF NOT EXISTS idx_commissary_orders_needed_date ON commissary_orders (needed_date)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_commissary_orders_status ON commissary_orders (status)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_commissary_orders_source ON commissary_orders (source)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_commissary_order_lines_order_id ON commissary_order_lines (order_id)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_commissary_order_lines_recipe_id ON commissary_order_lines (recipe_id)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_commissary_order_lines_prep_start ON commissary_order_lines (prep_start_date)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_commissary_order_lines_prep_end ON commissary_order_lines (prep_end_date)")
 
     cur.execute("ALTER TABLE commissary_production_logs ADD COLUMN IF NOT EXISTS order_id TEXT")
     cur.execute("ALTER TABLE commissary_production_logs ADD COLUMN IF NOT EXISTS order_item_id BIGINT")
@@ -322,6 +342,8 @@ def get_commissary_order_lines(cur, order_id):
                line.item_name,
                line.quantity,
                line.quantity_unit,
+               line.prep_start_date,
+               line.prep_end_date,
                line.notes AS line_notes,
                line.sort_order,
                o.needed_date,
@@ -352,6 +374,8 @@ def parse_commissary_order_lines(request, valid_recipe_ids):
     item_names = request.form.getlist('line_item_name[]')
     quantities = request.form.getlist('line_qty[]')
     quantity_units = request.form.getlist('line_unit[]')
+    prep_starts = request.form.getlist('line_prep_start[]')
+    prep_ends = request.form.getlist('line_prep_end[]')
     notes = request.form.getlist('line_notes[]')
 
     max_len = max(
@@ -360,6 +384,8 @@ def parse_commissary_order_lines(request, valid_recipe_ids):
         len(item_names),
         len(quantities),
         len(quantity_units),
+        len(prep_starts),
+        len(prep_ends),
         len(notes),
         0
     )
@@ -371,9 +397,11 @@ def parse_commissary_order_lines(request, valid_recipe_ids):
         item_name = clean_menu_text(item_names[idx] if idx < len(item_names) else '')
         qty_raw = (quantities[idx] if idx < len(quantities) else '').strip()
         qty_unit_raw = clean_menu_text(quantity_units[idx] if idx < len(quantity_units) else '')
+        prep_start_raw = (prep_starts[idx] if idx < len(prep_starts) else '').strip()
+        prep_end_raw = (prep_ends[idx] if idx < len(prep_ends) else '').strip()
         note = clean_menu_text(notes[idx] if idx < len(notes) else '')
 
-        if not any([recipe_id, item_name, qty_raw, qty_unit_raw, note]):
+        if not any([recipe_id, item_name, qty_raw, qty_unit_raw, prep_start_raw, prep_end_raw, note]):
             continue
         if recipe_id and recipe_id not in valid_recipe_ids:
             errors.append('One or more commissary line items reference an invalid recipe.')
@@ -383,6 +411,27 @@ def parse_commissary_order_lines(request, valid_recipe_ids):
         qty = parse_float_field(qty_raw, 'Order quantity', errors, required=True, min_value=0.0001)
         if qty is None:
             continue
+        prep_start_date = None
+        prep_end_date = None
+        if prep_start_raw:
+            try:
+                prep_start_date = datetime.strptime(prep_start_raw, '%Y-%m-%d').date()
+            except ValueError:
+                errors.append('Prep start date must be a valid date (YYYY-MM-DD).')
+                continue
+        if prep_end_raw:
+            try:
+                prep_end_date = datetime.strptime(prep_end_raw, '%Y-%m-%d').date()
+            except ValueError:
+                errors.append('Prep end date must be a valid date (YYYY-MM-DD).')
+                continue
+        if prep_start_date and not prep_end_date:
+            prep_end_date = prep_start_date
+        if prep_end_date and not prep_start_date:
+            prep_start_date = prep_end_date
+        if prep_start_date and prep_end_date and prep_end_date < prep_start_date:
+            errors.append('Prep end date cannot be before prep start date.')
+            continue
         normalized_unit = normalize_unit(qty_unit_raw) or normalize_count_unit(qty_unit_raw) or qty_unit_raw or None
         rows.append({
             'line_id': line_id or None,
@@ -390,6 +439,8 @@ def parse_commissary_order_lines(request, valid_recipe_ids):
             'item_name': item_name or None,
             'quantity': qty,
             'quantity_unit': normalized_unit,
+            'prep_start_date': prep_start_date,
+            'prep_end_date': prep_end_date,
             'notes': note or None,
         })
     return rows, errors
@@ -456,7 +507,7 @@ def fetch_commissary_order_rows(cur, start_date, end_date, outlet=''):
     if not commissary_tables_ready(cur):
         return []
     logs_ready = db_table_exists(cur, 'public.commissary_production_logs')
-    params = [start_date, end_date]
+    params = [start_date, end_date, end_date, start_date]
     outlet_filter_sql = ""
     if outlet:
         outlet_filter_sql = " AND o.outlet = %s"
@@ -512,6 +563,8 @@ def fetch_commissary_order_rows(cur, start_date, end_date, outlet=''):
                line.item_name,
                line.quantity,
                line.quantity_unit,
+               line.prep_start_date,
+               line.prep_end_date,
                line.notes AS line_notes,
                line.sort_order,
                {production_select_sql}
@@ -525,7 +578,13 @@ def fetch_commissary_order_rows(cur, start_date, end_date, outlet=''):
         LEFT JOIN commissary_order_lines line ON line.order_id = o.id
         {production_join_sql}
         LEFT JOIN recipes r ON r.id = line.recipe_id
-        WHERE o.needed_date BETWEEN %s AND %s
+        WHERE (
+            o.needed_date BETWEEN %s AND %s
+            OR (
+                COALESCE(line.prep_start_date, o.needed_date) <= %s
+                AND COALESCE(line.prep_end_date, line.prep_start_date, o.needed_date) >= %s
+            )
+        )
           AND COALESCE(NULLIF(TRIM(o.status), ''), 'draft') <> 'cancelled'
           {outlet_filter_sql}
         ORDER BY o.needed_date, o.outlet, o.created_at, COALESCE(line.sort_order, 0), line.id
@@ -602,6 +661,8 @@ def build_commissary_datasets(cur, start_date, end_date, outlet='', unit_system=
             'recipe_type': normalize_recipe_type(row.get('recipe_type')),
             'quantity': quantity,
             'quantity_unit': quantity_unit,
+            'prep_start_date': row.get('prep_start_date') or orders_map[order_id].get('needed_date'),
+            'prep_end_date': row.get('prep_end_date') or row.get('prep_start_date') or orders_map[order_id].get('needed_date'),
             'notes': row.get('line_notes'),
             'source': orders_map[order_id].get('source'),
             'estimated_cost_total': None,
@@ -839,14 +900,64 @@ def build_commissary_datasets(cur, start_date, end_date, outlet='', unit_system=
         daily_groups.append({'date': day, 'orders': day_orders})
 
     standing_items = get_commissary_standing_items(cur, active_only=True)
+    logs_by_line_day = {}
+    line_ids = [line.get('id') for order in orders for line in order.get('lines', []) if line.get('id')]
+    if line_ids:
+        cur.execute(
+            """
+            SELECT
+                line_id,
+                production_date,
+                assigned_to,
+                made_by,
+                signed_off,
+                signed_off_by,
+                tasted_by,
+                COALESCE(production_notes, notes) AS production_notes,
+                actual_yield,
+                actual_yield_unit,
+                updated_at
+            FROM commissary_production_logs
+            WHERE line_id = ANY(%s)
+              AND production_date BETWEEN %s AND %s
+        """,
+            (line_ids, start_date, end_date),
+        )
+        for log_row in cur.fetchall():
+            line_id = log_row.get('line_id')
+            log_date = log_row.get('production_date')
+            if not line_id or not log_date:
+                continue
+            logs_by_line_day[(line_id, log_date)] = {
+                'id': None,
+                'date': log_date,
+                'assigned_to': clean_menu_text(log_row.get('assigned_to')),
+                'made_by': clean_menu_text(log_row.get('made_by')),
+                'signed_off': bool(log_row.get('signed_off')),
+                'signed_off_by': clean_menu_text(log_row.get('signed_off_by')),
+                'tasted_by': clean_menu_text(log_row.get('tasted_by')),
+                'notes': clean_menu_text(log_row.get('production_notes')),
+                'actual_yield': to_float(log_row.get('actual_yield')),
+                'actual_yield_unit': log_row.get('actual_yield_unit'),
+                'updated_at': log_row.get('updated_at'),
+            }
+
     daily_production_days = []
     day_cursor = start_date
     while day_cursor <= end_date:
         entry_rows = []
-        for order in by_day.get(day_cursor, []):
+        for order in orders:
             source_key = normalize_commissary_source(order.get('source'))
             for line in order.get('lines', []):
-                production_log = line.get('production_log') or {}
+                line_start = line.get('prep_start_date') or order.get('needed_date') or day_cursor
+                line_end = line.get('prep_end_date') or line_start
+                if line_end < line_start:
+                    line_start, line_end = line_end, line_start
+                if day_cursor < line_start or day_cursor > line_end:
+                    continue
+                day_total = ((line_end - line_start).days + 1) if line_start and line_end else 1
+                day_index = ((day_cursor - line_start).days + 1) if line_start else 1
+                production_log = logs_by_line_day.get((line.get('id'), day_cursor)) or {}
                 entry_rows.append({
                     'source': source_key,
                     'source_label': source_label_map.get(source_key, 'Outlet Request'),
@@ -865,6 +976,11 @@ def build_commissary_datasets(cur, start_date, end_date, outlet='', unit_system=
                     'order_id': order.get('id'),
                     'line_id': line.get('id'),
                     'notes': line.get('notes') or '',
+                    'prep_start_date': line_start,
+                    'prep_end_date': line_end,
+                    'prep_day_index': day_index,
+                    'prep_day_total': day_total,
+                    'prep_day_label': f"Day {day_index}/{day_total}" if day_total > 1 else '',
                     'is_standing_suggestion': False,
                 })
 
@@ -913,9 +1029,30 @@ def build_commissary_datasets(cur, start_date, end_date, outlet='', unit_system=
         })
         day_cursor += timedelta(days=1)
 
-    total_lines = sum(order.get('line_count', 0) for order in orders)
-    logged_line_count = sum(order.get('logged_line_count', 0) for order in orders)
-    signed_off_line_count = sum(order.get('signed_off_line_count', 0) for order in orders)
+    all_daily_line_entries = [
+        entry
+        for day in daily_production_days
+        for source_group in day.get('source_groups', [])
+        for entry in source_group.get('entries', [])
+        if entry.get('line_id')
+    ]
+    total_lines = len(all_daily_line_entries)
+    signed_off_line_count = sum(1 for entry in all_daily_line_entries if entry.get('signed_off'))
+    logged_line_count = sum(
+        1
+        for entry in all_daily_line_entries
+        if any(
+            [
+                entry.get('assigned_to'),
+                entry.get('made_by'),
+                entry.get('tasted_by'),
+                entry.get('signed_off_by'),
+                entry.get('production_notes'),
+                entry.get('actual_yield'),
+                entry.get('signed_off'),
+            ]
+        )
+    )
     total_estimated_cost = sum(
         sum(line.get('estimated_cost_total', 0) or 0 for line in order.get('lines', []))
         for order in orders

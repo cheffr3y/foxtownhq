@@ -439,6 +439,9 @@
                                         <tr>
                                             <td>
                                                 <div class="entry-name">{{ entry.item_name }}</div>
+                                                {% if entry.prep_day_label %}
+                                                <div class="text-xs text-slate-500">{{ entry.prep_day_label }} · {{ entry.prep_start_date }} → {{ entry.prep_end_date }}</div>
+                                                {% endif %}
                                                 {% if entry.is_standing_suggestion %}
                                                 <span class="entry-pill entry-pill--suggested">Standing Suggestion</span>
                                                 {% endif %}
@@ -483,7 +486,16 @@
                         </div>
                         {% endfor %}
                     {% else %}
-                    <p class="empty-note px-3 py-4">No production entries for this day.</p>
+                    <div class="px-3 py-4">
+                        <p class="empty-note">No production entries for this day.</p>
+                        {% if view_mode == 'day' and days_with_entries %}
+                        <p class="mt-2 text-sm text-slate-500">
+                            This week has production on:
+                            {{ days_with_entries|join(', ') }}.
+                            <a href="{{ url_for('commissary_planner', week_start=week_start, outlet=(selected_outlet or None), day=selected_day, view='week') }}" class="link-accent">Switch to Week view</a>.
+                        </p>
+                        {% endif %}
+                    </div>
                     {% endif %}
                 </article>
                 {% endfor %}

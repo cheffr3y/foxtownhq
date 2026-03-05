@@ -143,7 +143,7 @@
     {% call page_nav(page_title, 'Order entry only: request details and line items. Production logging happens in the daily log.', url_for('commissary_planner')) %}
     {% endcall %}
 
-    <form method="POST" class="max-w-[96rem] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4 order-shell fhq-fade">
+    <form method="POST" class="max-w-[96rem] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4 order-shell fhq-fade" data-needed-date="{{ order.needed_date or '' }}">
         <section class="order-panel p-5">
             <h2 class="section-title text-lg mb-4">Order Details</h2>
             <div class="field-grid">
@@ -187,7 +187,7 @@
             <div class="section-head">
                 <div>
                     <h2 class="section-title">Order Items</h2>
-                    <p class="section-copy">Recipe, display name, quantity, and line notes. No production fields on this page.</p>
+                    <p class="section-copy">Recipe, quantity, optional prep window for multi-day projects, and line notes.</p>
                 </div>
                 <button type="button" id="addLineBtn" class="fhq-btn fhq-btn--outline">+ Add line</button>
             </div>
@@ -200,6 +200,8 @@
                             <th class="min-w-[260px]">Item Name</th>
                             <th class="min-w-[120px]">Qty</th>
                             <th class="min-w-[120px]">Unit</th>
+                            <th class="min-w-[150px]">Prep Start</th>
+                            <th class="min-w-[150px]">Prep End</th>
                             <th class="min-w-[320px]">Line Notes</th>
                             <th class="min-w-[100px]">Action</th>
                         </tr>
@@ -225,6 +227,8 @@
                             </td>
                             <td><input type="number" step="0.01" min="0" name="line_qty[]" value="{{ line.quantity or '' }}" class="field"></td>
                             <td><input name="line_unit[]" data-role="line-unit" value="{{ line.quantity_unit or line.yield_unit or 'each' }}" class="field"></td>
+                            <td><input type="date" name="line_prep_start[]" value="{{ line.prep_start_date or order.needed_date or '' }}" class="field"></td>
+                            <td><input type="date" name="line_prep_end[]" value="{{ line.prep_end_date or line.prep_start_date or order.needed_date or '' }}" class="field"></td>
                             <td><input name="line_notes[]" value="{{ line.notes or line.line_notes or '' }}" class="field" placeholder="Pack size, delivery notes"></td>
                             <td><button type="button" class="removeRow remove-btn">Remove</button></td>
                         </tr>
@@ -278,6 +282,8 @@
     <td><input name="line_item_name[]" data-role="item-name" class="field" placeholder="Defaults to recipe name"></td>
     <td><input type="number" step="0.01" min="0" name="line_qty[]" value="1" class="field"></td>
     <td><input name="line_unit[]" data-role="line-unit" value="each" class="field"></td>
+    <td><input type="date" name="line_prep_start[]" class="field"></td>
+    <td><input type="date" name="line_prep_end[]" class="field"></td>
     <td><input name="line_notes[]" class="field" placeholder="Pack size, delivery notes"></td>
     <td><button type="button" class="removeRow remove-btn">Remove</button></td>
 </tr>
@@ -294,6 +300,8 @@
     const lineRows = document.getElementById('lineRows');
     const addLineBtn = document.getElementById('addLineBtn');
     const template = document.getElementById('lineRowTemplate');
+    const orderForm = document.querySelector('form[data-needed-date]');
+    const neededDate = orderForm ? (orderForm.dataset.neededDate || '').trim() : '';
     const recipeOptions = {{ recipe_options|tojson }};
     const recipeById = new Map();
     const recipeByDisplay = new Map();
@@ -372,7 +380,14 @@
     addLineBtn.addEventListener('click', () => {
         const clone = template.content.cloneNode(true);
         lineRows.appendChild(clone);
-        bindRow(lineRows.lastElementChild);
+        const row = lineRows.lastElementChild;
+        if (row && neededDate) {
+            const prepStart = row.querySelector('input[name="line_prep_start[]"]');
+            const prepEnd = row.querySelector('input[name="line_prep_end[]"]');
+            if (prepStart && !prepStart.value) prepStart.value = neededDate;
+            if (prepEnd && !prepEnd.value) prepEnd.value = neededDate;
+        }
+        bindRow(row);
     });
 
     Array.from(lineRows.querySelectorAll('tr')).forEach((row) => bindRow(row));

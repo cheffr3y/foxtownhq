@@ -172,6 +172,42 @@
         </section>
 
         <section class="review-panel p-4">
+            <h2 class="text-xl font-display text-foxtown-ink mb-3">Daily Production Breakdown</h2>
+            {% if review.daily_rows %}
+            <div class="table-wrap">
+                <table class="review-table">
+                    <thead>
+                        <tr>
+                            <th>Day</th>
+                            <th>Outlet</th>
+                            <th>Source</th>
+                            <th>Item</th>
+                            <th>Qty</th>
+                            <th>Assigned</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in review.daily_rows %}
+                        <tr>
+                            <td>{{ row.production_date }}{% if row.prep_day_label %} · {{ row.prep_day_label }}{% endif %}</td>
+                            <td>{{ row.outlet }}</td>
+                            <td>{{ row.source_label }}</td>
+                            <td>{{ row.item_name }}</td>
+                            <td>{{ row.quantity }} {{ row.quantity_unit }}</td>
+                            <td>{{ row.assigned_to or 'Unassigned' }}</td>
+                            <td>{{ 'Signed Off' if row.signed_off else 'Pending' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="empty-note">No production rows found for this week.</p>
+            {% endif %}
+        </section>
+
+        <section class="review-panel p-4">
             <h2 class="text-xl font-display text-foxtown-ink mb-3">Items by Outlet</h2>
             {% if review.items_by_outlet %}
             <div class="table-wrap">

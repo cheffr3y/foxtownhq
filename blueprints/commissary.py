@@ -86,26 +86,55 @@ def get_review_window(week_start_raw=''):
 def build_weekly_review_context(cur, week_start, week_end, selected_outlet=''):
     datasets = build_commissary_datasets(cur, week_start, week_end, selected_outlet, get_unit_system())
     orders = datasets.get('orders', [])
-    total_lines = datasets.get('line_count', 0)
-    signed_off_lines = datasets.get('signed_off_line_count', 0)
+    daily_rows = []
+    for day_group in datasets.get('daily_production_days', []) or []:
+        for source_group in day_group.get('source_groups', []) or []:
+            for entry in source_group.get('entries', []) or []:
+                if not entry.get('line_id'):
+                    continue
+                daily_rows.append(
+                    {
+                        'production_date': day_group.get('date'),
+                        'outlet': entry.get('outlet') or DEFAULT_COMMISSARY_OUTLET,
+                        'source_label': source_group.get('label') or entry.get('source_label') or 'Outlet Request',
+                        'item_name': entry.get('item_name') or 'Item',
+                        'quantity': entry.get('quantity'),
+                        'quantity_unit': entry.get('quantity_unit') or 'each',
+                        'assigned_to': entry.get('assigned_to') or '',
+                        'signed_off': bool(entry.get('signed_off')),
+                        'prep_day_label': entry.get('prep_day_label') or '',
+                        'notes': entry.get('notes') or '',
+                    }
+                )
+
+    total_lines = len(daily_rows)
+    signed_off_lines = sum(1 for row in daily_rows if row.get('signed_off'))
     completion_rate = round((signed_off_lines / total_lines) * 100, 1) if total_lines else 0
 
     items_by_outlet = {}
     incomplete_lines = []
-    for order in orders:
-        outlet_name = order.get('outlet') or DEFAULT_COMMISSARY_OUTLET
-        items_by_outlet[outlet_name] = items_by_outlet.get(outlet_name, 0) + int(order.get('line_count') or 0)
-        for line in order.get('lines', []):
-            production_log = line.get('production_log') or {}
-            if production_log.get('signed_off'):
-                continue
-            incomplete_lines.append({
-                'needed_date': order.get('needed_date'),
-                'outlet': outlet_name,
-                'item_name': line.get('item_name') or line.get('recipe_name') or 'Item',
-                'assigned_to': production_log.get('assigned_to') or '',
-                'notes': production_log.get('notes') or line.get('notes') or '',
-            })
+    for row in daily_rows:
+        outlet_name = row.get('outlet') or DEFAULT_COMMISSARY_OUTLET
+        items_by_outlet[outlet_name] = items_by_outlet.get(outlet_name, 0) + 1
+        if not row.get('signed_off'):
+            incomplete_lines.append(
+                {
+                    'needed_date': row.get('production_date'),
+                    'outlet': outlet_name,
+                    'item_name': row.get('item_name'),
+                    'assigned_to': row.get('assigned_to') or '',
+                    'notes': row.get('notes') or '',
+                    'prep_day_label': row.get('prep_day_label') or '',
+                }
+            )
+
+    daily_rows.sort(
+        key=lambda row: (
+            row.get('production_date') or week_start,
+            (row.get('outlet') or '').lower(),
+            (row.get('item_name') or '').lower(),
+        )
+    )
 
     cur.execute(
         """
@@ -139,6 +168,7 @@ def build_weekly_review_context(cur, week_start, week_end, selected_outlet=''):
         'signed_off_lines': signed_off_lines,
         'completion_rate': completion_rate,
         'items_by_outlet': outlet_rows,
+        'daily_rows': daily_rows,
         'incomplete_lines': incomplete_lines,
         'transfers': transfers,
     }
@@ -343,6 +373,11 @@ def commissary_planner():
             selected_day = start_date
 
         all_daily_days = datasets.get('daily_production_days', []) or []
+        days_with_entries = [
+            day_data.get('date').isoformat()
+            for day_data in all_daily_days
+            if day_data.get('date') and int(day_data.get('entry_count') or 0) > 0
+        ]
         if view_mode == 'day':
             filtered_daily_days = [day_data for day_data in all_daily_days if day_data.get('date') == selected_day]
         else:
@@ -407,6 +442,7 @@ def commissary_planner():
         outlet_options=outlet_options,
         datasets=datasets,
         filtered_daily_days=filtered_daily_days,
+        days_with_entries=days_with_entries,
         orders=orders,
         metrics=metrics,
         recent_orders=recent_orders,
@@ -504,6 +540,8 @@ def commissary_order_new():
                     for idx, line in enumerate(lines):
                         recipe_id = line.get('recipe_id')
                         item_name = line.get('item_name') or recipe_name_map.get(recipe_id) or None
+                        prep_start_date = line.get('prep_start_date') or needed_date
+                        prep_end_date = line.get('prep_end_date') or prep_start_date or needed_date
                         cur.execute(
                             """
                             INSERT INTO commissary_order_lines (
@@ -512,10 +550,12 @@ def commissary_order_new():
                                 item_name,
                                 quantity,
                                 quantity_unit,
+                                prep_start_date,
+                                prep_end_date,
                                 notes,
                                 sort_order
                             )
-                            VALUES (%s, %s, %s, %s, %s, %s, %s)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                         """,
                             (
                                 order_id,
@@ -523,6 +563,8 @@ def commissary_order_new():
                                 item_name,
                                 line.get('quantity'),
                                 line.get('quantity_unit') or 'each',
+                                prep_start_date,
+                                prep_end_date,
                                 line.get('notes'),
                                 idx,
                             ),
@@ -625,6 +667,8 @@ def commissary_order_edit(order_id):
                     for idx, line in enumerate(lines):
                         recipe_id = line.get('recipe_id')
                         item_name = line.get('item_name') or recipe_name_map.get(recipe_id) or None
+                        prep_start_date = line.get('prep_start_date') or needed_date
+                        prep_end_date = line.get('prep_end_date') or prep_start_date or needed_date
                         cur.execute(
                             """
                             INSERT INTO commissary_order_lines (
@@ -633,10 +677,12 @@ def commissary_order_edit(order_id):
                                 item_name,
                                 quantity,
                                 quantity_unit,
+                                prep_start_date,
+                                prep_end_date,
                                 notes,
                                 sort_order
                             )
-                            VALUES (%s, %s, %s, %s, %s, %s, %s)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                         """,
                             (
                                 order_id,
@@ -644,6 +690,8 @@ def commissary_order_edit(order_id):
                                 item_name,
                                 line.get('quantity'),
                                 line.get('quantity_unit') or 'each',
+                                prep_start_date,
+                                prep_end_date,
                                 line.get('notes'),
                                 idx,
                             ),
@@ -961,7 +1009,8 @@ def commissary_production_log_bulk_signoff():
             LEFT JOIN commissary_production_logs pl
                    ON pl.line_id = line.id
                   AND pl.production_date = %s
-            WHERE o.needed_date = %s
+            WHERE %s BETWEEN COALESCE(line.prep_start_date, o.needed_date)
+                         AND COALESCE(line.prep_end_date, line.prep_start_date, o.needed_date)
               AND (%s = '' OR o.outlet = %s)
               AND COALESCE(NULLIF(TRIM(o.status), ''), 'draft') <> 'cancelled'
               AND COALESCE(pl.signed_off, FALSE) = FALSE
@@ -1742,15 +1791,17 @@ def commissary_review_pdf(week_start):
     y -= 4
 
     line('Daily Breakdown', size=12, gap=16)
-    if review.get('orders'):
-        for order in review.get('orders', []):
-            line_count = int(order.get('line_count') or 0)
-            signed_count = int(order.get('signed_off_line_count') or 0)
+    if review.get('daily_rows'):
+        for row in review.get('daily_rows', []):
+            qty = format_number(row.get('quantity'))
+            unit = row.get('quantity_unit') or 'each'
+            status_text = 'signed' if row.get('signed_off') else 'pending'
+            day_label = f" ({row.get('prep_day_label')})" if row.get('prep_day_label') else ''
             line(
-                f"- {order.get('needed_date')} | {order.get('outlet')} | {line_count} lines | {signed_count} signed"
+                f"- {row.get('production_date')} | {row.get('outlet')} | {row.get('item_name')} | {qty} {unit}{day_label} | {status_text}"
             )
     else:
-        line('- No orders in this week.')
+        line('- No production rows in this week.')
     y -= 4
 
     line('Transfers', size=12, gap=16)

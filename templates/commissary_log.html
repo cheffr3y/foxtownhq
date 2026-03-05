@@ -396,7 +396,10 @@
 
                             <div>
                                 <div class="cleanup-item">{{ entry.item_name }}</div>
-                                <div class="cleanup-meta">{{ entry.quantity }} {{ entry.quantity_unit }} · {{ entry.outlet }} · {{ entry.source_label }}</div>
+                                <div class="cleanup-meta">
+                                    {{ entry.quantity }} {{ entry.quantity_unit }} · {{ entry.outlet }} · {{ entry.source_label }}
+                                    {% if entry.prep_day_label %} · {{ entry.prep_day_label }}{% endif %}
+                                </div>
                             </div>
                             <div><input type="text" name="assigned_to" value="{{ entry.assigned_to or '' }}" class="cleanup-input" placeholder="Assigned"></div>
                             <div><input type="text" name="made_by" value="{{ entry.made_by or '' }}" class="cleanup-input" placeholder="Made"></div>
@@ -433,7 +436,10 @@
                         <div class="log-card-head">
                             <div>
                                 <div class="log-item">{{ entry.item_name }}</div>
-                                <div class="log-meta">{{ entry.quantity }} {{ entry.quantity_unit }} · {{ entry.outlet }} · {{ entry.source_label }}</div>
+                                <div class="log-meta">
+                                    {{ entry.quantity }} {{ entry.quantity_unit }} · {{ entry.outlet }} · {{ entry.source_label }}
+                                    {% if entry.prep_day_label %} · {{ entry.prep_day_label }}{% endif %}
+                                </div>
                             </div>
                             <span class="log-status {% if entry.signed_off %}log-status--done{% else %}log-status--pending{% endif %}" data-status>
                                 {% if entry.signed_off %}Done{% else %}Pending{% endif %}
