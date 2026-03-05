@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+{% from "base.html" import page_nav %}
+
+{% block title %}{{ page_title }} - Foxtown HQ{% endblock %}
+
+{% block extra_head %}
+<style>
+    .standing-shell {
+        padding-bottom: 3rem;
+    }
+
+    .standing-panel {
+        border-radius: 16px;
+        border: 1px solid rgba(15, 23, 42, 0.1);
+        background: rgba(255, 255, 255, 0.96);
+        box-shadow: 0 0 36px -14px rgba(77, 124, 255, 0.24);
+    }
+
+    .field-grid {
+        display: grid;
+        gap: 0.65rem;
+        grid-template-columns: repeat(1, minmax(0, 1fr));
+    }
+
+    @media (min-width: 980px) {
+        .field-grid {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+    }
+
+    .field-label {
+        display: block;
+        margin-bottom: 0.32rem;
+        font-size: 0.64rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #94A3B8;
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    }
+
+    .field {
+        width: 100%;
+        min-height: 42px;
+        border: 1px solid rgba(15, 23, 42, 0.15);
+        border-radius: 10px;
+        background: rgba(248, 250, 252, 0.92);
+        color: #0F172A;
+        padding: 0.5rem 0.72rem;
+        transition: all 0.2s ease;
+    }
+
+    .field:focus {
+        outline: none;
+        border-color: rgba(77, 124, 255, 0.72);
+        box-shadow: 0 0 20px -10px rgba(77, 124, 255, 0.55);
+    }
+
+    .table-wrap {
+        overflow-x: auto;
+    }
+
+    .standing-table {
+        width: 100%;
+        min-width: 920px;
+        border-collapse: collapse;
+    }
+
+    .standing-table th {
+        text-align: left;
+        font-size: 0.66rem;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
+        color: #94A3B8;
+        padding: 0.66rem 0.72rem;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.24);
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    }
+
+    .standing-table td {
+        padding: 0.7rem 0.72rem;
+        border-top: 1px solid rgba(148, 163, 184, 0.2);
+        color: #334155;
+        font-size: 0.84rem;
+        vertical-align: top;
+    }
+
+    .status-pill {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.4);
+        padding: 0.15rem 0.48rem;
+        font-size: 0.64rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #334155;
+        background: rgba(248, 250, 252, 0.9);
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    }
+
+    .status-pill--active {
+        border-color: rgba(16, 185, 129, 0.45);
+        color: #065f46;
+        background: rgba(16, 185, 129, 0.12);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen">
+    {% call page_nav(page_title, 'Recurring prep definitions that auto-populate the daily production list.', url_for('commissary_planner')) %}
+    <a href="{{ url_for('commissary_planner') }}" class="fhq-btn fhq-btn--outline">Back to Planner</a>
+    {% endcall %}
+
+    <div class="max-w-[96rem] mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-4 standing-shell fhq-fade">
+        <section class="standing-panel p-4">
+            <h2 class="text-xl font-display text-foxtown-ink mb-3">
+                {% if editing_item %}Edit Standing Item{% else %}Add Standing Item{% endif %}
+            </h2>
+            <form method="POST" action="{% if editing_item %}{{ url_for('commissary_standing_prep_edit', item_id=editing_item.id) }}{% else %}{{ url_for('commissary_standing_prep') }}{% endif %}" class="field-grid">
+                <div>
+                    <label class="field-label">Recipe</label>
+                    <select name="recipe_id" class="field">
+                        <option value="">None (manual item name)</option>
+                        {% for recipe in recipe_options %}
+                        <option value="{{ recipe.id }}" {% if editing_item and editing_item.recipe_id == recipe.id %}selected{% endif %}>{{ recipe.display_label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="field-label">Item Name</label>
+                    <input type="text" name="item_name" class="field" value="{{ editing_item.item_name if editing_item else '' }}" placeholder="Defaults from recipe if blank">
+                </div>
+                <div>
+                    <label class="field-label">Default Quantity</label>
+                    <input type="number" step="0.01" min="0" name="default_quantity" class="field" value="{{ (editing_item.default_quantity if editing_item else 1) }}" required>
+                </div>
+                <div>
+                    <label class="field-label">Default Unit</label>
+                    <input type="text" name="default_unit" class="field" value="{{ (editing_item.default_unit if editing_item else 'each') }}" required>
+                </div>
+                <div>
+                    <label class="field-label">Frequency</label>
+                    <select name="frequency" class="field">
+                        {% set selected_frequency = (editing_item.frequency if editing_item else 'daily') %}
+                        <option value="daily" {% if selected_frequency == 'daily' %}selected{% endif %}>Daily</option>
+                        <option value="weekly" {% if selected_frequency == 'weekly' %}selected{% endif %}>Weekly (Monday)</option>
+                        <option value="as_needed" {% if selected_frequency == 'as_needed' %}selected{% endif %}>As Needed</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="field-label">Active</label>
+                    <select name="active" class="field">
+                        {% set is_active = editing_item.active if editing_item else true %}
+                        <option value="1" {% if is_active %}selected{% endif %}>Yes</option>
+                        <option value="0" {% if not is_active %}selected{% endif %}>No</option>
+                    </select>
+                </div>
+                <div class="md:col-span-2">
+                    <label class="field-label">Notes</label>
+                    <input type="text" name="notes" class="field" value="{{ editing_item.notes if editing_item else '' }}" placeholder="Context for the prep team">
+                </div>
+
+                <div class="md:col-span-4 flex items-center justify-end gap-2">
+                    {% if editing_item %}
+                    <a href="{{ url_for('commissary_standing_prep') }}" class="fhq-btn fhq-btn--outline">Cancel Edit</a>
+                    {% endif %}
+                    <button type="submit" class="fhq-btn fhq-btn--primary">{% if editing_item %}Save Changes{% else %}Add Standing Item{% endif %}</button>
+                </div>
+            </form>
+        </section>
+
+        <section class="standing-panel p-4">
+            <h2 class="text-xl font-display text-foxtown-ink mb-3">Standing Prep Items</h2>
+            {% if items %}
+            <div class="table-wrap">
+                <table class="standing-table">
+                    <thead>
+                        <tr>
+                            <th>Item</th>
+                            <th>Recipe</th>
+                            <th>Default Qty</th>
+                            <th>Frequency</th>
+                            <th>Status</th>
+                            <th>Notes</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                        <tr>
+                            <td>{{ item.item_name or item.recipe_name or 'Standing Prep' }}</td>
+                            <td>{{ item.recipe_name or '—' }}</td>
+                            <td>{{ item.default_quantity }} {{ item.default_unit }}</td>
+                            <td>{{ (item.frequency or 'daily')|replace('_', ' ')|title }}</td>
+                            <td>
+                                {% if item.active %}
+                                <span class="status-pill status-pill--active">Active</span>
+                                {% else %}
+                                <span class="status-pill">Inactive</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ item.notes or '—' }}</td>
+                            <td class="space-x-2">
+                                <a href="{{ url_for('commissary_standing_prep_edit', item_id=item.id) }}" class="fhq-btn fhq-btn--ghost">Edit</a>
+                                <form method="POST" action="{{ url_for('commissary_standing_prep_toggle', item_id=item.id) }}" class="inline">
+                                    <button type="submit" class="fhq-btn fhq-btn--outline">{% if item.active %}Deactivate{% else %}Activate{% endif %}</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-sm text-slate-500">No standing prep items yet.</p>
+            {% endif %}
+        </section>
+    </div>
+</div>
+{% endblock %}

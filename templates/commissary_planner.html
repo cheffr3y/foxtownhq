@@ -16,137 +16,17 @@
         box-shadow: 0 0 36px -14px rgba(77, 124, 255, 0.24);
     }
 
-    .planner-head {
+    .controls-grid {
         display: grid;
-        gap: 0.75rem;
-    }
-
-    .advanced-controls {
-        border-radius: 12px;
-        border: 1px dashed rgba(148, 163, 184, 0.4);
-        background: rgba(248, 250, 252, 0.92);
-    }
-
-    .advanced-controls > summary {
-        list-style: none;
-        cursor: pointer;
-        padding: 0.58rem 0.72rem;
-        color: #334155;
-        font-size: 0.72rem;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-    }
-
-    .advanced-controls > summary::-webkit-details-marker {
-        display: none;
-    }
-
-    .advanced-controls[open] > summary {
-        border-bottom: 1px dashed rgba(148, 163, 184, 0.36);
-    }
-
-    .advanced-controls-body {
-        padding: 0.62rem 0.72rem 0.72rem;
-        display: grid;
-        gap: 0.62rem;
-    }
-
-    .week-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
         gap: 0.6rem;
-        flex-wrap: wrap;
-    }
-
-    .week-title {
-        color: #0F172A;
-        font-size: 1rem;
-        font-family: 'Calistoga', Inter, sans-serif;
-        letter-spacing: -0.02em;
-    }
-
-    .week-links {
-        display: flex;
-        gap: 0.45rem;
-        flex-wrap: wrap;
-    }
-
-    .week-link {
-        border-radius: 999px;
-        border: 1px solid rgba(15, 23, 42, 0.16);
-        background: rgba(248, 250, 252, 0.9);
-        color: #334155;
-        font-size: 0.68rem;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-        padding: 0.32rem 0.66rem;
-        transition: all 0.2s ease;
-    }
-
-    .week-link:hover {
-        border-color: rgba(77, 124, 255, 0.6);
-        color: #93C5FD;
-    }
-
-    .filter-row {
-        display: grid;
-        gap: 0.55rem;
-        grid-template-columns: repeat(1, minmax(0, 1fr));
-    }
-
-    @media (min-width: 980px) {
-        .filter-row {
-            grid-template-columns: minmax(0, 1.2fr) minmax(180px, 0.72fr) minmax(180px, 0.72fr) auto auto;
-            align-items: end;
-        }
-    }
-
-    .day-ops-row {
-        display: grid;
-        gap: 0.55rem;
         grid-template-columns: repeat(1, minmax(0, 1fr));
         align-items: end;
-        border-radius: 12px;
-        border: 1px solid rgba(77, 124, 255, 0.36);
-        background: rgba(77, 124, 255, 0.08);
-        padding: 0.68rem;
     }
 
     @media (min-width: 980px) {
-        .day-ops-row {
-            grid-template-columns: minmax(0, 0.95fr) auto auto auto auto;
+        .controls-grid {
+            grid-template-columns: minmax(0, 1fr) minmax(170px, 0.7fr) minmax(170px, 0.7fr) minmax(170px, 0.7fr) auto;
         }
-    }
-
-    .day-view-toggle {
-        min-height: 42px;
-        border-radius: 999px;
-        border: 1px solid rgba(15, 23, 42, 0.18);
-        background: rgba(248, 250, 252, 0.92);
-        display: inline-flex;
-        overflow: hidden;
-    }
-
-    .day-view-toggle a {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 84px;
-        padding: 0.35rem 0.7rem;
-        color: #334155;
-        font-size: 0.68rem;
-        letter-spacing: 0.1em;
-        text-transform: uppercase;
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-    }
-
-    .day-view-toggle a.is-active {
-        color: #0F172A;
-        background: linear-gradient(to right, rgba(0, 82, 255, 0.85), rgba(77, 124, 255, 0.85));
-        box-shadow: 0 0 16px -8px rgba(77, 124, 255, 0.8);
     }
 
     .comm-label {
@@ -288,13 +168,6 @@
         padding: 0.78rem 0.9rem;
     }
 
-    .day-head-actions {
-        display: flex;
-        align-items: center;
-        gap: 0.45rem;
-        flex-wrap: wrap;
-    }
-
     .day-title {
         color: #0F172A;
         font-family: 'Calistoga', Inter, sans-serif;
@@ -312,170 +185,85 @@
         font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
     }
 
-    .day-lines {
-        padding: 0.72rem 0.85rem 0.35rem;
-        display: grid;
-        gap: 0.62rem;
-    }
-
-    .task-card {
-        border-radius: 12px;
+    .source-block {
+        margin: 0.7rem;
+        border-radius: 10px;
         border: 1px solid rgba(15, 23, 42, 0.12);
-        background: rgba(255, 255, 255, 0.96);
-        padding: 0.72rem;
+        background: white;
+        overflow: hidden;
     }
 
-    .task-head {
+    .source-head {
         display: flex;
         justify-content: space-between;
-        gap: 0.65rem;
-        align-items: flex-start;
-    }
-
-    .task-name {
-        color: #0F172A;
-        font-size: clamp(1.05rem, 1.8vw, 1.35rem);
-        line-height: 1.08;
-        letter-spacing: -0.02em;
-        font-family: 'Calistoga', Inter, sans-serif;
-    }
-
-    .task-meta {
-        margin-top: 0.24rem;
-        color: #94A3B8;
-        font-size: 0.76rem;
-    }
-
-    .task-status {
-        min-width: 126px;
-        text-align: center;
-        border-radius: 999px;
-        padding: 0.34rem 0.62rem;
-        font-size: 0.74rem;
-        letter-spacing: 0.11em;
-        text-transform: uppercase;
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-        border: 1px solid transparent;
-        white-space: nowrap;
-    }
-
-    .task-status--done {
-        color: #ecfdf5;
-        background: rgba(16, 185, 129, 0.86);
-        border-color: rgba(110, 231, 183, 0.9);
-        box-shadow: 0 0 22px -8px rgba(16, 185, 129, 0.8);
-    }
-
-    .task-status--progress {
-        color: #111827;
-        background: rgba(251, 191, 36, 0.92);
-        border-color: rgba(252, 211, 77, 0.95);
-        box-shadow: 0 0 22px -8px rgba(251, 191, 36, 0.8);
-    }
-
-    .task-actions {
-        margin-top: 0.62rem;
-        display: flex;
-        flex-wrap: wrap;
+        gap: 0.6rem;
         align-items: center;
-        gap: 0.45rem;
+        padding: 0.52rem 0.72rem;
+        background: rgba(15, 23, 42, 0.03);
+        border-bottom: 1px solid rgba(15, 23, 42, 0.08);
     }
 
-    .task-save-state {
-        color: #94A3B8;
-        font-size: 0.71rem;
-        letter-spacing: 0.06em;
+    .source-title {
+        font-size: 0.72rem;
+        letter-spacing: 0.1em;
         text-transform: uppercase;
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-    }
-
-    .task-save-state.is-saving {
-        color: #fbbf24;
-    }
-
-    .task-save-state.is-error {
-        color: #fb7185;
-    }
-
-    .task-save-state.is-saved {
-        color: #34d399;
-    }
-
-    .notes-details {
-        margin-top: 0.58rem;
-        border-radius: 10px;
-        border: 1px dashed rgba(148, 163, 184, 0.42);
-        background: rgba(248, 250, 252, 0.92);
-    }
-
-    .notes-details > summary {
-        list-style: none;
-        cursor: pointer;
-        padding: 0.54rem 0.62rem;
         color: #334155;
-        font-size: 0.78rem;
-        letter-spacing: 0.06em;
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    }
+
+    .entry-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .entry-table th {
+        text-align: left;
+        font-size: 0.64rem;
+        letter-spacing: 0.12em;
         text-transform: uppercase;
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-    }
-
-    .notes-details > summary::-webkit-details-marker {
-        display: none;
-    }
-
-    .notes-body {
-        border-top: 1px dashed rgba(148, 163, 184, 0.35);
-        padding: 0.58rem 0.62rem 0.64rem;
-        display: grid;
-        gap: 0.48rem;
-    }
-
-    .notes-field {
-        width: 100%;
-        min-height: 86px;
-        border: 1px solid rgba(15, 23, 42, 0.14);
-        border-radius: 10px;
-        background: rgba(248, 250, 252, 0.9);
-        color: #0F172A;
-        padding: 0.5rem 0.62rem;
-        resize: vertical;
-    }
-
-    .detail-grid {
-        display: grid;
-        gap: 0.42rem;
-        grid-template-columns: repeat(1, minmax(0, 1fr));
-    }
-
-    @media (min-width: 900px) {
-        .detail-grid {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-        }
-    }
-
-    .detail-input {
-        width: 100%;
-        min-height: 38px;
-        border: 1px solid rgba(15, 23, 42, 0.13);
-        border-radius: 9px;
-        background: rgba(248, 250, 252, 0.92);
-        color: #0F172A;
-        padding: 0.42rem 0.58rem;
-        font-size: 0.82rem;
-    }
-
-    .day-footer {
-        padding: 0 0.9rem 0.8rem;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 0.65rem;
-    }
-
-    .day-save-state {
         color: #94A3B8;
-        font-size: 0.74rem;
+        padding: 0.52rem 0.68rem;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.24);
         font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    }
+
+    .entry-table td {
+        font-size: 0.82rem;
+        color: #334155;
+        padding: 0.58rem 0.68rem;
+        border-top: 1px solid rgba(148, 163, 184, 0.16);
+        vertical-align: top;
+    }
+
+    .entry-name {
+        color: #0F172A;
+        font-weight: 600;
+    }
+
+    .entry-pill {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.4);
+        padding: 0.16rem 0.46rem;
+        font-size: 0.64rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #475569;
+        background: rgba(248, 250, 252, 0.9);
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    }
+
+    .entry-pill--signed {
+        border-color: rgba(16, 185, 129, 0.5);
+        color: #065f46;
+        background: rgba(16, 185, 129, 0.12);
+    }
+
+    .entry-pill--suggested {
+        border-color: rgba(59, 130, 246, 0.45);
+        color: #1d4ed8;
+        background: rgba(59, 130, 246, 0.12);
     }
 
     .section-head {
@@ -531,62 +319,6 @@
         font-size: 0.84rem;
     }
 
-    .entry-title {
-        color: #0F172A;
-        font-weight: 600;
-    }
-
-    .status-pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.32rem;
-        border-radius: 999px;
-        padding: 0.2rem 0.5rem;
-        font-size: 0.66rem;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        border: 1px solid transparent;
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-    }
-
-    .status-pill::before {
-        content: "";
-        width: 0.34rem;
-        height: 0.34rem;
-        border-radius: 999px;
-        background: currentColor;
-    }
-
-    .status-pill--completed {
-        color: #22d3ee;
-        background: rgba(34, 211, 238, 0.12);
-        border-color: rgba(34, 211, 238, 0.45);
-    }
-
-    .status-pill--production {
-        color: #c084fc;
-        background: rgba(192, 132, 252, 0.16);
-        border-color: rgba(192, 132, 252, 0.46);
-    }
-
-    .status-pill--confirmed {
-        color: #93C5FD;
-        background: rgba(147, 197, 253, 0.12);
-        border-color: rgba(147, 197, 253, 0.4);
-    }
-
-    .status-pill--cancelled {
-        color: #f87171;
-        background: rgba(248, 113, 113, 0.14);
-        border-color: rgba(248, 113, 113, 0.42);
-    }
-
-    .status-pill--default {
-        color: #94A3B8;
-        background: rgba(148, 163, 184, 0.14);
-        border-color: rgba(148, 163, 184, 0.4);
-    }
-
     .empty-note {
         color: #94A3B8;
         font-size: 0.88rem;
@@ -596,73 +328,48 @@
 
 {% block content %}
 <div class="min-h-screen">
-    {% call page_nav('Commissary Planner', 'Kitchen-first production log and fast sign-off.', url_for('dashboard')) %}
-    <a href="{{ url_for('commissary_order_new') }}" class="fhq-btn fhq-btn--primary" data-shortcut="new">+ New Order</a>
+    {% call page_nav('Commissary Planner', 'Paper-first daily production list with source grouping and standing prep suggestions.', url_for('dashboard')) %}
+    <a href="{{ url_for('commissary_order_new') }}" class="fhq-btn fhq-btn--primary">+ New Order</a>
     {% endcall %}
 
-    <div class="max-w-[96rem] mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-4 comm-shell fhq-fade" id="plannerRoot" data-current-user="{{ (current_user.username or '')|trim }}">
-        <section class="comm-panel p-4 planner-head">
-            <form method="GET" class="day-ops-row">
-                <input type="hidden" name="outlet" value="{{ selected_outlet }}">
-                <input type="hidden" name="week_start" value="{{ week_start }}">
-                <input type="hidden" name="units" value="{{ selected_units }}">
+    <div class="max-w-[96rem] mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-4 comm-shell fhq-fade" id="plannerRoot">
+        <section class="comm-panel p-4">
+            <form method="GET" class="controls-grid">
+                <div>
+                    <label class="comm-label">Outlet</label>
+                    <select name="outlet" class="comm-field">
+                        <option value="">All Outlets</option>
+                        {% for outlet in outlet_options %}
+                        <option value="{{ outlet }}" {% if selected_outlet == outlet %}selected{% endif %}>{{ outlet }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="comm-label">Week Start</label>
+                    <input type="date" name="week_start" value="{{ week_start }}" class="comm-field">
+                </div>
                 <div>
                     <label class="comm-label">Production Day</label>
                     <input type="date" name="day" value="{{ selected_day }}" class="comm-field">
                 </div>
                 <div>
                     <label class="comm-label">View</label>
-                    <input type="hidden" name="view" value="day">
-                    <div class="day-view-toggle" role="group" aria-label="Planner view mode">
-                        <a href="{{ url_for('commissary_planner', outlet=(selected_outlet or None), week_start=week_start, units=selected_units, day=selected_day, view='day') }}" class="{% if view_mode == 'day' %}is-active{% endif %}">Day</a>
-                        <a href="{{ url_for('commissary_planner', outlet=(selected_outlet or None), week_start=week_start, units=selected_units, day=selected_day, view='week') }}" class="{% if view_mode == 'week' %}is-active{% endif %}">Week</a>
-                    </div>
+                    <select name="view" class="comm-field">
+                        <option value="day" {% if view_mode == 'day' %}selected{% endif %}>Day</option>
+                        <option value="week" {% if view_mode == 'week' %}selected{% endif %}>Week</option>
+                    </select>
                 </div>
-                <button type="submit" class="fhq-btn fhq-btn--primary">View Day</button>
-                <a href="{{ url_for('commissary_packet_print', outlet=(selected_outlet or None), week_start=week_start, day=selected_day, include_shopping=0, units=selected_units) }}" target="_blank" class="fhq-btn fhq-btn--outline text-center">Print Day Packet</a>
-                <a href="{{ url_for('commissary_packet_print', outlet=(selected_outlet or None), week_start=week_start, include_shopping=1, units=selected_units) }}" target="_blank" class="fhq-btn fhq-btn--ghost text-center">Print Week + Shopping</a>
+                <button type="submit" class="fhq-btn fhq-btn--primary">Apply</button>
             </form>
-            <details class="advanced-controls">
-                <summary>Advanced filters, week navigation, and review tools</summary>
-                <div class="advanced-controls-body">
-                    <div class="week-row">
-                        <div class="week-title">Week of {{ start_date }} to {{ end_date }}</div>
-                        <div class="week-links">
-                            <a href="{{ url_for('commissary_planner', week_start=prev_week_start, outlet=(selected_outlet or None), units=selected_units, day=selected_day, view=view_mode) }}" class="week-link">Prev Week</a>
-                            <a href="{{ url_for('commissary_planner', week_start=current_week_start, outlet=(selected_outlet or None), units=selected_units, day=selected_day, view=view_mode) }}" class="week-link">This Week</a>
-                            <a href="{{ url_for('commissary_planner', week_start=next_week_start, outlet=(selected_outlet or None), units=selected_units, day=selected_day, view=view_mode) }}" class="week-link">Next Week</a>
-                        </div>
-                    </div>
-                    <form method="GET" class="filter-row">
-                        <input type="hidden" name="day" value="{{ selected_day }}">
-                        <input type="hidden" name="view" value="{{ view_mode }}">
-                        <div>
-                            <label class="comm-label">Outlet</label>
-                            <select name="outlet" class="comm-field">
-                                <option value="">All Outlets</option>
-                                {% for outlet in outlet_options %}
-                                <option value="{{ outlet }}" {% if selected_outlet == outlet %}selected{% endif %}>{{ outlet }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div>
-                            <label class="comm-label">Week Start</label>
-                            <input type="date" name="week_start" value="{{ week_start }}" class="comm-field">
-                        </div>
-                        <div>
-                            <label class="comm-label">Units</label>
-                            <select name="units" class="comm-field">
-                                <option value="auto" {% if selected_units == 'auto' %}selected{% endif %}>Auto</option>
-                                <option value="imperial" {% if selected_units == 'imperial' %}selected{% endif %}>Imperial</option>
-                                <option value="metric" {% if selected_units == 'metric' %}selected{% endif %}>Metric</option>
-                                <option value="hybrid" {% if selected_units == 'hybrid' %}selected{% endif %}>Hybrid</option>
-                            </select>
-                        </div>
-                        <button type="submit" class="fhq-btn fhq-btn--primary">Apply</button>
-                        <a href="{{ url_for('commissary_planner') }}" class="fhq-btn fhq-btn--outline text-center">Reset</a>
-                    </form>
-                </div>
-            </details>
+
+            <div class="mt-3 flex flex-wrap items-center gap-2">
+                <a href="{{ url_for('commissary_planner', week_start=prev_week_start, outlet=(selected_outlet or None), day=selected_day, view=view_mode) }}" class="fhq-btn fhq-btn--ghost">Prev Week</a>
+                <a href="{{ url_for('commissary_planner', week_start=current_week_start, outlet=(selected_outlet or None), day=selected_day, view=view_mode) }}" class="fhq-btn fhq-btn--ghost">This Week</a>
+                <a href="{{ url_for('commissary_planner', week_start=next_week_start, outlet=(selected_outlet or None), day=selected_day, view=view_mode) }}" class="fhq-btn fhq-btn--ghost">Next Week</a>
+                <a href="{{ url_for('commissary_packet_print', outlet=(selected_outlet or None), week_start=week_start, day=selected_day, include_shopping=0) }}" target="_blank" class="fhq-btn fhq-btn--outline">Print Day Packet</a>
+                <a href="{{ url_for('commissary_packet_print', outlet=(selected_outlet or None), week_start=week_start, include_shopping=1) }}" target="_blank" class="fhq-btn fhq-btn--outline">Print Week + Shopping</a>
+                <a href="{{ url_for('commissary_standing_prep') }}" class="fhq-btn fhq-btn--outline">Standing Prep</a>
+            </div>
         </section>
 
         {% set total_lines = datasets.line_count or 0 %}
@@ -679,117 +386,91 @@
             <div class="ribbon-chips">
                 <span class="ribbon-chip">Open Orders {{ metrics.open_orders }}</span>
                 <span class="ribbon-chip">Logged {{ logged_lines }}</span>
-                <span class="ribbon-chip">Shopping Forecast {{ datasets.shopping_ingredients|length }}</span>
+                <span class="ribbon-chip">Standing Items {{ datasets.standing_items|length }}</span>
             </div>
         </section>
 
         <div class="planner-tabs" role="tablist" aria-label="Commissary views">
-            <button type="button" class="planner-tab is-active" data-planner-tab-btn="work" aria-pressed="true">Production Log</button>
+            <button type="button" class="planner-tab is-active" data-planner-tab-btn="work" aria-pressed="true">Daily Production List</button>
             <button type="button" class="planner-tab" data-planner-tab-btn="manager" aria-pressed="false">Manager Summary</button>
         </div>
 
         <section class="comm-panel p-4" data-planner-tab-panel="work">
-            {% if filtered_daily_groups %}
+            {% if filtered_daily_days %}
             <div class="day-stack">
-                {% for day in filtered_daily_groups %}
-                {% set counts = namespace(total=0, done=0) %}
-                {% for order in day.orders %}
-                    {% set counts.total = counts.total + (order.line_count or 0) %}
-                    {% set counts.done = counts.done + (order.signed_off_line_count or 0) %}
-                {% endfor %}
-                <article class="day-card" data-day-card data-order-count="{{ day.orders|length }}">
+                {% for day in filtered_daily_days %}
+                <article class="day-card">
                     <header class="day-head">
                         <div>
                             <h2 class="day-title">{{ day.date.strftime('%A, %B %-d') if day.date else 'Unscheduled Day' }}</h2>
-                            <div class="day-meta"><span data-day-progress>{{ counts.done }}/{{ counts.total }} done</span> · {{ day.orders|length }} orders</div>
+                            <div class="day-meta">{{ day.entry_count }} production entries</div>
                         </div>
-                        <div class="day-head-actions">
-                            <a href="{{ url_for('commissary_packet_print', outlet=(selected_outlet or None), week_start=week_start, day=(day.date.isoformat() if day.date else selected_day), include_shopping=0, units=selected_units) }}" target="_blank" class="fhq-btn fhq-btn--outline">Print Day Packet</a>
-                            <button type="button" class="fhq-btn fhq-btn--primary" data-complete-day>Complete All</button>
-                        </div>
+                        <a href="{{ url_for('commissary_packet_print', outlet=(selected_outlet or None), week_start=week_start, day=(day.date.isoformat() if day.date else selected_day), include_shopping=0) }}" target="_blank" class="fhq-btn fhq-btn--outline">Print Day Packet</a>
                     </header>
 
-                    <div class="day-lines">
-                        {% for order in day.orders %}
-                            {% for line in order.lines %}
-                            {% set prod = line.production_log or {} %}
-                            {% set is_done = prod.signed_off %}
-                            <form method="POST"
-                                  action="{{ url_for('commissary_production_log_update', line_id=line.id) }}"
-                                  class="task-card"
-                                  data-production-form>
-                                <input type="hidden" name="production_date" value="{{ day.date.isoformat() if day.date else '' }}">
-                                <input type="hidden" name="week_start" value="{{ week_start }}">
-                                <input type="hidden" name="outlet" value="{{ selected_outlet }}">
-                                <input type="hidden" name="units" value="{{ selected_units }}">
-                                <input type="hidden" name="day" value="{{ selected_day }}">
-                                <input type="hidden" name="view" value="{{ view_mode }}">
-                                <input type="hidden" name="ajax" value="1">
-
-                                <input type="checkbox" name="signed_off" value="1" data-role="signed-off" class="sr-only" {% if is_done %}checked{% endif %}>
-
-                                <div class="task-head">
-                                    <div>
-                                        <div class="task-name">{{ line.item_name }}</div>
-                                        <div class="task-meta">{{ line.quantity }} {{ line.quantity_unit }} · {{ order.outlet }}</div>
-                                    </div>
-                                    <span class="task-status {% if is_done %}task-status--done{% else %}task-status--progress{% endif %}" data-task-status>{% if is_done %}Done{% else %}In Progress{% endif %}</span>
-                                </div>
-
-                                <div class="task-actions">
-                                    <button type="button" class="fhq-btn fhq-btn--primary" data-quick-signoff>Quick Sign-off</button>
-                                    <button type="button" class="fhq-btn fhq-btn--outline" data-mark-progress>Mark In Progress</button>
-                                    <span class="task-save-state" data-save-state>
-                                        {% if prod.updated_at %}
-                                            Saved {{ prod.updated_at.strftime('%b %-d %I:%M %p') }}
-                                        {% else %}
-                                            Not saved yet
-                                        {% endif %}
-                                    </span>
-                                </div>
-
-                                <details class="notes-details">
-                                    <summary>Production Notes & Details</summary>
-                                    <div class="notes-body">
-                                        <textarea name="production_notes" class="notes-field" placeholder="Click to add production notes...">{{ prod.notes or '' }}</textarea>
-                                        <div class="detail-grid">
-                                            <input type="text" name="made_by" value="{{ prod.made_by or '' }}" placeholder="Made by" class="detail-input">
-                                            <input type="text" name="tasted_by" value="{{ prod.tasted_by or '' }}" placeholder="Tasted by" class="detail-input">
-                                            <input type="text" name="signed_off_by" value="{{ prod.signed_off_by or '' }}" placeholder="Signed off by" class="detail-input">
-                                        </div>
-                                    </div>
-                                </details>
-                            </form>
-                            {% endfor %}
+                    {% if day.source_groups %}
+                        {% for source_group in day.source_groups %}
+                        <div class="source-block">
+                            <div class="source-head">
+                                <div class="source-title">{{ source_group.label }}</div>
+                                <div class="source-title">{{ source_group.entries|length }} items</div>
+                            </div>
+                            <div class="table-wrap">
+                                <table class="entry-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Item</th>
+                                            <th>Qty</th>
+                                            <th>Outlet</th>
+                                            <th>Assigned Cook</th>
+                                            <th>Status</th>
+                                            <th>Notes</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for entry in source_group.entries %}
+                                        <tr>
+                                            <td>
+                                                <div class="entry-name">{{ entry.item_name }}</div>
+                                                {% if entry.is_standing_suggestion %}
+                                                <span class="entry-pill entry-pill--suggested">Standing Suggestion</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ entry.quantity }} {{ entry.quantity_unit }}</td>
+                                            <td>{{ entry.outlet }}</td>
+                                            <td>{{ entry.assigned_to or '—' }}</td>
+                                            <td>
+                                                {% if entry.signed_off %}
+                                                <span class="entry-pill entry-pill--signed">Signed Off</span>
+                                                {% else %}
+                                                <span class="entry-pill">Pending</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ entry.notes or '—' }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                         {% endfor %}
-                    </div>
-
-                    <div class="day-footer">
-                        <span class="day-save-state" data-day-save-state></span>
-                    </div>
+                    {% else %}
+                    <p class="empty-note px-3 py-4">No production entries for this day.</p>
+                    {% endif %}
                 </article>
                 {% endfor %}
             </div>
             {% else %}
-            <p class="empty-note">
-                {% if view_mode == 'day' %}
-                No production lines for the selected day.
-                {% else %}
-                No daily production lines in this week.
-                {% endif %}
-            </p>
+            <p class="empty-note">No production entries in the selected window.</p>
             {% endif %}
         </section>
 
         <section class="comm-panel p-4" data-planner-tab-panel="manager" hidden>
             <div class="section-head">
-                <div>
-                    <h2 class="section-title">Manager Summary</h2>
-                </div>
+                <h2 class="section-title">Manager Summary</h2>
                 <div class="flex items-center gap-3">
-                    <a href="{{ url_for('commissary_packet_print', outlet=selected_outlet, week_start=week_start, day=selected_day, include_shopping=0, units=selected_units) }}" target="_blank" class="link-accent">Print Day Packet</a>
-                    <a href="{{ url_for('commissary_packet_print', outlet=selected_outlet, week_start=week_start, include_shopping=1, units=selected_units) }}" target="_blank" class="link-accent">Print Week + Shopping</a>
                     <a href="{{ url_for('commissary_order_new') }}" class="link-accent">+ New Order</a>
+                    <a href="{{ url_for('commissary_standing_prep') }}" class="link-accent">Standing Prep</a>
                 </div>
             </div>
             {% if orders %}
@@ -799,34 +480,21 @@
                         <tr>
                             <th>Needed Date</th>
                             <th>Outlet</th>
+                            <th>Source</th>
                             <th>Status</th>
                             <th>Lines</th>
-                            <th>Logged</th>
                             <th>Signed Off</th>
                             <th>Action</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for order in orders %}
-                        {% set status = (order.status or 'pending')|lower %}
-                        <tr class="cursor-pointer" onclick="if (!event.target.closest('a,button,input,select,textarea,form,label')) { window.location='{{ url_for('commissary_order_edit', order_id=order.id) }}'; }">
+                        <tr>
                             <td>{{ order.needed_date }}</td>
-                            <td><span class="entry-title">{{ order.outlet }}</span></td>
-                            <td>
-                                {% if status == 'completed' %}
-                                <span class="status-pill status-pill--completed">Completed</span>
-                                {% elif status == 'in_production' %}
-                                <span class="status-pill status-pill--production">In Production</span>
-                                {% elif status == 'confirmed' %}
-                                <span class="status-pill status-pill--confirmed">Confirmed</span>
-                                {% elif status == 'cancelled' %}
-                                <span class="status-pill status-pill--cancelled">Cancelled</span>
-                                {% else %}
-                                <span class="status-pill status-pill--default">Pending</span>
-                                {% endif %}
-                            </td>
+                            <td>{{ order.outlet }}</td>
+                            <td>{{ order.source_label or (order.source or 'outlet_request')|replace('_', ' ')|title }}</td>
+                            <td>{{ (order.status or 'draft')|replace('_', ' ')|title }}</td>
                             <td>{{ order.line_count }}</td>
-                            <td>{{ order.logged_line_count or 0 }}</td>
                             <td>{{ order.signed_off_line_count or 0 }}</td>
                             <td><a href="{{ url_for('commissary_order_edit', order_id=order.id) }}" class="link-accent">Edit</a></td>
                         </tr>
@@ -847,187 +515,6 @@
     (function () {
         const root = document.getElementById('plannerRoot');
         if (!root) return;
-
-        const currentUser = (root.dataset.currentUser || '').trim() || 'Kitchen';
-
-        function formatSavedTime(isoText) {
-            if (!isoText) return '';
-            const parsed = new Date(isoText);
-            if (Number.isNaN(parsed.getTime())) return '';
-            return new Intl.DateTimeFormat([], {
-                month: 'short',
-                day: 'numeric',
-                hour: 'numeric',
-                minute: '2-digit'
-            }).format(parsed);
-        }
-
-        function setTaskStatus(form, done) {
-            const badge = form.querySelector('[data-task-status]');
-            if (!badge) return;
-            badge.classList.toggle('task-status--done', !!done);
-            badge.classList.toggle('task-status--progress', !done);
-            badge.textContent = done ? 'Done' : 'In Progress';
-        }
-
-        function setSaveState(form, text, toneClass) {
-            const state = form.querySelector('[data-save-state]');
-            if (!state) return;
-            state.textContent = text || '';
-            state.classList.remove('is-saving', 'is-error', 'is-saved');
-            if (toneClass) state.classList.add(toneClass);
-        }
-
-        function updateDayProgress(dayCard) {
-            if (!dayCard) return;
-            const forms = Array.from(dayCard.querySelectorAll('[data-production-form]'));
-            const doneCount = forms.filter((form) => {
-                const signedInput = form.querySelector('[data-role="signed-off"]');
-                return !!(signedInput && signedInput.checked);
-            }).length;
-            const totalCount = forms.length;
-            const progressEl = dayCard.querySelector('[data-day-progress]');
-            if (progressEl) {
-                progressEl.textContent = `${doneCount}/${totalCount} done`;
-            }
-        }
-
-        async function saveForm(form) {
-            const signedInput = form.querySelector('[data-role="signed-off"]');
-            const payload = new FormData(form);
-            payload.set('ajax', '1');
-
-            setSaveState(form, 'Saving…', 'is-saving');
-
-            try {
-                const response = await fetch(form.action, {
-                    method: 'POST',
-                    body: payload,
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'Accept': 'application/json'
-                    }
-                });
-                const data = await response.json();
-                if (!response.ok || !data.ok) {
-                    throw new Error(data.error || 'Save failed');
-                }
-
-                if (signedInput) {
-                    signedInput.checked = !!data.signed_off;
-                }
-                setTaskStatus(form, signedInput && signedInput.checked);
-                updateDayProgress(form.closest('[data-day-card]'));
-
-                const savedAt = formatSavedTime(data.updated_at);
-                const stateText = savedAt ? `Saved ${savedAt}` : 'Saved';
-                setSaveState(form, stateText, 'is-saved');
-                return true;
-            } catch (error) {
-                setSaveState(form, 'Save failed', 'is-error');
-                return false;
-            }
-        }
-
-        function queueSave(form, delayMs) {
-            if (form._saveTimer) {
-                window.clearTimeout(form._saveTimer);
-            }
-            form._saveTimer = window.setTimeout(() => {
-                saveForm(form);
-            }, delayMs || 450);
-        }
-
-        function applyQuickSignoff(form) {
-            const madeByInput = form.querySelector('input[name="made_by"]');
-            const tastedByInput = form.querySelector('input[name="tasted_by"]');
-            const signedByInput = form.querySelector('input[name="signed_off_by"]');
-            const signedInput = form.querySelector('[data-role="signed-off"]');
-
-            if (madeByInput && !madeByInput.value.trim()) madeByInput.value = currentUser;
-            if (tastedByInput && !tastedByInput.value.trim()) tastedByInput.value = currentUser;
-            if (signedByInput) signedByInput.value = currentUser;
-            if (signedInput) signedInput.checked = true;
-
-            setTaskStatus(form, true);
-        }
-
-        function bindTaskForm(form) {
-            const quickBtn = form.querySelector('[data-quick-signoff]');
-            const markProgressBtn = form.querySelector('[data-mark-progress]');
-            const signedInput = form.querySelector('[data-role="signed-off"]');
-
-            setTaskStatus(form, signedInput && signedInput.checked);
-
-            form.addEventListener('input', (event) => {
-                const target = event.target;
-                if (!(target instanceof HTMLElement)) return;
-                if (target.matches('textarea, input[type="text"]')) {
-                    queueSave(form, 650);
-                }
-            });
-
-            form.addEventListener('change', (event) => {
-                const target = event.target;
-                if (!(target instanceof HTMLElement)) return;
-                if (target.matches('input, select, textarea')) {
-                    queueSave(form, 260);
-                }
-            });
-
-            form.addEventListener('blur', (event) => {
-                const target = event.target;
-                if (!(target instanceof HTMLElement)) return;
-                if (target.matches('textarea, input[type="text"], select')) {
-                    queueSave(form, 220);
-                }
-            }, true);
-
-            if (quickBtn) {
-                quickBtn.addEventListener('click', async () => {
-                    applyQuickSignoff(form);
-                    await saveForm(form);
-                });
-            }
-
-            if (markProgressBtn) {
-                markProgressBtn.addEventListener('click', async () => {
-                    if (signedInput) signedInput.checked = false;
-                    setTaskStatus(form, false);
-                    await saveForm(form);
-                });
-            }
-        }
-
-        Array.from(root.querySelectorAll('[data-production-form]')).forEach((form) => bindTaskForm(form));
-        Array.from(root.querySelectorAll('[data-day-card]')).forEach((card) => updateDayProgress(card));
-
-        Array.from(root.querySelectorAll('[data-complete-day]')).forEach((button) => {
-            button.addEventListener('click', async () => {
-                const dayCard = button.closest('[data-day-card]');
-                if (!dayCard) return;
-                const saveState = dayCard.querySelector('[data-day-save-state]');
-                const forms = Array.from(dayCard.querySelectorAll('[data-production-form]'));
-                const pending = forms.filter((form) => {
-                    const signedInput = form.querySelector('[data-role="signed-off"]');
-                    return !(signedInput && signedInput.checked);
-                });
-
-                if (saveState) {
-                    saveState.textContent = pending.length ? `Completing ${pending.length} tasks...` : 'All tasks already complete.';
-                }
-
-                for (const form of pending) {
-                    applyQuickSignoff(form);
-                    await saveForm(form);
-                }
-
-                updateDayProgress(dayCard);
-                if (saveState) {
-                    saveState.textContent = pending.length ? `Completed ${pending.length} tasks.` : 'All tasks already complete.';
-                }
-            });
-        });
 
         const tabButtons = Array.from(root.querySelectorAll('[data-planner-tab-btn]'));
         const tabPanels = Array.from(root.querySelectorAll('[data-planner-tab-panel]'));

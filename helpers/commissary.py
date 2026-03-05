@@ -33,94 +33,165 @@ def get_commissary_week_window(week_start_raw=''):
     week_end = week_start + timedelta(days=6)
     return week_start, week_end
 
-COMMISSARY_ACTIVE_STATUSES = ('pending', 'confirmed', 'in_production')
+COMMISSARY_ACTIVE_STATUSES = ('draft', 'submitted', 'confirmed', 'in_production')
 
 COMMISSARY_STATUS_CHOICES = [
-    ('pending', 'Pending'),
+    ('draft', 'Draft'),
+    ('submitted', 'Submitted'),
     ('confirmed', 'Confirmed'),
     ('in_production', 'In Production'),
     ('completed', 'Completed'),
-    ('cancelled', 'Cancelled')
+    ('cancelled', 'Cancelled'),
+]
+
+COMMISSARY_SOURCE_CHOICES = [
+    ('outlet_request', 'Outlet Request'),
+    ('standing_prep', 'Standing Prep'),
+    ('chef_add', 'Chef Add'),
 ]
 
 DEFAULT_COMMISSARY_OUTLET = 'Foxtown Brewing'
 
 def commissary_tables_ready(cur):
     required = (
-        'public.outlet_orders',
-        'public.outlet_order_items'
+        'public.commissary_orders',
+        'public.commissary_order_lines',
     )
     return all(db_table_exists(cur, table_name) for table_name in required)
 
+
+def normalize_commissary_status(status):
+    raw = (status or '').strip().lower()
+    if raw == 'pending':
+        return 'submitted'
+    valid_statuses = {choice[0] for choice in COMMISSARY_STATUS_CHOICES}
+    return raw if raw in valid_statuses else 'draft'
+
+
+def normalize_commissary_source(source):
+    raw = (source or '').strip().lower()
+    valid_sources = {choice[0] for choice in COMMISSARY_SOURCE_CHOICES}
+    return raw if raw in valid_sources else 'outlet_request'
+
 def ensure_commissary_tables(cur):
     cur.execute("""
-        CREATE TABLE IF NOT EXISTS outlet_orders (
+        CREATE TABLE IF NOT EXISTS commissary_orders (
             id TEXT PRIMARY KEY,
             outlet TEXT NOT NULL,
             needed_date DATE NOT NULL,
-            status TEXT DEFAULT 'pending',
+            status TEXT DEFAULT 'draft',
+            source TEXT DEFAULT 'outlet_request',
             notes TEXT,
+            created_by TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
     cur.execute("""
-        CREATE TABLE IF NOT EXISTS outlet_order_items (
+        CREATE TABLE IF NOT EXISTS commissary_order_lines (
             id BIGSERIAL PRIMARY KEY,
-            order_id TEXT NOT NULL REFERENCES outlet_orders(id) ON DELETE CASCADE,
+            order_id TEXT NOT NULL REFERENCES commissary_orders(id) ON DELETE CASCADE,
             recipe_id TEXT REFERENCES recipes(id) ON DELETE SET NULL,
             item_name TEXT,
             quantity NUMERIC NOT NULL DEFAULT 1,
             quantity_unit TEXT DEFAULT 'each',
-            notes TEXT,
-            sort_order INTEGER DEFAULT 0
+            sort_order INTEGER DEFAULT 0,
+            notes TEXT
         )
     """)
     cur.execute("""
         CREATE TABLE IF NOT EXISTS commissary_production_logs (
             id BIGSERIAL PRIMARY KEY,
-            order_id TEXT NOT NULL REFERENCES outlet_orders(id) ON DELETE CASCADE,
-            order_item_id BIGINT NOT NULL REFERENCES outlet_order_items(id) ON DELETE CASCADE,
+            line_id BIGINT REFERENCES commissary_order_lines(id) ON DELETE CASCADE,
             production_date DATE NOT NULL,
+            assigned_to TEXT,
             made_by TEXT,
             signed_off BOOLEAN NOT NULL DEFAULT FALSE,
             signed_off_by TEXT,
             tasted_by TEXT,
-            notes TEXT,
+            production_notes TEXT,
             signed_off_at TIMESTAMP,
+            actual_yield NUMERIC,
+            actual_yield_unit TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE (order_item_id, production_date)
+            UNIQUE (line_id, production_date)
         )
     """)
-    cur.execute("ALTER TABLE outlet_orders ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'pending'")
-    cur.execute("ALTER TABLE outlet_orders ADD COLUMN IF NOT EXISTS notes TEXT")
-    cur.execute("ALTER TABLE outlet_orders ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
-    cur.execute("ALTER TABLE outlet_orders ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
-
-    cur.execute("ALTER TABLE outlet_order_items ADD COLUMN IF NOT EXISTS item_name TEXT")
-    cur.execute("ALTER TABLE outlet_order_items ADD COLUMN IF NOT EXISTS quantity_unit TEXT DEFAULT 'each'")
-    cur.execute("ALTER TABLE outlet_order_items ADD COLUMN IF NOT EXISTS notes TEXT")
-    cur.execute("ALTER TABLE outlet_order_items ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0")
-    cur.execute("ALTER TABLE outlet_order_items ALTER COLUMN quantity SET DEFAULT 1")
     cur.execute("""
-        UPDATE outlet_order_items
+        CREATE TABLE IF NOT EXISTS commissary_standing_items (
+            id BIGSERIAL PRIMARY KEY,
+            recipe_id TEXT REFERENCES recipes(id) ON DELETE SET NULL,
+            item_name TEXT,
+            default_quantity NUMERIC NOT NULL DEFAULT 1,
+            default_unit TEXT DEFAULT 'each',
+            frequency TEXT NOT NULL DEFAULT 'daily',
+            active BOOLEAN NOT NULL DEFAULT TRUE,
+            notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS commissary_transfers (
+            id BIGSERIAL PRIMARY KEY,
+            production_date DATE NOT NULL,
+            from_location TEXT NOT NULL DEFAULT 'Commissary',
+            to_outlet TEXT NOT NULL,
+            transferred_by TEXT,
+            transfer_method TEXT NOT NULL DEFAULT 'delivery',
+            notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS commissary_transfer_lines (
+            id BIGSERIAL PRIMARY KEY,
+            transfer_id BIGINT NOT NULL REFERENCES commissary_transfers(id) ON DELETE CASCADE,
+            production_log_id BIGINT REFERENCES commissary_production_logs(id) ON DELETE SET NULL,
+            item_name TEXT NOT NULL,
+            quantity NUMERIC NOT NULL DEFAULT 0,
+            quantity_unit TEXT,
+            notes TEXT
+        )
+    """)
+
+    cur.execute("ALTER TABLE commissary_orders ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'draft'")
+    cur.execute("ALTER TABLE commissary_orders ADD COLUMN IF NOT EXISTS source TEXT DEFAULT 'outlet_request'")
+    cur.execute("ALTER TABLE commissary_orders ADD COLUMN IF NOT EXISTS notes TEXT")
+    cur.execute("ALTER TABLE commissary_orders ADD COLUMN IF NOT EXISTS created_by TEXT")
+    cur.execute("ALTER TABLE commissary_orders ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+    cur.execute("ALTER TABLE commissary_orders ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+
+    cur.execute("ALTER TABLE commissary_order_lines ADD COLUMN IF NOT EXISTS item_name TEXT")
+    cur.execute("ALTER TABLE commissary_order_lines ADD COLUMN IF NOT EXISTS quantity_unit TEXT DEFAULT 'each'")
+    cur.execute("ALTER TABLE commissary_order_lines ADD COLUMN IF NOT EXISTS notes TEXT")
+    cur.execute("ALTER TABLE commissary_order_lines ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0")
+    cur.execute("ALTER TABLE commissary_order_lines ALTER COLUMN quantity SET DEFAULT 1")
+    cur.execute("""
+        UPDATE commissary_order_lines
         SET quantity_unit = 'each'
         WHERE quantity_unit IS NULL OR TRIM(quantity_unit) = ''
     """)
-    cur.execute("CREATE INDEX IF NOT EXISTS idx_outlet_orders_needed_date ON outlet_orders (needed_date)")
-    cur.execute("CREATE INDEX IF NOT EXISTS idx_outlet_orders_status ON outlet_orders (status)")
-    cur.execute("CREATE INDEX IF NOT EXISTS idx_outlet_order_items_order_id ON outlet_order_items (order_id)")
-    cur.execute("CREATE INDEX IF NOT EXISTS idx_outlet_order_items_recipe_id ON outlet_order_items (recipe_id)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_commissary_orders_needed_date ON commissary_orders (needed_date)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_commissary_orders_status ON commissary_orders (status)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_commissary_orders_source ON commissary_orders (source)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_commissary_order_lines_order_id ON commissary_order_lines (order_id)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_commissary_order_lines_recipe_id ON commissary_order_lines (recipe_id)")
+
     cur.execute("ALTER TABLE commissary_production_logs ADD COLUMN IF NOT EXISTS order_id TEXT")
     cur.execute("ALTER TABLE commissary_production_logs ADD COLUMN IF NOT EXISTS order_item_id BIGINT")
+    cur.execute("ALTER TABLE commissary_production_logs ADD COLUMN IF NOT EXISTS line_id BIGINT")
     cur.execute("ALTER TABLE commissary_production_logs ADD COLUMN IF NOT EXISTS production_date DATE")
+    cur.execute("ALTER TABLE commissary_production_logs ADD COLUMN IF NOT EXISTS assigned_to TEXT")
     cur.execute("ALTER TABLE commissary_production_logs ADD COLUMN IF NOT EXISTS made_by TEXT")
     cur.execute("ALTER TABLE commissary_production_logs ADD COLUMN IF NOT EXISTS signed_off BOOLEAN NOT NULL DEFAULT FALSE")
     cur.execute("ALTER TABLE commissary_production_logs ADD COLUMN IF NOT EXISTS signed_off_by TEXT")
     cur.execute("ALTER TABLE commissary_production_logs ADD COLUMN IF NOT EXISTS tasted_by TEXT")
     cur.execute("ALTER TABLE commissary_production_logs ADD COLUMN IF NOT EXISTS notes TEXT")
+    cur.execute("ALTER TABLE commissary_production_logs ADD COLUMN IF NOT EXISTS production_notes TEXT")
     cur.execute("ALTER TABLE commissary_production_logs ADD COLUMN IF NOT EXISTS signed_off_at TIMESTAMP")
+    cur.execute("ALTER TABLE commissary_production_logs ADD COLUMN IF NOT EXISTS actual_yield NUMERIC")
+    cur.execute("ALTER TABLE commissary_production_logs ADD COLUMN IF NOT EXISTS actual_yield_unit TEXT")
     cur.execute("ALTER TABLE commissary_production_logs ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
     cur.execute("ALTER TABLE commissary_production_logs ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
     cur.execute("""
@@ -128,9 +199,75 @@ def ensure_commissary_tables(cur):
         SET signed_off = FALSE
         WHERE signed_off IS NULL
     """)
-    cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_comm_prod_logs_line_date ON commissary_production_logs (order_item_id, production_date)")
+    cur.execute("""
+        UPDATE commissary_production_logs
+        SET line_id = order_item_id
+        WHERE line_id IS NULL AND order_item_id IS NOT NULL
+    """)
+    cur.execute("""
+        UPDATE commissary_production_logs
+        SET production_notes = notes
+        WHERE COALESCE(TRIM(production_notes), '') = '' AND COALESCE(TRIM(notes), '') <> ''
+    """)
+    cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_comm_prod_logs_line_date ON commissary_production_logs (line_id, production_date)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_comm_prod_logs_order_id ON commissary_production_logs (order_id)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_comm_prod_logs_production_date ON commissary_production_logs (production_date)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_comm_prod_logs_assigned_to ON commissary_production_logs (assigned_to)")
+
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_comm_standing_items_recipe_id ON commissary_standing_items (recipe_id)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_comm_standing_items_active ON commissary_standing_items (active)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_comm_transfers_production_date ON commissary_transfers (production_date)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_comm_transfer_lines_transfer_id ON commissary_transfer_lines (transfer_id)")
+
+    legacy_orders_ready = db_table_exists(cur, 'public.outlet_orders')
+    legacy_lines_ready = db_table_exists(cur, 'public.outlet_order_items')
+    if legacy_orders_ready and legacy_lines_ready:
+        cur.execute("SELECT COUNT(*) AS count FROM commissary_orders")
+        needs_bootstrap = int((cur.fetchone() or {}).get('count') or 0) == 0
+        if needs_bootstrap:
+            cur.execute("""
+                INSERT INTO commissary_orders (
+                    id, outlet, needed_date, status, source, notes, created_at, updated_at
+                )
+                SELECT
+                    o.id,
+                    o.outlet,
+                    o.needed_date,
+                    CASE
+                        WHEN LOWER(COALESCE(NULLIF(TRIM(o.status), ''), 'pending')) = 'pending' THEN 'submitted'
+                        ELSE LOWER(COALESCE(NULLIF(TRIM(o.status), ''), 'draft'))
+                    END AS status,
+                    'outlet_request' AS source,
+                    o.notes,
+                    o.created_at,
+                    o.updated_at
+                FROM outlet_orders o
+                ON CONFLICT (id) DO NOTHING
+            """)
+            cur.execute("""
+                INSERT INTO commissary_order_lines (
+                    id, order_id, recipe_id, item_name, quantity, quantity_unit, notes, sort_order
+                )
+                SELECT
+                    oi.id,
+                    oi.order_id,
+                    oi.recipe_id,
+                    oi.item_name,
+                    oi.quantity,
+                    COALESCE(NULLIF(TRIM(oi.quantity_unit), ''), 'each'),
+                    oi.notes,
+                    COALESCE(oi.sort_order, 0)
+                FROM outlet_order_items oi
+                JOIN commissary_orders co ON co.id = oi.order_id
+                ON CONFLICT (id) DO NOTHING
+            """)
+            cur.execute("""
+                SELECT setval(
+                    pg_get_serial_sequence('commissary_order_lines', 'id'),
+                    COALESCE((SELECT MAX(id) FROM commissary_order_lines), 1),
+                    (SELECT COUNT(*) > 0 FROM commissary_order_lines)
+                )
+            """)
 
 def get_commissary_outlet_options(cur):
     options = {DEFAULT_COMMISSARY_OUTLET}
@@ -138,10 +275,10 @@ def get_commissary_outlet_options(cur):
         venue_name = clean_menu_text(venue.get('name'))
         if venue_name:
             options.add(venue_name)
-    if db_table_exists(cur, 'public.outlet_orders'):
+    if db_table_exists(cur, 'public.commissary_orders'):
         cur.execute("""
             SELECT DISTINCT outlet
-            FROM outlet_orders
+            FROM commissary_orders
             WHERE outlet IS NOT NULL AND TRIM(outlet) <> ''
             ORDER BY outlet
         """)
@@ -159,10 +296,12 @@ def get_commissary_order(cur, order_id):
                outlet,
                needed_date,
                status,
+               source,
                notes,
+               created_by,
                created_at,
                updated_at
-        FROM outlet_orders
+        FROM commissary_orders
         WHERE id = %s
         LIMIT 1
     """, (order_id,))
@@ -172,32 +311,33 @@ def get_commissary_order_lines(cur, order_id):
     if not commissary_tables_ready(cur):
         return []
     cur.execute("""
-        SELECT oi.id AS line_id,
-               oi.order_id,
-               oi.recipe_id,
-               oi.item_name,
-               oi.quantity,
-               oi.quantity_unit,
-               oi.notes AS line_notes,
-               oi.sort_order,
+        SELECT line.id AS line_id,
+               line.order_id,
+               line.recipe_id,
+               line.item_name,
+               line.quantity,
+               line.quantity_unit,
+               line.notes AS line_notes,
+               line.sort_order,
                o.needed_date,
+               pl.assigned_to,
                pl.made_by AS production_made_by,
                pl.signed_off AS production_signed_off,
                pl.signed_off_by AS production_signed_off_by,
                pl.tasted_by AS production_tasted_by,
-               pl.notes AS production_notes,
+               COALESCE(pl.production_notes, pl.notes) AS production_notes,
                r.name AS recipe_name,
                r.yield_qty,
                r.yield_unit,
                r.recipe_type
-        FROM outlet_order_items oi
-        JOIN outlet_orders o ON o.id = oi.order_id
+        FROM commissary_order_lines line
+        JOIN commissary_orders o ON o.id = line.order_id
         LEFT JOIN commissary_production_logs pl
-               ON pl.order_item_id = oi.id
+               ON pl.line_id = line.id
               AND pl.production_date = o.needed_date
-        LEFT JOIN recipes r ON r.id = oi.recipe_id
-        WHERE oi.order_id = %s
-        ORDER BY COALESCE(oi.sort_order, 0), oi.id
+        LEFT JOIN recipes r ON r.id = line.recipe_id
+        WHERE line.order_id = %s
+        ORDER BY COALESCE(line.sort_order, 0), line.id
     """, (order_id,))
     return cur.fetchall()
 
@@ -208,11 +348,6 @@ def parse_commissary_order_lines(request, valid_recipe_ids):
     quantities = request.form.getlist('line_qty[]')
     quantity_units = request.form.getlist('line_unit[]')
     notes = request.form.getlist('line_notes[]')
-    made_bys = request.form.getlist('line_made_by[]')
-    tasted_bys = request.form.getlist('line_tasted_by[]')
-    signed_off_bys = request.form.getlist('line_signed_off_by[]')
-    signed_off_values = request.form.getlist('line_signed_off[]')
-    production_notes = request.form.getlist('line_production_notes[]')
 
     max_len = max(
         len(line_ids),
@@ -221,11 +356,6 @@ def parse_commissary_order_lines(request, valid_recipe_ids):
         len(quantities),
         len(quantity_units),
         len(notes),
-        len(made_bys),
-        len(tasted_bys),
-        len(signed_off_bys),
-        len(signed_off_values),
-        len(production_notes),
         0
     )
     rows = []
@@ -237,14 +367,8 @@ def parse_commissary_order_lines(request, valid_recipe_ids):
         qty_raw = (quantities[idx] if idx < len(quantities) else '').strip()
         qty_unit_raw = clean_menu_text(quantity_units[idx] if idx < len(quantity_units) else '')
         note = clean_menu_text(notes[idx] if idx < len(notes) else '')
-        made_by = clean_menu_text(made_bys[idx] if idx < len(made_bys) else '')
-        tasted_by = clean_menu_text(tasted_bys[idx] if idx < len(tasted_bys) else '')
-        signed_off_by = clean_menu_text(signed_off_bys[idx] if idx < len(signed_off_bys) else '')
-        signed_off_raw = (signed_off_values[idx] if idx < len(signed_off_values) else '').strip().lower()
-        production_note = clean_menu_text(production_notes[idx] if idx < len(production_notes) else '')
-        signed_off = signed_off_raw in ('1', 'true', 'on', 'yes', 'y')
 
-        if not any([recipe_id, item_name, qty_raw, qty_unit_raw, note, made_by, tasted_by, signed_off_by, production_note, signed_off]):
+        if not any([recipe_id, item_name, qty_raw, qty_unit_raw, note]):
             continue
         if recipe_id and recipe_id not in valid_recipe_ids:
             errors.append('One or more commissary line items reference an invalid recipe.')
@@ -262,13 +386,66 @@ def parse_commissary_order_lines(request, valid_recipe_ids):
             'quantity': qty,
             'quantity_unit': normalized_unit,
             'notes': note or None,
-            'production_made_by': made_by or None,
-            'production_tasted_by': tasted_by or None,
-            'production_signed_off_by': signed_off_by or None,
-            'production_signed_off': signed_off,
-            'production_notes': production_note or None
         })
     return rows, errors
+
+
+def get_commissary_standing_items(cur, active_only=False):
+    if not db_table_exists(cur, 'public.commissary_standing_items'):
+        return []
+    params = []
+    where_sql = ""
+    if active_only:
+        where_sql = "WHERE item.active = TRUE"
+    cur.execute(f"""
+        SELECT
+            item.id,
+            item.recipe_id,
+            item.item_name,
+            item.default_quantity,
+            item.default_unit,
+            item.frequency,
+            item.active,
+            item.notes,
+            item.created_at,
+            r.name AS recipe_name,
+            r.yield_unit AS recipe_yield_unit
+        FROM commissary_standing_items item
+        LEFT JOIN recipes r ON r.id = item.recipe_id
+        {where_sql}
+        ORDER BY item.active DESC, COALESCE(item.frequency, 'daily'), LOWER(COALESCE(item.item_name, r.name, ''))
+    """, params)
+    return cur.fetchall()
+
+
+def parse_commissary_standing_item_form(request, valid_recipe_ids):
+    errors = []
+    recipe_id = (request.form.get('recipe_id') or '').strip()
+    item_name = clean_menu_text(request.form.get('item_name'))
+    qty = parse_float_field(request.form.get('default_quantity'), 'Default quantity', errors, required=True, min_value=0.0001)
+    unit_raw = clean_menu_text(request.form.get('default_unit'))
+    frequency = (request.form.get('frequency') or 'daily').strip().lower()
+    active = (request.form.get('active') or '').strip().lower() in ('1', 'true', 'on', 'yes')
+    notes = clean_menu_text(request.form.get('notes'))
+
+    if recipe_id and recipe_id not in valid_recipe_ids:
+        errors.append('Standing prep recipe is not valid.')
+    if not recipe_id and not item_name:
+        errors.append('Standing prep requires a recipe or item name.')
+    if frequency not in ('daily', 'weekly', 'as_needed'):
+        frequency = 'daily'
+
+    unit = normalize_unit(unit_raw) or normalize_count_unit(unit_raw) or unit_raw or 'each'
+    return {
+        'recipe_id': recipe_id or None,
+        'item_name': item_name or None,
+        'default_quantity': qty if qty is not None else 1,
+        'default_unit': unit,
+        'frequency': frequency,
+        'active': active,
+        'notes': notes or None,
+    }, errors
+
 
 def fetch_commissary_order_rows(cur, start_date, end_date, outlet=''):
     if not commissary_tables_ready(cur):
@@ -284,27 +461,33 @@ def fetch_commissary_order_rows(cur, start_date, end_date, outlet=''):
         production_select_sql = """
                pl.id AS production_log_id,
                pl.production_date,
+               pl.assigned_to AS production_assigned_to,
                pl.made_by AS production_made_by,
                pl.signed_off AS production_signed_off,
                pl.signed_off_by AS production_signed_off_by,
                pl.tasted_by AS production_tasted_by,
-               pl.notes AS production_notes,
+               COALESCE(pl.production_notes, pl.notes) AS production_notes,
+               pl.actual_yield,
+               pl.actual_yield_unit,
                pl.updated_at AS production_updated_at,
         """
         production_join_sql = """
         LEFT JOIN commissary_production_logs pl
-               ON pl.order_item_id = oi.id
+               ON pl.line_id = line.id
               AND pl.production_date = o.needed_date
         """
     else:
         production_select_sql = """
                NULL::BIGINT AS production_log_id,
                NULL::DATE AS production_date,
+               NULL::TEXT AS production_assigned_to,
                NULL::TEXT AS production_made_by,
                NULL::BOOLEAN AS production_signed_off,
                NULL::TEXT AS production_signed_off_by,
                NULL::TEXT AS production_tasted_by,
                NULL::TEXT AS production_notes,
+               NULL::NUMERIC AS actual_yield,
+               NULL::TEXT AS actual_yield_unit,
                NULL::TIMESTAMP AS production_updated_at,
         """
         production_join_sql = ""
@@ -314,16 +497,18 @@ def fetch_commissary_order_rows(cur, start_date, end_date, outlet=''):
                o.outlet,
                o.needed_date,
                o.status,
+               o.source,
                o.notes AS order_notes,
+               o.created_by,
                o.created_at,
                o.updated_at,
-               oi.id AS line_id,
-               oi.recipe_id,
-               oi.item_name,
-               oi.quantity,
-               oi.quantity_unit,
-               oi.notes AS line_notes,
-               oi.sort_order,
+               line.id AS line_id,
+               line.recipe_id,
+               line.item_name,
+               line.quantity,
+               line.quantity_unit,
+               line.notes AS line_notes,
+               line.sort_order,
                {production_select_sql}
                r.name AS recipe_name,
                r.category AS recipe_category,
@@ -331,14 +516,14 @@ def fetch_commissary_order_rows(cur, start_date, end_date, outlet=''):
                r.yield_unit,
                r.instructions,
                r.recipe_type
-        FROM outlet_orders o
-        LEFT JOIN outlet_order_items oi ON oi.order_id = o.id
+        FROM commissary_orders o
+        LEFT JOIN commissary_order_lines line ON line.order_id = o.id
         {production_join_sql}
-        LEFT JOIN recipes r ON r.id = oi.recipe_id
+        LEFT JOIN recipes r ON r.id = line.recipe_id
         WHERE o.needed_date BETWEEN %s AND %s
-          AND COALESCE(NULLIF(TRIM(o.status), ''), 'pending') <> 'cancelled'
+          AND COALESCE(NULLIF(TRIM(o.status), ''), 'draft') <> 'cancelled'
           {outlet_filter_sql}
-        ORDER BY o.needed_date, o.outlet, o.created_at, COALESCE(oi.sort_order, 0), oi.id
+        ORDER BY o.needed_date, o.outlet, o.created_at, COALESCE(line.sort_order, 0), line.id
     """, params)
     return cur.fetchall()
 
@@ -361,8 +546,10 @@ def build_commissary_datasets(cur, start_date, end_date, outlet='', unit_system=
                 'id': order_id,
                 'outlet': row.get('outlet') or DEFAULT_COMMISSARY_OUTLET,
                 'needed_date': row.get('needed_date'),
-                'status': (row.get('status') or 'pending'),
+                'status': normalize_commissary_status(row.get('status')),
+                'source': normalize_commissary_source(row.get('source')),
                 'notes': row.get('order_notes'),
+                'created_by': row.get('created_by'),
                 'created_at': row.get('created_at'),
                 'updated_at': row.get('updated_at'),
                 'lines': [],
@@ -381,19 +568,24 @@ def build_commissary_datasets(cur, start_date, end_date, outlet='', unit_system=
         production_log = {
             'id': row.get('production_log_id'),
             'date': row.get('production_date'),
+            'assigned_to': clean_menu_text(row.get('production_assigned_to')),
             'made_by': clean_menu_text(row.get('production_made_by')),
             'signed_off': bool(row.get('production_signed_off')),
             'signed_off_by': clean_menu_text(row.get('production_signed_off_by')),
             'tasted_by': clean_menu_text(row.get('production_tasted_by')),
             'notes': clean_menu_text(row.get('production_notes')),
+            'actual_yield': to_float(row.get('actual_yield')),
+            'actual_yield_unit': row.get('actual_yield_unit'),
             'updated_at': row.get('production_updated_at')
         }
         has_production_log = any([
+            production_log.get('assigned_to'),
             production_log.get('made_by'),
             production_log.get('signed_off'),
             production_log.get('signed_off_by'),
             production_log.get('tasted_by'),
-            production_log.get('notes')
+            production_log.get('notes'),
+            production_log.get('actual_yield')
         ])
 
         line = {
@@ -405,6 +597,7 @@ def build_commissary_datasets(cur, start_date, end_date, outlet='', unit_system=
             'quantity': quantity,
             'quantity_unit': quantity_unit,
             'notes': row.get('line_notes'),
+            'source': orders_map[order_id].get('source'),
             'estimated_cost_total': None,
             'estimated_cost_per_unit': None,
             'ratio': None,
@@ -610,9 +803,13 @@ def build_commissary_datasets(cur, start_date, end_date, outlet='', unit_system=
         prep['prep_family_key'] = normalize_match_key(prep_family)
     weekly_prep.sort(key=lambda item: (item.get('prep_family_key') or '', (item.get('recipe_name') or '').lower()))
 
+    source_label_map = {value: label for value, label in COMMISSARY_SOURCE_CHOICES}
+    source_display_order = ['outlet_request', 'chef_add', 'standing_prep']
+
     daily_groups = []
     by_day = defaultdict(list)
     for order in orders:
+        order['source_label'] = source_label_map.get(order.get('source'), 'Outlet Request')
         by_day[order.get('needed_date')].append(order)
     for day in sorted(by_day.keys()):
         day_orders = by_day[day]
@@ -632,6 +829,69 @@ def build_commissary_datasets(cur, start_date, end_date, outlet='', unit_system=
             order['daily_ingredients'] = ingredient_rows
         daily_groups.append({'date': day, 'orders': day_orders})
 
+    standing_items = get_commissary_standing_items(cur, active_only=True)
+    daily_production_days = []
+    day_cursor = start_date
+    while day_cursor <= end_date:
+        entry_rows = []
+        for order in by_day.get(day_cursor, []):
+            source_key = normalize_commissary_source(order.get('source'))
+            for line in order.get('lines', []):
+                production_log = line.get('production_log') or {}
+                entry_rows.append({
+                    'source': source_key,
+                    'source_label': source_label_map.get(source_key, 'Outlet Request'),
+                    'item_name': line.get('item_name') or line.get('recipe_name') or 'Item',
+                    'quantity': line.get('quantity'),
+                    'quantity_unit': line.get('quantity_unit') or 'each',
+                    'assigned_to': production_log.get('assigned_to') or '',
+                    'signed_off': bool(production_log.get('signed_off')),
+                    'outlet': order.get('outlet') or DEFAULT_COMMISSARY_OUTLET,
+                    'order_id': order.get('id'),
+                    'line_id': line.get('id'),
+                    'notes': line.get('notes') or '',
+                    'is_standing_suggestion': False,
+                })
+
+        for item in standing_items:
+            frequency = (item.get('frequency') or 'daily').strip().lower()
+            include_item = frequency == 'daily' or (frequency == 'weekly' and day_cursor.weekday() == 0)
+            if not include_item:
+                continue
+            entry_rows.append({
+                'source': 'standing_prep',
+                'source_label': source_label_map.get('standing_prep', 'Standing Prep'),
+                'item_name': item.get('item_name') or item.get('recipe_name') or 'Standing Prep',
+                'quantity': to_float(item.get('default_quantity')),
+                'quantity_unit': item.get('default_unit') or item.get('recipe_yield_unit') or 'each',
+                'assigned_to': '',
+                'signed_off': False,
+                'outlet': DEFAULT_COMMISSARY_OUTLET,
+                'order_id': None,
+                'line_id': None,
+                'notes': item.get('notes') or '',
+                'standing_item_id': item.get('id'),
+                'is_standing_suggestion': True,
+            })
+
+        source_groups = []
+        for source_key in source_display_order:
+            source_entries = [entry for entry in entry_rows if entry.get('source') == source_key]
+            if not source_entries:
+                continue
+            source_entries.sort(key=lambda entry: (entry.get('item_name') or '').lower())
+            source_groups.append({
+                'source': source_key,
+                'label': source_label_map.get(source_key, source_key.replace('_', ' ').title()),
+                'entries': source_entries,
+            })
+        daily_production_days.append({
+            'date': day_cursor,
+            'source_groups': source_groups,
+            'entry_count': len(entry_rows),
+        })
+        day_cursor += timedelta(days=1)
+
     total_lines = sum(order.get('line_count', 0) for order in orders)
     logged_line_count = sum(order.get('logged_line_count', 0) for order in orders)
     signed_off_line_count = sum(order.get('signed_off_line_count', 0) for order in orders)
@@ -643,6 +903,9 @@ def build_commissary_datasets(cur, start_date, end_date, outlet='', unit_system=
     return {
         'orders': orders,
         'daily_groups': daily_groups,
+        'daily_production_days': daily_production_days,
+        'standing_items': standing_items,
+        'source_choices': COMMISSARY_SOURCE_CHOICES,
         'shopping_ingredients': ingredient_master,
         'shopping_total_cost': ingredient_total_cost,
         'weekly_prep': weekly_prep,
@@ -905,13 +1168,18 @@ __all__ = [
     'get_commissary_week_window',
     'COMMISSARY_ACTIVE_STATUSES',
     'COMMISSARY_STATUS_CHOICES',
+    'COMMISSARY_SOURCE_CHOICES',
     'DEFAULT_COMMISSARY_OUTLET',
     'commissary_tables_ready',
+    'normalize_commissary_status',
+    'normalize_commissary_source',
     'ensure_commissary_tables',
     'get_commissary_outlet_options',
     'get_commissary_order',
     'get_commissary_order_lines',
     'parse_commissary_order_lines',
+    'get_commissary_standing_items',
+    'parse_commissary_standing_item_form',
     'fetch_commissary_order_rows',
     'build_commissary_datasets',
     'build_commissary_prep_groups',
