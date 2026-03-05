@@ -331,6 +331,7 @@
     {% call page_nav('Commissary Planner', 'Paper-first daily production list with source grouping and standing prep suggestions.', url_for('dashboard')) %}
     <a href="{{ url_for('commissary_order_new') }}" class="fhq-btn fhq-btn--primary">+ New Order</a>
     <a href="{{ url_for('commissary_order_new', source='chef_add') }}" class="fhq-btn fhq-btn--outline">+ Chef Add</a>
+    <a href="{{ url_for('commissary_planner', week_start=week_start, day=selected_day, outlet=(selected_outlet or None), view=view_mode, tab='manager') }}" class="fhq-btn fhq-btn--outline">Manage Orders</a>
     {% endcall %}
 
     <div class="max-w-[96rem] mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-4 comm-shell fhq-fade" id="plannerRoot">
@@ -430,6 +431,7 @@
                                             <th>Assigned Cook</th>
                                             <th>Status</th>
                                             <th>Notes</th>
+                                            <th>Action</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -466,6 +468,13 @@
                                                 {% endif %}
                                             </td>
                                             <td>{{ entry.notes or '—' }}</td>
+                                            <td>
+                                                {% if entry.order_id %}
+                                                <a href="{{ url_for('commissary_order_edit', order_id=entry.order_id) }}" class="link-accent">Edit Order</a>
+                                                {% else %}
+                                                <span class="text-slate-400">—</span>
+                                                {% endif %}
+                                            </td>
                                         </tr>
                                         {% endfor %}
                                     </tbody>
@@ -495,6 +504,7 @@
                     <a href="{{ url_for('commissary_review', week_start=week_start, outlet=(selected_outlet or None)) }}" class="link-accent">Weekly Review</a>
                 </div>
             </div>
+            <p class="empty-note mb-3">Edit date, quantity, outlet, and line items from either table below.</p>
             {% if orders %}
             <div class="table-wrap">
                 <table class="comm-table">
@@ -527,6 +537,40 @@
             {% else %}
             <p class="empty-note">No commissary orders in the selected week.</p>
             {% endif %}
+
+            <div class="section-head mt-6">
+                <h2 class="section-title">Recent Orders (All Dates)</h2>
+            </div>
+            {% if recent_orders %}
+            <div class="table-wrap">
+                <table class="comm-table">
+                    <thead>
+                        <tr>
+                            <th>Needed Date</th>
+                            <th>Outlet</th>
+                            <th>Source</th>
+                            <th>Status</th>
+                            <th>Lines</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in recent_orders %}
+                        <tr>
+                            <td>{{ order.needed_date }}</td>
+                            <td>{{ order.outlet }}</td>
+                            <td>{{ order.source_label or (order.source or 'outlet_request')|replace('_', ' ')|title }}</td>
+                            <td>{{ (order.status or 'draft')|replace('_', ' ')|title }}</td>
+                            <td>{{ order.line_count or 0 }}</td>
+                            <td><a href="{{ url_for('commissary_order_edit', order_id=order.id) }}" class="link-accent">Edit</a></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="empty-note">No recent commissary orders found.</p>
+            {% endif %}
         </section>
     </div>
 </div>
@@ -558,7 +602,7 @@
             });
         });
 
-        activateTab('work');
+        activateTab('{{ active_tab }}');
     })();
 </script>
 {% endblock %}

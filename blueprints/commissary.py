@@ -317,8 +317,11 @@ def commissary_planner():
         week_start_raw = (request.args.get('week_start') or request.args.get('start_date') or '').strip()
         selected_day_raw = (request.args.get('day') or '').strip()
         view_mode = (request.args.get('view') or 'day').strip().lower()
+        active_tab = (request.args.get('tab') or 'work').strip().lower()
         if view_mode not in ('day', 'week'):
             view_mode = 'day'
+        if active_tab not in ('work', 'manager'):
+            active_tab = 'work'
 
         start_date, end_date = get_commissary_week_window(week_start_raw)
         selected_outlet = clean_menu_text(request.args.get('outlet'))
@@ -355,6 +358,38 @@ def commissary_planner():
             'signed_off_lines': datasets.get('signed_off_line_count', 0),
         }
 
+        recent_params = []
+        recent_outlet_sql = ""
+        if selected_outlet:
+            recent_outlet_sql = "WHERE o.outlet = %s"
+            recent_params.append(selected_outlet)
+        cur.execute(
+            f"""
+            SELECT
+                o.id,
+                o.needed_date,
+                o.outlet,
+                o.status,
+                o.source,
+                o.updated_at,
+                COUNT(line.id) AS line_count
+            FROM commissary_orders o
+            LEFT JOIN commissary_order_lines line ON line.order_id = o.id
+            {recent_outlet_sql}
+            GROUP BY o.id
+            ORDER BY o.needed_date DESC NULLS LAST, o.updated_at DESC NULLS LAST, o.id DESC
+            LIMIT 40
+        """,
+            recent_params,
+        )
+        recent_orders = cur.fetchall()
+        source_label_map = {value: label for value, label in COMMISSARY_SOURCE_CHOICES}
+        for row in recent_orders:
+            row['source_label'] = source_label_map.get(
+                normalize_commissary_source(row.get('source')),
+                'Outlet Request',
+            )
+
         prev_week_start = start_date - timedelta(days=7)
         next_week_start = start_date + timedelta(days=7)
         current_week_start, _ = get_commissary_week_window('')
@@ -374,8 +409,10 @@ def commissary_planner():
         filtered_daily_days=filtered_daily_days,
         orders=orders,
         metrics=metrics,
+        recent_orders=recent_orders,
         selected_day=selected_day.isoformat(),
         view_mode=view_mode,
+        active_tab=active_tab,
         source_options=COMMISSARY_SOURCE_CHOICES,
     )
 
