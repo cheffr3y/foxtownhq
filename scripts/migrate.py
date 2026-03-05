@@ -292,10 +292,21 @@ def main():
         print("DATABASE_URL is not set", file=sys.stderr)
         return 1
 
-    conn = psycopg2.connect(database_url)
+    connect_timeout = int(os.getenv("DB_CONNECT_TIMEOUT_SECONDS", "10"))
+    lock_timeout_ms = int(os.getenv("DB_LOCK_TIMEOUT_MS", "10000"))
+    statement_timeout_ms = int(os.getenv("DB_STATEMENT_TIMEOUT_MS", "120000"))
+
+    print(
+        f"Starting migrations (connect_timeout={connect_timeout}s, "
+        f"lock_timeout={lock_timeout_ms}ms, statement_timeout={statement_timeout_ms}ms)...",
+        flush=True,
+    )
+    conn = psycopg2.connect(database_url, connect_timeout=connect_timeout)
     try:
         with conn:
             with conn.cursor() as cur:
+                cur.execute("SET lock_timeout = %s", (f"{lock_timeout_ms}ms",))
+                cur.execute("SET statement_timeout = %s", (f"{statement_timeout_ms}ms",))
                 cur.execute(
                     """
                     CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -314,6 +325,7 @@ def main():
                     if key in applied:
                         skipped += 1
                         continue
+                    print(f"Applying migration {idx}/{len(MIGRATIONS)} ({key})...", flush=True)
                     cur.execute(statement)
                     cur.execute(
                         "INSERT INTO schema_migrations (migration_key) VALUES (%s)",
