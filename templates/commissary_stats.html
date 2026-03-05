@@ -1,0 +1,276 @@
+{% extends "base.html" %}
+{% from "base.html" import page_nav %}
+
+{% block title %}Commissary Stats - Foxtown HQ{% endblock %}
+
+{% block extra_head %}
+<style>
+    .stats-shell {
+        padding-bottom: 3rem;
+    }
+
+    .stats-panel {
+        border-radius: 16px;
+        border: 1px solid rgba(15, 23, 42, 0.1);
+        background: rgba(255, 255, 255, 0.96);
+        box-shadow: 0 0 36px -14px rgba(77, 124, 255, 0.24);
+    }
+
+    .controls-grid {
+        display: grid;
+        gap: 0.58rem;
+        grid-template-columns: repeat(1, minmax(0, 1fr));
+        align-items: end;
+    }
+
+    @media (min-width: 980px) {
+        .controls-grid {
+            grid-template-columns: minmax(170px, 0.7fr) minmax(180px, 0.8fr) minmax(170px, 0.7fr) minmax(170px, 0.7fr) auto;
+        }
+    }
+
+    .field-label {
+        display: block;
+        margin-bottom: 0.3rem;
+        font-size: 0.64rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #94A3B8;
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    }
+
+    .field {
+        width: 100%;
+        min-height: 42px;
+        border: 1px solid rgba(15, 23, 42, 0.15);
+        border-radius: 10px;
+        background: rgba(248, 250, 252, 0.92);
+        color: #0F172A;
+        padding: 0.5rem 0.72rem;
+        transition: all 0.2s ease;
+    }
+
+    .field:focus {
+        outline: none;
+        border-color: rgba(77, 124, 255, 0.72);
+        box-shadow: 0 0 20px -10px rgba(77, 124, 255, 0.55);
+    }
+
+    .stat-grid {
+        display: grid;
+        gap: 0.75rem;
+        grid-template-columns: repeat(1, minmax(0, 1fr));
+    }
+
+    @media (min-width: 1080px) {
+        .stat-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+    }
+
+    .stat-card {
+        border-radius: 12px;
+        border: 1px solid rgba(15, 23, 42, 0.11);
+        background: rgba(248, 250, 252, 0.92);
+        padding: 0.75rem;
+    }
+
+    .stat-label {
+        font-size: 0.66rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #94A3B8;
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    }
+
+    .stat-value {
+        margin-top: 0.15rem;
+        color: #0F172A;
+        font-size: 1.8rem;
+        font-family: 'Calistoga', Inter, sans-serif;
+        letter-spacing: -0.03em;
+    }
+
+    .table-wrap {
+        overflow-x: auto;
+    }
+
+    .stats-table {
+        width: 100%;
+        min-width: 780px;
+        border-collapse: collapse;
+    }
+
+    .stats-table th {
+        text-align: left;
+        font-size: 0.66rem;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
+        color: #94A3B8;
+        padding: 0.66rem 0.72rem;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.24);
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    }
+
+    .stats-table td {
+        padding: 0.7rem 0.72rem;
+        border-top: 1px solid rgba(148, 163, 184, 0.2);
+        color: #334155;
+        font-size: 0.84rem;
+        vertical-align: top;
+    }
+
+    .empty-note {
+        color: #94A3B8;
+        font-size: 0.88rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen">
+    {% call page_nav('Commissary Stats', 'Ingredient usage and request rankings across time windows.', url_for('commissary_planner')) %}
+    <a href="{{ url_for('commissary_planner') }}" class="fhq-btn fhq-btn--outline">Back to Planner</a>
+    {% endcall %}
+
+    <div class="max-w-[96rem] mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-4 stats-shell fhq-fade">
+        <section class="stats-panel p-4">
+            <form method="GET" class="controls-grid">
+                <div>
+                    <label class="field-label">Range</label>
+                    <select name="range" class="field">
+                        <option value="week" {% if preset == 'week' %}selected{% endif %}>This Week</option>
+                        <option value="month" {% if preset == 'month' %}selected{% endif %}>This Month</option>
+                        <option value="quarter" {% if preset == 'quarter' %}selected{% endif %}>This Quarter</option>
+                        <option value="year" {% if preset == 'year' %}selected{% endif %}>This Year</option>
+                        <option value="custom" {% if preset == 'custom' %}selected{% endif %}>Custom</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="field-label">Outlet</label>
+                    <select name="outlet" class="field">
+                        <option value="">All Outlets</option>
+                        {% for outlet in outlet_options %}
+                        <option value="{{ outlet }}" {% if selected_outlet == outlet %}selected{% endif %}>{{ outlet }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="field-label">Start Date</label>
+                    <input type="date" name="start_date" class="field" value="{{ start_date }}">
+                </div>
+                <div>
+                    <label class="field-label">End Date</label>
+                    <input type="date" name="end_date" class="field" value="{{ end_date }}">
+                </div>
+                <button type="submit" class="fhq-btn fhq-btn--primary">Apply</button>
+            </form>
+        </section>
+
+        <section class="stats-panel p-4">
+            <div class="stat-grid">
+                <div class="stat-card">
+                    <div class="stat-label">Unique Ingredients</div>
+                    <div class="stat-value">{{ ingredient_usage_rows|length }}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Most Requested (Count)</div>
+                    <div class="stat-value">{{ most_requested_count[0].recipe_name if most_requested_count else '—' }}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Window</div>
+                    <div class="stat-value">{{ start_date }} → {{ end_date }}</div>
+                </div>
+            </div>
+        </section>
+
+        <section class="stats-panel p-4">
+            <h2 class="text-xl font-display text-foxtown-ink mb-3">Top Ingredient Usage</h2>
+            {% if ingredient_usage_rows %}
+            <div class="table-wrap">
+                <table class="stats-table">
+                    <thead>
+                        <tr>
+                            <th>Ingredient</th>
+                            <th>Category</th>
+                            <th>Quantity</th>
+                            <th>Unit</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in ingredient_usage_rows[:20] %}
+                        <tr>
+                            <td>{{ row.name }}</td>
+                            <td>{{ row.category or 'Uncategorized' }}</td>
+                            <td>{{ row.display_quantity if row.display_quantity not in (None, '') else row.quantity }}</td>
+                            <td>{{ row.display_unit or row.unit }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="empty-note">No ingredient usage in this window.</p>
+            {% endif %}
+        </section>
+
+        <section class="stats-panel p-4">
+            <h2 class="text-xl font-display text-foxtown-ink mb-3">Most Requested Items (by Count)</h2>
+            {% if most_requested_count %}
+            <div class="table-wrap">
+                <table class="stats-table">
+                    <thead>
+                        <tr>
+                            <th>Recipe</th>
+                            <th>Order Count</th>
+                            <th>Outlets</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in most_requested_count %}
+                        <tr>
+                            <td>{{ row.recipe_name }}</td>
+                            <td>{{ row.order_count }}</td>
+                            <td>{{ (row.outlets or [])|join(', ') if row.outlets else '—' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="empty-note">No request count data in this window.</p>
+            {% endif %}
+        </section>
+
+        <section class="stats-panel p-4">
+            <h2 class="text-xl font-display text-foxtown-ink mb-3">Most Requested Items (by Quantity)</h2>
+            {% if most_requested_volume %}
+            <div class="table-wrap">
+                <table class="stats-table">
+                    <thead>
+                        <tr>
+                            <th>Recipe</th>
+                            <th>Total Quantity</th>
+                            <th>Unit</th>
+                            <th>Unit Group</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in most_requested_volume %}
+                        <tr>
+                            <td>{{ row.recipe_name }}</td>
+                            <td>{{ row.total_quantity }}</td>
+                            <td>{{ row.quantity_unit }}</td>
+                            <td>{{ row.unit_group|title }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="empty-note">No quantity data in this window.</p>
+            {% endif %}
+        </section>
+    </div>
+</div>
+{% endblock %}

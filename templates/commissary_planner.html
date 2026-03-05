@@ -330,6 +330,7 @@
 <div class="min-h-screen">
     {% call page_nav('Commissary Planner', 'Paper-first daily production list with source grouping and standing prep suggestions.', url_for('dashboard')) %}
     <a href="{{ url_for('commissary_order_new') }}" class="fhq-btn fhq-btn--primary">+ New Order</a>
+    <a href="{{ url_for('commissary_order_new', source='chef_add') }}" class="fhq-btn fhq-btn--outline">+ Chef Add</a>
     {% endcall %}
 
     <div class="max-w-[96rem] mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-4 comm-shell fhq-fade" id="plannerRoot">
@@ -368,7 +369,10 @@
                 <a href="{{ url_for('commissary_planner', week_start=next_week_start, outlet=(selected_outlet or None), day=selected_day, view=view_mode) }}" class="fhq-btn fhq-btn--ghost">Next Week</a>
                 <a href="{{ url_for('commissary_packet_print', outlet=(selected_outlet or None), week_start=week_start, day=selected_day, include_shopping=0) }}" target="_blank" class="fhq-btn fhq-btn--outline">Print Day Packet</a>
                 <a href="{{ url_for('commissary_packet_print', outlet=(selected_outlet or None), week_start=week_start, include_shopping=1) }}" target="_blank" class="fhq-btn fhq-btn--outline">Print Week + Shopping</a>
+                <a href="{{ url_for('commissary_production_log', date=selected_day, outlet=(selected_outlet or None), remaining=1) }}" class="fhq-btn fhq-btn--outline">Open Production Log</a>
                 <a href="{{ url_for('commissary_standing_prep') }}" class="fhq-btn fhq-btn--outline">Standing Prep</a>
+                <a href="{{ url_for('commissary_transfers') }}" class="fhq-btn fhq-btn--outline">Transfers</a>
+                <a href="{{ url_for('commissary_stats') }}" class="fhq-btn fhq-btn--outline">Stats</a>
             </div>
         </section>
 
@@ -438,7 +442,21 @@
                                             </td>
                                             <td>{{ entry.quantity }} {{ entry.quantity_unit }}</td>
                                             <td>{{ entry.outlet }}</td>
-                                            <td>{{ entry.assigned_to or '—' }}</td>
+                                            <td>
+                                                {% if entry.line_id %}
+                                                <form method="POST" action="{{ url_for('commissary_line_assignment_update', line_id=entry.line_id) }}" class="flex items-center gap-2">
+                                                    <input type="hidden" name="production_date" value="{{ day.date.isoformat() if day.date else selected_day }}">
+                                                    <input type="hidden" name="week_start" value="{{ week_start }}">
+                                                    <input type="hidden" name="day" value="{{ selected_day }}">
+                                                    <input type="hidden" name="view" value="{{ view_mode }}">
+                                                    <input type="hidden" name="outlet" value="{{ selected_outlet }}">
+                                                    <input type="text" name="assigned_to" value="{{ entry.assigned_to or '' }}" class="comm-field !min-h-[34px] !py-1 !px-2" placeholder="Assign cook">
+                                                    <button type="submit" class="fhq-btn fhq-btn--ghost !px-2 !py-1">Save</button>
+                                                </form>
+                                                {% else %}
+                                                <span class="entry-pill entry-pill--suggested">Suggested</span>
+                                                {% endif %}
+                                            </td>
                                             <td>
                                                 {% if entry.signed_off %}
                                                 <span class="entry-pill entry-pill--signed">Signed Off</span>
@@ -471,6 +489,8 @@
                 <div class="flex items-center gap-3">
                     <a href="{{ url_for('commissary_order_new') }}" class="link-accent">+ New Order</a>
                     <a href="{{ url_for('commissary_standing_prep') }}" class="link-accent">Standing Prep</a>
+                    <a href="{{ url_for('commissary_transfers') }}" class="link-accent">Transfers</a>
+                    <a href="{{ url_for('commissary_stats') }}" class="link-accent">Stats</a>
                 </div>
             </div>
             {% if orders %}

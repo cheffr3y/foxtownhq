@@ -1,0 +1,514 @@
+{% extends "base.html" %}
+{% from "base.html" import page_nav %}
+
+{% block title %}Commissary Production Log - Foxtown HQ{% endblock %}
+
+{% block extra_head %}
+<style>
+    .log-shell {
+        padding-bottom: 3.5rem;
+    }
+
+    .log-panel {
+        border-radius: 16px;
+        border: 1px solid rgba(15, 23, 42, 0.1);
+        background: rgba(255, 255, 255, 0.96);
+        box-shadow: 0 0 36px -14px rgba(77, 124, 255, 0.24);
+    }
+
+    .log-controls {
+        display: grid;
+        gap: 0.55rem;
+        grid-template-columns: repeat(1, minmax(0, 1fr));
+        align-items: end;
+    }
+
+    @media (min-width: 960px) {
+        .log-controls {
+            grid-template-columns: minmax(0, 1fr) minmax(200px, 0.9fr) minmax(200px, 0.9fr) auto;
+        }
+    }
+
+    .log-label {
+        display: block;
+        margin-bottom: 0.3rem;
+        font-size: 0.64rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #94A3B8;
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    }
+
+    .log-field {
+        width: 100%;
+        min-height: 42px;
+        border: 1px solid rgba(15, 23, 42, 0.15);
+        border-radius: 10px;
+        background: rgba(248, 250, 252, 0.92);
+        color: #0F172A;
+        padding: 0.5rem 0.72rem;
+        transition: all 0.2s ease;
+    }
+
+    .log-field:focus {
+        outline: none;
+        border-color: rgba(77, 124, 255, 0.72);
+        box-shadow: 0 0 20px -10px rgba(77, 124, 255, 0.55);
+    }
+
+    .progress-wrap {
+        padding: 0.9rem 1rem;
+    }
+
+    .progress-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+    }
+
+    .progress-title {
+        color: #0F172A;
+        font-size: 1rem;
+        font-family: 'Calistoga', Inter, sans-serif;
+    }
+
+    .progress-meta {
+        color: #334155;
+        font-size: 0.8rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    }
+
+    .progress-track {
+        margin-top: 0.56rem;
+        width: 100%;
+        height: 12px;
+        border-radius: 999px;
+        overflow: hidden;
+        background: rgba(30, 41, 59, 0.8);
+        border: 1px solid rgba(15, 23, 42, 0.12);
+    }
+
+    .progress-track > span {
+        display: block;
+        height: 100%;
+        background: linear-gradient(to right, #0052FF, #4D7CFF, #93C5FD);
+        box-shadow: 0 0 18px rgba(77, 124, 255, 0.65);
+    }
+
+    .log-cards {
+        display: grid;
+        gap: 0.8rem;
+    }
+
+    .log-card {
+        border-radius: 14px;
+        border: 1px solid rgba(15, 23, 42, 0.12);
+        background: rgba(248, 250, 252, 0.92);
+        padding: 0.76rem;
+    }
+
+    .log-card-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.62rem;
+        align-items: flex-start;
+    }
+
+    .log-item {
+        color: #0F172A;
+        font-size: clamp(1.02rem, 2.4vw, 1.28rem);
+        line-height: 1.08;
+        letter-spacing: -0.02em;
+        font-family: 'Calistoga', Inter, sans-serif;
+    }
+
+    .log-meta {
+        margin-top: 0.22rem;
+        color: #64748B;
+        font-size: 0.78rem;
+    }
+
+    .log-status {
+        min-width: 112px;
+        text-align: center;
+        border-radius: 999px;
+        padding: 0.3rem 0.58rem;
+        font-size: 0.72rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+        border: 1px solid transparent;
+        white-space: nowrap;
+    }
+
+    .log-status--done {
+        color: #ecfdf5;
+        background: rgba(16, 185, 129, 0.86);
+        border-color: rgba(110, 231, 183, 0.9);
+    }
+
+    .log-status--pending {
+        color: #111827;
+        background: rgba(251, 191, 36, 0.92);
+        border-color: rgba(252, 211, 77, 0.95);
+    }
+
+    .log-actions {
+        margin-top: 0.62rem;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.4rem;
+    }
+
+    .save-state {
+        color: #94A3B8;
+        font-size: 0.71rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    }
+
+    .save-state.is-saving {
+        color: #fbbf24;
+    }
+
+    .save-state.is-error {
+        color: #fb7185;
+    }
+
+    .save-state.is-saved {
+        color: #34d399;
+    }
+
+    .notes-details {
+        margin-top: 0.58rem;
+        border-radius: 10px;
+        border: 1px dashed rgba(148, 163, 184, 0.42);
+        background: rgba(248, 250, 252, 0.92);
+    }
+
+    .notes-details > summary {
+        list-style: none;
+        cursor: pointer;
+        padding: 0.54rem 0.62rem;
+        color: #334155;
+        font-size: 0.78rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    }
+
+    .notes-details > summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .notes-body {
+        border-top: 1px dashed rgba(148, 163, 184, 0.35);
+        padding: 0.58rem 0.62rem 0.64rem;
+        display: grid;
+        gap: 0.48rem;
+    }
+
+    .notes-field {
+        width: 100%;
+        min-height: 86px;
+        border: 1px solid rgba(15, 23, 42, 0.14);
+        border-radius: 10px;
+        background: rgba(248, 250, 252, 0.9);
+        color: #0F172A;
+        padding: 0.5rem 0.62rem;
+        resize: vertical;
+    }
+
+    .detail-grid {
+        display: grid;
+        gap: 0.42rem;
+        grid-template-columns: repeat(1, minmax(0, 1fr));
+    }
+
+    @media (min-width: 900px) {
+        .detail-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+    }
+
+    .detail-input {
+        width: 100%;
+        min-height: 38px;
+        border: 1px solid rgba(15, 23, 42, 0.13);
+        border-radius: 9px;
+        background: rgba(248, 250, 252, 0.92);
+        color: #0F172A;
+        padding: 0.42rem 0.58rem;
+        font-size: 0.82rem;
+    }
+
+    .empty-note {
+        color: #94A3B8;
+        font-size: 0.88rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen">
+    {% call page_nav('Commissary Log', 'Mobile-first sign-off flow. One tap to mark done, autosaves as you walk the line.', url_for('commissary_planner', day=selected_date)) %}
+    <a href="{{ url_for('commissary_planner', day=selected_date, outlet=(selected_outlet or None), view='day') }}" class="fhq-btn fhq-btn--outline">Back to Planner</a>
+    {% endcall %}
+
+    <div class="max-w-[92rem] mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-4 log-shell" id="logRoot" data-current-user="{{ current_user_name }}">
+        <section class="log-panel p-4">
+            <form method="GET" class="log-controls">
+                <div>
+                    <label class="log-label">Production Date</label>
+                    <input type="date" name="date" value="{{ selected_date }}" class="log-field">
+                </div>
+                <div>
+                    <label class="log-label">Outlet</label>
+                    <select name="outlet" class="log-field">
+                        <option value="">All Outlets</option>
+                        {% for outlet in outlet_options %}
+                        <option value="{{ outlet }}" {% if selected_outlet == outlet %}selected{% endif %}>{{ outlet }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="log-label">Filter</label>
+                    <select name="remaining" class="log-field">
+                        <option value="1" {% if show_remaining_only %}selected{% endif %}>Show Remaining Only</option>
+                        <option value="0" {% if not show_remaining_only %}selected{% endif %}>Show All</option>
+                    </select>
+                </div>
+                <button type="submit" class="fhq-btn fhq-btn--primary">Refresh</button>
+            </form>
+        </section>
+
+        {% set progress_pct = ((signed_count / total_count) * 100)|round|int if total_count else 0 %}
+        <section class="log-panel progress-wrap">
+            <div class="progress-head">
+                <div class="progress-title">Daily Sign-off Progress</div>
+                <div class="progress-meta" data-progress-text>{{ signed_count }} of {{ total_count }} signed off</div>
+            </div>
+            <div class="progress-track"><span data-progress-bar style="width: {{ progress_pct }}%"></span></div>
+            <div class="mt-2 text-xs text-slate-500">Remaining: <span data-remaining-count>{{ remaining_count }}</span></div>
+        </section>
+
+        <section class="space-y-3">
+            {% if entries %}
+            <div class="log-cards" data-log-list>
+                {% for entry in entries %}
+                <form method="POST"
+                      action="{{ url_for('commissary_production_log_update', line_id=entry.line_id) }}"
+                      class="log-card"
+                      data-log-form>
+                    <input type="hidden" name="production_date" value="{{ selected_date }}">
+                    <input type="hidden" name="ajax" value="1">
+                    <input type="checkbox" name="signed_off" value="1" data-role="signed-off" class="sr-only" {% if entry.signed_off %}checked{% endif %}>
+
+                    <div class="log-card-head">
+                        <div>
+                            <div class="log-item">{{ entry.item_name }}</div>
+                            <div class="log-meta">{{ entry.quantity }} {{ entry.quantity_unit }} · {{ entry.outlet }} · {{ entry.source_label }}</div>
+                        </div>
+                        <span class="log-status {% if entry.signed_off %}log-status--done{% else %}log-status--pending{% endif %}" data-status>
+                            {% if entry.signed_off %}Done{% else %}Pending{% endif %}
+                        </span>
+                    </div>
+
+                    <div class="log-actions">
+                        <button type="button" class="fhq-btn fhq-btn--primary" data-quick-signoff>One-Tap Sign-off</button>
+                        <button type="button" class="fhq-btn fhq-btn--outline" data-mark-pending>Mark Pending</button>
+                        <span class="save-state" data-save-state>Not saved yet</span>
+                    </div>
+
+                    <details class="notes-details">
+                        <summary>Details: Assignment, QA, Notes, Yield</summary>
+                        <div class="notes-body">
+                            <div class="detail-grid">
+                                <input type="text" name="assigned_to" value="{{ entry.assigned_to or '' }}" placeholder="Assigned cook" class="detail-input">
+                                <input type="text" name="made_by" value="{{ entry.made_by or '' }}" placeholder="Made by" class="detail-input">
+                                <input type="text" name="tasted_by" value="{{ entry.tasted_by or '' }}" placeholder="Tasted by" class="detail-input">
+                            </div>
+                            <div class="detail-grid">
+                                <input type="text" name="signed_off_by" value="{{ entry.signed_off_by or '' }}" placeholder="Signed off by" class="detail-input">
+                                <input type="number" step="0.01" min="0" name="actual_yield" value="{{ entry.actual_yield or '' }}" placeholder="Actual yield" class="detail-input">
+                                <input type="text" name="actual_yield_unit" value="{{ entry.actual_yield_unit or entry.quantity_unit or '' }}" placeholder="Yield unit" class="detail-input">
+                            </div>
+                            <textarea name="production_notes" class="notes-field" placeholder="Production notes, quality notes, issues...">{{ entry.production_notes or '' }}</textarea>
+                            <label class="log-label !mb-0">Quick Camera Capture</label>
+                            <input type="file" name="photo" accept="image/*" capture="environment" class="detail-input">
+                        </div>
+                    </details>
+                </form>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="log-panel p-4">
+                <p class="empty-note">No matching production lines for this date/filter.</p>
+            </div>
+            {% endif %}
+        </section>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    (function () {
+        const root = document.getElementById('logRoot');
+        if (!root) return;
+
+        const currentUser = (root.dataset.currentUser || '').trim() || 'Chef';
+        const progressText = root.querySelector('[data-progress-text]');
+        const progressBar = root.querySelector('[data-progress-bar]');
+        const remainingCount = root.querySelector('[data-remaining-count]');
+
+        function formatSavedTime(isoText) {
+            if (!isoText) return '';
+            const parsed = new Date(isoText);
+            if (Number.isNaN(parsed.getTime())) return '';
+            return new Intl.DateTimeFormat([], {
+                month: 'short',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit'
+            }).format(parsed);
+        }
+
+        function setStatus(form, done) {
+            const badge = form.querySelector('[data-status]');
+            if (!badge) return;
+            badge.classList.toggle('log-status--done', !!done);
+            badge.classList.toggle('log-status--pending', !done);
+            badge.textContent = done ? 'Done' : 'Pending';
+        }
+
+        function setSaveState(form, text, toneClass) {
+            const state = form.querySelector('[data-save-state]');
+            if (!state) return;
+            state.textContent = text || '';
+            state.classList.remove('is-saving', 'is-error', 'is-saved');
+            if (toneClass) state.classList.add(toneClass);
+        }
+
+        function refreshProgress() {
+            const forms = Array.from(root.querySelectorAll('[data-log-form]'));
+            const total = forms.length;
+            const signed = forms.filter((form) => {
+                const signedInput = form.querySelector('[data-role="signed-off"]');
+                return !!(signedInput && signedInput.checked);
+            }).length;
+            const remaining = Math.max(0, total - signed);
+            const pct = total ? Math.round((signed / total) * 100) : 0;
+
+            if (progressText) progressText.textContent = `${signed} of ${total} signed off`;
+            if (progressBar) progressBar.style.width = `${pct}%`;
+            if (remainingCount) remainingCount.textContent = `${remaining}`;
+        }
+
+        async function saveForm(form) {
+            const signedInput = form.querySelector('[data-role="signed-off"]');
+            const payload = new FormData(form);
+            payload.set('ajax', '1');
+
+            setSaveState(form, 'Saving…', 'is-saving');
+
+            try {
+                const response = await fetch(form.action, {
+                    method: 'POST',
+                    body: payload,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    }
+                });
+                const data = await response.json();
+                if (!response.ok || !data.ok) {
+                    throw new Error(data.error || 'Save failed');
+                }
+
+                if (signedInput) signedInput.checked = !!data.signed_off;
+                setStatus(form, signedInput && signedInput.checked);
+                refreshProgress();
+
+                const savedAt = formatSavedTime(data.updated_at);
+                const stateText = savedAt ? `Saved ${savedAt}` : 'Saved';
+                setSaveState(form, stateText, 'is-saved');
+                return true;
+            } catch (error) {
+                setSaveState(form, 'Save failed', 'is-error');
+                return false;
+            }
+        }
+
+        function queueSave(form, delayMs) {
+            if (form._saveTimer) {
+                window.clearTimeout(form._saveTimer);
+            }
+            form._saveTimer = window.setTimeout(() => {
+                saveForm(form);
+            }, delayMs || 450);
+        }
+
+        function applyQuickSignoff(form) {
+            const signedInput = form.querySelector('[data-role="signed-off"]');
+            const madeByInput = form.querySelector('input[name="made_by"]');
+            const tastedByInput = form.querySelector('input[name="tasted_by"]');
+            const signedByInput = form.querySelector('input[name="signed_off_by"]');
+
+            if (signedInput) signedInput.checked = true;
+            if (madeByInput && !madeByInput.value.trim()) madeByInput.value = currentUser;
+            if (tastedByInput && !tastedByInput.value.trim()) tastedByInput.value = currentUser;
+            if (signedByInput) signedByInput.value = currentUser;
+            setStatus(form, true);
+        }
+
+        function bindForm(form) {
+            const quickBtn = form.querySelector('[data-quick-signoff]');
+            const pendingBtn = form.querySelector('[data-mark-pending]');
+            const signedInput = form.querySelector('[data-role="signed-off"]');
+
+            setStatus(form, signedInput && signedInput.checked);
+
+            form.addEventListener('input', (event) => {
+                const target = event.target;
+                if (!(target instanceof HTMLElement)) return;
+                if (target.matches('textarea, input[type="text"], input[type="number"]')) {
+                    queueSave(form, 600);
+                }
+            });
+
+            form.addEventListener('change', (event) => {
+                const target = event.target;
+                if (!(target instanceof HTMLElement)) return;
+                if (target.matches('input, textarea, select')) {
+                    queueSave(form, 220);
+                }
+            });
+
+            if (quickBtn) {
+                quickBtn.addEventListener('click', async () => {
+                    applyQuickSignoff(form);
+                    await saveForm(form);
+                });
+            }
+
+            if (pendingBtn) {
+                pendingBtn.addEventListener('click', async () => {
+                    if (signedInput) signedInput.checked = false;
+                    setStatus(form, false);
+                    await saveForm(form);
+                });
+            }
+        }
+
+        Array.from(root.querySelectorAll('[data-log-form]')).forEach((form) => bindForm(form));
+        refreshProgress();
+    })();
+</script>
+{% endblock %}

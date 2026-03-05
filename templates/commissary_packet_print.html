@@ -161,6 +161,54 @@
 
     <div class="pkt-section break-inside-avoid">
         <div class="pkt-section-header">
+            <h2>Daily Production Checklist</h2>
+            <span class="pkt-date-range">
+                {% if selected_day %}
+                {{ selected_day }}
+                {% else %}
+                {{ start_date }} - {{ end_date }}
+                {% endif %}
+            </span>
+        </div>
+        {% if checklist_lines %}
+        <table class="pkt-table pkt-table-accountability">
+            <thead>
+                <tr>
+                    <th style="width:4%">[ ]</th>
+                    <th style="width:28%">Item</th>
+                    <th style="width:11%">Qty</th>
+                    <th style="width:14%">Outlet</th>
+                    <th style="width:14%">Assigned Cook</th>
+                    <th style="width:12%">Produced By</th>
+                    <th style="width:17%">Chef Sign-off / Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for line in checklist_lines %}
+                <tr class="pkt-account-row">
+                    <td class="text-center"><span class="pkt-checkbox"></span></td>
+                    <td>
+                        <div class="pkt-bold">{{ line.item_name }}</div>
+                        {% if line.recipe_name and line.recipe_name != line.item_name %}
+                        <div class="pkt-muted">Recipe: {{ line.recipe_name }}</div>
+                        {% endif %}
+                    </td>
+                    <td class="pkt-mono pkt-qty">{{ line.quantity }} {{ line.quantity_unit }}</td>
+                    <td>{{ line.outlet }}</td>
+                    <td>{% if line.assigned_to %}<span class="pkt-bold">{{ line.assigned_to }}</span>{% else %}<span class="pkt-write-line"></span>{% endif %}</td>
+                    <td><span class="pkt-write-line"></span></td>
+                    <td><span class="pkt-write-box"></span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="pkt-empty-note">No production lines found for this date window.</div>
+        {% endif %}
+    </div>
+
+    <div class="pkt-section break-inside-avoid break-before-page">
+        <div class="pkt-section-header">
             <h2>Order Summary</h2>
             <span class="pkt-date-range">
                 {% if selected_day %}
@@ -187,10 +235,11 @@
                     <thead>
                         <tr>
                             <th style="width:4%">[ ]</th>
-                            <th style="width:34%">Item Name &amp; Qty</th>
-                            <th style="width:18%">Produced By</th>
-                            <th style="width:18%">Chef Sign-off</th>
-                            <th style="width:26%">Comments / Temp</th>
+                            <th style="width:30%">Item Name &amp; Qty</th>
+                            <th style="width:16%">Assigned Cook</th>
+                            <th style="width:16%">Produced By</th>
+                            <th style="width:14%">Chef Sign-off</th>
+                            <th style="width:20%">Comments / Temp</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -205,6 +254,13 @@
                                 {% endif %}
                                 </div>
                                 <div class="pkt-mono pkt-qty">{{ line.quantity }} {{ line.quantity_unit }}</div>
+                            </td>
+                            <td>
+                                {% if line.production_log and line.production_log.assigned_to %}
+                                <span class="pkt-bold">{{ line.production_log.assigned_to }}</span>
+                                {% else %}
+                                <span class="pkt-write-line"></span>
+                                {% endif %}
                             </td>
                             <td><span class="pkt-write-line"></span></td>
                             <td><span class="pkt-write-line"></span></td>
@@ -286,6 +342,7 @@
             <div class="pkt-card-meta">
                 <span>Used in orders: {{ prep.used_in_order_labels|join(' · ') if prep.used_in_order_labels else '—' }}</span>
                 <span>Main item(s): {{ group.main_labels|join(' · ') if group.main_labels else prep.recipe_name }}</span>
+                <span>Assigned: {{ prep.assigned_cooks|join(' · ') if prep.assigned_cooks else 'Unassigned' }}</span>
                 <span>Batches: {{ "%.2f"|format(prep.required_batches or 0) }}</span>
                 <span>Each batch makes {{ "%.2f"|format(prep.yield_qty or 0) }} {{ prep.yield_unit or '' }}</span>
             </div>

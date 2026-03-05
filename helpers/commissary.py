@@ -535,6 +535,7 @@ def build_commissary_datasets(cur, start_date, end_date, outlet='', unit_system=
     batch_usage_qty = {}
     batch_usage_orders = defaultdict(set)
     batch_usage_items = defaultdict(set)
+    batch_usage_assignees = defaultdict(set)
     order_daily_ingredients = defaultdict(lambda: defaultdict(float))
 
     for row in rows:
@@ -632,6 +633,8 @@ def build_commissary_datasets(cur, start_date, end_date, outlet='', unit_system=
             batch_usage_qty[root_key] = batch_usage_qty.get(root_key, 0) + required_output_qty
             batch_usage_orders[recipe_id].add(order_id)
             batch_usage_items[recipe_id].add(item_name)
+            if production_log.get('assigned_to'):
+                batch_usage_assignees[recipe_id].add(production_log.get('assigned_to'))
 
             components, _, _ = build_component_tree(cur, recipe_id, ratio, 0, set(), unit_system, apply_q_factor=False)
             line['components'] = components
@@ -795,6 +798,7 @@ def build_commissary_datasets(cur, start_date, end_date, outlet='', unit_system=
                 'used_in_orders': sorted(batch_usage_orders.get(recipe_id, set())),
                 'used_in_order_labels': [order_label_map.get(order_id, order_id) for order_id in sorted(batch_usage_orders.get(recipe_id, set()))],
                 'used_in_items': sorted(batch_usage_items.get(recipe_id, set())),
+                'assigned_cooks': sorted(batch_usage_assignees.get(recipe_id, set())),
                 'estimated_cost': total_cost
             })
     for prep in weekly_prep:
@@ -845,6 +849,12 @@ def build_commissary_datasets(cur, start_date, end_date, outlet='', unit_system=
                     'quantity': line.get('quantity'),
                     'quantity_unit': line.get('quantity_unit') or 'each',
                     'assigned_to': production_log.get('assigned_to') or '',
+                    'made_by': production_log.get('made_by') or '',
+                    'tasted_by': production_log.get('tasted_by') or '',
+                    'signed_off_by': production_log.get('signed_off_by') or '',
+                    'production_notes': production_log.get('notes') or '',
+                    'actual_yield': production_log.get('actual_yield') or '',
+                    'actual_yield_unit': production_log.get('actual_yield_unit') or (line.get('quantity_unit') or 'each'),
                     'signed_off': bool(production_log.get('signed_off')),
                     'outlet': order.get('outlet') or DEFAULT_COMMISSARY_OUTLET,
                     'order_id': order.get('id'),
@@ -865,6 +875,12 @@ def build_commissary_datasets(cur, start_date, end_date, outlet='', unit_system=
                 'quantity': to_float(item.get('default_quantity')),
                 'quantity_unit': item.get('default_unit') or item.get('recipe_yield_unit') or 'each',
                 'assigned_to': '',
+                'made_by': '',
+                'tasted_by': '',
+                'signed_off_by': '',
+                'production_notes': '',
+                'actual_yield': '',
+                'actual_yield_unit': item.get('default_unit') or item.get('recipe_yield_unit') or 'each',
                 'signed_off': False,
                 'outlet': DEFAULT_COMMISSARY_OUTLET,
                 'order_id': None,
