@@ -5,7 +5,6 @@ from db import get_cursor, get_db
 from flask import Blueprint, Response, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from reportlab.lib.pagesizes import letter
-from reportlab.lib.utils import simpleSplit
 from reportlab.pdfgen import canvas
 
 from helpers.commissary import (
@@ -1794,185 +1793,58 @@ def commissary_packet_print():
     with get_cursor() as cur:
         ensure_commissary_tables(cur)
         conn.commit()
-        context = build_commissary_packet_context(cur)
+
+        selected_outlet = clean_menu_text(request.args.get('outlet'))
+        selected_units = get_unit_system()
+        week_start_raw = (request.args.get('week_start') or request.args.get('start_date') or '').strip()
+        start_date, end_date = get_commissary_week_window(week_start_raw)
+        selected_day_raw = (request.args.get('day') or '').strip()
+        if selected_day_raw:
+            try:
+                selected_day = datetime.strptime(selected_day_raw, '%Y-%m-%d').date()
+                start_date = selected_day
+                end_date = selected_day
+            except ValueError:
+                selected_day = None
+        else:
+            selected_day = None
+
+        include_shopping_raw = request.args.get('include_shopping')
+        if include_shopping_raw is None:
+            include_shopping = False
+        else:
+            include_shopping = (include_shopping_raw or '').strip().lower() in ('1', 'true', 'yes', 'on')
+
+        datasets = build_commissary_datasets(cur, start_date, end_date, selected_outlet, selected_units)
+        for prep in datasets.get('weekly_prep', []):
+            prep['instruction_steps'] = split_instruction_steps(prep.get('instructions'))
+        prep_groups = build_commissary_prep_groups(cur, datasets, selected_units)
+        checklist_lines = []
+        for order in datasets.get('orders', []):
+            for line in order.get('lines', []):
+                production_log = line.get('production_log') or {}
+                checklist_lines.append({
+                    'item_name': line.get('item_name') or line.get('recipe_name') or 'Item',
+                    'recipe_name': line.get('recipe_name') or '',
+                    'quantity': line.get('quantity'),
+                    'quantity_unit': line.get('quantity_unit') or 'each',
+                    'outlet': order.get('outlet') or DEFAULT_COMMISSARY_OUTLET,
+                    'assigned_to': production_log.get('assigned_to') or '',
+                    'notes': line.get('notes') or '',
+                })
+        checklist_lines.sort(key=lambda row: ((row.get('outlet') or '').lower(), (row.get('item_name') or '').lower()))
 
     return render_template(
         'commissary_packet_print.html',
-        selected_outlet=context.get('selected_outlet'),
-        selected_units=context.get('selected_units'),
-        week_start=context.get('start_date').isoformat(),
-        start_date=context.get('start_date').isoformat(),
-        end_date=context.get('end_date').isoformat(),
-        selected_day=context.get('selected_day').isoformat() if context.get('selected_day') else '',
-        include_shopping=context.get('include_shopping'),
-        include_sub_cards=context.get('include_sub_cards'),
+        selected_outlet=selected_outlet,
+        selected_units=selected_units,
+        week_start=start_date.isoformat(),
+        start_date=start_date.isoformat(),
+        end_date=end_date.isoformat(),
+        selected_day=selected_day.isoformat() if selected_day else '',
+        include_shopping=include_shopping,
         generated_at=datetime.now().strftime('%b %d, %Y %I:%M %p'),
-        datasets=context.get('datasets'),
-        checklist_lines=context.get('checklist_lines'),
-        prep_groups=context.get('prep_groups'),
-    )
-
-
-def build_commissary_packet_context(cur):
-    selected_outlet = clean_menu_text(request.args.get('outlet'))
-    selected_units = get_unit_system()
-    week_start_raw = (request.args.get('week_start') or request.args.get('start_date') or '').strip()
-    start_date, end_date = get_commissary_week_window(week_start_raw)
-    selected_day_raw = (request.args.get('day') or '').strip()
-    if selected_day_raw:
-        try:
-            selected_day = datetime.strptime(selected_day_raw, '%Y-%m-%d').date()
-            start_date = selected_day
-            end_date = selected_day
-        except ValueError:
-            selected_day = None
-    else:
-        selected_day = None
-
-    include_shopping_raw = request.args.get('include_shopping')
-    if include_shopping_raw is None:
-        include_shopping = False
-    else:
-        include_shopping = (include_shopping_raw or '').strip().lower() in ('1', 'true', 'yes', 'on')
-
-    include_sub_cards = (request.args.get('deep') or '').strip().lower() in ('1', 'true', 'yes', 'on')
-
-    datasets = build_commissary_datasets(cur, start_date, end_date, selected_outlet, selected_units)
-    for prep in datasets.get('weekly_prep', []):
-        prep['instruction_steps'] = split_instruction_steps(prep.get('instructions'))
-    prep_groups = build_commissary_prep_groups(cur, datasets, selected_units)
-    checklist_lines = []
-    for order in datasets.get('orders', []):
-        for line in order.get('lines', []):
-            production_log = line.get('production_log') or {}
-            checklist_lines.append({
-                'item_name': line.get('item_name') or line.get('recipe_name') or 'Item',
-                'recipe_name': line.get('recipe_name') or '',
-                'quantity': line.get('quantity'),
-                'quantity_unit': line.get('quantity_unit') or 'each',
-                'outlet': order.get('outlet') or DEFAULT_COMMISSARY_OUTLET,
-                'assigned_to': production_log.get('assigned_to') or '',
-                'notes': line.get('notes') or '',
-            })
-    checklist_lines.sort(key=lambda row: ((row.get('outlet') or '').lower(), (row.get('item_name') or '').lower()))
-
-    return {
-        'selected_outlet': selected_outlet,
-        'selected_units': selected_units,
-        'start_date': start_date,
-        'end_date': end_date,
-        'selected_day': selected_day,
-        'include_shopping': include_shopping,
-        'include_sub_cards': include_sub_cards,
-        'datasets': datasets,
-        'checklist_lines': checklist_lines,
-        'prep_groups': prep_groups,
-    }
-
-
-@bp.route('/commissary/print/pdf')
-@bp.route('/commissary-planner/packet/print.pdf')
-@login_required
-def commissary_packet_print_pdf():
-    conn = get_db()
-    with get_cursor() as cur:
-        ensure_commissary_tables(cur)
-        conn.commit()
-        context = build_commissary_packet_context(cur)
-
-    selected_day = context.get('selected_day')
-    start_date = context.get('start_date')
-    end_date = context.get('end_date')
-    checklist_lines = context.get('checklist_lines') or []
-    prep_groups = context.get('prep_groups') or []
-
-    buffer = io.BytesIO()
-    pdf = canvas.Canvas(buffer, pagesize=letter)
-    width, height = letter
-    margin_x = 36
-    content_width = width - (margin_x * 2)
-    y = height - 40
-
-    def ensure_space(min_height=14):
-        nonlocal y
-        if y < 42 + min_height:
-            pdf.showPage()
-            y = height - 40
-
-    def write_wrapped(text, font='Helvetica', size=9, leading=12, indent=0):
-        nonlocal y
-        lines = simpleSplit(str(text or ''), font, size, max(80, content_width - indent))
-        for wrapped in lines or ['']:
-            ensure_space(leading)
-            pdf.setFont(font, size)
-            pdf.drawString(margin_x + indent, y, wrapped)
-            y -= leading
-
-    date_label = selected_day.isoformat() if selected_day else f"{start_date.isoformat()} to {end_date.isoformat()}"
-    write_wrapped('Foxtown HQ - Commissary Packet (Fast PDF)', font='Helvetica-Bold', size=14, leading=18)
-    write_wrapped(f"Outlet: {context.get('selected_outlet') or 'All Outlets'}", size=10, leading=14)
-    write_wrapped(f"Date Window: {date_label}", size=10, leading=14)
-    write_wrapped(f"Generated: {datetime.now().strftime('%b %d, %Y %I:%M %p')}", size=10, leading=16)
-
-    write_wrapped('Daily Production Checklist', font='Helvetica-Bold', size=12, leading=16)
-    if checklist_lines:
-        for idx, row in enumerate(checklist_lines, start=1):
-            qty = format_number(row.get('quantity'))
-            unit = row.get('quantity_unit') or 'each'
-            line_text = f"{idx}. {row.get('item_name') or 'Item'} - {qty} {unit} - {row.get('outlet') or DEFAULT_COMMISSARY_OUTLET}"
-            write_wrapped(line_text, size=9, leading=12)
-            assigned_to = row.get('assigned_to') or 'Unassigned'
-            write_wrapped(f"Assigned: {assigned_to}", size=8, leading=10, indent=14)
-            if row.get('notes'):
-                write_wrapped(f"Notes: {row.get('notes')}", size=8, leading=10, indent=14)
-    else:
-        write_wrapped('No production lines found for this date window.', size=9, leading=12)
-
-    ensure_space(18)
-    write_wrapped('Prep Cards Summary', font='Helvetica-Bold', size=12, leading=16)
-    if prep_groups:
-        for group in prep_groups:
-            root = group.get('root') or {}
-            required = root.get('display_required') or {}
-            recipe_name = root.get('recipe_name') or 'Prep Item'
-            req_qty = required.get('quantity') if required.get('quantity') not in (None, '') else '—'
-            req_unit = required.get('unit') or (root.get('yield_unit') or '')
-            write_wrapped(f"{recipe_name} ({group.get('main_label') or 'Main Item'})", font='Helvetica-Bold', size=10, leading=14)
-            write_wrapped(
-                f"Required: {req_qty} {req_unit} | Batches: {format_number(root.get('required_batches') or 0)}",
-                size=9,
-                leading=11,
-                indent=10,
-            )
-            assigned = ' · '.join(root.get('assigned_cooks') or []) if root.get('assigned_cooks') else 'Unassigned'
-            write_wrapped(f"Assigned: {assigned}", size=9, leading=11, indent=10)
-
-            ingredient_rows = root.get('ingredient_rows') or []
-            if ingredient_rows:
-                write_wrapped('Ingredients:', font='Helvetica-Bold', size=9, leading=11, indent=10)
-                for ing in ingredient_rows:
-                    ing_qty = ing.get('display_quantity') if ing.get('display_quantity') not in (None, '') else format_number(ing.get('quantity'))
-                    ing_unit = ing.get('display_unit') or ing.get('unit') or ''
-                    write_wrapped(f"- {ing.get('name') or 'Ingredient'}: {ing_qty} {ing_unit}", size=8, leading=10, indent=18)
-
-            steps = root.get('instruction_steps') or []
-            if steps:
-                write_wrapped('Method:', font='Helvetica-Bold', size=9, leading=11, indent=10)
-                for step_index, step in enumerate(steps, start=1):
-                    write_wrapped(f"{step_index}. {step}", size=8, leading=10, indent=18)
-            y -= 4
-    else:
-        write_wrapped('No prep cards in this window.', size=9, leading=12)
-
-    pdf.showPage()
-    pdf.save()
-    payload = buffer.getvalue()
-    buffer.close()
-
-    date_token = selected_day.isoformat() if selected_day else f"{start_date.isoformat()}_{end_date.isoformat()}"
-    filename = f'commissary-packet-{date_token}.pdf'
-    return Response(
-        payload,
-        mimetype='application/pdf',
-        headers={'Content-Disposition': f'attachment; filename={filename}'},
+        datasets=datasets,
+        checklist_lines=checklist_lines,
+        prep_groups=prep_groups,
     )
