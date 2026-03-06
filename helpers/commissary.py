@@ -229,7 +229,29 @@ def ensure_commissary_tables(cur):
         SET production_notes = notes
         WHERE COALESCE(TRIM(production_notes), '') = '' AND COALESCE(TRIM(notes), '') <> ''
     """)
-    cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_comm_prod_logs_line_date ON commissary_production_logs (line_id, production_date)")
+    cur.execute(
+        """
+        WITH ranked AS (
+            SELECT
+                id,
+                ROW_NUMBER() OVER (
+                    PARTITION BY line_id, production_date
+                    ORDER BY COALESCE(updated_at, created_at, CURRENT_TIMESTAMP) DESC, id DESC
+                ) AS rn
+            FROM commissary_production_logs
+            WHERE line_id IS NOT NULL
+              AND production_date IS NOT NULL
+        )
+        DELETE FROM commissary_production_logs
+        WHERE id IN (SELECT id FROM ranked WHERE rn > 1)
+    """
+    )
+    # Keep legacy index name untouched (it may point at order_item_id on older installs).
+    # Create a distinct index name for (line_id, production_date), which ON CONFLICT expects.
+    cur.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_comm_prod_logs_line_id_prod_date "
+        "ON commissary_production_logs (line_id, production_date)"
+    )
     cur.execute("CREATE INDEX IF NOT EXISTS idx_comm_prod_logs_order_id ON commissary_production_logs (order_id)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_comm_prod_logs_production_date ON commissary_production_logs (production_date)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_comm_prod_logs_assigned_to ON commissary_production_logs (assigned_to)")

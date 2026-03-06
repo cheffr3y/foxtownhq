@@ -278,6 +278,24 @@ MIGRATIONS = [
     "CREATE INDEX IF NOT EXISTS idx_comm_prod_logs_order_id ON commissary_production_logs (order_id)",
     "CREATE INDEX IF NOT EXISTS idx_comm_prod_logs_production_date ON commissary_production_logs (production_date)",
     "ALTER TABLE banquet_event_menu_items ADD COLUMN IF NOT EXISTS choice_selections TEXT",
+    "ALTER TABLE commissary_production_logs ADD COLUMN IF NOT EXISTS line_id BIGINT",
+    "UPDATE commissary_production_logs SET line_id = order_item_id WHERE line_id IS NULL AND order_item_id IS NOT NULL",
+    """
+    WITH ranked AS (
+        SELECT
+            id,
+            ROW_NUMBER() OVER (
+                PARTITION BY line_id, production_date
+                ORDER BY COALESCE(updated_at, created_at, CURRENT_TIMESTAMP) DESC, id DESC
+            ) AS rn
+        FROM commissary_production_logs
+        WHERE line_id IS NOT NULL
+          AND production_date IS NOT NULL
+    )
+    DELETE FROM commissary_production_logs
+    WHERE id IN (SELECT id FROM ranked WHERE rn > 1)
+    """,
+    "CREATE UNIQUE INDEX IF NOT EXISTS idx_comm_prod_logs_line_id_prod_date ON commissary_production_logs (line_id, production_date)",
 ]
 
 
