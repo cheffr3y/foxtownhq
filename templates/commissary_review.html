@@ -179,24 +179,24 @@
                     <thead>
                         <tr>
                             <th>Day</th>
-                            <th>Outlet</th>
-                            <th>Source</th>
                             <th>Item</th>
                             <th>Qty</th>
-                            <th>Assigned</th>
+                            <th>Made By</th>
+                            <th>Tasted By</th>
                             <th>Status</th>
+                            <th>Notes</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for row in review.daily_rows %}
                         <tr>
                             <td>{{ row.production_date }}{% if row.prep_day_label %} · {{ row.prep_day_label }}{% endif %}</td>
-                            <td>{{ row.outlet }}</td>
-                            <td>{{ row.source_label }}</td>
                             <td>{{ row.item_name }}</td>
                             <td>{{ row.quantity }} {{ row.quantity_unit }}</td>
-                            <td>{{ row.assigned_to or 'Unassigned' }}</td>
+                            <td>{{ row.made_by or '—' }}</td>
+                            <td>{{ row.tasted_by or '—' }}</td>
                             <td>{{ 'Signed Off' if row.signed_off else 'Pending' }}</td>
+                            <td>{{ row.production_notes or row.notes or '—' }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -275,7 +275,7 @@
                             <th>Date</th>
                             <th>Outlet</th>
                             <th>Item</th>
-                            <th>Assigned</th>
+                            <th>Made By</th>
                             <th>Notes</th>
                         </tr>
                     </thead>
@@ -285,8 +285,8 @@
                             <td>{{ row.needed_date }}</td>
                             <td>{{ row.outlet }}</td>
                             <td>{{ row.item_name }}</td>
-                            <td>{{ row.assigned_to or 'Unassigned' }}</td>
-                            <td>{{ row.notes or '—' }}</td>
+                            <td>{{ row.made_by or 'No one' }}</td>
+                            <td>{{ row.production_notes or row.notes or '—' }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>

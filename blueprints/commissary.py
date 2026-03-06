@@ -102,7 +102,11 @@ def build_weekly_review_context(cur, week_start, week_end, selected_outlet=''):
                         'quantity': entry.get('quantity'),
                         'quantity_unit': entry.get('quantity_unit') or 'each',
                         'assigned_to': entry.get('assigned_to') or '',
+                        'made_by': entry.get('made_by') or '',
+                        'tasted_by': entry.get('tasted_by') or '',
+                        'production_notes': entry.get('production_notes') or '',
                         'signed_off': bool(entry.get('signed_off')),
+                        'signed_off_by': entry.get('signed_off_by') or '',
                         'prep_day_label': entry.get('prep_day_label') or '',
                         'notes': entry.get('notes') or '',
                     }
@@ -124,6 +128,9 @@ def build_weekly_review_context(cur, week_start, week_end, selected_outlet=''):
                     'outlet': outlet_name,
                     'item_name': row.get('item_name'),
                     'assigned_to': row.get('assigned_to') or '',
+                    'made_by': row.get('made_by') or '',
+                    'tasted_by': row.get('tasted_by') or '',
+                    'production_notes': row.get('production_notes') or '',
                     'notes': row.get('notes') or '',
                     'prep_day_label': row.get('prep_day_label') or '',
                 }
@@ -1899,10 +1906,14 @@ def commissary_review_pdf(week_start):
             qty = format_number(row.get('quantity'))
             unit = row.get('quantity_unit') or 'each'
             status_text = 'signed' if row.get('signed_off') else 'pending'
-            day_label = f" ({row.get('prep_day_label')})" if row.get('prep_day_label') else ''
+            made_by = row.get('made_by') or 'n/a'
+            tasted_by = row.get('tasted_by') or 'n/a'
+            prod_notes = row.get('production_notes') or ''
             line(
-                f"- {row.get('production_date')} | {row.get('outlet')} | {row.get('item_name')} | {qty} {unit}{day_label} | {status_text}"
+                f"- {row.get('production_date')} | {row.get('item_name')} | {qty} {unit} | Made: {made_by} | Tasted: {tasted_by} | {status_text}"
             )
+            if prod_notes:
+                line(f"  Notes: {prod_notes}")
     else:
         line('- No production rows in this week.')
     y -= 4
@@ -1920,8 +1931,11 @@ def commissary_review_pdf(week_start):
     line('Issues / Flags', size=12, gap=16)
     if review.get('incomplete_lines'):
         for line_row in review.get('incomplete_lines')[:40]:
+            prod_notes = line_row.get('production_notes') or line_row.get('notes') or ''
+            made_by = line_row.get('made_by') or 'no one'
+            notes_suffix = f" - {prod_notes}" if prod_notes else ''
             line(
-                f"- {line_row.get('needed_date')} | {line_row.get('outlet')} | {line_row.get('item_name')} (assigned: {line_row.get('assigned_to') or 'unassigned'})"
+                f"- {line_row.get('needed_date')} | {line_row.get('item_name')} | Made by: {made_by}{notes_suffix}"
             )
     else:
         line('- No unsigned production lines.')
