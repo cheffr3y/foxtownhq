@@ -7,9 +7,11 @@ from flask import Blueprint, Response, flash, jsonify, redirect, render_template
 from flask_login import current_user, login_required
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import inch
-from reportlab.platypus import Table, TableStyle
+from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 from reportlab.pdfgen import canvas
+from xml.sax.saxutils import escape
 
 from helpers.commissary import (
     COMMISSARY_SOURCE_CHOICES,
@@ -1876,6 +1878,9 @@ def commissary_review_pdf(week_start):
     border_gray = colors.HexColor('#DDDDDD')
     muted_text = colors.HexColor('#4F5B6E')
     white = colors.white
+    margin_x = 0.5 * inch
+    margin_y = 0.4 * inch
+    generated_at = datetime.now().strftime('%b %d, %Y %I:%M %p')
 
     def fmt_date(value):
         if not value:
@@ -1893,20 +1898,86 @@ def commissary_review_pdf(week_start):
         except ValueError:
             return raw
 
-    def ellipsize(value, max_len):
+    def to_text(value, default='-'):
         text = str(value or '').strip()
-        if len(text) <= max_len:
-            return text
-        return f"{text[: max_len - 3].rstrip()}..."
+        return text or default
 
-    def safe_person(value):
-        text = str(value or '').strip()
-        return text or '-'
+    def shorten(value, limit):
+        text = to_text(value, default='')
+        if len(text) <= limit:
+            return text
+        return f"{text[: limit - 3].rstrip()}..."
+
+    def html_text(value, default='-'):
+        return escape(to_text(value, default)).replace('\n', '<br/>')
 
     def qty_label(row):
         qty = format_number(row.get('quantity'))
         unit = (row.get('quantity_unit') or 'each').strip() or 'each'
         return f'{qty} {unit}'
+
+    base_style = ParagraphStyle(
+        'pdf-base',
+        fontName='Helvetica',
+        fontSize=8.5,
+        leading=10.2,
+        textColor=colors.black,
+    )
+    table_header_style = ParagraphStyle(
+        'pdf-table-header',
+        parent=base_style,
+        fontName='Helvetica-Bold',
+        textColor=white,
+        fontSize=8.4,
+        leading=9.8,
+    )
+    section_title_style = ParagraphStyle(
+        'pdf-section-title',
+        parent=base_style,
+        fontName='Helvetica-Bold',
+        fontSize=11,
+        leading=13,
+        textColor=header_navy,
+        spaceAfter=4,
+    )
+    subtle_note_style = ParagraphStyle(
+        'pdf-subtle-note',
+        parent=base_style,
+        fontSize=8.2,
+        textColor=muted_text,
+    )
+    badge_style = ParagraphStyle(
+        'pdf-badge',
+        parent=base_style,
+        fontName='Helvetica-Bold',
+        fontSize=9,
+        textColor=good_green,
+    )
+    date_divider_style = ParagraphStyle(
+        'pdf-date-divider',
+        parent=base_style,
+        fontName='Helvetica-Bold',
+        textColor=header_navy,
+        fontSize=8.8,
+    )
+
+    def p(value, style=base_style, default='-'):
+        return Paragraph(html_text(value, default), style)
+
+    def status_p(is_signed):
+        if is_signed:
+            return Paragraph('<font color="#2E7D32"><b>Signed</b></font>', base_style)
+        return Paragraph('<font color="#D4432A"><b>Pending</b></font>', base_style)
+
+    def draw_footer(pdf_canvas, page_num, total_pages):
+        page_width, _ = letter
+        pdf_canvas.setStrokeColor(border_gray)
+        pdf_canvas.setLineWidth(0.6)
+        pdf_canvas.line(margin_x, margin_y + 11, page_width - margin_x, margin_y + 11)
+        pdf_canvas.setFont('Helvetica', 8)
+        pdf_canvas.setFillColor(muted_text)
+        pdf_canvas.drawString(margin_x, margin_y + 2, 'Foxtown HQ - Commissary Weekly Review')
+        pdf_canvas.drawRightString(page_width - margin_x, margin_y + 2, f'Page {page_num} of {total_pages}')
 
     class NumberedCanvas(canvas.Canvas):
         def __init__(self, *args, **kwargs):
@@ -1921,170 +1992,326 @@ def commissary_review_pdf(week_start):
             total_pages = len(self._saved_page_states)
             for page_num, state in enumerate(self._saved_page_states, start=1):
                 self.__dict__.update(state)
-                self.draw_footer(page_num, total_pages)
+                draw_footer(self, page_num, total_pages)
                 super().showPage()
             super().save()
 
-        def draw_footer(self, page_num, total_pages):
-            self.setStrokeColor(border_gray)
-            self.setLineWidth(0.6)
-            self.line(margin_x, margin_bottom + 12, page_width - margin_x, margin_bottom + 12)
-            self.setFont('Helvetica', 8)
-            self.setFillColor(muted_text)
-            self.drawString(margin_x, margin_bottom + 2, 'Foxtown HQ - Commissary Weekly Review')
-            self.drawRightString(page_width - margin_x, margin_bottom + 2, f'Page {page_num} of {total_pages}')
+    def draw_first_page_header(pdf_canvas, doc):
+        page_width, page_height = letter
+        content_w = page_width - (doc.leftMargin + doc.rightMargin)
+        top_y = page_height - doc.topMargin
+        banner_h = 84
+        banner_bottom = top_y - banner_h
+
+        pdf_canvas.saveState()
+        pdf_canvas.setFillColor(header_navy)
+        pdf_canvas.rect(doc.leftMargin, banner_bottom, content_w, banner_h, stroke=0, fill=1)
+
+        pdf_canvas.setFillColor(white)
+        pdf_canvas.setFont('Helvetica-Bold', 16)
+        pdf_canvas.drawString(doc.leftMargin + 12, top_y - 27, 'FOXTOWN HQ')
+        pdf_canvas.setFont('Helvetica', 10)
+        pdf_canvas.drawString(doc.leftMargin + 12, top_y - 43, 'Commissary Weekly Review')
+
+        pdf_canvas.setFont('Helvetica-Bold', 9)
+        pdf_canvas.drawRightString(
+            page_width - doc.rightMargin - 12,
+            top_y - 23,
+            f'Week: {fmt_date(week_start_date)} - {fmt_date(week_end_date)}',
+        )
+        pdf_canvas.setFont('Helvetica', 8)
+        pdf_canvas.drawRightString(page_width - doc.rightMargin - 12, top_y - 38, f'Generated: {generated_at}')
+
+        if selected_outlet:
+            tag = shorten(selected_outlet, 38)
+            badge_text = f'Outlet: {tag}'
+            badge_w = min(220, max(90, (len(badge_text) * 4.35) + 14))
+            badge_x = page_width - doc.rightMargin - 12
+            badge_y = top_y - 61
+            pdf_canvas.setFillColor(colors.HexColor('#32466E'))
+            pdf_canvas.roundRect(badge_x - badge_w, badge_y - 8.5, badge_w, 15.5, 7, stroke=0, fill=1)
+            pdf_canvas.setFillColor(white)
+            pdf_canvas.setFont('Helvetica-Bold', 7.4)
+            pdf_canvas.drawRightString(badge_x - 6, badge_y - 3.8, badge_text)
+
+        kpi_y = banner_bottom - 9
+        card_h = 66
+        card_gap = 8
+        card_w = (content_w - (card_gap * 3)) / 4.0
+        completion_rate = float(review.get('completion_rate') or 0)
+        if completion_rate >= 90:
+            completion_color = good_green
+        elif completion_rate >= 70:
+            completion_color = warn_amber
+        else:
+            completion_color = alert_red
+        kpis = [
+            (format_number(review.get('total_lines') or 0), 'Total Production Lines', header_navy),
+            (format_number(review.get('signed_off_lines') or 0), 'Signed Off', header_navy),
+            (f"{format_number(completion_rate)}%", 'Completion Rate', completion_color),
+            (format_number(len(review.get('transfers') or [])), 'Transfers Logged', header_navy),
+        ]
+        for idx, (value, label, value_color) in enumerate(kpis):
+            card_x = doc.leftMargin + (idx * (card_w + card_gap))
+            card_y = kpi_y - card_h
+            pdf_canvas.setFillColor(light_gray)
+            pdf_canvas.roundRect(card_x, card_y, card_w, card_h, 6, stroke=0, fill=1)
+            pdf_canvas.setStrokeColor(border_gray)
+            pdf_canvas.setLineWidth(0.55)
+            pdf_canvas.roundRect(card_x, card_y, card_w, card_h, 6, stroke=1, fill=0)
+            pdf_canvas.setFillColor(value_color)
+            pdf_canvas.setFont('Helvetica-Bold', 18)
+            pdf_canvas.drawString(card_x + 9, card_y + 37, str(value))
+            pdf_canvas.setFillColor(muted_text)
+            pdf_canvas.setFont('Helvetica', 8.2)
+            pdf_canvas.drawString(card_x + 9, card_y + 20, label)
+
+        pdf_canvas.restoreState()
+
+    def draw_later_pages(pdf_canvas, _doc):
+        pdf_canvas.saveState()
+        pdf_canvas.restoreState()
 
     buffer = io.BytesIO()
-    page_width, page_height = letter
-    margin_x = 0.5 * inch
-    margin_top = 0.4 * inch
-    margin_bottom = 0.4 * inch
-    content_width = page_width - (margin_x * 2)
-    generated_at = datetime.now().strftime('%b %d, %Y %I:%M %p')
-    pdf = NumberedCanvas(buffer, pagesize=letter)
-    pdf.setTitle(f'Commissary Weekly Review {week_start_date.isoformat()}')
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=letter,
+        leftMargin=margin_x,
+        rightMargin=margin_x,
+        topMargin=margin_y,
+        bottomMargin=margin_y,
+        title=f'Commissary Weekly Review {week_start_date.isoformat()}',
+    )
+    content_width = doc.width
+    story = [Spacer(1, 172)]
 
-    # Page 1: Executive summary.
-    top_y = page_height - margin_top
-    banner_h = 86
-    banner_bottom = top_y - banner_h
-    pdf.setFillColor(header_navy)
-    pdf.rect(margin_x, banner_bottom, content_width, banner_h, stroke=0, fill=1)
-
-    pdf.setFillColor(white)
-    pdf.setFont('Helvetica-Bold', 16)
-    pdf.drawString(margin_x + 14, top_y - 28, 'FOXTOWN HQ')
-    pdf.setFont('Helvetica', 10)
-    pdf.drawString(margin_x + 14, top_y - 45, 'Commissary Weekly Review')
-
-    pdf.setFont('Helvetica-Bold', 9)
-    pdf.drawRightString(page_width - margin_x - 14, top_y - 24, f'Week: {fmt_date(week_start_date)} - {fmt_date(week_end_date)}')
-    pdf.setFont('Helvetica', 8)
-    pdf.drawRightString(page_width - margin_x - 14, top_y - 39, f'Generated: {generated_at}')
-
-    if selected_outlet:
-        badge_text = ellipsize(f'Outlet: {selected_outlet}', 42)
-        badge_x = page_width - margin_x - 14
-        badge_w = max(96, len(badge_text) * 4.2 + 14)
-        badge_y = top_y - 62
-        pdf.setFillColor(colors.HexColor('#32466E'))
-        pdf.roundRect(badge_x - badge_w, badge_y - 9, badge_w, 16, 8, stroke=0, fill=1)
-        pdf.setFillColor(white)
-        pdf.setFont('Helvetica-Bold', 7.5)
-        pdf.drawRightString(badge_x - 7, badge_y - 4, badge_text)
-
-    kpi_top = banner_bottom - 10
-    card_gap = 8
-    card_h = 68
-    card_w = (content_width - (card_gap * 3)) / 4.0
-    completion_rate = float(review.get('completion_rate') or 0)
-    if completion_rate >= 90:
-        completion_color = good_green
-    elif completion_rate >= 70:
-        completion_color = warn_amber
-    else:
-        completion_color = alert_red
-
-    kpis = [
-        (format_number(review.get('total_lines') or 0), 'Total Production Lines', header_navy),
-        (format_number(review.get('signed_off_lines') or 0), 'Signed Off', header_navy),
-        (f"{format_number(completion_rate)}%", 'Completion Rate', completion_color),
-        (format_number(len(review.get('transfers') or [])), 'Transfers Logged', header_navy),
-    ]
-    for idx, (value, label, value_color) in enumerate(kpis):
-        card_x = margin_x + (idx * (card_w + card_gap))
-        card_y = kpi_top - card_h
-        pdf.setFillColor(light_gray)
-        pdf.roundRect(card_x, card_y, card_w, card_h, 7, stroke=0, fill=1)
-        pdf.setStrokeColor(border_gray)
-        pdf.setLineWidth(0.6)
-        pdf.roundRect(card_x, card_y, card_w, card_h, 7, stroke=1, fill=0)
-        pdf.setFillColor(value_color)
-        pdf.setFont('Helvetica-Bold', 18)
-        pdf.drawString(card_x + 10, card_y + 38, str(value))
-        pdf.setFillColor(muted_text)
-        pdf.setFont('Helvetica', 8.3)
-        pdf.drawString(card_x + 10, card_y + 21, label)
-
-    section_y = kpi_top - card_h - 16
-    pdf.setFillColor(header_navy)
-    pdf.setFont('Helvetica-Bold', 11)
-    pdf.drawString(margin_x, section_y, 'Items by Outlet')
-    section_y -= 8
-
+    story.append(Paragraph('Items by Outlet', section_title_style))
     outlet_rows = review.get('items_by_outlet') or []
     total_lines = float(review.get('total_lines') or 0)
-    outlet_table_data = [['Outlet', 'Lines', 'Share']]
+    outlet_data = [
+        [Paragraph('Outlet', table_header_style), Paragraph('Lines', table_header_style), Paragraph('Share', table_header_style)]
+    ]
     if outlet_rows:
-        for outlet in outlet_rows[:8]:
-            line_count = int(outlet.get('line_count') or 0)
-            share = (line_count / total_lines * 100) if total_lines else 0
-            outlet_table_data.append(
+        for outlet_row in outlet_rows[:8]:
+            line_count = int(outlet_row.get('line_count') or 0)
+            share_pct = (line_count / total_lines * 100) if total_lines else 0
+            outlet_data.append(
                 [
-                    ellipsize(outlet.get('outlet') or '-', 34),
-                    format_number(line_count),
-                    f"{format_number(round(share, 1))}%",
+                    p(outlet_row.get('outlet') or '-'),
+                    p(format_number(line_count)),
+                    p(f"{format_number(round(share_pct, 1))}%"),
                 ]
             )
     else:
-        outlet_table_data.append(['No outlet production lines this week.', '-', '-'])
-    outlet_table = Table(outlet_table_data, colWidths=[content_width * 0.56, content_width * 0.2, content_width * 0.24])
+        outlet_data.append([p('No outlet production lines this week.', default=''), p('-', default='-'), p('-', default='-')])
+    outlet_table = Table(
+        outlet_data,
+        colWidths=[content_width * 0.56, content_width * 0.2, content_width * 0.24],
+        repeatRows=1,
+    )
     outlet_table.setStyle(
         TableStyle(
             [
                 ('BACKGROUND', (0, 0), (-1, 0), header_navy),
                 ('TEXTCOLOR', (0, 0), (-1, 0), white),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, -1), 8.5),
-                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-                ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
+                ('ALIGN', (1, 1), (-1, -1), 'RIGHT'),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                 ('ROWBACKGROUNDS', (0, 1), (-1, -1), [white, light_gray]),
                 ('GRID', (0, 0), (-1, -1), 0.4, border_gray),
-                ('LEFTPADDING', (0, 0), (-1, -1), 6),
-                ('RIGHTPADDING', (0, 0), (-1, -1), 6),
-                ('TOPPADDING', (0, 0), (-1, -1), 5),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+                ('LEFTPADDING', (0, 0), (-1, -1), 5),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 5),
+                ('TOPPADDING', (0, 0), (-1, -1), 4),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
             ]
         )
     )
-    _, outlet_h = outlet_table.wrapOn(pdf, content_width, page_height)
-    outlet_table.drawOn(pdf, margin_x, section_y - outlet_h)
-    section_y = section_y - outlet_h - 18
+    story.append(outlet_table)
+    story.append(Spacer(1, 12))
 
-    pdf.setFillColor(header_navy)
-    pdf.setFont('Helvetica-Bold', 11)
-    pdf.drawString(margin_x, section_y, 'Issues / Flags')
-    section_y -= 8
-
+    story.append(Paragraph('Issues / Flags', section_title_style))
     incomplete_rows = review.get('incomplete_lines') or []
     if incomplete_rows:
         issue_rows = incomplete_rows[:15]
-        issue_table_data = [['Date', 'Item', 'Outlet', 'Made By', 'Notes']]
+        issue_data = [
+            [
+                Paragraph('Date', table_header_style),
+                Paragraph('Item', table_header_style),
+                Paragraph('Outlet', table_header_style),
+                Paragraph('Made By', table_header_style),
+                Paragraph('Notes', table_header_style),
+            ]
+        ]
         for row in issue_rows:
-            notes = row.get('production_notes') or row.get('notes') or ''
-            issue_table_data.append(
+            notes = shorten(row.get('production_notes') or row.get('notes') or '-', 140)
+            issue_data.append(
                 [
-                    fmt_date(row.get('needed_date')),
-                    ellipsize(row.get('item_name') or 'Item', 30),
-                    ellipsize(row.get('outlet') or '-', 16),
-                    ellipsize(row.get('made_by') or row.get('assigned_to') or '-', 16),
-                    ellipsize(notes, 42) or '-',
+                    p(fmt_date(row.get('needed_date'))),
+                    p(row.get('item_name') or 'Item'),
+                    p(row.get('outlet') or '-'),
+                    p(row.get('made_by') or row.get('assigned_to') or '-'),
+                    p(notes),
                 ]
             )
         issue_table = Table(
-            issue_table_data,
-            colWidths=[content_width * 0.14, content_width * 0.28, content_width * 0.16, content_width * 0.16, content_width * 0.26],
+            issue_data,
+            colWidths=[content_width * 0.14, content_width * 0.27, content_width * 0.16, content_width * 0.16, content_width * 0.27],
+            repeatRows=1,
         )
         issue_table.setStyle(
             TableStyle(
                 [
                     ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#FDEAE7')),
                     ('TEXTCOLOR', (0, 0), (-1, 0), alert_red),
-                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                    ('FONTSIZE', (0, 0), (-1, -1), 8),
-                    ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                    ('VALIGN', (0, 0), (-1, -1), 'TOP'),
                     ('ROWBACKGROUNDS', (0, 1), (-1, -1), [white, light_gray]),
                     ('GRID', (0, 0), (-1, -1), 0.4, border_gray),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 5),
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 5),
+                    ('TOPPADDING', (0, 0), (-1, -1), 3.5),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 3.5),
+                ]
+            )
+        )
+        story.append(issue_table)
+        remaining_count = len(incomplete_rows) - len(issue_rows)
+        if remaining_count > 0:
+            story.append(Spacer(1, 4))
+            story.append(
+                Paragraph(
+                    f'<font color="#D4432A"><b>and {format_number(remaining_count)} more pending sign-off items...</b></font>',
+                    subtle_note_style,
+                )
+            )
+    else:
+        badge = Table([[Paragraph('All items signed off', badge_style)]], colWidths=[2.3 * inch])
+        badge.setStyle(
+            TableStyle(
+                [
+                    ('BACKGROUND', (0, 0), (0, 0), colors.HexColor('#E7F4EA')),
+                    ('BOX', (0, 0), (0, 0), 0.4, colors.HexColor('#C2E0C7')),
+                    ('LEFTPADDING', (0, 0), (0, 0), 10),
+                    ('RIGHTPADDING', (0, 0), (0, 0), 10),
+                    ('TOPPADDING', (0, 0), (0, 0), 5),
+                    ('BOTTOMPADDING', (0, 0), (0, 0), 5),
+                ]
+            )
+        )
+        story.append(badge)
+
+    daily_rows = review.get('daily_rows') or []
+    transfers = review.get('transfers') or []
+    if daily_rows or transfers:
+        story.append(PageBreak())
+
+    if daily_rows:
+        story.append(Paragraph('Daily Production Detail', section_title_style))
+        daily_data = [
+            [
+                Paragraph('Date', table_header_style),
+                Paragraph('Item', table_header_style),
+                Paragraph('Qty', table_header_style),
+                Paragraph('Made By', table_header_style),
+                Paragraph('Tasted By', table_header_style),
+                Paragraph('Status', table_header_style),
+                Paragraph('Notes', table_header_style),
+            ]
+        ]
+        daily_styles = [
+            ('BACKGROUND', (0, 0), (-1, 0), header_navy),
+            ('TEXTCOLOR', (0, 0), (-1, 0), white),
+            ('GRID', (0, 0), (-1, -1), 0.35, border_gray),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 4),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+            ('TOPPADDING', (0, 0), (-1, -1), 3.5),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3.5),
+        ]
+        current_date = None
+        table_row_index = 1
+        zebra = False
+        for row in daily_rows:
+            row_date = row.get('production_date')
+            if row_date != current_date:
+                current_date = row_date
+                daily_data.append(
+                    [
+                        Paragraph(html_text(fmt_date(row_date)), date_divider_style),
+                        Paragraph('', base_style),
+                        Paragraph('', base_style),
+                        Paragraph('', base_style),
+                        Paragraph('', base_style),
+                        Paragraph('', base_style),
+                        Paragraph('', base_style),
+                    ]
+                )
+                daily_styles.extend(
+                    [
+                        ('SPAN', (0, table_row_index), (-1, table_row_index)),
+                        ('BACKGROUND', (0, table_row_index), (-1, table_row_index), colors.HexColor('#EBEEF4')),
+                    ]
+                )
+                table_row_index += 1
+
+            notes = row.get('production_notes') or row.get('notes') or '-'
+            daily_data.append(
+                [
+                    p(fmt_date(row.get('production_date'))),
+                    p(row.get('item_name') or 'Item'),
+                    p(qty_label(row)),
+                    p(row.get('made_by') or '-'),
+                    p(row.get('tasted_by') or '-'),
+                    status_p(bool(row.get('signed_off'))),
+                    p(notes),
+                ]
+            )
+            if zebra:
+                daily_styles.append(('BACKGROUND', (0, table_row_index), (-1, table_row_index), light_gray))
+            zebra = not zebra
+            table_row_index += 1
+
+        daily_table = Table(
+            daily_data,
+            colWidths=[0.88 * inch, 1.75 * inch, 0.58 * inch, 0.82 * inch, 0.82 * inch, 0.63 * inch, 2.02 * inch],
+            repeatRows=1,
+        )
+        daily_table.setStyle(TableStyle(daily_styles))
+        story.append(daily_table)
+
+    if transfers:
+        if daily_rows:
+            story.append(Spacer(1, 12))
+        story.append(Paragraph('Transfers', section_title_style))
+        transfer_data = [
+            [
+                Paragraph('Date', table_header_style),
+                Paragraph('To Outlet', table_header_style),
+                Paragraph('Items', table_header_style),
+                Paragraph('Method', table_header_style),
+            ]
+        ]
+        for transfer in transfers:
+            transfer_data.append(
+                [
+                    p(fmt_date(transfer.get('production_date'))),
+                    p(transfer.get('to_outlet') or '-'),
+                    p(format_number(transfer.get('line_count') or 0)),
+                    p(transfer.get('transfer_method') or '-'),
+                ]
+            )
+        transfer_table = Table(
+            transfer_data,
+            colWidths=[1.0 * inch, 3.0 * inch, 0.8 * inch, 2.7 * inch],
+            repeatRows=1,
+        )
+        transfer_table.setStyle(
+            TableStyle(
+                [
+                    ('BACKGROUND', (0, 0), (-1, 0), header_navy),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), white),
+                    ('ALIGN', (2, 1), (2, -1), 'RIGHT'),
+                    ('ROWBACKGROUNDS', (0, 1), (-1, -1), [white, light_gray]),
+                    ('GRID', (0, 0), (-1, -1), 0.35, border_gray),
+                    ('VALIGN', (0, 0), (-1, -1), 'TOP'),
                     ('LEFTPADDING', (0, 0), (-1, -1), 5),
                     ('RIGHTPADDING', (0, 0), (-1, -1), 5),
                     ('TOPPADDING', (0, 0), (-1, -1), 4),
@@ -2092,179 +2319,9 @@ def commissary_review_pdf(week_start):
                 ]
             )
         )
-        _, issue_h = issue_table.wrapOn(pdf, content_width, page_height)
-        issue_table.drawOn(pdf, margin_x, section_y - issue_h)
-        section_y -= issue_h + 4
-        remaining = len(incomplete_rows) - len(issue_rows)
-        if remaining > 0:
-            pdf.setFillColor(alert_red)
-            pdf.setFont('Helvetica-Bold', 8.5)
-            pdf.drawString(margin_x, section_y - 8, f'and {format_number(remaining)} more pending sign-off items...')
-    else:
-        badge_h = 20
-        badge_w = 190
-        pdf.setFillColor(colors.HexColor('#E7F4EA'))
-        pdf.roundRect(margin_x, section_y - badge_h - 2, badge_w, badge_h, 8, stroke=0, fill=1)
-        pdf.setFillColor(good_green)
-        pdf.setFont('Helvetica-Bold', 9)
-        pdf.drawString(margin_x + 10, section_y - 15, 'All items signed off')
+        story.append(transfer_table)
 
-    pdf.showPage()
-
-    # Page 2+: Daily production detail, auto-paginated.
-    daily_rows = review.get('daily_rows') or []
-    if daily_rows:
-        details = []
-        current_date = None
-        for row in daily_rows:
-            row_date = row.get('production_date')
-            if row_date != current_date:
-                current_date = row_date
-                details.append({'type': 'date', 'label': fmt_date(row_date)})
-            details.append({'type': 'item', 'row': row})
-
-        top_section_y = page_height - margin_top - 18
-        table_top_y = top_section_y - 12
-        max_table_h = table_top_y - (margin_bottom + 20)
-        header_height = 18
-
-        chunks = []
-        current_chunk = []
-        current_h = header_height
-        for entry in details:
-            entry_h = 17 if entry.get('type') == 'date' else 16
-            if current_chunk and (current_h + entry_h) > max_table_h:
-                chunks.append(current_chunk)
-                current_chunk = []
-                current_h = header_height
-            current_chunk.append(entry)
-            current_h += entry_h
-        if current_chunk:
-            chunks.append(current_chunk)
-
-        for idx, chunk in enumerate(chunks):
-            pdf.setFillColor(header_navy)
-            pdf.setFont('Helvetica-Bold', 12)
-            title = 'Daily Production Detail' if idx == 0 else 'Daily Production Detail (cont.)'
-            pdf.drawString(margin_x, top_section_y, title)
-
-            data = [['Date', 'Item', 'Qty', 'Made By', 'Tasted By', 'Status', 'Notes']]
-            styles = [
-                ('BACKGROUND', (0, 0), (-1, 0), header_navy),
-                ('TEXTCOLOR', (0, 0), (-1, 0), white),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, -1), 8),
-                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-                ('GRID', (0, 0), (-1, -1), 0.35, border_gray),
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ('LEFTPADDING', (0, 0), (-1, -1), 4),
-                ('RIGHTPADDING', (0, 0), (-1, -1), 4),
-                ('TOPPADDING', (0, 0), (-1, -1), 4),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-            ]
-            shade_toggle = False
-            table_row = 1
-            for entry in chunk:
-                if entry.get('type') == 'date':
-                    data.append([entry.get('label') or '-', '', '', '', '', '', ''])
-                    styles.extend(
-                        [
-                            ('SPAN', (0, table_row), (-1, table_row)),
-                            ('BACKGROUND', (0, table_row), (-1, table_row), colors.HexColor('#EBEEF4')),
-                            ('TEXTCOLOR', (0, table_row), (-1, table_row), header_navy),
-                            ('FONTNAME', (0, table_row), (-1, table_row), 'Helvetica-Bold'),
-                        ]
-                    )
-                else:
-                    row = entry.get('row') or {}
-                    notes_text = row.get('production_notes') or row.get('notes') or ''
-                    is_signed = bool(row.get('signed_off'))
-                    status = 'o Signed' if is_signed else 'o Pending'
-                    data.append(
-                        [
-                            fmt_date(row.get('production_date')),
-                            ellipsize(row.get('item_name') or 'Item', 35),
-                            ellipsize(qty_label(row), 12),
-                            ellipsize(safe_person(row.get('made_by')), 18),
-                            ellipsize(safe_person(row.get('tasted_by')), 18),
-                            status,
-                            ellipsize(notes_text, 56) or '-',
-                        ]
-                    )
-                    if shade_toggle:
-                        styles.append(('BACKGROUND', (0, table_row), (-1, table_row), light_gray))
-                    styles.append(('TEXTCOLOR', (5, table_row), (5, table_row), good_green if is_signed else alert_red))
-                    styles.append(('FONTNAME', (5, table_row), (5, table_row), 'Helvetica-Bold'))
-                    shade_toggle = not shade_toggle
-                table_row += 1
-
-            detail_table = Table(
-                data,
-                colWidths=[
-                    content_width * 0.12,
-                    content_width * 0.28,
-                    content_width * 0.09,
-                    content_width * 0.14,
-                    content_width * 0.14,
-                    content_width * 0.11,
-                    content_width * 0.12,
-                ],
-            )
-            detail_table.setStyle(TableStyle(styles))
-            _, table_h = detail_table.wrapOn(pdf, content_width, max_table_h)
-            detail_table.drawOn(pdf, margin_x, table_top_y - table_h)
-            pdf.showPage()
-
-    transfers = review.get('transfers') or []
-    if transfers:
-        top_section_y = page_height - margin_top - 18
-        table_top_y = top_section_y - 12
-        max_table_h = table_top_y - (margin_bottom + 20)
-        rows_per_page = 27
-        for idx in range(0, len(transfers), rows_per_page):
-            chunk = transfers[idx : idx + rows_per_page]
-            pdf.setFillColor(header_navy)
-            pdf.setFont('Helvetica-Bold', 12)
-            title = 'Transfers' if idx == 0 else 'Transfers (cont.)'
-            pdf.drawString(margin_x, top_section_y, title)
-
-            transfer_data = [['Date', 'To Outlet', 'Items', 'Method']]
-            for row in chunk:
-                transfer_data.append(
-                    [
-                        fmt_date(row.get('production_date')),
-                        ellipsize(row.get('to_outlet') or '-', 34),
-                        format_number(row.get('line_count') or 0),
-                        ellipsize(row.get('transfer_method') or '-', 24),
-                    ]
-                )
-            transfer_table = Table(
-                transfer_data,
-                colWidths=[content_width * 0.2, content_width * 0.42, content_width * 0.14, content_width * 0.24],
-            )
-            transfer_table.setStyle(
-                TableStyle(
-                    [
-                        ('BACKGROUND', (0, 0), (-1, 0), header_navy),
-                        ('TEXTCOLOR', (0, 0), (-1, 0), white),
-                        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                        ('FONTSIZE', (0, 0), (-1, -1), 8.5),
-                        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-                        ('ALIGN', (2, 0), (2, -1), 'RIGHT'),
-                        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [white, light_gray]),
-                        ('GRID', (0, 0), (-1, -1), 0.35, border_gray),
-                        ('LEFTPADDING', (0, 0), (-1, -1), 5),
-                        ('RIGHTPADDING', (0, 0), (-1, -1), 5),
-                        ('TOPPADDING', (0, 0), (-1, -1), 5),
-                        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
-                    ]
-                )
-            )
-            _, transfer_h = transfer_table.wrapOn(pdf, content_width, max_table_h)
-            transfer_table.drawOn(pdf, margin_x, table_top_y - transfer_h)
-            pdf.showPage()
-
-    pdf.save()
+    doc.build(story, onFirstPage=draw_first_page_header, onLaterPages=draw_later_pages, canvasmaker=NumberedCanvas)
     payload = buffer.getvalue()
     buffer.close()
 
