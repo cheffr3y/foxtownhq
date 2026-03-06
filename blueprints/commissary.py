@@ -1,4 +1,5 @@
 import io
+import traceback
 from datetime import date, datetime, timedelta
 
 from db import get_cursor, get_db
@@ -35,6 +36,7 @@ bp = Blueprint('commissary', __name__)
 
 @bp.errorhandler(Exception)
 def handle_commissary_error(error):
+    traceback.print_exc()
     return handle_route_error(error, 'commissary')
 
 
@@ -275,66 +277,149 @@ def upsert_commissary_line_production_log(cur, line_id, production_date, payload
         if not cur.fetchone():
             return False
 
-    cur.execute(
-        """
-        INSERT INTO commissary_production_logs (
-            line_id,
-            production_date,
-            assigned_to,
-            made_by,
-            tasted_by,
-            signed_off,
-            signed_off_by,
-            production_notes,
-            actual_yield,
-            actual_yield_unit,
-            signed_off_at,
-            updated_at
+    try:
+        cur.execute(
+            """
+            INSERT INTO commissary_production_logs (
+                line_id,
+                production_date,
+                assigned_to,
+                made_by,
+                tasted_by,
+                signed_off,
+                signed_off_by,
+                production_notes,
+                actual_yield,
+                actual_yield_unit,
+                signed_off_at,
+                updated_at
+            )
+            VALUES (
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                CASE WHEN %s THEN CURRENT_TIMESTAMP ELSE NULL END,
+                CURRENT_TIMESTAMP
+            )
+            ON CONFLICT (line_id, production_date)
+            DO UPDATE SET
+                assigned_to = EXCLUDED.assigned_to,
+                made_by = EXCLUDED.made_by,
+                tasted_by = EXCLUDED.tasted_by,
+                signed_off = EXCLUDED.signed_off,
+                signed_off_by = EXCLUDED.signed_off_by,
+                production_notes = EXCLUDED.production_notes,
+                actual_yield = EXCLUDED.actual_yield,
+                actual_yield_unit = EXCLUDED.actual_yield_unit,
+                signed_off_at = CASE
+                    WHEN EXCLUDED.signed_off THEN COALESCE(commissary_production_logs.signed_off_at, CURRENT_TIMESTAMP)
+                    ELSE NULL
+                END,
+                updated_at = CURRENT_TIMESTAMP
+        """,
+            (
+                line_id,
+                production_date,
+                assigned_to or None,
+                made_by or None,
+                tasted_by or None,
+                signed_off,
+                signed_off_by or None,
+                production_notes or None,
+                actual_yield or None,
+                actual_yield_unit or None,
+                signed_off,
+            ),
         )
-        VALUES (
-            %s,
-            %s,
-            %s,
-            %s,
-            %s,
-            %s,
-            %s,
-            %s,
-            %s,
-            %s,
-            CASE WHEN %s THEN CURRENT_TIMESTAMP ELSE NULL END,
-            CURRENT_TIMESTAMP
+    except Exception as exc:
+        traceback.print_exc()
+        print(f"commissary upsert ON CONFLICT fallback triggered: {type(exc).__name__}: {exc}")
+        cur.execute(
+            """
+            UPDATE commissary_production_logs
+            SET assigned_to = %s,
+                made_by = %s,
+                tasted_by = %s,
+                signed_off = %s,
+                signed_off_by = %s,
+                production_notes = %s,
+                actual_yield = %s,
+                actual_yield_unit = %s,
+                signed_off_at = CASE
+                    WHEN %s THEN COALESCE(signed_off_at, CURRENT_TIMESTAMP)
+                    ELSE NULL
+                END,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE line_id = %s
+              AND production_date = %s
+        """,
+            (
+                assigned_to or None,
+                made_by or None,
+                tasted_by or None,
+                signed_off,
+                signed_off_by or None,
+                production_notes or None,
+                actual_yield or None,
+                actual_yield_unit or None,
+                signed_off,
+                line_id,
+                production_date,
+            ),
         )
-        ON CONFLICT (line_id, production_date)
-        DO UPDATE SET
-            assigned_to = EXCLUDED.assigned_to,
-            made_by = EXCLUDED.made_by,
-            tasted_by = EXCLUDED.tasted_by,
-            signed_off = EXCLUDED.signed_off,
-            signed_off_by = EXCLUDED.signed_off_by,
-            production_notes = EXCLUDED.production_notes,
-            actual_yield = EXCLUDED.actual_yield,
-            actual_yield_unit = EXCLUDED.actual_yield_unit,
-            signed_off_at = CASE
-                WHEN EXCLUDED.signed_off THEN COALESCE(commissary_production_logs.signed_off_at, CURRENT_TIMESTAMP)
-                ELSE NULL
-            END,
-            updated_at = CURRENT_TIMESTAMP
-    """,
-        (
-            line_id,
-            production_date,
-            assigned_to or None,
-            made_by or None,
-            tasted_by or None,
-            signed_off,
-            signed_off_by or None,
-            production_notes or None,
-            actual_yield or None,
-            actual_yield_unit or None,
-            signed_off,
-        ),
-    )
+        if cur.rowcount == 0:
+            cur.execute(
+                """
+                INSERT INTO commissary_production_logs (
+                    line_id,
+                    production_date,
+                    assigned_to,
+                    made_by,
+                    tasted_by,
+                    signed_off,
+                    signed_off_by,
+                    production_notes,
+                    actual_yield,
+                    actual_yield_unit,
+                    signed_off_at,
+                    updated_at
+                )
+                VALUES (
+                    %s,
+                    %s,
+                    %s,
+                    %s,
+                    %s,
+                    %s,
+                    %s,
+                    %s,
+                    %s,
+                    %s,
+                    CASE WHEN %s THEN CURRENT_TIMESTAMP ELSE NULL END,
+                    CURRENT_TIMESTAMP
+                )
+            """,
+                (
+                    line_id,
+                    production_date,
+                    assigned_to or None,
+                    made_by or None,
+                    tasted_by or None,
+                    signed_off,
+                    signed_off_by or None,
+                    production_notes or None,
+                    actual_yield or None,
+                    actual_yield_unit or None,
+                    signed_off,
+                ),
+            )
     return True
 
 
@@ -578,9 +663,10 @@ def commissary_order_new():
                     conn.commit()
                     flash('Commissary order created.', 'success')
                     return redirect(url_for('commissary_order_edit', order_id=order_id))
-                except Exception:
+                except Exception as exc:
                     conn.rollback()
-                    flash('Error creating commissary order.', 'error')
+                    traceback.print_exc()
+                    flash(f'Error creating commissary order: {type(exc).__name__}: {exc}', 'error')
 
     return render_template(
         'commissary_order_form.html',
@@ -705,9 +791,10 @@ def commissary_order_edit(order_id):
                     conn.commit()
                     flash('Commissary order updated.', 'success')
                     return redirect(url_for('commissary_order_edit', order_id=order_id))
-                except Exception:
+                except Exception as exc:
                     conn.rollback()
-                    flash('Error updating commissary order.', 'error')
+                    traceback.print_exc()
+                    flash(f'Error updating commissary order: {type(exc).__name__}: {exc}', 'error')
                     order = {
                         **existing,
                         'outlet': outlet,
@@ -766,9 +853,10 @@ def commissary_order_delete(order_id):
             cur.execute("DELETE FROM commissary_orders WHERE id = %s", (order_id,))
             conn.commit()
             flash(f"Deleted commissary order for {order.get('outlet')} on {order.get('needed_date')}.", 'success')
-        except Exception:
+        except Exception as exc:
             conn.rollback()
-            flash('Error deleting commissary order.', 'error')
+            traceback.print_exc()
+            flash(f'Error deleting commissary order: {type(exc).__name__}: {exc}', 'error')
     return redirect(url_for('commissary_planner'))
 
 
@@ -833,11 +921,13 @@ def commissary_line_assignment_update(line_id):
             if is_ajax:
                 return jsonify({'ok': True, 'assigned_to': assigned_to or '', 'message': 'Cook assignment updated.'})
             flash('Cook assignment updated.', 'success')
-        except Exception:
+        except Exception as exc:
             conn.rollback()
+            traceback.print_exc()
+            error_detail = f'Could not update cook assignment: {type(exc).__name__}: {exc}'
             if is_ajax:
-                return jsonify({'ok': False, 'error': 'Could not update cook assignment.'}), 500
-            flash('Could not update cook assignment.', 'error')
+                return jsonify({'ok': False, 'error': error_detail}), 500
+            flash(error_detail, 'error')
 
         redirect_params = {
             'week_start': (request.form.get('week_start') or '').strip() or (production_date.isoformat() if production_date else ''),
@@ -961,11 +1051,13 @@ def commissary_production_log_update(line_id):
                 if not is_ajax:
                     flash('Production log cleared.', 'success')
             conn.commit()
-        except Exception:
+        except Exception as exc:
             conn.rollback()
+            traceback.print_exc()
+            error_detail = f'Could not save production log: {type(exc).__name__}: {exc}'
             if is_ajax:
-                return jsonify({'ok': False, 'error': 'Could not save production log.'}), 500
-            flash('Could not save production log.', 'error')
+                return jsonify({'ok': False, 'error': error_detail}), 500
+            flash(error_detail, 'error')
 
         redirect_params = {
             'week_start': week_start or (production_date.isoformat() if production_date else ''),
@@ -1048,11 +1140,13 @@ def commissary_production_log_bulk_signoff():
                     (line_id, selected_date, signed_off_by or None),
                 )
             conn.commit()
-        except Exception:
+        except Exception as exc:
             conn.rollback()
+            traceback.print_exc()
+            error_detail = f'Bulk sign-off failed: {type(exc).__name__}: {exc}'
             if is_ajax:
-                return jsonify({'ok': False, 'error': 'Bulk sign-off failed.'}), 500
-            flash('Bulk sign-off failed.', 'error')
+                return jsonify({'ok': False, 'error': error_detail}), 500
+            flash(error_detail, 'error')
             return redirect(
                 url_for(
                     'commissary_production_log',
@@ -1173,9 +1267,10 @@ def commissary_standing_prep():
                     conn.commit()
                     flash('Standing prep item added.', 'success')
                     return redirect(url_for('commissary_standing_prep'))
-                except Exception:
+                except Exception as exc:
                     conn.rollback()
-                    flash('Could not add standing prep item.', 'error')
+                    traceback.print_exc()
+                    flash(f'Could not add standing prep item: {type(exc).__name__}: {exc}', 'error')
 
         items = get_commissary_standing_items(cur, active_only=False)
 
@@ -1259,9 +1354,10 @@ def commissary_standing_prep_edit(item_id):
                     conn.commit()
                     flash('Standing prep item updated.', 'success')
                     return redirect(url_for('commissary_standing_prep'))
-                except Exception:
+                except Exception as exc:
                     conn.rollback()
-                    flash('Could not update standing prep item.', 'error')
+                    traceback.print_exc()
+                    flash(f'Could not update standing prep item: {type(exc).__name__}: {exc}', 'error')
 
         items = get_commissary_standing_items(cur, active_only=False)
 
@@ -1291,9 +1387,10 @@ def commissary_standing_prep_toggle(item_id):
                 (item_id,),
             )
             conn.commit()
-        except Exception:
+        except Exception as exc:
             conn.rollback()
-            flash('Could not update standing prep item state.', 'error')
+            traceback.print_exc()
+            flash(f'Could not update standing prep item state: {type(exc).__name__}: {exc}', 'error')
     return redirect(url_for('commissary_standing_prep'))
 
 
@@ -1447,9 +1544,10 @@ def commissary_transfers():
                     conn.commit()
                     flash('Transfer logged.', 'success')
                     return redirect(url_for('commissary_transfers'))
-                except Exception:
+                except Exception as exc:
                     conn.rollback()
-                    flash('Could not save transfer log.', 'error')
+                    traceback.print_exc()
+                    flash(f'Could not save transfer log: {type(exc).__name__}: {exc}', 'error')
 
         cur.execute(
             """

@@ -252,6 +252,29 @@ def ensure_commissary_tables(cur):
         "CREATE UNIQUE INDEX IF NOT EXISTS idx_comm_prod_logs_line_id_prod_date "
         "ON commissary_production_logs (line_id, production_date)"
     )
+    cur.execute(
+        """
+        SELECT 1
+        FROM pg_indexes
+        WHERE schemaname = CURRENT_SCHEMA()
+          AND indexname = 'idx_comm_prod_logs_line_id_prod_date'
+        LIMIT 1
+    """
+    )
+    if not cur.fetchone():
+        cur.execute(
+            """
+            DELETE FROM commissary_production_logs a
+            USING commissary_production_logs b
+            WHERE a.line_id = b.line_id
+              AND a.production_date = b.production_date
+              AND a.id < b.id
+        """
+        )
+        cur.execute(
+            "CREATE UNIQUE INDEX idx_comm_prod_logs_line_id_prod_date "
+            "ON commissary_production_logs (line_id, production_date)"
+        )
     cur.execute("CREATE INDEX IF NOT EXISTS idx_comm_prod_logs_order_id ON commissary_production_logs (order_id)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_comm_prod_logs_production_date ON commissary_production_logs (production_date)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_comm_prod_logs_assigned_to ON commissary_production_logs (assigned_to)")
