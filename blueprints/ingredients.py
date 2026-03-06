@@ -39,8 +39,11 @@ def ingredients():
         updated_at = ingredient.get('price_updated_at')
         age_days = None
         if updated_at:
-            if getattr(updated_at, 'tzinfo', None):
-                updated_at = updated_at.replace(tzinfo=None)
+            # Normalize DB timestamps to timezone-aware UTC before subtraction.
+            if getattr(updated_at, 'tzinfo', None) is None:
+                updated_at = updated_at.replace(tzinfo=timezone.utc)
+            else:
+                updated_at = updated_at.astimezone(timezone.utc)
             age_days = (now - updated_at).days
         ingredient['price_age_days'] = age_days
         ingredient['needs_price_update'] = (age_days is None) or (age_days >= PRICE_REFRESH_DAYS)
