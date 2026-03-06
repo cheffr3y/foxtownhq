@@ -215,6 +215,7 @@ def ensure_commissary_tables(cur):
     cur.execute("ALTER TABLE commissary_production_logs ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
     cur.execute("ALTER TABLE commissary_production_logs ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
     cur.execute("ALTER TABLE commissary_production_logs ALTER COLUMN order_id DROP NOT NULL")
+    cur.execute("ALTER TABLE commissary_production_logs ALTER COLUMN order_item_id DROP NOT NULL")
     cur.execute("""
         UPDATE commissary_production_logs
         SET signed_off = FALSE
