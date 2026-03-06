@@ -261,77 +261,81 @@ def upsert_commissary_line_production_log(cur, line_id, production_date, payload
         signed_off,
     ])
 
-    if has_values:
+    if not has_values:
         cur.execute(
             """
-            INSERT INTO commissary_production_logs (
-                line_id,
-                production_date,
-                assigned_to,
-                made_by,
-                tasted_by,
-                signed_off,
-                signed_off_by,
-                production_notes,
-                actual_yield,
-                actual_yield_unit,
-                signed_off_at,
-                updated_at
-            )
-            VALUES (
-                %s,
-                %s,
-                %s,
-                %s,
-                %s,
-                %s,
-                %s,
-                %s,
-                %s,
-                %s,
-                CASE WHEN %s THEN CURRENT_TIMESTAMP ELSE NULL END,
-                CURRENT_TIMESTAMP
-            )
-            ON CONFLICT (line_id, production_date)
-            DO UPDATE SET
-                assigned_to = EXCLUDED.assigned_to,
-                made_by = EXCLUDED.made_by,
-                tasted_by = EXCLUDED.tasted_by,
-                signed_off = EXCLUDED.signed_off,
-                signed_off_by = EXCLUDED.signed_off_by,
-                production_notes = EXCLUDED.production_notes,
-                actual_yield = EXCLUDED.actual_yield,
-                actual_yield_unit = EXCLUDED.actual_yield_unit,
-                signed_off_at = CASE
-                    WHEN EXCLUDED.signed_off THEN COALESCE(commissary_production_logs.signed_off_at, CURRENT_TIMESTAMP)
-                    ELSE NULL
-                END,
-                updated_at = CURRENT_TIMESTAMP
+            SELECT 1
+            FROM commissary_production_logs
+            WHERE line_id = %s
+              AND production_date = %s
+            LIMIT 1
         """,
-            (
-                line_id,
-                production_date,
-                assigned_to or None,
-                made_by or None,
-                tasted_by or None,
-                signed_off,
-                signed_off_by or None,
-                production_notes or None,
-                actual_yield or None,
-                actual_yield_unit or None,
-                signed_off,
-            ),
+            (line_id, production_date),
         )
-        return True
+        if not cur.fetchone():
+            return False
 
     cur.execute(
         """
-        DELETE FROM commissary_production_logs
-        WHERE line_id = %s AND production_date = %s
+        INSERT INTO commissary_production_logs (
+            line_id,
+            production_date,
+            assigned_to,
+            made_by,
+            tasted_by,
+            signed_off,
+            signed_off_by,
+            production_notes,
+            actual_yield,
+            actual_yield_unit,
+            signed_off_at,
+            updated_at
+        )
+        VALUES (
+            %s,
+            %s,
+            %s,
+            %s,
+            %s,
+            %s,
+            %s,
+            %s,
+            %s,
+            %s,
+            CASE WHEN %s THEN CURRENT_TIMESTAMP ELSE NULL END,
+            CURRENT_TIMESTAMP
+        )
+        ON CONFLICT (line_id, production_date)
+        DO UPDATE SET
+            assigned_to = EXCLUDED.assigned_to,
+            made_by = EXCLUDED.made_by,
+            tasted_by = EXCLUDED.tasted_by,
+            signed_off = EXCLUDED.signed_off,
+            signed_off_by = EXCLUDED.signed_off_by,
+            production_notes = EXCLUDED.production_notes,
+            actual_yield = EXCLUDED.actual_yield,
+            actual_yield_unit = EXCLUDED.actual_yield_unit,
+            signed_off_at = CASE
+                WHEN EXCLUDED.signed_off THEN COALESCE(commissary_production_logs.signed_off_at, CURRENT_TIMESTAMP)
+                ELSE NULL
+            END,
+            updated_at = CURRENT_TIMESTAMP
     """,
-        (line_id, production_date),
+        (
+            line_id,
+            production_date,
+            assigned_to or None,
+            made_by or None,
+            tasted_by or None,
+            signed_off,
+            signed_off_by or None,
+            production_notes or None,
+            actual_yield or None,
+            actual_yield_unit or None,
+            signed_off,
+        ),
     )
-    return False
+    return True
 
 
 @bp.route('/commissary')
@@ -364,9 +368,9 @@ def commissary_planner():
         if signoff_day < start_date or signoff_day > end_date:
             signoff_day = selected_day
 
-        active_tab = (request.args.get('tab') or 'production').strip().lower()
+        active_tab = (request.args.get('tab') or '').strip().lower()
         if active_tab not in ('production', 'signoff', 'transfers'):
-            active_tab = 'production'
+            active_tab = 'signoff' if datetime.now().hour >= 14 else 'production'
 
         selected_outlet = clean_menu_text(request.args.get('outlet'))
         selected_units = get_unit_system()

@@ -166,6 +166,8 @@
     }
 
     .week-pill {
+        display: inline-flex;
+        align-items: center;
         border-radius: 999px;
         border: 1px solid rgba(15, 23, 42, 0.15);
         background: rgba(248, 250, 252, 0.92);
@@ -175,12 +177,28 @@
         letter-spacing: 0.08em;
         text-transform: uppercase;
         font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+        text-decoration: none;
     }
 
     .week-pill.is-active {
         border-color: rgba(77, 124, 255, 0.62);
         background: rgba(77, 124, 255, 0.14);
         color: #0F172A;
+    }
+
+    .pill-badge {
+        display: inline-block;
+        margin-left: 0.28rem;
+        padding: 0.08rem 0.32rem;
+        border-radius: 999px;
+        font-size: 0.58rem;
+        background: rgba(251, 191, 36, 0.25);
+        color: #92400e;
+    }
+
+    .pill-badge--done {
+        background: rgba(16, 185, 129, 0.2);
+        color: #065f46;
     }
 
     .signoff-progress {
@@ -418,6 +436,17 @@
                 <h2 class="section-title">Today's Production</h2>
                 <a href="{{ url_for('commissary_packet_print', outlet=(selected_outlet or None), week_start=week_start, day=selected_day, include_shopping=0) }}" target="_blank" class="fhq-btn fhq-btn--primary">Print Day Packet</a>
             </div>
+            <div class="week-pills mb-3">
+                {% for day in week_signoff_summary %}
+                <a
+                    href="{{ url_for('commissary_planner', week_start=week_start, day=day.date_iso, outlet=(selected_outlet or None), signoff_day=signoff_day, tab='production') }}"
+                    class="week-pill {% if day.date_iso == selected_day %}is-active{% endif %}"
+                >
+                    {{ day.day_label }} {{ day.date.strftime('%-m/%-d') }}
+                    {% if day.entry_count > 0 %}({{ day.entry_count }}){% endif %}
+                </a>
+                {% endfor %}
+            </div>
 
             {% if production_groups %}
                 {% for group in production_groups %}
@@ -459,7 +488,14 @@
             <div class="signoff-tools">
                 <div class="week-pills" data-day-pill-wrap>
                     {% for day in week_signoff_summary %}
-                    <button type="button" class="week-pill" data-day-pill="{{ day.date_iso }}">{{ day.day_label }} {{ day.date.strftime('%-m/%-d') }}</button>
+                    <button type="button" class="week-pill" data-day-pill="{{ day.date_iso }}">
+                        {{ day.day_label }} {{ day.date.strftime('%-m/%-d') }}
+                        {% if day.entry_count > 0 %}
+                        <span class="pill-badge {% if day.signed_off_count >= day.entry_count %}pill-badge--done{% endif %}">
+                            {{ day.signed_off_count }}/{{ day.entry_count }}
+                        </span>
+                        {% endif %}
+                    </button>
                     {% endfor %}
                 </div>
                 <input type="date" class="comm-field" id="signoffDayPicker" value="{{ signoff_day }}">
@@ -648,6 +684,18 @@
                         'Accept': 'application/json'
                     }
                 });
+
+                if (response.redirected || response.url.includes('/login')) {
+                    setSaveState(form, 'Session expired - reload page', 'is-error');
+                    return false;
+                }
+
+                const contentType = response.headers.get('content-type') || '';
+                if (!contentType.includes('application/json')) {
+                    setSaveState(form, 'Session expired - reload page', 'is-error');
+                    return false;
+                }
+
                 const data = await response.json();
                 if (!response.ok || !data.ok) {
                     throw new Error(data.error || 'Save failed');
@@ -659,7 +707,7 @@
                 setSaveState(form, 'Saved', 'is-saved');
                 return true;
             } catch (error) {
-                setSaveState(form, 'Save failed', 'is-error');
+                setSaveState(form, error.message || 'Save failed', 'is-error');
                 return false;
             }
         }

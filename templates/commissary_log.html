@@ -554,6 +554,18 @@
                         'Accept': 'application/json'
                     }
                 });
+
+                if (response.redirected || response.url.includes('/login')) {
+                    setSaveState(form, 'Session expired - reload page', 'is-error');
+                    return false;
+                }
+
+                const contentType = response.headers.get('content-type') || '';
+                if (!contentType.includes('application/json')) {
+                    setSaveState(form, 'Session expired - reload page', 'is-error');
+                    return false;
+                }
+
                 const data = await response.json();
                 if (!response.ok || !data.ok) {
                     throw new Error(data.error || 'Save failed');
@@ -568,7 +580,7 @@
                 setSaveState(form, stateText, 'is-saved');
                 return true;
             } catch (error) {
-                setSaveState(form, 'Save failed', 'is-error');
+                setSaveState(form, error.message || 'Save failed', 'is-error');
                 return false;
             }
         }
