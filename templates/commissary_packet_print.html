@@ -155,6 +155,12 @@
             >
                 {% if include_shopping %}Hide Shopping{% else %}Include Shopping{% endif %}
             </a>
+            <a
+                href="{{ url_for('commissary_packet_pdf', outlet=selected_outlet, week_start=week_start, day=selected_day, include_shopping=include_shopping, units=selected_units) }}"
+                class="bg-stone-800 hover:bg-stone-900 text-white px-4 py-2 rounded-xl font-semibold"
+            >
+                Download PDF
+            </a>
             <button onclick="window.print()" class="bg-foxtown-ember hover:bg-orange-700 text-white px-4 py-2 rounded-xl font-semibold">Print / Save PDF</button>
         </div>
     </div>
