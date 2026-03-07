@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "base.html" import page_nav %}
+{% from "base.html" import page_header, tab_bar %}
 
 {% block title %}Search - Foxtown HQ{% endblock %}
 
@@ -148,7 +148,7 @@
 
 {% block content %}
 <div class="min-h-screen">
-    {% call page_nav('Search', 'Recipes, ingredients, and banquet events in one view.', url_for('dashboard')) %}
+    {% call page_header('Search', 'Recipes, ingredients, and banquet events in one view.') %}
     <form method="GET" action="{{ url_for('search') }}" class="w-full sm:w-[420px]">
         <label for="searchQuery" class="sr-only">Search</label>
         <input

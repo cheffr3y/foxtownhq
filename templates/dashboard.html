@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "base.html" import page_nav %}
+{% from "base.html" import page_header, tab_bar %}
 
 {% block title %}Dashboard - Foxtown HQ{% endblock %}
 
@@ -7,69 +7,6 @@
 <style>
     .dashboard-shell {
         padding-bottom: 3.5rem;
-    }
-
-    .dashboard-search {
-        display: flex;
-        align-items: center;
-        gap: 0.65rem;
-        border-radius: 999px;
-        border: 1px solid rgba(15, 23, 42, 0.16);
-        background: rgba(255, 255, 255, 0.96);
-        padding: 0.32rem 0.5rem 0.32rem 0.78rem;
-        transition: all 0.22s ease;
-    }
-
-    .dashboard-search:focus-within {
-        border-color: rgba(77, 124, 255, 0.7);
-        box-shadow: 0 0 22px -8px rgba(77, 124, 255, 0.55);
-    }
-
-    .dashboard-search svg {
-        color: #64748B;
-        flex-shrink: 0;
-    }
-
-    .dashboard-search input {
-        min-height: 38px;
-        border: 0;
-        background: transparent;
-        padding: 0.1rem 0;
-        color: #0F172A;
-        box-shadow: none;
-    }
-
-    .dashboard-search input:focus {
-        box-shadow: none;
-        border: 0;
-    }
-
-    .shortcut-badge {
-        flex-shrink: 0;
-        border-radius: 999px;
-        border: 1px solid rgba(15, 23, 42, 0.14);
-        background: rgba(248, 250, 252, 0.95);
-        color: #475569;
-        padding: 0.24rem 0.55rem;
-        font-size: 0.68rem;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-    }
-
-    .user-node {
-        width: 2rem;
-        height: 2rem;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 999px;
-        border: 1px solid rgba(77, 124, 255, 0.46);
-        color: #93C5FD;
-        background: rgba(0, 82, 255, 0.15);
-        box-shadow: 0 0 16px -6px rgba(77, 124, 255, 0.72);
-        font-weight: 600;
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
     }
 
     .dashboard-layout {
@@ -562,20 +499,8 @@
 
 {% block content %}
 <div class="min-h-screen">
-    {% call page_nav('Foxtown HQ', 'Active Work Command') %}
-    <form method="GET" action="{{ url_for('search') }}" class="w-full sm:w-[440px]">
-        <label for="dashboardSearch" class="sr-only">Global search</label>
-        <div class="dashboard-search">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m21 21-4.35-4.35m1.85-5.15a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z"></path>
-            </svg>
-            <input id="dashboardSearch" data-shortcut="search" type="search" name="q" placeholder="Search recipes, ingredients, events..." autocomplete="off">
-            <span class="shortcut-badge hidden md:inline-flex">Cmd/Ctrl + K</span>
-        </div>
-    </form>
-    <span class="user-node" title="{{ current_user.username }}">
-        {{ (current_user.username[:1] if current_user.username else '?')|upper }}
-    </span>
+    {% call page_header('Dashboard') %}
+    <a href="{{ url_for('search') }}" class="fhq-btn fhq-btn--outline">Open Search</a>
     <a href="{{ url_for('logout') }}" class="fhq-btn fhq-btn--ghost">Logout</a>
     {% endcall %}
 

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "base.html" import page_header, tab_bar %}
 
 {% block title %}{{ recipe.name }} - Foxtown HQ{% endblock %}
 
@@ -87,61 +88,17 @@
 {% endmacro %}
 
 <div class="min-h-screen">
-    <!-- Top Navigation Bar -->
-    <nav class="bg-foxtown-charcoal text-white border-b border-slate-800/60">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center h-16">
-                <div class="flex items-center space-x-3">
-                    <a href="{{ url_for('recipes') }}" class="text-amber-200 hover:text-white">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-                        </svg>
-                    </a>
-                    <h1 class="text-2xl font-display tracking-tight">{{ recipe.name }}</h1>
-                </div>
-                <div class="flex items-center space-x-3">
-                    <div class="flex items-center bg-slate-800/60 rounded-lg p-1 text-xs">
-                        <span class="px-2 text-stone-200">Units</span>
-                        <a href="{{ request.path }}?units=auto"
-                           class="px-2 py-1 rounded {% if unit_system == 'auto' %}bg-white/90 text-foxtown-ink{% else %}text-stone-200 hover:text-white{% endif %}">
-                            Auto
-                        </a>
-                        <a href="{{ request.path }}?units=imperial"
-                           class="px-2 py-1 rounded {% if unit_system == 'imperial' %}bg-white/90 text-foxtown-ink{% else %}text-stone-200 hover:text-white{% endif %}">
-                            US
-                        </a>
-                        <a href="{{ request.path }}?units=metric"
-                           class="px-2 py-1 rounded {% if unit_system == 'metric' %}bg-white/90 text-foxtown-ink{% else %}text-stone-200 hover:text-white{% endif %}">
-                            Metric
-                        </a>
-                    </div>
-                    <button type="button"
-                            onclick="exportRecipePdf()"
-                            class="bg-white/90 hover:bg-white text-foxtown-ink px-4 py-2 rounded-xl font-semibold transition duration-200 shadow-soft">
-                        Export PDF
-                    </button>
-                    <form method="POST"
-                          action="{{ url_for('recipe_clone', recipe_id=recipe.id) }}">
-                        <button type="submit"
-                                class="bg-white/90 hover:bg-white text-foxtown-ink px-4 py-2 rounded-xl font-semibold transition duration-200 shadow-soft">
-                            Clone Recipe
-                        </button>
-                    </form>
-                    <a href="{{ url_for('recipe_edit', recipe_id=recipe.id) }}" class="bg-foxtown-ember hover:bg-orange-700 text-white px-4 py-2 rounded-xl font-semibold transition duration-200 shadow-soft">
-                        Edit Recipe
-                    </a>
-                    <form method="POST"
-                          action="{{ url_for('recipe_delete', recipe_id=recipe.id) }}"
-                          onsubmit="return confirm('Delete {{ recipe.name|e }}? This cannot be undone.');">
-                        <button type="submit"
-                                class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl font-semibold transition duration-200 shadow-soft">
-                            Delete
-                        </button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </nav>
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+        {% call page_header(recipe.name) %}
+        <button type="button" onclick="exportRecipePdf()" class="fhq-btn fhq-btn--outline">Export PDF</button>
+        <form method="POST" action="{{ url_for('recipe_clone', recipe_id=recipe.id) }}"><button type="submit" class="fhq-btn fhq-btn--outline">Clone Recipe</button></form>
+        <a href="{{ url_for('recipe_edit', recipe_id=recipe.id) }}" class="fhq-btn fhq-btn--primary">Edit Recipe</a>
+        {% endcall %}
+        {{ tab_bar([
+            {'id': 'all', 'label': 'All Recipes', 'url': url_for('recipes')},
+            {'id': 'generator', 'label': 'Generator', 'url': url_for('recipe_generator')},
+        ], 'all') }}
+    </div>
 
     <!-- Main Content -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

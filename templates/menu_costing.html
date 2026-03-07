@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "base.html" import page_nav %}
+{% from "base.html" import page_header, tab_bar %}
 
 {% block title %}Menu Costing - Foxtown HQ{% endblock %}
 
@@ -185,9 +185,13 @@
 
 {% block content %}
 <div class="min-h-screen">
-    {% call page_nav('Menu Costing', 'Quick, one-off costing using current ingredient pricing.', url_for('dashboard')) %}
+    {% call page_header('Menus', 'Quick, one-off costing using current ingredient pricing.') %}
     <a href="{{ url_for('menu_rollouts') }}" class="fhq-btn fhq-btn--outline">Saved Rollouts</a>
     {% endcall %}
+    {{ tab_bar([
+        {'id': 'rollouts', 'label': 'Rollouts', 'url': url_for('menu_rollouts')},
+        {'id': 'costing', 'label': 'Costing', 'url': url_for('menu_costing')},
+    ], 'costing') }}
 
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 cost-shell fhq-fade">
         <form method="POST" class="space-y-4">

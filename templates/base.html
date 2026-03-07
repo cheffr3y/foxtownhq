@@ -1,30 +1,44 @@
-{% macro page_nav(title, subtitle=None, back_url=None) %}
-<nav class="fhq-nav border-b border-slate-200/80">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between py-4">
-            <div class="flex items-center gap-3 min-w-0">
-                {% if back_url %}
-                <a href="{{ back_url }}" class="fhq-nav-back" aria-label="Back">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-                    </svg>
-                </a>
-                {% endif %}
-                <div class="min-w-0">
-                    <h1 class="text-2xl md:text-3xl font-heading tracking-tight text-[#0F172A] truncate">{{ title }}</h1>
-                    {% if subtitle %}
-                    <p class="text-xs md:text-sm font-mono tracking-widest uppercase text-[#94A3B8] truncate">{{ subtitle }}</p>
-                    {% endif %}
-                </div>
-            </div>
-            {% if caller is defined %}
-            <div class="flex items-center gap-2 sm:gap-3 text-sm flex-wrap justify-end">
-                {{ caller() }}
-            </div>
+{% macro page_header(title, subtitle=None, icon=None) %}
+<div class="flex justify-between items-start mb-5 gap-4">
+    <div class="flex items-center gap-3 min-w-0">
+        {% if icon %}
+        <div class="w-8 h-8 rounded-lg bg-foxtown-border flex items-center justify-center text-foxtown-muted">
+            {% if icon == 'dashboard' %}
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12l9-9 9 9M5 10v10a1 1 0 001 1h3a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1h3a1 1 0 001-1V10"/></svg>
+            {% elif icon == 'banquets' %}
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+            {% elif icon == 'commissary' %}
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16zM3.27 6.96L12 12.01l8.73-5.05M12 22.08V12"/></svg>
+            {% elif icon == 'recipes' %}
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19.5A2.5 2.5 0 016.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+            {% elif icon == 'ingredients' %}
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+            {% elif icon == 'menus' %}
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2M9 14h6M9 18h6M9 10h.01"/></svg>
+            {% endif %}
+        </div>
+        {% endif %}
+        <div class="min-w-0">
+            <h1 class="text-xl font-bold tracking-tight text-foxtown-text truncate">{{ title }}</h1>
+            {% if subtitle %}
+            <p class="text-sm text-foxtown-muted mt-0.5 truncate">{{ subtitle }}</p>
             {% endif %}
         </div>
     </div>
-</nav>
+    {% if caller is defined %}
+    <div class="flex items-center gap-1.5 shrink-0">
+        {{ caller() }}
+    </div>
+    {% endif %}
+</div>
+{% endmacro %}
+
+{% macro tab_bar(tabs, active_tab) %}
+<div class="fhq-tabs">
+    {% for tab in tabs %}
+    <a href="{{ tab.url }}" class="fhq-tab {% if tab.id == active_tab %}fhq-tab--active{% endif %}">{{ tab.label }}</a>
+    {% endfor %}
+</div>
 {% endmacro %}
 
 <!DOCTYPE html>
@@ -33,60 +47,30 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Foxtown HQ{% endblock %}</title>
-    <link href="https://fonts.googleapis.com/css2?family=Calistoga&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
             theme: {
                 extend: {
                     colors: {
-                        bitcoin: {
-                            void: '#020617',
-                            surface: '#0F172A',
-                            foreground: '#F8FAFC',
-                            muted: '#94A3B8',
-                            border: '#1E293B',
-                            orange: '#0052FF',
-                            ember: '#0052FF',
-                            gold: '#4D7CFF'
-                        },
                         foxtown: {
-                            orange: '#0052FF',
-                            blue: '#4D7CFF',
-                            slate: '#1E293B',
-                            dark: '#0F172A',
-                            ink: '#F8FAFC',
-                            ember: '#0052FF',
-                            emberSoft: '#0A1228',
-                            stone: '#94A3B8',
-                            stoneSoft: '#0F172A',
-                            canvas: '#020617',
-                            charcoal: '#020617',
-                            glow: '#4D7CFF',
-                            black: '#020617',
-                            accent: '#0052FF',
-                            accentSecondary: '#4D7CFF'
+                            bg: '#F7F6F4',
+                            surface: '#FFFFFF',
+                            border: '#ECEAE6',
+                            borderHover: '#C8C2BB',
+                            text: '#1B1918',
+                            muted: '#8A8580',
+                            subtle: '#A09A94',
+                            ember: '#C0612B',
+                            emberLight: '#D4722B',
+                            dark: '#1B1918'
                         }
                     },
                     fontFamily: {
-                        sans: ['Inter', 'system-ui', 'sans-serif'],
-                        body: ['Inter', 'system-ui', 'sans-serif'],
-                        display: ['Calistoga', 'Inter', 'system-ui', 'sans-serif'],
-                        heading: ['Calistoga', 'Inter', 'system-ui', 'sans-serif'],
-                        mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'monospace']
-                    },
-                    boxShadow: {
-                        soft: '0 0 30px -10px rgba(0, 82, 255, 0.24)',
-                        lift: '0 0 42px -12px rgba(0, 82, 255, 0.34)'
-                    },
-                    keyframes: {
-                        float: {
-                            '0%, 100%': { transform: 'translateY(0px)' },
-                            '50%': { transform: 'translateY(-14px)' }
-                        }
-                    },
-                    animation: {
-                        float: 'float 8s ease-in-out infinite'
+                        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+                        body: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+                        display: ['Inter', 'system-ui', '-apple-system', 'sans-serif']
                     }
                 }
             }
@@ -95,425 +79,199 @@
     <style>
         :root {
             color-scheme: light;
-            --void: #FAFAFA;
+            --void: #F7F6F4;
             --surface: #FFFFFF;
-            --fg: #0F172A;
-            --muted: #64748B;
-            --border: #E2E8F0;
-            --orange: #0052FF;
-            --ember: #0052FF;
-            --gold: #4D7CFF;
-            --accent: #0052FF;
-            --accent-secondary: #4D7CFF;
-            --glow-orange: 0 0 30px -5px rgba(0, 82, 255, 0.58);
-            --glow-gold: 0 0 24px -5px rgba(77, 124, 255, 0.35);
+            --fg: #1B1918;
+            --muted: #8A8580;
+            --border: #ECEAE6;
+            --ember: #C0612B;
         }
-
-        html,
+        html, body { min-height: 100%; }
         body {
-            min-height: 100%;
+            background: #F7F6F4;
+            color: #1B1918;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            -webkit-font-smoothing: antialiased;
         }
-
-        body {
-            font-family: Inter, system-ui, sans-serif;
-            background: var(--void);
-            color: var(--fg);
-        }
-
-        .font-heading {
-            font-family: 'Calistoga', Inter, system-ui, sans-serif;
-        }
-
-        .font-body {
-            font-family: Inter, system-ui, sans-serif;
-        }
-
-        .font-mono {
-            font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-        }
-
-        ::selection {
-            background: rgba(0, 82, 255, 0.18);
-            color: #fff;
-        }
-
-        @keyframes fadeUp {
-            from { opacity: 0; transform: translateY(12px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        @keyframes float {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-20px); }
-        }
-
-        @keyframes pulseGlow {
-            0%, 100% { box-shadow: 0 0 0 0 rgba(77, 124, 255, 0.45); }
-            70% { box-shadow: 0 0 0 12px rgba(77, 124, 255, 0); }
-        }
-
-        .fhq-fade {
-            animation: fadeUp 0.5s ease-out both;
-        }
-
-        .bg-grid-pattern {
-            background-size: 50px 50px;
-            background-image:
-                linear-gradient(to right, rgba(15, 23, 42, 0.08) 1px, transparent 1px),
-                linear-gradient(to bottom, rgba(15, 23, 42, 0.08) 1px, transparent 1px);
-            mask-image: radial-gradient(circle at center, black 38%, transparent 100%);
-        }
-
-        .gradient-text {
-            background: linear-gradient(to right, var(--accent), var(--accent-secondary));
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
-        }
-
-        .fhq-section-label {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.6rem;
-            border-radius: 999px;
-            border: 1px solid rgba(0, 82, 255, 0.36);
-            background: rgba(0, 82, 255, 0.08);
-            padding: 0.4rem 0.9rem;
-            color: #93C5FD;
-            font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-            font-size: 0.68rem;
-            letter-spacing: 0.12em;
-            text-transform: uppercase;
-        }
-
-        .fhq-section-label::before {
-            content: '';
-            width: 0.5rem;
-            height: 0.5rem;
-            border-radius: 999px;
-            background: var(--accent);
-            box-shadow: 0 0 0 0 rgba(0, 82, 255, 0.45);
-            animation: pulseGlow 2s infinite;
-        }
-
-        .holographic-gradient {
-            background:
-                radial-gradient(circle at 20% -10%, rgba(0, 82, 255, 0.08), transparent 42%),
-                radial-gradient(circle at 80% 0%, rgba(77, 124, 255, 0.06), transparent 36%),
-                rgba(255, 255, 255, 0.92);
-            border: 1px solid rgba(15, 23, 42, 0.1);
-            backdrop-filter: blur(14px);
-        }
-
-        .fhq-nav {
-            background:
-                linear-gradient(180deg, rgba(250, 250, 250, 0.97), rgba(248, 250, 252, 0.94));
-            backdrop-filter: blur(14px);
-        }
-
-        .fhq-nav-back {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 40px;
-            height: 40px;
-            border-radius: 999px;
-            border: 1px solid rgba(0, 82, 255, 0.45);
-            color: #4D7CFF;
-            transition: all 0.25s ease;
-        }
-
-        .fhq-nav-back:hover {
-            color: #fff;
-            border-color: rgba(0, 82, 255, 0.9);
-            box-shadow: var(--glow-orange);
-            transform: translateY(-1px);
-        }
-
         .fhq-btn {
-            min-height: 44px;
-            border-radius: 999px;
+            min-height: 40px;
+            border-radius: 8px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             gap: 0.45rem;
-            padding: 0.62rem 1.1rem;
+            padding: 0.55rem 0.95rem;
             font-size: 0.88rem;
             font-weight: 600;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            transition: all 0.22s ease;
             border: 1px solid transparent;
+            transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
         }
-
         .fhq-btn:focus-visible,
         .fhq-input:focus-visible,
         .fhq-input-legacy:focus-visible,
         button:focus-visible,
         a:focus-visible {
             outline: none;
-            box-shadow: 0 0 0 2px rgba(0, 82, 255, 0.52);
+            box-shadow: 0 0 0 2px rgba(192, 97, 43, 0.2);
         }
-
-        .fhq-btn--primary {
-            background: linear-gradient(to right, #0052FF, #4D7CFF);
-            color: #fff;
-            box-shadow: 0 0 20px -5px rgba(0, 82, 255, 0.5);
+        .fhq-btn--primary { background: #1B1918; color: #fff; }
+        .fhq-btn--primary:hover { background: #2A2725; }
+        .fhq-btn--outline { border: 1px solid #DDD8D3; color: #1B1918; background: #fff; }
+        .fhq-btn--outline:hover { border-color: #C8C2BB; background: #FCFBFA; }
+        .fhq-btn--ghost { color: #8A8580; background: transparent; }
+        .fhq-btn--ghost:hover { color: #1B1918; background: #F1EFEC; }
+        .fhq-input, .fhq-input-legacy {
+            width: 100%;
+            border: 1px solid #ECEAE6;
+            border-radius: 8px;
+            background: #fff;
+            color: #1B1918;
+            padding: 0.68rem 0.85rem;
+            min-height: 42px;
         }
-
-        .fhq-btn--primary:hover {
-            transform: translateY(-1px) scale(1.02);
-            box-shadow: 0 8px 24px rgba(0, 82, 255, 0.35);
+        .fhq-input::placeholder, .fhq-input-legacy::placeholder { color: #A09A94; }
+        .fhq-input:focus, .fhq-input-legacy:focus, input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #C8C2BB;
+            box-shadow: 0 0 0 3px rgba(192, 97, 43, 0.12);
         }
-
-        .fhq-btn--outline {
-            border-color: rgba(15, 23, 42, 0.18);
-            color: #0F172A;
-            background: transparent;
+        .fhq-card { background: #fff; border: 1px solid #ECEAE6; border-radius: 8px; }
+        .fhq-card:hover { border-color: #C8C2BB; }
+        .fhq-section-head {
+            font-size: 12px;
+            font-weight: 600;
+            color: #8A8580;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 10px;
         }
-
-        .fhq-btn--outline:hover {
-            border-color: rgba(0, 82, 255, 0.75);
-            background: rgba(0, 82, 255, 0.1);
-            color: #BFDBFE;
+        .fhq-pill {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 99px;
+            line-height: 1;
+            text-transform: capitalize;
         }
-
-        .fhq-btn--ghost {
-            color: #334155;
-            background: transparent;
+        .fhq-pill--confirmed { background: #EEFBEF; color: #2B7A30; border: 1px solid #C2E8C4; }
+        .fhq-pill--tentative, .fhq-pill--pending { background: #FFF8EE; color: #A0590A; border: 1px solid #F0D9A0; }
+        .fhq-pill--in-progress { background: #EEF3FF; color: #2656A8; border: 1px solid #A8C4F0; }
+        .fhq-table { width: 100%; border-collapse: collapse; }
+        .fhq-table th {
+            text-align: left;
+            padding: 8px 14px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #A09A94;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            border-bottom: 1px solid #ECEAE6;
         }
-
-        .fhq-btn--ghost:hover {
-            background: rgba(255, 255, 255, 0.08);
-            color: #93C5FD;
+        .fhq-table td {
+            padding: 10px 14px;
+            font-size: 13px;
+            border-bottom: 1px solid #F3F1EE;
         }
-
-        .fhq-card {
-            background: rgba(255, 255, 255, 0.96);
-            border: 1px solid rgba(15, 23, 42, 0.1);
-            border-radius: 16px;
-            box-shadow: 0 16px 36px -24px rgba(15, 23, 42, 0.22);
-            transition: all 0.28s ease;
+        .fhq-table tbody tr:hover { background: #FCFBFA; }
+        .fhq-table tbody tr:last-child td { border-bottom: none; }
+        .fhq-tabs {
+            display: flex;
+            gap: 1px;
+            border-bottom: 1px solid #ECEAE6;
+            margin-bottom: 20px;
+            overflow-x: auto;
         }
-
-        .fhq-card:hover {
-            border-color: rgba(0, 82, 255, 0.55);
-            box-shadow: 0 20px 38px -24px rgba(0, 82, 255, 0.28);
+        .fhq-tab {
+            padding: 8px 14px 10px;
+            border: none;
+            border-bottom: 2px solid transparent;
+            background: none;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 400;
+            color: #8A8580;
+            font-family: inherit;
+            white-space: nowrap;
+            margin-bottom: -1px;
         }
-
-        .fhq-chip {
+        .fhq-tab--active { font-weight: 600; color: #1B1918; border-bottom-color: #C0612B; }
+        .fhq-alert {
             display: inline-flex;
             align-items: center;
-            gap: 0.4rem;
-            border-radius: 999px;
-            border: 1px solid rgba(0, 82, 255, 0.46);
-            background: rgba(0, 82, 255, 0.12);
-            padding: 0.3rem 0.7rem;
-            color: #BFDBFE;
-            font-size: 0.68rem;
-            font-weight: 600;
-            letter-spacing: 0.16em;
-            text-transform: uppercase;
-            font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+            gap: 8px;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
         }
+        .fhq-alert--amber { background: #FFFCF0; border: 1px solid #EDD89F; color: #7D5107; }
+        .fhq-alert--red { background: #FFF7F5; border: 1px solid #F0BFAF; color: #8B2020; }
 
-        .fhq-ping {
-            width: 0.45rem;
-            height: 0.45rem;
-            border-radius: 999px;
-            background: #0052FF;
-            box-shadow: 0 0 14px rgba(0, 82, 255, 0.85);
-            animation: pulseGlow 2s infinite;
+        .top-nav-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            height: 32px;
+            padding: 0 10px;
+            border-radius: 7px;
+            font-size: 12px;
+            font-weight: 500;
+            color: rgba(255,255,255,0.4);
+            text-decoration: none;
         }
-
-        .fhq-input,
-        .fhq-input-legacy {
-            width: 100%;
-            border: 1px solid rgba(15, 23, 42, 0.14);
-            border-radius: 10px;
-            background: rgba(255, 255, 255, 0.95);
-            color: #0F172A;
-            padding: 0.72rem 0.9rem;
-            min-height: 48px;
-            transition: all 0.2s ease;
-        }
-
-        .fhq-input::placeholder,
-        .fhq-input-legacy::placeholder {
-            color: rgba(100, 116, 139, 0.65);
-        }
-
-        .fhq-input:focus,
-        .fhq-input-legacy:focus,
-        input:focus,
-        select:focus,
-        textarea:focus {
-            outline: none;
-            border-color: #0052FF;
-            box-shadow: 0 0 0 3px rgba(0, 82, 255, 0.14);
-        }
-
-        /* Legacy utility remap so existing pages inherit DeFi styling. */
-        .text-foxtown-ink,
-        .text-stone-700,
-        .text-slate-900 {
-            color: #0F172A !important;
-        }
-
-        .text-stone-600,
-        .text-stone-500,
-        .text-stone-400,
-        .text-slate-700,
-        .text-slate-500,
-        .text-gray-600,
-        .text-gray-500 {
-            color: #64748B !important;
-        }
-
-        .bg-white,
-        .bg-white\/90,
-        .bg-white\/85,
-        .bg-white\/80,
-        .bg-white\/78,
-        .bg-white\/76,
-        .bg-stone-50,
-        .bg-stone-100,
-        .bg-slate-50,
-        .bg-slate-100 {
-            background-color: rgba(255, 255, 255, 0.95) !important;
-        }
-
-        .bg-foxtown-emberSoft,
-        .bg-orange-50 {
-            background-color: rgba(0, 82, 255, 0.13) !important;
-        }
-
-        .border-stone-300,
-        .border-stone-200,
-        .border-stone-200\/80,
-        .border-stone-200\/70,
-        .border-slate-200,
-        .divide-stone-200 > :not([hidden]) ~ :not([hidden]) {
-            border-color: rgba(148, 163, 184, 0.2) !important;
-        }
-
-        .bg-foxtown-charcoal {
-            background-color: #FAFAFA !important;
-        }
-
-        .bg-foxtown-canvas {
-            background-color: #FAFAFA !important;
-        }
-
-        .bg-foxtown-ember {
-            background-image: linear-gradient(to right, #0052FF, #4D7CFF) !important;
-            box-shadow: 0 0 20px -5px rgba(0, 82, 255, 0.5);
-        }
-
-        .hover\:bg-orange-700:hover {
-            background-image: linear-gradient(to right, #4D7CFF, #BFDBFE) !important;
-        }
-
-        .text-foxtown-ember,
-        .text-orange-700 {
-            color: #60A5FA !important;
-        }
-
-        .hover\:text-orange-700:hover {
-            color: #BFDBFE !important;
-        }
-
-        .shadow-soft {
-            box-shadow: 0 0 34px -12px rgba(0, 82, 255, 0.26) !important;
-        }
-
-        .shadow-lift {
-            box-shadow: 0 0 46px -12px rgba(0, 82, 255, 0.38) !important;
-        }
-
-        .hover\:bg-stone-50:hover,
-        .hover\:bg-stone-50\/70:hover {
-            background-color: rgba(0, 82, 255, 0.1) !important;
-        }
-
-        .hover\:text-slate-900:hover {
-            color: #BFDBFE !important;
-        }
-
-        nav.bg-foxtown-charcoal {
-            background: linear-gradient(180deg, rgba(250, 250, 250, 0.97), rgba(248, 250, 252, 0.94)) !important;
-            backdrop-filter: blur(14px);
-            color: #0F172A !important;
-        }
-
-        nav.bg-foxtown-charcoal h1 {
-            font-family: 'Calistoga', Inter, system-ui, sans-serif;
-            letter-spacing: -0.03em;
-        }
-
-        nav.bg-foxtown-charcoal .text-white {
-            color: #0F172A !important;
-        }
-
-        nav.bg-foxtown-charcoal .text-amber-200 {
-            color: #60A5FA !important;
-        }
-
-        nav.bg-foxtown-charcoal .text-amber-200:hover {
-            color: #FFFFFF !important;
-        }
-
-        nav.bg-foxtown-charcoal .text-stone-200 {
-            color: #64748B !important;
-        }
-
-        input.w-full:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]),
-        select.w-full,
-        textarea.w-full {
-            background-color: rgba(255, 255, 255, 0.95) !important;
-            border-color: rgba(15, 23, 42, 0.16) !important;
-            color: #0F172A !important;
-        }
-
-        input.w-full::placeholder,
-        textarea.w-full::placeholder {
-            color: rgba(100, 116, 139, 0.65) !important;
-        }
-
-        input.w-full:focus,
-        select.w-full:focus,
-        textarea.w-full:focus {
-            border-color: rgba(0, 82, 255, 0.72) !important;
-            box-shadow: 0 0 20px -10px rgba(0, 82, 255, 0.55) !important;
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-            *,
-            *::before,
-            *::after {
-                animation-duration: 1ms !important;
-                animation-iteration-count: 1 !important;
-                transition-duration: 1ms !important;
-                scroll-behavior: auto !important;
-            }
-        }
+        .top-nav-link:hover { color: #fff; background: rgba(255,255,255,0.08); }
+        .top-nav-link.active { color: #fff; background: rgba(255,255,255,0.1); }
     </style>
     {% block extra_head %}{% endblock %}
 </head>
-<body class="min-h-screen bg-foxtown-canvas text-[#0F172A] font-body antialiased">
-    <div class="fixed inset-0 -z-10 pointer-events-none">
-        <div class="absolute inset-0 bg-grid-pattern opacity-[0.34]"></div>
-        <div class="absolute -top-40 -left-24 h-[380px] w-[380px] rounded-full bg-[#0052FF] opacity-[0.07] blur-[120px]"></div>
-        <div class="absolute top-24 right-[-130px] h-[360px] w-[360px] rounded-full bg-[#0052FF] opacity-[0.07] blur-[130px]"></div>
-        <div class="absolute bottom-[-140px] left-1/2 h-[320px] w-[320px] -translate-x-1/2 rounded-full bg-[#4D7CFF] opacity-[0.06] blur-[140px]"></div>
-    </div>
+<body class="min-h-screen font-body antialiased">
+    {% set endpoint = request.endpoint or '' %}
+    {% set is_print = 'print' in endpoint %}
+    {% set show_global_nav = not is_print %}
+    {% set active_nav = 'banquets' if request.endpoint and 'banquet' in request.endpoint else
+                        'commissary' if request.endpoint and 'commissar' in request.endpoint else
+                        'recipes' if request.endpoint and 'recipe' in request.endpoint else
+                        'ingredients' if request.endpoint and 'ingredient' in request.endpoint else
+                        'menus' if request.endpoint and ('menu_rollout' in request.endpoint or 'menu_costing' in request.endpoint) else
+                        'home' %}
+
+    {% if show_global_nav %}
+    <nav style="height:48px; background:#1B1918; display:flex; align-items:center; padding:0 16px; position:sticky; top:0; z-index:50; border-bottom:1px solid rgba(255,255,255,0.08);">
+        <div class="w-full flex items-center justify-between gap-4">
+            <div class="flex items-center gap-4 min-w-0">
+                <a href="{{ url_for('dashboard') }}" class="flex items-center gap-2.5 text-white no-underline shrink-0">
+                    <div style="width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,#D4722B,#B85A1F);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:14px;">F</div>
+                    <span style="font-size:13.5px;font-weight:700;">Foxtown HQ</span>
+                </a>
+                <div class="hidden lg:flex items-center gap-1 min-w-0 overflow-x-auto">
+                    <a href="{{ url_for('dashboard') }}" class="top-nav-link {% if active_nav == 'home' %}active{% endif %}"><svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12l9-9 9 9M5 10v10a1 1 0 001 1h3a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1h3a1 1 0 001-1V10"/></svg><span>Dashboard</span></a>
+                    <a href="{{ url_for('banquet_planner') }}" class="top-nav-link {% if active_nav == 'banquets' %}active{% endif %}"><svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg><span>Banquets</span></a>
+                    <a href="{{ url_for('commissary_planner') }}" class="top-nav-link {% if active_nav == 'commissary' %}active{% endif %}"><svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16zM3.27 6.96L12 12.01l8.73-5.05M12 22.08V12"/></svg><span>Commissary</span></a>
+                    <a href="{{ url_for('recipes') }}" class="top-nav-link {% if active_nav == 'recipes' %}active{% endif %}"><svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19.5A2.5 2.5 0 016.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg><span>Recipes</span></a>
+                    <a href="{{ url_for('ingredients') }}" class="top-nav-link {% if active_nav == 'ingredients' %}active{% endif %}"><svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg><span>Ingredients</span></a>
+                    <a href="{{ url_for('menu_rollouts') }}" class="top-nav-link {% if active_nav == 'menus' %}active{% endif %}"><svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2M9 14h6M9 18h6M9 10h.01"/></svg><span>Menus</span></a>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+                <div id="globalSearchTrigger" style="height:30px;border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:0 9px;display:flex;align-items:center;gap:8px;color:rgba(255,255,255,0.68);font-size:12px;">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+                    <span>Search</span>
+                    <span style="font-size:10px;line-height:1;padding:3px 5px;border-radius:5px;background:rgba(255,255,255,0.14);color:rgba(255,255,255,0.85);">⌘K</span>
+                </div>
+                <div style="width:28px;height:28px;border-radius:999px;background:#2B2826;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">
+                    {{ (current_user.username[:1] if current_user and current_user.username else 'U')|upper }}
+                </div>
+            </div>
+        </div>
+    </nav>
+    {% endif %}
+
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
             <div class="space-y-2">
                 {% for category, message in messages %}
-                    <div class="rounded-xl px-4 py-3 text-sm font-medium border
-                        {% if category == 'success' %}bg-emerald-500/10 text-emerald-200 border-emerald-500/25{% elif category == 'error' %}bg-red-500/12 text-red-200 border-red-500/35{% else %}bg-[#0052FF]/20 text-blue-100 border-[#4D7CFF]/45{% endif %}">
+                    <div class="rounded-lg px-4 py-3 text-sm font-medium border {% if category == 'success' %}bg-[#EEFBEF] text-[#2B7A30] border-[#C2E8C4]{% elif category == 'error' %}bg-[#FFF7F5] text-[#8B2020] border-[#F0BFAF]{% else %}bg-[#EEF3FF] text-[#2656A8] border-[#A8C4F0]{% endif %}">
                         {{ message }}
                     </div>
                 {% endfor %}
@@ -521,35 +279,10 @@
         </div>
         {% endif %}
     {% endwith %}
+
     {% block content %}{% endblock %}
     <script>
         (function () {
-            const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-            if (!prefersReducedMotion) {
-                const durationMs = 600;
-                const easeOut = (t) => 1 - Math.pow(1 - t, 3);
-                document.querySelectorAll('.fhq-countup').forEach((el) => {
-                    const source = (el.dataset.count || el.textContent || '').trim();
-                    const numeric = parseFloat(source.replace(/[^0-9.-]/g, ''));
-                    if (Number.isNaN(numeric)) return;
-                    const decimalMatch = source.match(/\.(\d+)/);
-                    const decimals = decimalMatch ? decimalMatch[1].length : 0;
-                    const start = performance.now();
-                    function tick(now) {
-                        const progress = Math.min(1, (now - start) / durationMs);
-                        const eased = easeOut(progress);
-                        const value = numeric * eased;
-                        if (decimals > 0) {
-                            el.textContent = value.toFixed(decimals);
-                        } else {
-                            el.textContent = String(Math.round(value));
-                        }
-                        if (progress < 1) requestAnimationFrame(tick);
-                    }
-                    requestAnimationFrame(tick);
-                });
-            }
-
             document.addEventListener('submit', (event) => {
                 const form = event.target;
                 if (!(form instanceof HTMLFormElement)) return;
@@ -595,6 +328,16 @@
                 const searchInput = document.querySelector('input[type="search"], input[name="q"], input[name="search"]');
                 return searchInput instanceof HTMLInputElement ? searchInput : null;
             };
+
+            const searchTrigger = document.getElementById('globalSearchTrigger');
+            if (searchTrigger) {
+                searchTrigger.addEventListener('click', () => {
+                    const searchInput = findSearchInput();
+                    if (!searchInput) return;
+                    searchInput.focus();
+                    searchInput.select();
+                });
+            }
 
             document.addEventListener('keydown', (event) => {
                 const key = (event.key || '').toLowerCase();

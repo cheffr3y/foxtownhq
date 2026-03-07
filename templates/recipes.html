@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "base.html" import page_nav %}
+{% from "base.html" import page_header, tab_bar %}
 
 {% block title %}Recipes - Foxtown HQ{% endblock %}
 
@@ -269,7 +269,7 @@
 
 {% block content %}
 <div class="min-h-screen">
-    {% call page_nav('Recipes', recipes|length ~ ' shown') %}
+    {% call page_header('Recipes', recipes|length ~ ' recipes') %}
     <div class="unit-toggle" role="group" aria-label="Units">
         <a href="{{ unit_urls.auto }}" class="{% if unit_system == 'auto' %}is-active{% endif %}">Auto</a>
         <a href="{{ unit_urls.imperial }}" class="{% if unit_system == 'imperial' %}is-active{% endif %}">US</a>
@@ -277,6 +277,10 @@
     </div>
     <a href="{{ url_for('recipe_new') }}" class="fhq-btn fhq-btn--primary" data-shortcut="new">+ New Recipe</a>
     {% endcall %}
+    {{ tab_bar([
+        {'id': 'all', 'label': 'All Recipes', 'url': url_for('recipes')},
+        {'id': 'generator', 'label': 'Generator', 'url': url_for('recipe_generator')},
+    ], 'all') }}
 
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4 recipes-shell fhq-fade">
         <div class="stats-row">

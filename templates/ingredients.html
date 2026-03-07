@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "base.html" import page_nav %}
+{% from "base.html" import page_header, tab_bar %}
 
 {% block title %}Ingredients - Foxtown HQ{% endblock %}
 
@@ -186,7 +186,7 @@
 
 {% block content %}
 <div class="min-h-screen">
-    {% call page_nav('Ingredients', ingredients|length ~ ' ingredients', url_for('dashboard')) %}
+    {% call page_header('Ingredients', ingredients|length ~ ' ingredients') %}
     <a href="{{ url_for('new_ingredient') }}" class="fhq-btn fhq-btn--primary" data-shortcut="new">+ New Ingredient</a>
     {% endcall %}
 
@@ -227,7 +227,7 @@
         <div class="ing-panel overflow-hidden">
             {% if ingredients %}
             <div class="table-wrap">
-                <table class="ing-table">
+                <table class="fhq-table ing-table">
                     <thead>
                         <tr>
                             <th>Name</th>

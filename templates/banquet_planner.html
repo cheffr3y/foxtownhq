@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "base.html" import page_nav %}
+{% from "base.html" import page_header, tab_bar %}
 
 {% block title %}Banquet Planner - Foxtown HQ{% endblock %}
 
@@ -244,10 +244,17 @@
 
 {% block content %}
 <div class="min-h-screen">
-    {% call page_nav('Banquet Planner', 'Weekly prep, daily pull, and shopping lists from shared recipes + ingredients.', url_for('dashboard')) %}
+    {% call page_header('Banquets', 'Events, prep lists, and shopping') %}
     <a href="{{ url_for('banquet_event_new') }}" class="fhq-btn fhq-btn--primary" data-shortcut="new">+ New Event</a>
     <a href="{{ url_for('banquet_template_import') }}" class="fhq-btn fhq-btn--outline">Menu Catalog</a>
     {% endcall %}
+    {{ tab_bar([
+        {'id': 'events', 'label': 'Events', 'url': url_for('banquet_planner', venue=selected_venue, start_date=start_date, end_date=end_date)},
+        {'id': 'daily', 'label': 'Daily Prep', 'url': url_for('banquet_prep_daily', venue=selected_venue, start_date=start_date, end_date=end_date)},
+        {'id': 'weekly', 'label': 'Weekly Prep', 'url': url_for('banquet_prep_weekly', venue=selected_venue, start_date=start_date, end_date=end_date)},
+        {'id': 'shopping', 'label': 'Shopping', 'url': url_for('banquet_shopping', venue=selected_venue, start_date=start_date, end_date=end_date)},
+        {'id': 'menu_items', 'label': 'Menu Items', 'url': url_for('banquet_template_import')},
+    ], 'events') }}
 
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4 planner-shell fhq-fade">
         <section class="planner-panel p-4">

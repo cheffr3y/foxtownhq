@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "base.html" import page_nav %}
+{% from "base.html" import page_header, tab_bar %}
 
 {% block title %}Menu Rollouts - Foxtown HQ{% endblock %}
 
@@ -139,10 +139,14 @@
 
 {% block content %}
 <div class="min-h-screen">
-    {% call page_nav('Menu Rollouts', 'Containers for each venue menu by quarter and year.', url_for('dashboard')) %}
+    {% call page_header('Menus', 'Containers for each venue menu by quarter and year.') %}
     <a href="{{ url_for('menu_costing') }}" class="fhq-btn fhq-btn--outline">One-off Costing</a>
     <a href="{{ url_for('menu_rollout_new') }}" class="fhq-btn fhq-btn--primary" data-shortcut="new">+ New Rollout</a>
     {% endcall %}
+    {{ tab_bar([
+        {'id': 'rollouts', 'label': 'Rollouts', 'url': url_for('menu_rollouts')},
+        {'id': 'costing', 'label': 'Costing', 'url': url_for('menu_costing')},
+    ], 'rollouts') }}
 
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 roll-shell fhq-fade">
         {% if rollouts %}

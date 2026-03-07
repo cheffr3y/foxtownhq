@@ -1,63 +1,31 @@
 {% extends "base.html" %}
+{% from "base.html" import page_header, tab_bar %}
 
 {% block title %}{% if mode == 'edit' %}Edit Menu Rollout{% else %}New Menu Rollout{% endif %} - Foxtown HQ{% endblock %}
 
 {% block content %}
 <div class="min-h-screen">
-    <nav class="bg-foxtown-charcoal text-white border-b border-slate-800/60">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between py-4">
-                <div class="flex items-center space-x-3">
-                    <a href="{{ url_for('menu_rollouts') }}" class="text-amber-200 hover:text-white">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-                        </svg>
-                    </a>
-                    <div>
-                        <h1 class="text-2xl font-display tracking-tight">
-                            {% if mode == 'edit' %}Menu Rollout{% else %}New Menu Rollout{% endif %}
-                        </h1>
-                        <p class="text-sm text-stone-200">Plan a venue menu by quarter and price it from the ingredient master.</p>
-                    </div>
-                </div>
-                <div class="flex items-center gap-3">
-                    <a href="{{ url_for('menu_rollouts') }}" class="text-sm text-stone-200 hover:text-white">Back to Rollouts</a>
-                    {% if mode == 'edit' %}
-                    <a href="{{ url_for('menu_rollout_print', rollout_id=rollout.id) }}"
-                       class="text-sm text-amber-200 hover:text-white font-semibold">
-                        Print Rollout (PDF)
-                    </a>
-                    <a href="{{ url_for('menu_rollout_pricing_export', rollout_id=rollout.id) }}"
-                       class="text-sm text-amber-200 hover:text-white font-semibold">
-                        Export Menu Pricing (Excel)
-                    </a>
-                    <a href="{{ url_for('menu_rollout_order_guide', rollout_id=rollout.id) }}"
-                       class="text-sm text-amber-200 hover:text-white font-semibold">
-                        Export Order Guide (Excel)
-                    </a>
-                    <a href="{{ url_for('menu_rollout_packet_export', rollout_id=rollout.id) }}"
-                       class="text-sm text-amber-200 hover:text-white font-semibold">
-                        Export Acumatica Packet (Excel)
-                    </a>
-                    <a href="{{ url_for('menu_rollout_packet_print', rollout_id=rollout.id) }}"
-                       class="text-sm text-amber-200 hover:text-white font-semibold">
-                        Print Acumatica Packet (PDF)
-                    </a>
-                    <form method="POST"
-                          action="{{ url_for('menu_rollout_delete', rollout_id=rollout.id) }}"
-                          onsubmit="return confirm('Delete this menu rollout? This cannot be undone.');">
-                        <button type="submit" class="text-sm text-red-200 hover:text-white font-semibold">
-                            Delete Rollout
-                        </button>
-                    </form>
-                    {% endif %}
-                    <button form="rolloutForm" class="bg-foxtown-ember hover:bg-orange-700 text-white px-5 py-2 rounded-xl font-semibold transition duration-200 shadow-soft hover:shadow-lift">
-                        {% if mode == 'edit' %}Save Changes{% else %}Create Rollout{% endif %}
-                    </button>
-                </div>
-            </div>
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+        {% call page_header(('Menu Rollout' if mode == 'edit' else 'New Menu Rollout'), 'Plan a venue menu by quarter and price it from the ingredient master.') %}
+        <button form="rolloutForm" class="fhq-btn fhq-btn--primary">{% if mode == 'edit' %}Save Changes{% else %}Create Rollout{% endif %}</button>
+        {% endcall %}
+        {{ tab_bar([
+            {'id': 'rollouts', 'label': 'Rollouts', 'url': url_for('menu_rollouts')},
+            {'id': 'costing', 'label': 'Costing', 'url': url_for('menu_costing')},
+        ], 'rollouts') }}
+        {% if mode == 'edit' %}
+        <div class="flex flex-wrap gap-2 mt-3">
+            <a href="{{ url_for('menu_rollout_print', rollout_id=rollout.id) }}" class="fhq-btn fhq-btn--outline">Print Rollout (PDF)</a>
+            <a href="{{ url_for('menu_rollout_pricing_export', rollout_id=rollout.id) }}" class="fhq-btn fhq-btn--outline">Export Menu Pricing</a>
+            <a href="{{ url_for('menu_rollout_order_guide', rollout_id=rollout.id) }}" class="fhq-btn fhq-btn--outline">Export Order Guide</a>
+            <a href="{{ url_for('menu_rollout_packet_export', rollout_id=rollout.id) }}" class="fhq-btn fhq-btn--outline">Export Acumatica Packet</a>
+            <a href="{{ url_for('menu_rollout_packet_print', rollout_id=rollout.id) }}" class="fhq-btn fhq-btn--outline">Print Acumatica Packet</a>
+            <form method="POST" action="{{ url_for('menu_rollout_delete', rollout_id=rollout.id) }}" onsubmit="return confirm('Delete this menu rollout? This cannot be undone.');">
+                <button type="submit" class="fhq-btn fhq-btn--ghost">Delete Rollout</button>
+            </form>
         </div>
-    </nav>
+        {% endif %}
+    </div>
 
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <form id="rolloutForm" method="POST" class="space-y-6">

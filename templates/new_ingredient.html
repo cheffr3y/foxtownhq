@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "base.html" import page_nav %}
+{% from "base.html" import page_header, tab_bar %}
 
 {% block title %}New Ingredient - Foxtown HQ{% endblock %}
 
@@ -69,7 +69,7 @@
 
 {% block content %}
 <div class="min-h-screen">
-    {% call page_nav('New Ingredient', 'Create a tracked ingredient record for pricing and recipe costing.', url_for('ingredients')) %}
+    {% call page_header('New Ingredient', 'Create a tracked ingredient record for pricing and recipe costing.') %}
     {% endcall %}
 
     <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 form-shell fhq-fade">

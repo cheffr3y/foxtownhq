@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "base.html" import page_nav %}
+{% from "base.html" import page_header, tab_bar %}
 
 {% block title %}Commissary Weekly Review - Foxtown HQ{% endblock %}
 
@@ -129,9 +129,17 @@
 
 {% block content %}
 <div class="min-h-screen">
-    {% call page_nav('Commissary Weekly Review', 'Quick weekly scan + downloadable PDF report.', url_for('commissary_planner', week_start=week_start)) %}
+    {% call page_header('Commissary Weekly Review', 'Quick weekly scan + downloadable PDF report.') %}
     <a href="{{ url_for('commissary_review_pdf', week_start=week_start, outlet=(selected_outlet or None)) }}" class="fhq-btn fhq-btn--primary">Download PDF</a>
     {% endcall %}
+    {{ tab_bar([
+        {'id': 'planner', 'label': 'Planner', 'url': url_for('commissary_planner')},
+        {'id': 'log', 'label': 'Daily Log', 'url': url_for('commissary_production_log')},
+        {'id': 'transfers', 'label': 'Transfers', 'url': url_for('commissary_transfers')},
+        {'id': 'standing', 'label': 'Standing Prep', 'url': url_for('commissary_standing_prep')},
+        {'id': 'stats', 'label': 'Stats', 'url': url_for('commissary_stats')},
+        {'id': 'review', 'label': 'Review', 'url': url_for('commissary_review')},
+    ], 'review') }}
 
     <div class="max-w-[96rem] mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-4 review-shell fhq-fade">
         <section class="review-panel p-4">
