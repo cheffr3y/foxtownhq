@@ -5,10 +5,17 @@ from datetime import date, datetime, timedelta
 from io import BytesIO
 
 from db import get_cursor, get_db
-from flask import Blueprint, flash, jsonify, redirect, render_template, request, send_file, url_for
+from flask import Blueprint, Response, flash, jsonify, redirect, render_template, request, send_file, url_for
 from flask_login import login_required
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.pdfgen import canvas
+from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from xml.sax.saxutils import escape
 from helpers.banquet import (
     BANQUET_ACTIVE_STATUSES,
     BANQUET_BEO_UPLOAD_ROOT,
@@ -1949,3 +1956,507 @@ def banquet_packet_print():
             prep_groups=prep_groups,
             datasets=datasets
         )
+
+
+@bp.route('/banquet-planner/packet/pdf')
+@login_required
+def banquet_packet_pdf():
+    conn = get_db()
+    with get_cursor() as cur:
+        venues = get_active_venues(cur)
+        banquet_venue = resolve_banquet_venue(venues)
+        selected_venue = banquet_venue.get('id') or ''
+        start_date, end_date = get_banquet_date_window(request.args.get('start_date'), request.args.get('end_date'))
+        include_shopping = (request.args.get('include_shopping') or '').strip().lower() in ('1', 'true', 'yes', 'on')
+        include_beo_raw = request.args.get('include_beo')
+        if include_beo_raw is None:
+            include_beo = True
+        else:
+            include_beo = (include_beo_raw or '').strip().lower() in ('1', 'true', 'yes', 'on')
+        print_lite = (request.args.get('print_lite') or '').strip().lower() in ('1', 'true', 'yes', 'on')
+        simple_raw = (request.args.get('simple') or '').strip().lower()
+        simplified_view = simple_raw in ('1', 'true', 'yes', 'on')
+
+        auto_complete_past_banquet_events(cur, selected_venue)
+        datasets = build_banquet_datasets(cur, start_date, end_date, selected_venue, get_unit_system())
+        event_name_map = {event['id']: event['name'] for event in datasets.get('events', [])}
+        for prep in datasets.get('weekly_prep', []):
+            prep['instruction_steps'] = split_instruction_steps(prep.get('instructions'))
+        prep_groups = build_banquet_prep_groups(cur, datasets, get_unit_system())
+        for pull in datasets.get('weekly_menu_pulls', []):
+            pull['used_in_event_names'] = [event_name_map[event_id] for event_id in pull.get('used_in_events', []) if event_id in event_name_map]
+        venue_name = banquet_venue.get('name') if banquet_venue else 'Banquets'
+
+    header_navy = colors.HexColor('#1B2A4A')
+    light_gray = colors.HexColor('#F5F5F5')
+    border_gray = colors.HexColor('#DDDDDD')
+    muted_text = colors.HexColor('#4F5B6E')
+    white = colors.white
+    margin_x = 0.5 * inch
+    margin_y = 0.4 * inch
+    generated_at = datetime.now().strftime('%b %d, %Y %I:%M %p')
+
+    def to_text(value, default='-'):
+        text = str(value or '').strip()
+        return text or default
+
+    def html_text(value, default='-'):
+        return escape(to_text(value, default)).replace('\n', '<br/>')
+
+    def p(value, style, default='-'):
+        return Paragraph(html_text(value, default), style)
+
+    base_style = ParagraphStyle(
+        'banquet-pdf-base',
+        fontName='Helvetica',
+        fontSize=8,
+        leading=9.4,
+        textColor=colors.black,
+    )
+    tiny_style = ParagraphStyle(
+        'banquet-pdf-tiny',
+        parent=base_style,
+        fontSize=7.2,
+        leading=8.3,
+    )
+    table_header_style = ParagraphStyle(
+        'banquet-pdf-table-header',
+        parent=base_style,
+        fontName='Helvetica-Bold',
+        textColor=white,
+        fontSize=7.2,
+        leading=8.3,
+    )
+    section_title_style = ParagraphStyle(
+        'banquet-pdf-section-title',
+        parent=base_style,
+        fontName='Helvetica-Bold',
+        fontSize=10.5,
+        leading=12,
+        textColor=header_navy,
+    )
+    subheading_style = ParagraphStyle(
+        'banquet-pdf-subheading',
+        parent=base_style,
+        fontName='Helvetica-Bold',
+        fontSize=8.6,
+        leading=10.2,
+        textColor=header_navy,
+    )
+    muted_style = ParagraphStyle(
+        'banquet-pdf-muted',
+        parent=base_style,
+        fontSize=7.3,
+        leading=8.4,
+        textColor=muted_text,
+    )
+
+    def draw_page_header(pdf_canvas, doc):
+        page_width, page_height = letter
+        top_y = page_height - 22
+        pdf_canvas.saveState()
+        pdf_canvas.setFillColor(header_navy)
+        pdf_canvas.setFont('Helvetica-Bold', 11)
+        pdf_canvas.drawString(doc.leftMargin, top_y, 'Banquet Planning Packet')
+        pdf_canvas.setFillColor(muted_text)
+        pdf_canvas.setFont('Helvetica', 7.3)
+        meta = f'{to_text(venue_name)} | {start_date.isoformat()} - {end_date.isoformat()}'
+        if print_lite:
+            meta = f'{meta} | Print Lite'
+        elif simplified_view:
+            meta = f'{meta} | Simplified View'
+        pdf_canvas.drawString(doc.leftMargin, top_y - 10, meta)
+        pdf_canvas.drawRightString(page_width - doc.rightMargin, top_y - 10, f'Generated {generated_at}')
+        pdf_canvas.setStrokeColor(border_gray)
+        pdf_canvas.setLineWidth(0.6)
+        pdf_canvas.line(doc.leftMargin, top_y - 14.5, page_width - doc.rightMargin, top_y - 14.5)
+        pdf_canvas.restoreState()
+
+    def draw_footer(pdf_canvas, page_num, total_pages):
+        page_width, _ = letter
+        footer_y = 16
+        pdf_canvas.setStrokeColor(border_gray)
+        pdf_canvas.setLineWidth(0.6)
+        pdf_canvas.line(margin_x, footer_y + 10, page_width - margin_x, footer_y + 10)
+        pdf_canvas.setFont('Helvetica', 7.5)
+        pdf_canvas.setFillColor(muted_text)
+        pdf_canvas.drawString(margin_x, footer_y + 2, 'Foxtown HQ')
+        pdf_canvas.drawRightString(page_width - margin_x, footer_y + 2, f'Page {page_num} of {total_pages}')
+
+    class NumberedCanvas(canvas.Canvas):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self._saved_page_states = []
+
+        def showPage(self):
+            self._saved_page_states.append(dict(self.__dict__))
+            self._startPage()
+
+        def save(self):
+            total_pages = len(self._saved_page_states)
+            for page_num, state in enumerate(self._saved_page_states, start=1):
+                self.__dict__.update(state)
+                draw_footer(self, page_num, total_pages)
+                super().showPage()
+            super().save()
+
+    def draw_first_page(pdf_canvas, doc):
+        draw_page_header(pdf_canvas, doc)
+
+    def draw_later_pages(pdf_canvas, doc):
+        draw_page_header(pdf_canvas, doc)
+
+    def style_table(table, align_right_cols=None):
+        commands = [
+            ('BACKGROUND', (0, 0), (-1, 0), header_navy),
+            ('TEXTCOLOR', (0, 0), (-1, 0), white),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [white, light_gray]),
+            ('GRID', (0, 0), (-1, -1), 0.45, colors.black),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 4),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+            ('TOPPADDING', (0, 0), (-1, -1), 3),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ]
+        if align_right_cols:
+            for idx in align_right_cols:
+                commands.append(('ALIGN', (idx, 1), (idx, -1), 'RIGHT'))
+        table.setStyle(TableStyle(commands))
+        return table
+
+    def step_lines(card):
+        steps = card.get('instruction_steps') or []
+        if steps:
+            return steps
+        return split_instruction_steps(card.get('instructions'))
+
+    def render_sub_card(story, card, depth=1):
+        story.append(Paragraph(f"Sub-Recipe (L{depth}): {to_text(card.get('recipe_name'), 'Sub-Recipe')}", subheading_style))
+        ingredient_rows = card.get('ingredient_rows') or []
+        if ingredient_rows:
+            sub_ing_data = [
+                [
+                    Paragraph('✓', table_header_style),
+                    Paragraph('Ingredient', table_header_style),
+                    Paragraph('Qty', table_header_style),
+                    Paragraph('Unit', table_header_style),
+                ]
+            ]
+            for ing in ingredient_rows:
+                sub_ing_data.append(
+                    [
+                        p('[ ]', tiny_style),
+                        p(ing.get('name') or 'Ingredient', base_style),
+                        p(ing.get('display_quantity') if ing.get('display_quantity') not in (None, '') else '—', base_style),
+                        p(ing.get('display_unit') or '—', base_style),
+                    ]
+                )
+            sub_ing_table = Table(sub_ing_data, colWidths=[0.3 * inch, 4.0 * inch, 0.8 * inch, 0.75 * inch], repeatRows=1)
+            style_table(sub_ing_table, align_right_cols=[2])
+            story.append(sub_ing_table)
+        for idx, step in enumerate(step_lines(card), start=1):
+            story.append(Paragraph(f'{idx}. {html_text(step, "")}', tiny_style))
+        for child in card.get('child_cards') or []:
+            story.append(Spacer(1, 4))
+            render_sub_card(story, child, depth + 1)
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=letter,
+        leftMargin=margin_x,
+        rightMargin=margin_x,
+        topMargin=0.9 * inch,
+        bottomMargin=0.5 * inch,
+        title='Banquet Planning Packet',
+    )
+    story = [Spacer(1, 2)]
+
+    if include_beo:
+        story.append(Paragraph('BEO Service Brief', section_title_style))
+        story.append(Paragraph(f'{start_date.isoformat()} - {end_date.isoformat()}', muted_style))
+        story.append(Spacer(1, 4))
+        events = datasets.get('events') or []
+        if events:
+            for event in events:
+                story.append(
+                    Paragraph(
+                        f"<b>{escape(to_text(event.get('name'), 'Event'))}</b> | "
+                        f"{to_text(event.get('event_date'))} | {to_text(event.get('venue_name'))} | "
+                        f"{to_text(event.get('guests'), '—')} guests",
+                        base_style,
+                    )
+                )
+                if event.get('service_timing'):
+                    story.append(Paragraph(f"Service Timing: {html_text(event.get('service_timing'), '')}", muted_style))
+                if event.get('dietary_notes'):
+                    story.append(Paragraph(f"Dietary / Allergy Notes: {html_text(event.get('dietary_notes'), '')}", muted_style))
+                if event.get('notes'):
+                    story.append(Paragraph(f"General Notes: {html_text(event.get('notes'), '')}", muted_style))
+
+                lines_data = [
+                    [
+                        Paragraph('✓', table_header_style),
+                        Paragraph('Menu Item', table_header_style),
+                        Paragraph('Qty', table_header_style),
+                        Paragraph('Notes / Mods', table_header_style),
+                    ]
+                ]
+                current_section = None
+                for line in event.get('lines', []) or []:
+                    section_name = line.get('menu_section') or 'Other'
+                    if section_name != current_section:
+                        current_section = section_name
+                        lines_data.append(
+                            [
+                                p('', base_style, default=''),
+                                Paragraph(f"<b>{escape(section_name)}</b>", base_style),
+                                p('', base_style, default=''),
+                                p('', base_style, default=''),
+                            ]
+                        )
+                    name_cell = line.get('menu_item_name') or 'Menu Item'
+                    if line.get('menu_descriptor') and not simplified_view:
+                        name_cell = f"{name_cell}<br/><font color=\"#4F5B6E\">{escape(line.get('menu_descriptor'))}</font>"
+                    lines_data.append(
+                        [
+                            p('[ ]', tiny_style),
+                            Paragraph(name_cell, base_style),
+                            p(f"{format_number(line.get('quantity'))} {to_text(line.get('quantity_unit'), '')}".strip(), tiny_style),
+                            p(line.get('notes') or '—', tiny_style),
+                        ]
+                    )
+                if len(lines_data) == 1:
+                    lines_data.append([p('', base_style, ''), p('No menu lines', base_style), p('', base_style, ''), p('', base_style, '')])
+                lines_table = Table(lines_data, colWidths=[0.26 * inch, 2.9 * inch, 1.0 * inch, 1.54 * inch], repeatRows=1)
+                style_table(lines_table, align_right_cols=[2])
+                story.append(lines_table)
+                story.append(Spacer(1, 6))
+        else:
+            story.append(Paragraph('No events found in this date range.', muted_style))
+
+    story.append(PageBreak())
+    story.append(Paragraph('Event Summary', section_title_style))
+    events = datasets.get('events') or []
+    if events:
+        summary_data = [
+            [
+                Paragraph('Date', table_header_style),
+                Paragraph('Event', table_header_style),
+                Paragraph('Service Timing', table_header_style),
+                Paragraph('Guests', table_header_style),
+            ]
+        ]
+        for event in events:
+            summary_data.append(
+                [
+                    p(event.get('event_date') or '—', base_style),
+                    p(event.get('name') or 'Event', base_style),
+                    p(event.get('service_timing') or '—', base_style),
+                    p(event.get('guests') or '—', base_style),
+                ]
+            )
+        summary_table = Table(summary_data, colWidths=[1.0 * inch, 2.3 * inch, 2.0 * inch, 0.4 * inch], repeatRows=1)
+        style_table(summary_table)
+        story.append(summary_table)
+    else:
+        story.append(Paragraph('No events found in this date range.', muted_style))
+
+    if not print_lite:
+        if include_shopping:
+            story.append(PageBreak())
+            story.append(Paragraph('Shopping List', section_title_style))
+            vendor_groups = defaultdict(list)
+            for item in datasets.get('shopping_ingredients', []) or []:
+                vendor_groups[item.get('vendor') or 'Unassigned Vendor'].append(item)
+            if vendor_groups:
+                for vendor, items in vendor_groups.items():
+                    story.append(Paragraph(vendor, subheading_style))
+                    shop_data = [
+                        [
+                            Paragraph('✓', table_header_style),
+                            Paragraph('Ingredient', table_header_style),
+                            Paragraph('Qty', table_header_style),
+                            Paragraph('Unit', table_header_style),
+                            Paragraph('Category', table_header_style),
+                        ]
+                    ]
+                    for item in items:
+                        category = item.get('category') or 'Uncategorized'
+                        if simplified_view:
+                            category = '—'
+                        shop_data.append(
+                            [
+                                p('[ ]', tiny_style),
+                                p(item.get('name') or 'Ingredient', base_style),
+                                p(item.get('display_quantity') if item.get('display_quantity') not in (None, '') else '—', base_style),
+                                p(item.get('display_unit') or '—', base_style),
+                                p(category, tiny_style),
+                            ]
+                        )
+                    shop_table = Table(shop_data, colWidths=[0.24 * inch, 3.35 * inch, 0.8 * inch, 0.7 * inch, 1.21 * inch], repeatRows=1)
+                    style_table(shop_table, align_right_cols=[2])
+                    story.append(shop_table)
+                    story.append(Spacer(1, 6))
+            else:
+                story.append(Paragraph('No shopping items for this date range.', muted_style))
+
+        story.append(PageBreak())
+        story.append(Paragraph('Weekly Prep Cards', section_title_style))
+        if prep_groups:
+            for group in prep_groups:
+                story.append(Paragraph(f"Main Item: {to_text(group.get('main_label'), 'Menu Item')}", subheading_style))
+                root = group.get('root') or {}
+                root_title = f"{to_text(root.get('recipe_name'), 'Recipe')} | {to_text((root.get('display_required') or {}).get('quantity'), '—')} {to_text((root.get('display_required') or {}).get('unit'), '')}"
+                story.append(Paragraph(root_title, base_style))
+                story.append(
+                    Paragraph(
+                        f"Used in: {' · '.join(root.get('used_in_menu_items') or []) or '—'}",
+                        muted_style,
+                    )
+                )
+                story.append(Spacer(1, 3))
+
+                ing_data = [
+                    [
+                        Paragraph('✓', table_header_style),
+                        Paragraph('Ingredient', table_header_style),
+                        Paragraph('Qty', table_header_style),
+                        Paragraph('Unit', table_header_style),
+                    ]
+                ]
+                for ing in root.get('ingredient_rows') or []:
+                    ing_data.append(
+                        [
+                            p('[ ]', tiny_style),
+                            p(ing.get('name') or 'Ingredient', base_style),
+                            p(ing.get('display_quantity') if ing.get('display_quantity') not in (None, '') else '—', base_style),
+                            p(ing.get('display_unit') or '—', base_style),
+                        ]
+                    )
+                if len(ing_data) > 1:
+                    ing_table = Table(ing_data, colWidths=[0.3 * inch, 3.9 * inch, 0.9 * inch, 0.75 * inch], repeatRows=1)
+                    style_table(ing_table, align_right_cols=[2])
+                    story.append(ing_table)
+                else:
+                    story.append(Paragraph('No direct raw ingredients - built from sub-recipes below.', muted_style))
+
+                sub_rows = root.get('subrecipe_rows') or []
+                if sub_rows:
+                    story.append(Spacer(1, 4))
+                    sub_data = [
+                        [
+                            Paragraph('✓', table_header_style),
+                            Paragraph('Sub-Recipe', table_header_style),
+                            Paragraph('Qty', table_header_style),
+                            Paragraph('Unit', table_header_style),
+                        ]
+                    ]
+                    for sub in sub_rows:
+                        sub_name = sub.get('recipe_name') or 'Sub-Recipe'
+                        if sub.get('covered_by_parent_recipe'):
+                            covered = sub.get('covered_by_recipe_name') or 'another parent recipe'
+                            sub_name = f"{sub_name}<br/><font color=\"#4F5B6E\">Prepared under {escape(covered)}</font>"
+                        sub_data.append(
+                            [
+                                p('[ ]', tiny_style),
+                                Paragraph(sub_name, base_style),
+                                p((sub.get('display_required') or {}).get('quantity') or '—', base_style),
+                                p((sub.get('display_required') or {}).get('unit') or '—', base_style),
+                            ]
+                        )
+                    sub_table = Table(sub_data, colWidths=[0.3 * inch, 4.0 * inch, 0.75 * inch, 0.8 * inch], repeatRows=1)
+                    style_table(sub_table, align_right_cols=[2])
+                    story.append(sub_table)
+
+                steps = step_lines(root)
+                if steps:
+                    story.append(Spacer(1, 4))
+                    story.append(Paragraph('Method', subheading_style))
+                    for idx, step in enumerate(steps, start=1):
+                        story.append(Paragraph(f'{idx}. {html_text(step, "")}', base_style))
+
+                for sub_card in group.get('sub_cards') or []:
+                    story.append(Spacer(1, 5))
+                    render_sub_card(story, sub_card, 1)
+
+                story.append(Spacer(1, 8))
+        else:
+            story.append(Paragraph('No scaled recipe prep cards in this date window.', muted_style))
+
+        weekly_menu_pulls = datasets.get('weekly_menu_pulls') or []
+        if weekly_menu_pulls:
+            story.append(PageBreak())
+            story.append(Paragraph('Direct Menu Pulls', section_title_style))
+            for pull in weekly_menu_pulls:
+                story.append(Paragraph(to_text(pull.get('menu_item_name'), 'Menu Item'), subheading_style))
+                if pull.get('used_in_event_names'):
+                    story.append(Paragraph(', '.join(pull.get('used_in_event_names') or []), muted_style))
+                pull_data = [
+                    [
+                        Paragraph('✓', table_header_style),
+                        Paragraph('Ingredient', table_header_style),
+                        Paragraph('Qty', table_header_style),
+                        Paragraph('Unit', table_header_style),
+                    ]
+                ]
+                for ing in pull.get('ingredient_rows') or []:
+                    pull_data.append(
+                        [
+                            p('[ ]', tiny_style),
+                            p(ing.get('name') or 'Ingredient', base_style),
+                            p(ing.get('display_quantity') if ing.get('display_quantity') not in (None, '') else '—', base_style),
+                            p(ing.get('display_unit') or '—', base_style),
+                        ]
+                    )
+                if len(pull_data) == 1:
+                    pull_data.append([p('', base_style, ''), p('No direct raw ingredients on this menu item.', base_style), p('', base_style, ''), p('', base_style, '')])
+                pull_table = Table(pull_data, colWidths=[0.3 * inch, 4.05 * inch, 0.8 * inch, 0.7 * inch], repeatRows=1)
+                style_table(pull_table, align_right_cols=[2])
+                story.append(pull_table)
+                story.append(Spacer(1, 6))
+
+        story.append(PageBreak())
+        story.append(Paragraph('Daily Prep', section_title_style))
+        daily_groups = datasets.get('daily_groups') or []
+        if daily_groups:
+            for day in daily_groups:
+                story.append(Paragraph(to_text(day.get('date')), subheading_style))
+                for event in day.get('events') or []:
+                    header = f"{to_text(event.get('name'), 'Event')} | {to_text(event.get('guests'), '—')} guests | {to_text(event.get('venue_name'), '—')}"
+                    story.append(Paragraph(header, base_style))
+                    line_data = [
+                        [
+                            Paragraph('✓', table_header_style),
+                            Paragraph('Menu Item', table_header_style),
+                            Paragraph('Qty', table_header_style),
+                            Paragraph('Notes', table_header_style),
+                        ]
+                    ]
+                    for line in event.get('lines') or []:
+                        line_data.append(
+                            [
+                                p('[ ]', tiny_style),
+                                p(line.get('menu_item_name') or 'Menu Item', base_style),
+                                p(f"{format_number(line.get('quantity'))} {to_text(line.get('quantity_unit'), '')}".strip(), tiny_style),
+                                p(line.get('notes') or '—', tiny_style),
+                            ]
+                        )
+                    if len(line_data) > 1:
+                        line_table = Table(line_data, colWidths=[0.3 * inch, 3.45 * inch, 0.95 * inch, 1.15 * inch], repeatRows=1)
+                        style_table(line_table, align_right_cols=[2])
+                        story.append(line_table)
+                    story.append(Spacer(1, 4))
+        else:
+            story.append(Paragraph('No daily prep lines in this date range.', muted_style))
+
+    doc.build(story, onFirstPage=draw_first_page, onLaterPages=draw_later_pages, canvasmaker=NumberedCanvas)
+    payload = buffer.getvalue()
+    buffer.close()
+
+    filename = f"{make_safe_filename(venue_name)}_{start_date.isoformat()}_{end_date.isoformat()}_banquet_packet.pdf"
+    return Response(
+        payload,
+        mimetype='application/pdf',
+        headers={'Content-Disposition': f'attachment; filename={filename}'},
+    )

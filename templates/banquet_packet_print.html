@@ -89,6 +89,12 @@
                 {% if include_shopping %}Hide Shopping{% else %}Include Shopping{% endif %}
             </a>
             {% endif %}
+            <a
+                href="{{ url_for('banquet_packet_pdf', venue=selected_venue, start_date=start_date, end_date=end_date, include_shopping=include_shopping, include_beo=include_beo, simple=(1 if simplified_view else 0), print_lite=(1 if print_lite else 0)) }}"
+                class="bg-stone-800 hover:bg-stone-900 text-white px-4 py-2 rounded-xl font-semibold"
+            >
+                Download PDF
+            </a>
             <button onclick="window.print()" class="bg-foxtown-ember hover:bg-orange-700 text-white px-4 py-2 rounded-xl font-semibold">Print / Save PDF</button>
         </div>
     </div>
