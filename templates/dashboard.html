@@ -6,103 +6,33 @@
 {% block extra_head %}
 <style>
     .dashboard-shell { padding-bottom: 3.5rem; }
-    .dashboard-layout,
-    .main-column,
-    .sidebar-column,
-    .tool-list,
-    .snapshot-list,
-    .event-grid,
-    .pulse-grid {
-        display: grid;
-        gap: 1rem;
-    }
+    .dashboard-layout, .main-column, .sidebar-column, .tool-list, .snapshot-list, .event-grid, .pulse-grid { display: grid; gap: 1rem; }
     .dashboard-layout { grid-template-columns: minmax(0, 1fr); align-items: start; }
-    @media (min-width: 900px) {
-        .pulse-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    }
-    @media (min-width: 1280px) {
-        .dashboard-layout { grid-template-columns: minmax(0, 1fr) 280px; }
-        .sidebar-column { position: sticky; top: 0.9rem; max-height: calc(100vh - 1.8rem); overflow: auto; padding-right: 0.18rem; }
-    }
-    .alert-row,
-    .action-row,
-    .section-head,
-    .pulse-head,
-    .event-card-top,
-    .event-foot,
-    .event-actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.6rem;
-    }
-    .section-head,
-    .pulse-head,
-    .event-card-top,
-    .event-foot { justify-content: space-between; }
+    .alert-row, .action-row, .section-head, .pulse-head, .event-card-top, .event-foot, .event-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+    .section-head, .pulse-head, .event-card-top, .event-foot { justify-content: space-between; }
     .pulse-head { align-items: flex-end; }
-    .alert-pill,
-    .event-card,
-    .pulse-metric,
-    .pulse-item,
-    .tool-link,
-    .snapshot-pill {
-        border: 1px solid #ECEAE6;
-        border-radius: 8px;
-        background: #fff;
-    }
-    .alert-pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.55rem 0.7rem;
-        color: #1B1918;
-        text-decoration: none;
-        transition: border-color 0.15s ease;
-    }
-    .alert-pill:hover,
-    .tool-link:hover { border-color: #C8C2BB; }
+    .alert-pill, .event-card, .pulse-metric, .pulse-item, .tool-link, .snapshot-pill { border: 1px solid #ECEAE6; border-radius: 8px; background: #fff; }
+    .alert-pill { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.55rem 0.7rem; color: #1B1918; text-decoration: none; transition: border-color 0.15s ease; }
+    .alert-pill:hover, .tool-link:hover { border-color: #C8C2BB; }
     .alert-pill--amber { background: #FFF8EE; border-color: #F0D9A0; }
     .alert-pill--blue { background: #EEF3FF; border-color: #A8C4F0; }
     .alert-pill--green { background: #EEFBEF; border-color: #C2E8C4; }
-    .alert-pill-title,
-    .prep-track-head,
-    .pulse-amount,
-    .tool-sub,
-    .snapshot-pill {
-        font-size: 0.7rem;
-        font-weight: 600;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-    }
-    .alert-pill-title { color: #1B1918; }
-    .alert-pill-sub,
-    .event-meta,
-    .event-datetime,
-    .event-venue,
-    .tool-sub,
-    .empty-note { font-size: 0.78rem; color: #8A8580; }
+    .alert-pill-title, .prep-track-head, .pulse-amount, .tool-sub, .snapshot-pill { font-size: 0.7rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+    .alert-pill-sub, .event-meta, .event-datetime, .event-venue, .tool-sub, .empty-note { font-size: 0.78rem; color: #8A8580; }
     .live-dot { width: 0.5rem; height: 0.5rem; border-radius: 999px; background: #2B7A30; flex-shrink: 0; }
     .event-grid { gap: 0.75rem; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); }
     .event-card { padding: 0.82rem; }
     .event-card--featured { border-color: #C8C2BB; border-left: 4px solid #C0612B; }
-    .status-badge {
-        display: inline-flex;
-        align-items: center;
-        border-radius: 999px;
-        padding: 0.28rem 0.62rem;
-        font-size: 0.68rem;
-        font-weight: 600;
-        border: 1px solid #ECEAE6;
-        white-space: nowrap;
-    }
-    .status-badge--emerald { background: #EEFBEF; color: #2B7A30; border-color: #C2E8C4; }
-    .status-badge--amber { background: #FFF8EE; color: #A0590A; border-color: #F0D9A0; }
+    .status-badge, .tool-badge { display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; font-size: 0.68rem; font-weight: 600; border: 1px solid #ECEAE6; white-space: nowrap; }
+    .status-badge { padding: 0.28rem 0.62rem; }
+    .status-badge--emerald, .tool-badge--live, .snapshot-pill--green { background: #EEFBEF; color: #2B7A30; border-color: #C2E8C4; }
+    .status-badge--amber, .tool-badge--danger, .snapshot-pill--amber { background: #FFF8EE; color: #A0590A; border-color: #F0D9A0; }
     .status-badge--rose { background: #FFF7F5; color: #8B2020; border-color: #F0BFAF; }
-    .status-badge--default { background: #FCFBFA; color: #8A8580; }
+    .status-badge--default, .tool-badge--amber { background: #FCFBFA; color: #8A8580; }
     .prep-track-wrap { margin-top: 0.72rem; }
     .prep-track-head { justify-content: space-between; color: #8A8580; margin-bottom: 0.3rem; }
     .prep-track { height: 8px; border-radius: 999px; background: #F1EFEC; overflow: hidden; }
-    .prep-track > span { display: block; height: 100%; border-radius: 999px; background: #C0612B; }
+    .prep-track > span { display: block; height: 100%; border-radius: inherit; background: #C0612B; }
     .event-foot { margin-top: 0.72rem; align-items: center; }
     .event-actions { align-items: center; gap: 0.42rem; }
     .pulse-metrics { margin-top: 0.85rem; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5rem; max-width: 420px; }
@@ -110,45 +40,22 @@
     .pulse-metric-value { margin-top: 0.2rem; font-size: 1.05rem; font-weight: 700; color: #1B1918; }
     .pulse-grid { margin-top: 0.85rem; gap: 0.52rem; }
     .pulse-item { padding: 0.62rem 0.66rem; justify-content: space-between; align-items: baseline; gap: 0.7rem; }
-    .pulse-name,
-    .tool-title { font-size: 0.9rem; font-weight: 600; color: #1B1918; }
-    .pulse-amount { color: #C0612B; text-align: right; }
-    .tool-list,
-    .snapshot-list { margin-top: 0.6rem; gap: 0.48rem; }
-    .tool-link { display: flex; align-items: center; gap: 0.55rem; padding: 0.6rem; text-decoration: none; }
-    .tool-icon {
-        width: 1.45rem;
-        height: 1.45rem;
-        border-radius: 8px;
-        background: #F1EFEC;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 0.85rem;
-        color: #1B1918;
-        flex-shrink: 0;
-    }
-    .tool-copy { min-width: 0; flex: 1; }
-    .tool-badge {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 1.35rem;
-        height: 1.35rem;
-        padding: 0 0.35rem;
-        border-radius: 999px;
-        font-size: 0.68rem;
-        font-weight: 600;
-        border: 1px solid #ECEAE6;
-    }
-    .tool-badge--danger,
-    .snapshot-pill--amber { background: #FFF8EE; color: #A0590A; border-color: #F0D9A0; }
-    .tool-badge--amber { background: #FCFBFA; color: #8A8580; border-color: #ECEAE6; }
-    .tool-badge--live,
-    .snapshot-pill--green { background: #EEFBEF; color: #2B7A30; border-color: #C2E8C4; }
+    .pulse-name, .tool-title { font-size: 0.9rem; font-weight: 600; color: #1B1918; }
+    .pulse-amount { text-align: right; color: #C0612B; }
+    .tool-list, .snapshot-list { margin-top: 0.6rem; gap: 0.48rem; }
     .snapshot-list { margin-top: 0.55rem; gap: 0.4rem; }
-    .snapshot-pill { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; padding: 0.45rem 0.6rem; color: #8A8580; }
+    .tool-link, .snapshot-pill { display: flex; align-items: center; gap: 0.55rem; }
+    .tool-link { padding: 0.6rem; text-decoration: none; }
+    .tool-icon { width: 1.45rem; height: 1.45rem; border-radius: 8px; background: #F1EFEC; display: inline-flex; align-items: center; justify-content: center; font-size: 0.85rem; color: #1B1918; flex-shrink: 0; }
+    .tool-copy { min-width: 0; flex: 1; }
+    .tool-badge { min-width: 1.35rem; height: 1.35rem; padding: 0 0.35rem; }
+    .snapshot-pill { justify-content: space-between; gap: 0.6rem; padding: 0.45rem 0.6rem; color: #8A8580; }
     .empty-note { padding: 0.75rem; border: 1px dashed #DDD8D3; border-radius: 8px; background: #FCFBFA; }
+    @media (min-width: 900px) { .pulse-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (min-width: 1280px) {
+        .dashboard-layout { grid-template-columns: minmax(0, 1fr) 280px; }
+        .sidebar-column { position: sticky; top: 0.9rem; max-height: calc(100vh - 1.8rem); overflow: auto; padding-right: 0.18rem; }
+    }
 </style>
 {% endblock %}
 
