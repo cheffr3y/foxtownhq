@@ -5,125 +5,19 @@
 
 {% block extra_head %}
 <style>
-    .stats-shell {
-        padding-bottom: 3rem;
-    }
-
-    .stats-panel {
-        border-radius: 16px;
-        border: 1px solid rgba(15, 23, 42, 0.1);
-        background: rgba(255, 255, 255, 0.96);
-        box-shadow: 0 0 36px -14px rgba(77, 124, 255, 0.24);
-    }
-
-    .controls-grid {
-        display: grid;
-        gap: 0.58rem;
-        grid-template-columns: repeat(1, minmax(0, 1fr));
-        align-items: end;
-    }
-
+    .stats-shell { padding-bottom: 3rem; }
+    .controls-grid,
+    .stat-grid { display: grid; gap: 0.58rem; grid-template-columns: repeat(1, minmax(0, 1fr)); align-items: end; }
     @media (min-width: 980px) {
-        .controls-grid {
-            grid-template-columns: minmax(170px, 0.7fr) minmax(180px, 0.8fr) minmax(170px, 0.7fr) minmax(170px, 0.7fr) auto;
-        }
+        .controls-grid { grid-template-columns: minmax(170px, 0.7fr) minmax(180px, 0.8fr) minmax(170px, 0.7fr) minmax(170px, 0.7fr) auto; }
     }
-
-    .field-label {
-        display: block;
-        margin-bottom: 0.3rem;
-        font-size: 0.64rem;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-        color: #94A3B8;
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-    }
-
-    .field {
-        width: 100%;
-        min-height: 42px;
-        border: 1px solid rgba(15, 23, 42, 0.15);
-        border-radius: 10px;
-        background: rgba(248, 250, 252, 0.92);
-        color: #0F172A;
-        padding: 0.5rem 0.72rem;
-        transition: all 0.2s ease;
-    }
-
-    .field:focus {
-        outline: none;
-        border-color: rgba(77, 124, 255, 0.72);
-        box-shadow: 0 0 20px -10px rgba(77, 124, 255, 0.55);
-    }
-
-    .stat-grid {
-        display: grid;
-        gap: 0.75rem;
-        grid-template-columns: repeat(1, minmax(0, 1fr));
-    }
-
     @media (min-width: 1080px) {
-        .stat-grid {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-        }
+        .stat-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     }
-
-    .stat-card {
-        border-radius: 12px;
-        border: 1px solid rgba(15, 23, 42, 0.11);
-        background: rgba(248, 250, 252, 0.92);
-        padding: 0.75rem;
-    }
-
-    .stat-label {
-        font-size: 0.66rem;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-        color: #94A3B8;
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-    }
-
-    .stat-value {
-        margin-top: 0.15rem;
-        color: #0F172A;
-        font-size: 1.8rem;
-        font-family: 'Calistoga', Inter, sans-serif;
-        letter-spacing: -0.03em;
-    }
-
-    .table-wrap {
-        overflow-x: auto;
-    }
-
-    .stats-table {
-        width: 100%;
-        min-width: 780px;
-        border-collapse: collapse;
-    }
-
-    .stats-table th {
-        text-align: left;
-        font-size: 0.66rem;
-        letter-spacing: 0.13em;
-        text-transform: uppercase;
-        color: #94A3B8;
-        padding: 0.66rem 0.72rem;
-        border-bottom: 1px solid rgba(148, 163, 184, 0.24);
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-    }
-
-    .stats-table td {
-        padding: 0.7rem 0.72rem;
-        border-top: 1px solid rgba(148, 163, 184, 0.2);
-        color: #334155;
-        font-size: 0.84rem;
-        vertical-align: top;
-    }
-
-    .empty-note {
-        color: #94A3B8;
-        font-size: 0.88rem;
-    }
+    .stat-value { margin-top: 0.15rem; color: #1B1918; font-size: 1.8rem; font-weight: 700; letter-spacing: -0.03em; }
+    .table-wrap { overflow-x: auto; }
+    .stats-table { min-width: 780px; }
+    .empty-note { color: #8A8580; font-size: 0.88rem; }
 </style>
 {% endblock %}
 
@@ -141,12 +35,12 @@
         {'id': 'review', 'label': 'Review', 'url': url_for('commissary_review')},
     ], 'stats') }}
 
-    <div class="max-w-[96rem] mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-4 stats-shell fhq-fade">
-        <section class="stats-panel p-4">
+    <div class="max-w-[96rem] mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-4 stats-shell">
+        <section class="fhq-card p-4">
             <form method="GET" class="controls-grid">
                 <div>
-                    <label class="field-label">Range</label>
-                    <select name="range" class="field">
+                    <label class="block text-sm font-medium text-foxtown-muted mb-1.5">Range</label>
+                    <select name="range" class="fhq-input">
                         <option value="week" {% if preset == 'week' %}selected{% endif %}>This Week</option>
                         <option value="month" {% if preset == 'month' %}selected{% endif %}>This Month</option>
                         <option value="quarter" {% if preset == 'quarter' %}selected{% endif %}>This Quarter</option>
@@ -155,8 +49,8 @@
                     </select>
                 </div>
                 <div>
-                    <label class="field-label">Outlet</label>
-                    <select name="outlet" class="field">
+                    <label class="block text-sm font-medium text-foxtown-muted mb-1.5">Outlet</label>
+                    <select name="outlet" class="fhq-input">
                         <option value="">All Outlets</option>
                         {% for outlet in outlet_options %}
                         <option value="{{ outlet }}" {% if selected_outlet == outlet %}selected{% endif %}>{{ outlet }}</option>
@@ -164,39 +58,39 @@
                     </select>
                 </div>
                 <div>
-                    <label class="field-label">Start Date</label>
-                    <input type="date" name="start_date" class="field" value="{{ start_date }}">
+                    <label class="block text-sm font-medium text-foxtown-muted mb-1.5">Start Date</label>
+                    <input type="date" name="start_date" class="fhq-input" value="{{ start_date }}">
                 </div>
                 <div>
-                    <label class="field-label">End Date</label>
-                    <input type="date" name="end_date" class="field" value="{{ end_date }}">
+                    <label class="block text-sm font-medium text-foxtown-muted mb-1.5">End Date</label>
+                    <input type="date" name="end_date" class="fhq-input" value="{{ end_date }}">
                 </div>
                 <button type="submit" class="fhq-btn fhq-btn--primary">Apply</button>
             </form>
         </section>
 
-        <section class="stats-panel p-4">
+        <section class="fhq-card p-4">
             <div class="stat-grid">
-                <div class="stat-card">
-                    <div class="stat-label">Unique Ingredients</div>
+                <div class="fhq-card p-4">
+                    <div class="fhq-section-head mb-0">Unique Ingredients</div>
                     <div class="stat-value">{{ ingredient_usage_rows|length }}</div>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-label">Most Requested (Count)</div>
+                <div class="fhq-card p-4">
+                    <div class="fhq-section-head mb-0">Most Requested (Count)</div>
                     <div class="stat-value">{{ most_requested_count[0].recipe_name if most_requested_count else '—' }}</div>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-label">Window</div>
+                <div class="fhq-card p-4">
+                    <div class="fhq-section-head mb-0">Window</div>
                     <div class="stat-value">{{ start_date }} → {{ end_date }}</div>
                 </div>
             </div>
         </section>
 
-        <section class="stats-panel p-4">
-            <h2 class="text-xl font-display text-foxtown-ink mb-3">Top Ingredient Usage</h2>
+        <section class="fhq-card p-4">
+            <h2 class="mb-3 text-xl font-bold tracking-tight text-foxtown-text">Top Ingredient Usage</h2>
             {% if ingredient_usage_rows %}
             <div class="table-wrap">
-                <table class="stats-table">
+                <table class="fhq-table stats-table">
                     <thead>
                         <tr>
                             <th>Ingredient</th>
@@ -222,11 +116,11 @@
             {% endif %}
         </section>
 
-        <section class="stats-panel p-4">
-            <h2 class="text-xl font-display text-foxtown-ink mb-3">Most Requested Items (by Count)</h2>
+        <section class="fhq-card p-4">
+            <h2 class="mb-3 text-xl font-bold tracking-tight text-foxtown-text">Most Requested Items (by Count)</h2>
             {% if most_requested_count %}
             <div class="table-wrap">
-                <table class="stats-table">
+                <table class="fhq-table stats-table">
                     <thead>
                         <tr>
                             <th>Recipe</th>
@@ -250,11 +144,11 @@
             {% endif %}
         </section>
 
-        <section class="stats-panel p-4">
-            <h2 class="text-xl font-display text-foxtown-ink mb-3">Most Requested Items (by Quantity)</h2>
+        <section class="fhq-card p-4">
+            <h2 class="mb-3 text-xl font-bold tracking-tight text-foxtown-text">Most Requested Items (by Quantity)</h2>
             {% if most_requested_volume %}
             <div class="table-wrap">
-                <table class="stats-table">
+                <table class="fhq-table stats-table">
                     <thead>
                         <tr>
                             <th>Recipe</th>
