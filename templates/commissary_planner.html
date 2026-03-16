@@ -6,98 +6,41 @@
 {% block extra_head %}
 <style>
     .comm-shell { padding-bottom: 3rem; }
-    .controls-grid,
-    .signoff-tools,
-    .signoff-grid,
-    .signoff-cards { display: grid; gap: 0.7rem; }
+    .controls-grid, .signoff-tools, .signoff-grid, .signoff-cards { display: grid; gap: 0.7rem; }
     .controls-grid { grid-template-columns: repeat(1, minmax(0, 1fr)); align-items: end; }
-    @media (min-width: 900px) {
-        .signoff-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    }
-    @media (min-width: 980px) {
-        .controls-grid { grid-template-columns: minmax(180px, 0.8fr) minmax(180px, 0.8fr) auto auto; }
-        .signoff-tools { grid-template-columns: auto minmax(180px, 0.9fr) auto; align-items: center; }
-    }
-    .manage-row,
-    .week-pills,
-    .section-head,
-    .signoff-head,
-    .signoff-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
-    .section-head,
-    .signoff-head { justify-content: space-between; margin-bottom: 0.8rem; }
+    .manage-row, .week-pills, .section-head, .signoff-head, .signoff-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+    .section-head, .signoff-head { justify-content: space-between; margin-bottom: 0.8rem; }
     .table-wrap { overflow-x: auto; }
     .production-table { min-width: 620px; }
-    .manage-pill,
-    .week-pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.3rem;
-        padding: 0.4rem 0.72rem;
-        border: 1px solid #ECEAE6;
-        border-radius: 999px;
-        background: #fff;
-        color: #8A8580;
-        text-decoration: none;
-        font-size: 0.74rem;
-        font-weight: 600;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-        transition: border-color 0.15s ease, color 0.15s ease;
-    }
-    .manage-pill:hover,
-    .week-pill:hover,
-    .week-pill.is-active { border-color: #C8C2BB; color: #1B1918; }
-    .week-pill.is-active,
-    .week-row.is-active { background: #FCFBFA; }
-    .pill-badge,
-    .signoff-status {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 999px;
-        font-size: 0.68rem;
-        font-weight: 600;
-        border: 1px solid #ECEAE6;
-        white-space: nowrap;
-    }
+    .manage-pill, .week-pill { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.4rem 0.72rem; border: 1px solid #ECEAE6; border-radius: 999px; background: #fff; color: #8A8580; text-decoration: none; font-size: 0.74rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; transition: border-color 0.15s ease, color 0.15s ease; }
+    .manage-pill:hover, .week-pill:hover, .week-pill.is-active { border-color: #C8C2BB; color: #1B1918; }
+    .week-pill.is-active, .week-row.is-active { background: #FCFBFA; }
+    .pill-badge, .signoff-status { display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; font-size: 0.68rem; font-weight: 600; border: 1px solid #ECEAE6; white-space: nowrap; }
     .pill-badge { min-width: 2.2rem; padding: 0.12rem 0.38rem; background: #FFF8EE; color: #A0590A; border-color: #F0D9A0; }
-    .pill-badge--done,
-    .signoff-status--done { background: #EEFBEF; color: #2B7A30; border-color: #C2E8C4; }
-    .signoff-progress,
-    .save-state { font-size: 0.74rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #8A8580; }
+    .pill-badge--done, .signoff-status--done { background: #EEFBEF; color: #2B7A30; border-color: #C2E8C4; }
+    .signoff-progress, .save-state { font-size: 0.74rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #8A8580; }
     .day-panel[hidden] { display: none !important; }
     .signoff-cards { margin-top: 0.8rem; }
     .signoff-head { align-items: flex-start; }
     .signoff-item { font-size: 1.05rem; font-weight: 700; color: #1B1918; }
-    .signoff-meta,
-    .empty-note { font-size: 0.82rem; color: #8A8580; }
+    .signoff-meta, .empty-note { font-size: 0.82rem; color: #8A8580; }
     .signoff-status { min-width: 104px; padding: 0.28rem 0.6rem; }
     .signoff-status--pending { background: #FFF8EE; color: #A0590A; border-color: #F0D9A0; }
-    .signoff-actions,
-    .signoff-grid { margin-top: 0.6rem; }
+    .signoff-actions, .signoff-grid { margin-top: 0.6rem; }
     .signoff-notes { min-height: 76px; resize: vertical; }
-    .save-state.is-saving { color: #A0590A; }
+    .save-state.is-saving, .week-indicator.is-partial { color: #A0590A; }
     .save-state.is-error { color: #8B2020; }
-    .save-state.is-saved { color: #2B7A30; }
+    .save-state.is-saved, .week-indicator.is-complete { color: #2B7A30; }
     .week-glance { margin-top: 1rem; border: 1px solid #ECEAE6; border-radius: 8px; overflow: hidden; }
-    .week-row {
-        display: grid;
-        grid-template-columns: minmax(110px, 0.8fr) minmax(90px, 0.7fr) minmax(120px, 0.8fr) auto;
-        gap: 0.45rem;
-        align-items: center;
-        width: 100%;
-        padding: 0.6rem 0.72rem;
-        border-top: 1px solid #ECEAE6;
-        background: #fff;
-        text-align: left;
-        font-size: 0.84rem;
-        color: #1B1918;
-    }
+    .week-row { display: grid; grid-template-columns: minmax(110px, 0.8fr) minmax(90px, 0.7fr) minmax(120px, 0.8fr) auto; gap: 0.45rem; align-items: center; width: 100%; padding: 0.6rem 0.72rem; border-top: 1px solid #ECEAE6; background: #fff; text-align: left; font-size: 0.84rem; color: #1B1918; }
     .week-row:first-child { border-top: none; }
     .week-indicator { justify-self: end; font-size: 0.9rem; font-weight: 700; }
     .week-indicator.is-empty { color: #A09A94; }
-    .week-indicator.is-partial { color: #A0590A; }
-    .week-indicator.is-complete { color: #2B7A30; }
+    @media (min-width: 900px) { .signoff-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+    @media (min-width: 980px) {
+        .controls-grid { grid-template-columns: minmax(180px, 0.8fr) minmax(180px, 0.8fr) auto auto; }
+        .signoff-tools { grid-template-columns: auto minmax(180px, 0.9fr) auto; align-items: center; }
+    }
 </style>
 {% endblock %}
 
