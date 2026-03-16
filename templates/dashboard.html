@@ -5,495 +5,150 @@
 
 {% block extra_head %}
 <style>
-    .dashboard-shell {
-        padding-bottom: 3.5rem;
-    }
-
-    .dashboard-layout {
+    .dashboard-shell { padding-bottom: 3.5rem; }
+    .dashboard-layout,
+    .main-column,
+    .sidebar-column,
+    .tool-list,
+    .snapshot-list,
+    .event-grid,
+    .pulse-grid {
         display: grid;
         gap: 1rem;
-        grid-template-columns: 1fr;
-        align-items: start;
     }
-
+    .dashboard-layout { grid-template-columns: minmax(0, 1fr); align-items: start; }
+    @media (min-width: 900px) {
+        .pulse-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
     @media (min-width: 1280px) {
-        .dashboard-layout {
-            grid-template-columns: minmax(0, 1fr) 280px;
-        }
+        .dashboard-layout { grid-template-columns: minmax(0, 1fr) 280px; }
+        .sidebar-column { position: sticky; top: 0.9rem; max-height: calc(100vh - 1.8rem); overflow: auto; padding-right: 0.18rem; }
     }
-
-    .main-column {
-        display: grid;
-        gap: 1rem;
-    }
-
-    .sidebar-column {
-        display: grid;
-        gap: 1rem;
-        align-content: start;
-    }
-
-    @media (min-width: 1280px) {
-        .sidebar-column {
-            position: sticky;
-            top: 0.9rem;
-            max-height: calc(100vh - 1.8rem);
-            overflow: auto;
-            padding-right: 0.18rem;
-        }
-    }
-
-    .alert-row {
+    .alert-row,
+    .action-row,
+    .section-head,
+    .pulse-head,
+    .event-card-top,
+    .event-foot,
+    .event-actions {
         display: flex;
         flex-wrap: wrap;
-        gap: 0.55rem;
+        gap: 0.6rem;
     }
-
+    .section-head,
+    .pulse-head,
+    .event-card-top,
+    .event-foot { justify-content: space-between; }
+    .pulse-head { align-items: flex-end; }
+    .alert-pill,
+    .event-card,
+    .pulse-metric,
+    .pulse-item,
+    .tool-link,
+    .snapshot-pill {
+        border: 1px solid #ECEAE6;
+        border-radius: 8px;
+        background: #fff;
+    }
     .alert-pill {
         display: inline-flex;
         align-items: center;
-        gap: 0.45rem;
-        border-radius: 8px;
-        border: 1px solid transparent;
-        padding: 0.5rem 0.68rem;
-        font-size: 0.72rem;
-        line-height: 1.2;
-        color: #0F172A;
-        background: rgba(248, 250, 252, 0.95);
+        gap: 0.5rem;
+        padding: 0.55rem 0.7rem;
+        color: #1B1918;
         text-decoration: none;
-        transition: all 0.2s ease;
+        transition: border-color 0.15s ease;
     }
-
-    .alert-pill:hover {
-        transform: translateY(-1px);
-    }
-
-    .alert-pill-title {
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-        letter-spacing: 0.03em;
+    .alert-pill:hover,
+    .tool-link:hover { border-color: #C8C2BB; }
+    .alert-pill--amber { background: #FFF8EE; border-color: #F0D9A0; }
+    .alert-pill--blue { background: #EEF3FF; border-color: #A8C4F0; }
+    .alert-pill--green { background: #EEFBEF; border-color: #C2E8C4; }
+    .alert-pill-title,
+    .prep-track-head,
+    .pulse-amount,
+    .tool-sub,
+    .snapshot-pill {
+        font-size: 0.7rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
         text-transform: uppercase;
-        font-size: 0.65rem;
-        color: #334155;
     }
-
-    .alert-pill-sub {
-        font-size: 0.68rem;
-        color: #64748B;
-    }
-
-    .alert-pill--amber {
-        border-color: rgba(245, 158, 11, 0.42);
-        background: rgba(245, 158, 11, 0.14);
-    }
-
-    .alert-pill--blue {
-        border-color: rgba(59, 130, 246, 0.42);
-        background: rgba(59, 130, 246, 0.12);
-    }
-
-    .alert-pill--green {
-        border-color: rgba(16, 185, 129, 0.42);
-        background: rgba(16, 185, 129, 0.14);
-    }
-
-    .live-dot {
-        width: 0.5rem;
-        height: 0.5rem;
-        border-radius: 999px;
-        background: #10B981;
-        box-shadow: 0 0 10px rgba(16, 185, 129, 0.8);
-        flex-shrink: 0;
-    }
-
-    .section-head {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-end;
-        gap: 0.7rem;
-        flex-wrap: wrap;
-        margin-bottom: 0.85rem;
-    }
-
-    .section-label {
-        font-size: 0.66rem;
-        letter-spacing: 0.14em;
-        text-transform: uppercase;
-        color: #64748B;
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-    }
-
-    .section-title {
-        margin-top: 0.34rem;
-        color: #0F172A;
-        font-size: 1.36rem;
-        line-height: 1.08;
-        letter-spacing: -0.03em;
-        font-family: 'Calistoga', Inter, sans-serif;
-    }
-
-    .section-link {
-        font-size: 0.74rem;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-        color: #1D4ED8;
-    }
-
-    .event-grid {
-        display: grid;
-        gap: 0.75rem;
-        grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
-    }
-
-    .event-card {
-        border-radius: 12px;
-        border: 1px solid rgba(15, 23, 42, 0.12);
-        background: rgba(255, 255, 255, 0.96);
-        box-shadow: 0 10px 28px -20px rgba(15, 23, 42, 0.45);
-        padding: 0.82rem;
-    }
-
-    .event-card--featured {
-        border-left: 4px solid #0052FF;
-        box-shadow: 0 12px 30px -18px rgba(0, 82, 255, 0.45);
-    }
-
-    .event-card-top {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: 0.6rem;
-    }
-
-    .event-name {
-        color: #0F172A;
-        font-size: 1.01rem;
-        line-height: 1.2;
-        font-family: 'Calistoga', Inter, sans-serif;
-    }
-
+    .alert-pill-title { color: #1B1918; }
+    .alert-pill-sub,
     .event-meta,
-    .event-datetime {
-        margin-top: 0.22rem;
-        color: #64748B;
-        font-size: 0.76rem;
-    }
-
+    .event-datetime,
+    .event-venue,
+    .tool-sub,
+    .empty-note { font-size: 0.78rem; color: #8A8580; }
+    .live-dot { width: 0.5rem; height: 0.5rem; border-radius: 999px; background: #2B7A30; flex-shrink: 0; }
+    .event-grid { gap: 0.75rem; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); }
+    .event-card { padding: 0.82rem; }
+    .event-card--featured { border-color: #C8C2BB; border-left: 4px solid #C0612B; }
     .status-badge {
         display: inline-flex;
         align-items: center;
-        gap: 0.3rem;
         border-radius: 999px;
-        padding: 0.24rem 0.56rem;
-        border: 1px solid transparent;
-        font-size: 0.64rem;
-        letter-spacing: 0.09em;
-        text-transform: uppercase;
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+        padding: 0.28rem 0.62rem;
+        font-size: 0.68rem;
+        font-weight: 600;
+        border: 1px solid #ECEAE6;
+        white-space: nowrap;
     }
-
-    .status-badge--emerald {
-        color: #047857;
-        border-color: rgba(16, 185, 129, 0.45);
-        background: rgba(16, 185, 129, 0.16);
-    }
-
-    .status-badge--amber {
-        color: #92400E;
-        border-color: rgba(245, 158, 11, 0.5);
-        background: rgba(245, 158, 11, 0.18);
-    }
-
-    .status-badge--rose {
-        color: #BE123C;
-        border-color: rgba(244, 63, 94, 0.5);
-        background: rgba(244, 63, 94, 0.16);
-    }
-
-    .status-badge--default {
-        color: #475569;
-        border-color: rgba(148, 163, 184, 0.45);
-        background: rgba(226, 232, 240, 0.55);
-    }
-
-    .prep-track-wrap {
-        margin-top: 0.72rem;
-    }
-
-    .prep-track-head {
-        display: flex;
-        justify-content: space-between;
-        color: #334155;
-        font-size: 0.66rem;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-    }
-
-    .prep-track {
-        margin-top: 0.3rem;
-        width: 100%;
-        height: 8px;
-        border-radius: 999px;
-        background: rgba(148, 163, 184, 0.24);
-        overflow: hidden;
-    }
-
-    .prep-track > span {
-        display: block;
-        height: 100%;
-        border-radius: 999px;
-        background: linear-gradient(to right, #0052FF, #4D7CFF);
-    }
-
-    .event-foot {
-        margin-top: 0.72rem;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 0.6rem;
-        flex-wrap: wrap;
-    }
-
-    .event-venue {
-        color: #64748B;
-        font-size: 0.78rem;
-    }
-
-    .event-actions {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.42rem;
-    }
-
-    .action-row {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.55rem;
-        align-items: center;
-    }
-
-    .pulse-head {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-end;
-        gap: 0.8rem;
-        flex-wrap: wrap;
-    }
-
-    .pulse-metrics {
-        margin-top: 0.85rem;
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 0.5rem;
-        max-width: 420px;
-    }
-
-    .pulse-metric {
-        border-radius: 10px;
-        border: 1px solid rgba(15, 23, 42, 0.12);
-        background: rgba(248, 250, 252, 0.92);
-        padding: 0.52rem;
-    }
-
-    .pulse-metric-label {
-        color: #64748B;
-        font-size: 0.58rem;
-        letter-spacing: 0.11em;
-        text-transform: uppercase;
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-    }
-
-    .pulse-metric-value {
-        margin-top: 0.3rem;
-        color: #0F172A;
-        font-size: 1.02rem;
-        line-height: 1;
-        font-family: 'Calistoga', Inter, sans-serif;
-    }
-
-    .pulse-grid {
-        margin-top: 0.85rem;
-        display: grid;
-        gap: 0.52rem;
-        grid-template-columns: repeat(1, minmax(0, 1fr));
-    }
-
-    @media (min-width: 900px) {
-        .pulse-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-    }
-
-    .pulse-item {
-        border-radius: 10px;
-        border: 1px solid rgba(15, 23, 42, 0.1);
-        padding: 0.62rem 0.66rem;
-        display: flex;
-        justify-content: space-between;
-        align-items: baseline;
-        gap: 0.7rem;
-    }
-
-    .pulse-item--alt {
-        background: rgba(248, 250, 252, 0.9);
-    }
-
-    .pulse-item--base {
-        background: rgba(255, 255, 255, 0.96);
-    }
-
-    .pulse-name {
-        color: #0F172A;
-        font-size: 0.9rem;
-        line-height: 1.2;
-    }
-
-    .pulse-amount {
-        color: #1D4ED8;
-        font-size: 0.74rem;
-        letter-spacing: 0.07em;
-        text-transform: uppercase;
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-        text-align: right;
-    }
-
-    .toolkit-card,
-    .snapshot-card {
-        border-radius: 12px;
-        border: 1px solid rgba(15, 23, 42, 0.12);
-        background: rgba(255, 255, 255, 0.96);
-        box-shadow: 0 10px 28px -20px rgba(15, 23, 42, 0.45);
-        padding: 0.78rem;
-    }
-
-    .tool-list {
-        margin-top: 0.6rem;
-        display: grid;
-        gap: 0.48rem;
-    }
-
-    .tool-link {
-        border-radius: 10px;
-        border: 1px solid rgba(15, 23, 42, 0.1);
-        background: rgba(248, 250, 252, 0.92);
-        padding: 0.56rem;
-        display: flex;
-        align-items: center;
-        gap: 0.55rem;
-        text-decoration: none;
-        transition: all 0.2s ease;
-    }
-
-    .tool-link:hover {
-        border-color: rgba(77, 124, 255, 0.55);
-        background: rgba(239, 246, 255, 0.85);
-    }
-
+    .status-badge--emerald { background: #EEFBEF; color: #2B7A30; border-color: #C2E8C4; }
+    .status-badge--amber { background: #FFF8EE; color: #A0590A; border-color: #F0D9A0; }
+    .status-badge--rose { background: #FFF7F5; color: #8B2020; border-color: #F0BFAF; }
+    .status-badge--default { background: #FCFBFA; color: #8A8580; }
+    .prep-track-wrap { margin-top: 0.72rem; }
+    .prep-track-head { justify-content: space-between; color: #8A8580; margin-bottom: 0.3rem; }
+    .prep-track { height: 8px; border-radius: 999px; background: #F1EFEC; overflow: hidden; }
+    .prep-track > span { display: block; height: 100%; border-radius: 999px; background: #C0612B; }
+    .event-foot { margin-top: 0.72rem; align-items: center; }
+    .event-actions { align-items: center; gap: 0.42rem; }
+    .pulse-metrics { margin-top: 0.85rem; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5rem; max-width: 420px; }
+    .pulse-metric { padding: 0.6rem; }
+    .pulse-metric-value { margin-top: 0.2rem; font-size: 1.05rem; font-weight: 700; color: #1B1918; }
+    .pulse-grid { margin-top: 0.85rem; gap: 0.52rem; }
+    .pulse-item { padding: 0.62rem 0.66rem; justify-content: space-between; align-items: baseline; gap: 0.7rem; }
+    .pulse-name,
+    .tool-title { font-size: 0.9rem; font-weight: 600; color: #1B1918; }
+    .pulse-amount { color: #C0612B; text-align: right; }
+    .tool-list,
+    .snapshot-list { margin-top: 0.6rem; gap: 0.48rem; }
+    .tool-link { display: flex; align-items: center; gap: 0.55rem; padding: 0.6rem; text-decoration: none; }
     .tool-icon {
         width: 1.45rem;
         height: 1.45rem;
         border-radius: 8px;
-        background: rgba(15, 23, 42, 0.08);
+        background: #F1EFEC;
         display: inline-flex;
         align-items: center;
         justify-content: center;
         font-size: 0.85rem;
+        color: #1B1918;
         flex-shrink: 0;
     }
-
-    .tool-copy {
-        min-width: 0;
-        flex: 1;
-    }
-
-    .tool-title {
-        color: #0F172A;
-        font-size: 0.84rem;
-        line-height: 1.1;
-        font-family: 'Calistoga', Inter, sans-serif;
-    }
-
-    .tool-sub {
-        margin-top: 0.14rem;
-        color: #64748B;
-        font-size: 0.64rem;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-    }
-
+    .tool-copy { min-width: 0; flex: 1; }
     .tool-badge {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        min-width: 1.3rem;
-        height: 1.3rem;
-        padding: 0 0.3rem;
+        min-width: 1.35rem;
+        height: 1.35rem;
+        padding: 0 0.35rem;
         border-radius: 999px;
-        font-size: 0.63rem;
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-        border: 1px solid transparent;
+        font-size: 0.68rem;
+        font-weight: 600;
+        border: 1px solid #ECEAE6;
     }
-
-    .tool-badge--danger {
-        color: #9F1239;
-        background: rgba(244, 63, 94, 0.2);
-        border-color: rgba(244, 63, 94, 0.36);
-    }
-
-    .tool-badge--amber {
-        color: #92400E;
-        background: rgba(245, 158, 11, 0.2);
-        border-color: rgba(245, 158, 11, 0.4);
-    }
-
-    .tool-badge--live {
-        color: #065F46;
-        background: rgba(16, 185, 129, 0.2);
-        border-color: rgba(16, 185, 129, 0.4);
-    }
-
-    .snapshot-list {
-        margin-top: 0.55rem;
-        display: grid;
-        gap: 0.4rem;
-    }
-
-    .snapshot-pill {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 0.6rem;
-        border-radius: 999px;
-        border: 1px solid rgba(15, 23, 42, 0.1);
-        background: rgba(248, 250, 252, 0.92);
-        padding: 0.38rem 0.58rem;
-        font-size: 0.66rem;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-        color: #334155;
-    }
-
-    .snapshot-pill--green {
-        border-color: rgba(16, 185, 129, 0.4);
-        background: rgba(16, 185, 129, 0.16);
-    }
-
-    .snapshot-pill--amber {
-        border-color: rgba(245, 158, 11, 0.4);
-        background: rgba(245, 158, 11, 0.16);
-    }
-
-    .empty-note {
-        border-radius: 10px;
-        border: 1px dashed rgba(148, 163, 184, 0.5);
-        background: rgba(248, 250, 252, 0.92);
-        padding: 0.72rem;
-        font-size: 0.8rem;
-        color: #64748B;
-    }
+    .tool-badge--danger,
+    .snapshot-pill--amber { background: #FFF8EE; color: #A0590A; border-color: #F0D9A0; }
+    .tool-badge--amber { background: #FCFBFA; color: #8A8580; border-color: #ECEAE6; }
+    .tool-badge--live,
+    .snapshot-pill--green { background: #EEFBEF; color: #2B7A30; border-color: #C2E8C4; }
+    .snapshot-list { margin-top: 0.55rem; gap: 0.4rem; }
+    .snapshot-pill { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; padding: 0.45rem 0.6rem; color: #8A8580; }
+    .empty-note { padding: 0.75rem; border: 1px dashed #DDD8D3; border-radius: 8px; background: #FCFBFA; }
 </style>
 {% endblock %}
 
@@ -504,7 +159,7 @@
     <a href="{{ url_for('logout') }}" class="fhq-btn fhq-btn--ghost">Logout</a>
     {% endcall %}
 
-    <div class="max-w-[96rem] mx-auto px-4 sm:px-6 lg:px-8 py-6 dashboard-shell fhq-fade">
+    <div class="max-w-[96rem] mx-auto px-4 sm:px-6 lg:px-8 py-6 dashboard-shell">
         {% set all_events = today_events + upcoming_events %}
 
         <div class="dashboard-layout">
@@ -542,8 +197,8 @@
                 <section class="fhq-card p-4">
                     <div class="section-head">
                         <div>
-                            <div class="section-label">Event Timeline · {{ today.strftime('%b %-d') }} - {{ week_end.strftime('%b %-d') }}</div>
-                            <h2 class="section-title">Banquet Production Window</h2>
+                            <div class="fhq-section-head mb-0">Event Timeline · {{ today.strftime('%b %-d') }} - {{ week_end.strftime('%b %-d') }}</div>
+                            <h2 class="mt-1 text-xl font-bold tracking-tight text-foxtown-text">Banquet Production Window</h2>
                         </div>
                     </div>
 
@@ -554,7 +209,7 @@
                         <article class="event-card {% if loop.first %}event-card--featured{% endif %}">
                             <div class="event-card-top">
                                 <div>
-                                    <h3 class="event-name">{{ event.name }}</h3>
+                                    <h3 class="text-base font-semibold text-foxtown-text">{{ event.name }}</h3>
                                     <div class="event-meta">{{ event.service_timing or 'Service timing not set' }} · {{ event.guests or 0 }} guests</div>
                                     <div class="event-datetime">{{ event.event_date.strftime('%a, %b %-d') if event.event_date else 'Date TBD' }}{% if event.service_timing %} · {{ event.service_timing }}{% endif %}</div>
                                 </div>
@@ -597,24 +252,24 @@
                 <section class="fhq-card p-4">
                     <div class="pulse-head">
                         <div>
-                            <div class="section-label">Production Pulse · 48h</div>
-                            <h2 class="section-title">Commissary Demand</h2>
+                            <div class="fhq-section-head mb-0">Production Pulse · 48h</div>
+                            <h2 class="mt-1 text-xl font-bold tracking-tight text-foxtown-text">Commissary Demand</h2>
                         </div>
-                        <a href="{{ url_for('commissary_planner', week_start=today.isoformat()) }}" class="section-link">Open Planner -></a>
+                        <a href="{{ url_for('commissary_planner', week_start=today.isoformat()) }}" class="text-sm font-semibold text-foxtown-ember hover:text-foxtown-emberLight">Open Planner -></a>
                     </div>
 
                     <div class="pulse-metrics">
                         <div class="pulse-metric">
-                            <div class="pulse-metric-label">Sub-Recipes</div>
-                            <div class="pulse-metric-value fhq-countup" data-count="{{ production_pulse_total_subrecipes }}">{{ production_pulse_total_subrecipes }}</div>
+                            <div class="fhq-section-head mb-0">Sub-Recipes</div>
+                            <div class="pulse-metric-value" data-count="{{ production_pulse_total_subrecipes }}">{{ production_pulse_total_subrecipes }}</div>
                         </div>
                         <div class="pulse-metric">
-                            <div class="pulse-metric-label">Total</div>
+                            <div class="fhq-section-head mb-0">Total</div>
                             <div class="pulse-metric-value">{{ production_pulse_total_amount }}</div>
                         </div>
                         <div class="pulse-metric">
-                            <div class="pulse-metric-label">Banquets</div>
-                            <div class="pulse-metric-value fhq-countup" data-count="{{ production_pulse_event_count }}">{{ production_pulse_event_count }}</div>
+                            <div class="fhq-section-head mb-0">Banquets</div>
+                            <div class="pulse-metric-value" data-count="{{ production_pulse_event_count }}">{{ production_pulse_event_count }}</div>
                         </div>
                     </div>
 
@@ -638,8 +293,8 @@
             </main>
 
             <aside class="sidebar-column">
-                <section class="toolkit-card">
-                    <div class="section-label">Operations Toolkit</div>
+                <section class="fhq-card p-4">
+                    <div class="fhq-section-head mb-0">Operations Toolkit</div>
                     <div class="tool-list">
                         <a href="{{ url_for('menu_costing') }}" class="tool-link">
                             <span class="tool-icon">$</span>
@@ -710,8 +365,8 @@
                     </div>
                 </section>
 
-                <section class="snapshot-card">
-                    <div class="section-label">System Snapshot</div>
+                <section class="fhq-card p-4">
+                    <div class="fhq-section-head mb-0">System Snapshot</div>
                     <div class="snapshot-list">
                         <div class="snapshot-pill snapshot-pill--green"><span>Recipes</span><span>{{ recipe_count }}</span></div>
                         <div class="snapshot-pill {% if stale_badge_count > 0 %}snapshot-pill--amber{% endif %}"><span>Ingredients</span><span>{{ ingredient_count }}</span></div>
