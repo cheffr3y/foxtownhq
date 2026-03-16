@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="refresh" content="60">
     <title>Production Board - Foxtown HQ</title>
-    <link href="https://fonts.googleapis.com/css2?family=Calistoga&family=Inter:wght@500;600;700;800&family=JetBrains+Mono:wght@600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -13,22 +13,21 @@
                 extend: {
                     colors: {
                         foxtown: {
-                            ember: '#0052FF',
-                            black: '#020617',
-                            panel: '#0F172A',
-                            steel: '#1E293B',
-                            line: '#334155',
-                            glow: '#22C55E'
+                            ember: '#C0612B',
+                            black: '#1B1918',
+                            panel: '#2A2725',
+                            steel: '#3A3531',
+                            line: '#6F6861',
+                            glow: '#2B7A30'
                         }
                     },
                     fontFamily: {
                         sans: ['Inter', 'system-ui', 'sans-serif'],
-                        display: ['Calistoga', 'Inter', 'system-ui', 'sans-serif'],
-                        mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'monospace']
+                        display: ['Inter', 'system-ui', 'sans-serif'],
+                        mono: ['Inter', 'system-ui', 'sans-serif']
                     },
                     boxShadow: {
-                        board: '0 24px 60px rgba(0, 0, 0, 0.45)',
-                        ember: '0 0 0 1px rgba(0, 82, 255, 0.24), 0 0 36px rgba(0, 82, 255, 0.16)'
+                        board: '0 1px 3px rgba(0, 0, 0, 0.08)'
                     }
                 }
             }
@@ -45,33 +44,23 @@
             display: none;
         }
         body {
-            background:
-                radial-gradient(circle at top center, rgba(0, 82, 255, 0.12), transparent 34%),
-                linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0)),
-                #020617;
+            background: #1B1918;
         }
         .board-frame {
             min-height: 100vh;
             position: relative;
-            overflow: hidden;
         }
         .board-frame::before {
             content: "";
             position: fixed;
             inset: 0;
             pointer-events: none;
-            background-image:
-                linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-                linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-            background-size: 56px 56px;
-            opacity: 0.34;
+            opacity: 0;
         }
         .command-card {
-            border: 1px solid #262626;
-            border-radius: 28px;
-            background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.015));
-            box-shadow: 0 22px 48px rgba(0, 0, 0, 0.34);
-            backdrop-filter: blur(18px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.02);
         }
         .column-shell {
             display: flex;
@@ -79,28 +68,13 @@
             min-height: 0;
         }
         .volume-number {
-            font-family: 'JetBrains Mono', ui-monospace, monospace;
             font-weight: 800;
             line-height: 0.92;
             letter-spacing: -0.08em;
             font-variant-numeric: tabular-nums;
         }
         .time-lockup {
-            font-family: 'JetBrains Mono', ui-monospace, monospace;
             font-variant-numeric: tabular-nums;
-        }
-        .refresh-pulse {
-            animation: refreshPulse 1.5s ease-out 1;
-        }
-        @keyframes refreshPulse {
-            0% {
-                box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.55);
-                color: rgba(134, 239, 172, 1);
-            }
-            100% {
-                box-shadow: 0 0 0 18px rgba(34, 197, 94, 0);
-                color: rgba(187, 247, 208, 0.82);
-            }
         }
         .auto-scroll-viewport {
             overflow: auto;
@@ -109,21 +83,20 @@
         }
         .event-card {
             position: relative;
-            border-radius: 22px;
+            border-radius: 8px;
             border: 1px solid rgba(255, 255, 255, 0.08);
-            background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.015));
+            background: rgba(255, 255, 255, 0.02);
         }
         .event-card--critical {
-            border-color: rgba(0, 82, 255, 0.6);
-            box-shadow: 0 0 0 1px rgba(0, 82, 255, 0.22), 0 0 32px rgba(0, 82, 255, 0.14);
+            border-color: rgba(192, 97, 43, 0.6);
         }
         .event-card--high {
-            border-color: rgba(77, 124, 255, 0.34);
+            border-color: rgba(255, 255, 255, 0.14);
         }
         .warning-ribbon {
-            border: 1px solid rgba(0, 82, 255, 0.45);
-            background: rgba(0, 82, 255, 0.12);
-            color: #93C5FD;
+            border: 1px solid rgba(192, 97, 43, 0.34);
+            background: rgba(192, 97, 43, 0.12);
+            color: #F4D3C3;
         }
         .progress-track {
             position: relative;
@@ -136,8 +109,7 @@
             position: absolute;
             inset: 0 auto 0 0;
             border-radius: inherit;
-            background: linear-gradient(90deg, rgba(0, 82, 255, 0.72), rgba(77, 124, 255, 0.96));
-            box-shadow: 0 0 24px rgba(0, 82, 255, 0.32);
+            background: #C0612B;
         }
         .event-listing {
             display: grid;
@@ -211,11 +183,11 @@
                         </div>
 
                         <div class="mt-5 grid grid-cols-2 gap-3">
-                            <div class="rounded-2xl border border-white/8 bg-white/4 px-4 py-3">
+                            <div class="rounded-lg border border-white/8 bg-white/4 px-4 py-3">
                                 <div class="text-[0.7rem] uppercase tracking-[0.24em] text-white/42">Events</div>
                                 <div class="mt-2 time-lockup text-2xl font-bold">{{ day.event_count }}</div>
                             </div>
-                            <div class="rounded-2xl border border-white/8 bg-white/4 px-4 py-3">
+                            <div class="rounded-lg border border-white/8 bg-white/4 px-4 py-3">
                                 <div class="text-[0.7rem] uppercase tracking-[0.24em] text-white/42">Menu Lines</div>
                                 <div class="mt-2 time-lockup text-2xl font-bold">{{ day.line_total }}</div>
                             </div>
@@ -274,7 +246,7 @@
                                         {% if event.line_preview %}
                                         <div class="grid gap-2">
                                             {% for line in event.line_preview %}
-                                            <div class="menu-chip rounded-2xl px-3 py-2.5">
+                                            <div class="menu-chip rounded-lg px-3 py-2.5">
                                                 <div class="flex items-start justify-between gap-3">
                                                     <div class="text-base md:text-lg font-semibold leading-tight">{{ line.menu_item_name }}</div>
                                                     <div class="time-lockup whitespace-nowrap text-base md:text-lg font-bold text-foxtown-ember">{{ line.quantity }} {{ line.quantity_unit }}</div>
@@ -291,7 +263,7 @@
                                         </div>
                                         {% endif %}
                                         {% else %}
-                                        <div class="rounded-2xl border border-dashed border-white/12 px-4 py-4 text-base text-white/52">
+                                        <div class="rounded-lg border border-dashed border-white/12 px-4 py-4 text-base text-white/52">
                                             No menu items attached yet.
                                         </div>
                                         {% endif %}
@@ -299,7 +271,7 @@
                                 </article>
                                 {% endfor %}
                             {% else %}
-                                <div class="flex min-h-[340px] flex-1 items-center justify-center rounded-[24px] border border-dashed border-white/10 bg-white/[0.02] px-8 text-center">
+                                <div class="flex min-h-[340px] flex-1 items-center justify-center rounded-lg border border-dashed border-white/10 bg-white/[0.02] px-8 text-center">
                                     <div>
                                         <div class="text-[0.72rem] uppercase tracking-[0.3em] text-white/40">{{ day.label }}</div>
                                         <div class="mt-4 text-3xl md:text-4xl font-semibold tracking-[-0.05em]">All Clear for {{ day.date.strftime('%b %-d') }}</div>
