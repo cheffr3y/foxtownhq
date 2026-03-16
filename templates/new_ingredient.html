@@ -5,65 +5,12 @@
 
 {% block extra_head %}
 <style>
-    .form-shell {
-        padding-bottom: 3.5rem;
-    }
-
-    .form-card {
-        border-radius: 18px;
-        border: 1px solid rgba(15, 23, 42, 0.11);
-        background: rgba(255, 255, 255, 0.96);
-        box-shadow: 0 0 38px -14px rgba(77, 124, 255, 0.25);
-    }
-
-    .form-grid {
-        display: grid;
-        gap: 0.75rem;
-        grid-template-columns: repeat(1, minmax(0, 1fr));
-    }
-
+    .form-shell { padding-bottom: 3.5rem; }
+    .form-grid { display: grid; gap: 0.75rem; grid-template-columns: repeat(1, minmax(0, 1fr)); }
     @media (min-width: 768px) {
-        .form-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
+        .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
-
-    .field-label {
-        display: block;
-        margin-bottom: 0.35rem;
-        font-size: 0.67rem;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-        color: #94A3B8;
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-    }
-
-    .field {
-        width: 100%;
-        min-height: 46px;
-        border: 1px solid rgba(15, 23, 42, 0.15);
-        border-radius: 10px;
-        background: rgba(248, 250, 252, 0.92);
-        color: #0F172A;
-        padding: 0.62rem 0.8rem;
-        transition: all 0.2s ease;
-    }
-
-    .field:focus {
-        outline: none;
-        border-color: rgba(77, 124, 255, 0.7);
-        box-shadow: 0 0 20px -10px rgba(77, 124, 255, 0.52);
-    }
-
-    .field::placeholder {
-        color: rgba(15, 23, 42, 0.35);
-    }
-
-    .help-text {
-        margin-top: 0.35rem;
-        font-size: 0.75rem;
-        color: #94A3B8;
-    }
+    .help-text { margin-top: 0.35rem; font-size: 0.75rem; color: #8A8580; }
 </style>
 {% endblock %}
 
@@ -72,24 +19,24 @@
     {% call page_header('New Ingredient', 'Create a tracked ingredient record for pricing and recipe costing.') %}
     {% endcall %}
 
-    <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 form-shell fhq-fade">
-        <section class="form-card p-6">
+    <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 form-shell">
+        <section class="fhq-card p-6">
             <form method="POST" class="space-y-5">
                 <div>
-                    <label class="field-label">Ingredient Name *</label>
+                    <label class="block text-sm font-medium text-foxtown-muted mb-1.5">Ingredient Name *</label>
                     <input
                         type="text"
                         name="name"
                         value="{{ ingredient.name }}"
                         required
-                        class="field"
+                        class="fhq-input"
                     >
                 </div>
 
                 <div class="form-grid">
                     <div>
-                        <label class="field-label">Category</label>
-                        <select name="category" class="field">
+                        <label class="block text-sm font-medium text-foxtown-muted mb-1.5">Category</label>
+                        <select name="category" class="fhq-input">
                             <option value="">Select category...</option>
                             {% for cat in ingredient_categories %}
                                 <option value="{{ cat }}">{{ cat }}</option>
@@ -98,57 +45,57 @@
                     </div>
 
                     <div>
-                        <label class="field-label">Unit of Measure</label>
+                        <label class="block text-sm font-medium text-foxtown-muted mb-1.5">Unit of Measure</label>
                         <input
                             type="text"
                             name="unit"
                             value="{{ ingredient.unit or '' }}"
                             placeholder="oz, lb, each, fl oz..."
                             list="unitOptions"
-                            class="field"
+                            class="fhq-input"
                         >
                     </div>
                 </div>
 
                 <div class="form-grid">
                     <div>
-                        <label class="field-label">Vendor</label>
+                        <label class="block text-sm font-medium text-foxtown-muted mb-1.5">Vendor</label>
                         <input
                             type="text"
                             name="vendor"
                             value="{{ ingredient.vendor or '' }}"
                             placeholder="Sysco, US Foods, etc."
-                            class="field"
+                            class="fhq-input"
                         >
                     </div>
 
                     <div>
-                        <label class="field-label">Vendor Code / SKU</label>
+                        <label class="block text-sm font-medium text-foxtown-muted mb-1.5">Vendor Code / SKU</label>
                         <input
                             type="text"
                             name="vendor_code"
                             value="{{ ingredient.vendor_code or '' }}"
                             placeholder="Vendor SKU"
-                            class="field"
+                            class="fhq-input"
                         >
                     </div>
                 </div>
 
                 <div class="form-grid">
                     <div>
-                        <label class="field-label">G-Code (Acumatica)</label>
+                        <label class="block text-sm font-medium text-foxtown-muted mb-1.5">G-Code (Acumatica)</label>
                         <input
                             type="text"
                             name="g_code"
                             value="{{ ingredient.g_code or '' }}"
                             placeholder="G-CODE-123"
-                            class="field font-mono"
+                            class="fhq-input"
                         >
                         <p class="help-text">For Acumatica ERP integration.</p>
                     </div>
 
                     <div>
-                        <label class="field-label">Cost per Unit ($)</label>
+                        <label class="block text-sm font-medium text-foxtown-muted mb-1.5">Cost per Unit ($)</label>
                         <input
                             type="number"
                             name="cost_per_unit"
@@ -156,7 +103,7 @@
                             step="0.00001"
                             min="0"
                             placeholder="0.00000"
-                            class="field"
+                            class="fhq-input"
                         >
                         <p class="help-text">If provided, this sets the price update date to today.</p>
                     </div>
