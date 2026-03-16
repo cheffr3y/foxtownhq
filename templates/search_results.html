@@ -5,144 +5,32 @@
 
 {% block extra_head %}
 <style>
-    .search-shell {
-        padding-bottom: 3.5rem;
-    }
-
-    .search-input {
-        width: 100%;
-        min-height: 48px;
-        border: 1px solid rgba(15, 23, 42, 0.15);
-        border-radius: 10px;
-        background: rgba(248, 250, 252, 0.92);
-        color: #0F172A;
-        padding: 0.62rem 0.8rem;
-        transition: all 0.2s ease;
-    }
-
-    .search-input:focus {
-        outline: none;
-        border-color: rgba(77, 124, 255, 0.7);
-        box-shadow: 0 0 20px -10px rgba(77, 124, 255, 0.52);
-    }
-
-    .search-input::placeholder {
-        color: rgba(15, 23, 42, 0.35);
-    }
-
-    .query-card {
-        border-radius: 16px;
-        border: 1px solid rgba(15, 23, 42, 0.11);
-        background: rgba(255, 255, 255, 0.96);
-        box-shadow: 0 0 36px -14px rgba(77, 124, 255, 0.24);
-        padding: 1rem;
-    }
-
-    .query-label {
-        font-size: 0.67rem;
-        letter-spacing: 0.13em;
-        text-transform: uppercase;
-        color: #94A3B8;
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-    }
-
-    .query-value {
-        margin-top: 0.35rem;
-        color: #0F172A;
-        font-size: 1.75rem;
-        line-height: 1.05;
-        letter-spacing: -0.03em;
-        font-family: 'Calistoga', Inter, sans-serif;
-    }
-
-    .query-meta {
-        margin-top: 0.4rem;
-        color: #94A3B8;
-        font-size: 0.88rem;
-    }
-
-    .results-grid {
-        display: grid;
-        gap: 0.8rem;
-        grid-template-columns: repeat(1, minmax(0, 1fr));
-    }
-
+    .search-shell { padding-bottom: 3.5rem; }
+    .results-grid { display: grid; gap: 0.8rem; grid-template-columns: repeat(1, minmax(0, 1fr)); }
     @media (min-width: 1100px) {
-        .results-grid {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-        }
+        .results-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     }
-
-    .results-panel {
-        border-radius: 16px;
-        border: 1px solid rgba(15, 23, 42, 0.11);
-        background: rgba(255, 255, 255, 0.96);
-        box-shadow: 0 0 36px -14px rgba(77, 124, 255, 0.24);
-        padding: 1rem;
-    }
-
-    .panel-title {
-        color: #0F172A;
-        font-size: 1.08rem;
-        font-family: 'Calistoga', Inter, sans-serif;
-    }
-
-    .result-list {
-        margin-top: 0.75rem;
-        display: grid;
-        gap: 0.65rem;
-    }
-
+    .query-meta,
+    .result-meta,
+    .empty,
+    .empty-copy { margin-top: 0.4rem; color: #8A8580; font-size: 0.88rem; }
+    .result-list { margin-top: 0.75rem; display: grid; gap: 0.65rem; }
     .result-item {
-        border-radius: 12px;
-        border: 1px solid rgba(15, 23, 42, 0.12);
-        background: rgba(248, 250, 252, 0.92);
+        display: block;
         padding: 0.75rem;
-        transition: all 0.2s ease;
+        border: 1px solid #ECEAE6;
+        border-radius: 8px;
+        background: #fff;
+        transition: border-color 0.15s ease;
     }
-
-    .result-item:hover {
-        border-color: rgba(77, 124, 255, 0.48);
-        background: rgba(77, 124, 255, 0.08);
-    }
-
-    .result-name {
-        color: #0F172A;
-        font-weight: 600;
-        font-size: 0.92rem;
-    }
-
-    .result-meta {
-        margin-top: 0.25rem;
-        color: #94A3B8;
-        font-size: 0.78rem;
-    }
-
-    .empty {
-        margin-top: 0.7rem;
-        color: #94A3B8;
-        font-size: 0.88rem;
-    }
-
-    .empty-card {
-        border-radius: 16px;
-        border: 1px solid rgba(15, 23, 42, 0.11);
-        background: rgba(255, 255, 255, 0.96);
-        box-shadow: 0 0 36px -14px rgba(77, 124, 255, 0.24);
-        padding: 2.5rem 1.6rem;
-        text-align: center;
-    }
-
-    .empty-title {
-        color: #0F172A;
-        font-size: 1.5rem;
-        font-family: 'Calistoga', Inter, sans-serif;
-    }
-
-    .empty-copy {
-        margin-top: 0.4rem;
-        color: #94A3B8;
-    }
+    .result-item:hover { border-color: #C8C2BB; background: #FCFBFA; }
+    .result-name { color: #1B1918; font-weight: 600; font-size: 0.92rem; }
+    .empty-card { padding: 2.5rem 1.6rem; text-align: center; }
+    .empty-title,
+    .panel-title,
+    .query-value { color: #1B1918; font-weight: 700; }
+    .query-value { margin-top: 0.35rem; font-size: 1.75rem; line-height: 1.05; letter-spacing: -0.03em; }
+    .panel-title { font-size: 1.08rem; }
 </style>
 {% endblock %}
 
@@ -157,22 +45,22 @@
             name="q"
             value="{{ search_query }}"
             placeholder="Search recipes, ingredients, events..."
-            class="search-input"
+            class="fhq-input"
             data-shortcut="search"
         >
     </form>
     {% endcall %}
 
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4 search-shell fhq-fade">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4 search-shell">
         {% if search_query %}
-        <section class="query-card">
-            <div class="query-label">Search Query</div>
+        <section class="fhq-card p-4">
+            <div class="fhq-section-head mb-0">Search Query</div>
             <div class="query-value">{{ search_query }}</div>
             <div class="query-meta">{{ recipes|length }} recipes · {{ ingredients|length }} ingredients · {{ events|length }} events</div>
         </section>
 
         <section class="results-grid">
-            <section class="results-panel">
+            <section class="fhq-card p-4">
                 <h2 class="panel-title">Recipes</h2>
                 {% if recipes %}
                 <div class="result-list">
@@ -188,7 +76,7 @@
                 {% endif %}
             </section>
 
-            <section class="results-panel">
+            <section class="fhq-card p-4">
                 <h2 class="panel-title">Ingredients</h2>
                 {% if ingredients %}
                 <div class="result-list">
@@ -204,7 +92,7 @@
                 {% endif %}
             </section>
 
-            <section class="results-panel">
+            <section class="fhq-card p-4">
                 <h2 class="panel-title">Banquet Events</h2>
                 {% if events %}
                 <div class="result-list">
@@ -221,7 +109,7 @@
             </section>
         </section>
         {% else %}
-        <section class="empty-card">
+        <section class="fhq-card empty-card">
             <h2 class="empty-title">Search across Foxtown HQ</h2>
             <p class="empty-copy">Enter a recipe, ingredient, or event name to start.</p>
         </section>
