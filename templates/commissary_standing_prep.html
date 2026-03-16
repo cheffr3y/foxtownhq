@@ -5,104 +5,27 @@
 
 {% block extra_head %}
 <style>
-    .standing-shell {
-        padding-bottom: 3rem;
-    }
-
-    .standing-panel {
-        border-radius: 16px;
-        border: 1px solid rgba(15, 23, 42, 0.1);
-        background: rgba(255, 255, 255, 0.96);
-        box-shadow: 0 0 36px -14px rgba(77, 124, 255, 0.24);
-    }
-
-    .field-grid {
-        display: grid;
-        gap: 0.65rem;
-        grid-template-columns: repeat(1, minmax(0, 1fr));
-    }
-
+    .standing-shell { padding-bottom: 3rem; }
+    .field-grid { display: grid; gap: 0.65rem; grid-template-columns: repeat(1, minmax(0, 1fr)); }
     @media (min-width: 980px) {
-        .field-grid {
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-        }
+        .field-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
     }
-
-    .field-label {
-        display: block;
-        margin-bottom: 0.32rem;
-        font-size: 0.64rem;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-        color: #94A3B8;
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-    }
-
-    .field {
-        width: 100%;
-        min-height: 42px;
-        border: 1px solid rgba(15, 23, 42, 0.15);
-        border-radius: 10px;
-        background: rgba(248, 250, 252, 0.92);
-        color: #0F172A;
-        padding: 0.5rem 0.72rem;
-        transition: all 0.2s ease;
-    }
-
-    .field:focus {
-        outline: none;
-        border-color: rgba(77, 124, 255, 0.72);
-        box-shadow: 0 0 20px -10px rgba(77, 124, 255, 0.55);
-    }
-
-    .table-wrap {
-        overflow-x: auto;
-    }
-
-    .standing-table {
-        width: 100%;
-        min-width: 920px;
-        border-collapse: collapse;
-    }
-
-    .standing-table th {
-        text-align: left;
-        font-size: 0.66rem;
-        letter-spacing: 0.13em;
-        text-transform: uppercase;
-        color: #94A3B8;
-        padding: 0.66rem 0.72rem;
-        border-bottom: 1px solid rgba(148, 163, 184, 0.24);
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-    }
-
-    .standing-table td {
-        padding: 0.7rem 0.72rem;
-        border-top: 1px solid rgba(148, 163, 184, 0.2);
-        color: #334155;
-        font-size: 0.84rem;
-        vertical-align: top;
-    }
-
+    .table-wrap { overflow-x: auto; }
+    .standing-table { min-width: 920px; }
     .status-pill {
         display: inline-flex;
         align-items: center;
+        padding: 0.2rem 0.55rem;
+        border: 1px solid #ECEAE6;
         border-radius: 999px;
-        border: 1px solid rgba(148, 163, 184, 0.4);
-        padding: 0.15rem 0.48rem;
-        font-size: 0.64rem;
-        letter-spacing: 0.08em;
+        background: #FCFBFA;
+        color: #8A8580;
+        font-size: 0.68rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
         text-transform: uppercase;
-        color: #334155;
-        background: rgba(248, 250, 252, 0.9);
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
     }
-
-    .status-pill--active {
-        border-color: rgba(16, 185, 129, 0.45);
-        color: #065f46;
-        background: rgba(16, 185, 129, 0.12);
-    }
+    .status-pill--active { border-color: #C2E8C4; background: #EEFBEF; color: #2B7A30; }
 </style>
 {% endblock %}
 
@@ -120,15 +43,15 @@
         {'id': 'review', 'label': 'Review', 'url': url_for('commissary_review')},
     ], 'standing') }}
 
-    <div class="max-w-[96rem] mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-4 standing-shell fhq-fade">
-        <section class="standing-panel p-4">
-            <h2 class="text-xl font-display text-foxtown-ink mb-3">
+    <div class="max-w-[96rem] mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-4 standing-shell">
+        <section class="fhq-card p-4">
+            <h2 class="mb-3 text-xl font-bold tracking-tight text-foxtown-text">
                 {% if editing_item %}Edit Standing Item{% else %}Add Standing Item{% endif %}
             </h2>
             <form method="POST" action="{% if editing_item %}{{ url_for('commissary_standing_prep_edit', item_id=editing_item.id) }}{% else %}{{ url_for('commissary_standing_prep') }}{% endif %}" class="field-grid">
                 <div>
-                    <label class="field-label">Recipe</label>
-                    <select name="recipe_id" class="field">
+                    <label class="block text-sm font-medium text-foxtown-muted mb-1.5">Recipe</label>
+                    <select name="recipe_id" class="fhq-input">
                         <option value="">None (manual item name)</option>
                         {% for recipe in recipe_options %}
                         <option value="{{ recipe.id }}" {% if editing_item and editing_item.recipe_id == recipe.id %}selected{% endif %}>{{ recipe.display_label }}</option>
@@ -136,20 +59,20 @@
                     </select>
                 </div>
                 <div>
-                    <label class="field-label">Item Name</label>
-                    <input type="text" name="item_name" class="field" value="{{ editing_item.item_name if editing_item else '' }}" placeholder="Defaults from recipe if blank">
+                    <label class="block text-sm font-medium text-foxtown-muted mb-1.5">Item Name</label>
+                    <input type="text" name="item_name" class="fhq-input" value="{{ editing_item.item_name if editing_item else '' }}" placeholder="Defaults from recipe if blank">
                 </div>
                 <div>
-                    <label class="field-label">Default Quantity</label>
-                    <input type="number" step="0.01" min="0" name="default_quantity" class="field" value="{{ (editing_item.default_quantity if editing_item else 1) }}" required>
+                    <label class="block text-sm font-medium text-foxtown-muted mb-1.5">Default Quantity</label>
+                    <input type="number" step="0.01" min="0" name="default_quantity" class="fhq-input" value="{{ (editing_item.default_quantity if editing_item else 1) }}" required>
                 </div>
                 <div>
-                    <label class="field-label">Default Unit</label>
-                    <input type="text" name="default_unit" class="field" value="{{ (editing_item.default_unit if editing_item else 'each') }}" required>
+                    <label class="block text-sm font-medium text-foxtown-muted mb-1.5">Default Unit</label>
+                    <input type="text" name="default_unit" class="fhq-input" value="{{ (editing_item.default_unit if editing_item else 'each') }}" required>
                 </div>
                 <div>
-                    <label class="field-label">Frequency</label>
-                    <select name="frequency" class="field">
+                    <label class="block text-sm font-medium text-foxtown-muted mb-1.5">Frequency</label>
+                    <select name="frequency" class="fhq-input">
                         {% set selected_frequency = (editing_item.frequency if editing_item else 'daily') %}
                         <option value="daily" {% if selected_frequency == 'daily' %}selected{% endif %}>Daily</option>
                         <option value="weekly" {% if selected_frequency == 'weekly' %}selected{% endif %}>Weekly (Monday)</option>
@@ -157,16 +80,16 @@
                     </select>
                 </div>
                 <div>
-                    <label class="field-label">Active</label>
-                    <select name="active" class="field">
+                    <label class="block text-sm font-medium text-foxtown-muted mb-1.5">Active</label>
+                    <select name="active" class="fhq-input">
                         {% set is_active = editing_item.active if editing_item else true %}
                         <option value="1" {% if is_active %}selected{% endif %}>Yes</option>
                         <option value="0" {% if not is_active %}selected{% endif %}>No</option>
                     </select>
                 </div>
                 <div class="md:col-span-2">
-                    <label class="field-label">Notes</label>
-                    <input type="text" name="notes" class="field" value="{{ editing_item.notes if editing_item else '' }}" placeholder="Context for the prep team">
+                    <label class="block text-sm font-medium text-foxtown-muted mb-1.5">Notes</label>
+                    <input type="text" name="notes" class="fhq-input" value="{{ editing_item.notes if editing_item else '' }}" placeholder="Context for the prep team">
                 </div>
 
                 <div class="md:col-span-4 flex items-center justify-end gap-2">
@@ -178,11 +101,11 @@
             </form>
         </section>
 
-        <section class="standing-panel p-4">
-            <h2 class="text-xl font-display text-foxtown-ink mb-3">Standing Prep Items</h2>
+        <section class="fhq-card p-4">
+            <h2 class="mb-3 text-xl font-bold tracking-tight text-foxtown-text">Standing Prep Items</h2>
             {% if items %}
             <div class="table-wrap">
-                <table class="standing-table">
+                <table class="fhq-table standing-table">
                     <thead>
                         <tr>
                             <th>Item</th>
@@ -221,7 +144,7 @@
                 </table>
             </div>
             {% else %}
-            <p class="text-sm text-slate-500">No standing prep items yet.</p>
+            <p class="text-sm text-foxtown-muted">No standing prep items yet.</p>
             {% endif %}
         </section>
     </div>
