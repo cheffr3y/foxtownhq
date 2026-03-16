@@ -5,135 +5,46 @@
 
 {% block extra_head %}
 <style>
-    .roll-shell {
-        padding-bottom: 3.5rem;
-    }
-
-    .roll-grid {
-        display: grid;
-        gap: 0.85rem;
-        grid-template-columns: repeat(1, minmax(0, 1fr));
-    }
-
+    .roll-shell { padding-bottom: 3.5rem; }
+    .roll-grid { display: grid; gap: 0.85rem; grid-template-columns: repeat(1, minmax(0, 1fr)); }
     @media (min-width: 768px) {
-        .roll-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
+        .roll-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
-
     @media (min-width: 1280px) {
-        .roll-grid {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-        }
+        .roll-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     }
-
-    .roll-card {
-        position: relative;
-        overflow: hidden;
-        border-radius: 16px;
-        border: 1px solid rgba(15, 23, 42, 0.11);
-        background: rgba(255, 255, 255, 0.96);
-        box-shadow: 0 0 34px -14px rgba(77, 124, 255, 0.24);
-        transition: all 0.24s ease;
-    }
-
-    .roll-card::after {
-        content: "";
-        position: absolute;
-        right: -34px;
-        bottom: -40px;
-        width: 140px;
-        height: 140px;
-        border-radius: 24px;
-        transform: rotate(18deg);
-        background: radial-gradient(circle at center, rgba(77, 124, 255, 0.18), transparent 68%);
-        opacity: 0.2;
-        transition: opacity 0.2s ease;
-    }
-
-    .roll-card:hover {
-        transform: translateY(-2px);
-        border-color: rgba(77, 124, 255, 0.52);
-        box-shadow: 0 0 30px -11px rgba(77, 124, 255, 0.4);
-    }
-
-    .roll-card:hover::after {
-        opacity: 0.75;
-    }
-
+    .roll-card { display: block; padding: 1.25rem; text-decoration: none; transition: border-color 0.15s ease, background-color 0.15s ease; }
+    .roll-card:hover { border-color: #C8C2BB; background: #FCFBFA; }
     .roll-kicker {
         font-size: 0.67rem;
-        letter-spacing: 0.12em;
+        font-weight: 600;
+        letter-spacing: 0.04em;
         text-transform: uppercase;
-        color: #94A3B8;
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+        color: #8A8580;
     }
-
-    .roll-title {
-        margin-top: 0.35rem;
-        color: #0F172A;
-        font-size: 1.12rem;
-        line-height: 1.2;
-        font-family: 'Calistoga', Inter, sans-serif;
-        transition: color 0.2s ease;
-    }
-
-    .roll-card:hover .roll-title {
-        color: #93C5FD;
-    }
-
+    .roll-title,
+    .empty-title { color: #1B1918; font-weight: 700; }
+    .roll-title { margin-top: 0.35rem; font-size: 1.12rem; line-height: 1.2; }
     .roll-chip {
         display: inline-flex;
         align-items: center;
-        border-radius: 999px;
-        border: 1px solid rgba(148, 163, 184, 0.45);
-        background: rgba(148, 163, 184, 0.14);
         padding: 0.22rem 0.55rem;
+        border: 1px solid #ECEAE6;
+        border-radius: 999px;
+        background: #FCFBFA;
+        color: #8A8580;
         font-size: 0.68rem;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        color: #334155;
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-    }
-
-    .roll-meta {
-        margin-top: 0.95rem;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 0.8rem;
-        color: #94A3B8;
-        font-size: 0.86rem;
-    }
-
-    .roll-open {
-        color: #4D7CFF;
         font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
     }
-
-    .roll-open:hover {
-        color: #93C5FD;
-    }
-
-    .empty-card {
-        border-radius: 16px;
-        border: 1px solid rgba(15, 23, 42, 0.11);
-        background: rgba(255, 255, 255, 0.96);
-        box-shadow: 0 0 36px -14px rgba(77, 124, 255, 0.24);
-        padding: 2.5rem 1.6rem;
-        text-align: center;
-    }
-
-    .empty-title {
-        color: #0F172A;
-        font-size: 1.5rem;
-        font-family: 'Calistoga', Inter, sans-serif;
-    }
-
-    .empty-copy {
-        margin-top: 0.4rem;
-        color: #94A3B8;
-    }
+    .roll-meta,
+    .empty-copy { margin-top: 0.95rem; color: #8A8580; font-size: 0.86rem; }
+    .roll-meta { display: flex; justify-content: space-between; align-items: center; gap: 0.8rem; }
+    .roll-open { color: #C0612B; font-weight: 600; }
+    .roll-open:hover { color: #D4722B; }
+    .empty-card { padding: 2.5rem 1.6rem; text-align: center; }
+    .empty-title { font-size: 1.5rem; }
 </style>
 {% endblock %}
 
@@ -148,11 +59,11 @@
         {'id': 'costing', 'label': 'Costing', 'url': url_for('menu_costing')},
     ], 'rollouts') }}
 
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 roll-shell fhq-fade">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 roll-shell">
         {% if rollouts %}
         <div class="roll-grid">
             {% for rollout in rollouts %}
-            <a href="{{ url_for('menu_rollout_edit', rollout_id=rollout.id) }}" class="roll-card block p-5">
+            <a href="{{ url_for('menu_rollout_edit', rollout_id=rollout.id) }}" class="fhq-card roll-card">
                 <div class="flex items-start justify-between gap-3">
                     <div>
                         <div class="roll-kicker">{{ rollout.venue or 'Venue' }}</div>
@@ -174,7 +85,7 @@
             {% endfor %}
         </div>
         {% else %}
-        <div class="empty-card">
+        <div class="fhq-card empty-card">
             <h3 class="empty-title">No rollouts yet</h3>
             <p class="empty-copy">Create a saved menu rollout by venue, quarter, and year.</p>
             <a href="{{ url_for('menu_rollout_new') }}" class="fhq-btn fhq-btn--primary mt-6">+ New Rollout</a>
