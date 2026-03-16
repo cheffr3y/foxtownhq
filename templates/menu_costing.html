@@ -5,181 +5,24 @@
 
 {% block extra_head %}
 <style>
-    .cost-shell {
-        padding-bottom: 3.5rem;
-    }
-
-    .cost-panel {
-        border-radius: 16px;
-        border: 1px solid rgba(15, 23, 42, 0.12);
-        background: rgba(255, 255, 255, 0.96);
-        box-shadow: 0 18px 32px -26px rgba(15, 23, 42, 0.24);
-    }
-
-    .cost-grid {
-        display: grid;
-        gap: 0.8rem;
-        grid-template-columns: repeat(1, minmax(0, 1fr));
-    }
-
+    .cost-shell { padding-bottom: 3.5rem; }
+    .cost-grid { display: grid; gap: 0.8rem; grid-template-columns: repeat(1, minmax(0, 1fr)); }
     @media (min-width: 1024px) {
-        .cost-grid {
-            grid-template-columns: minmax(0, 1.8fr) minmax(280px, 0.9fr);
-        }
+        .cost-grid { grid-template-columns: minmax(0, 1.8fr) minmax(280px, 0.9fr); }
     }
-
-    .section-head {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 0.8rem;
-        margin-bottom: 0.9rem;
-    }
-
-    .section-title {
-        color: #0F172A;
-        font-size: 1.38rem;
-        letter-spacing: -0.03em;
-        font-family: 'Calistoga', Inter, sans-serif;
-    }
-
-    .section-copy {
-        margin-top: 0.3rem;
-        color: #64748B;
-        font-size: 0.86rem;
-    }
-
-    .cost-label {
-        display: block;
-        margin-bottom: 0.35rem;
-        font-size: 0.67rem;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-        color: #64748B;
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-    }
-
-    .cost-table-wrap {
-        overflow-x: auto;
-    }
-
-    .cost-table {
-        width: 100%;
-        min-width: 640px;
-        border-collapse: collapse;
-    }
-
-    .cost-table th {
-        text-align: left;
-        font-size: 0.67rem;
-        letter-spacing: 0.13em;
-        text-transform: uppercase;
-        color: #64748B;
-        padding: 0.7rem 0.8rem;
-        border-bottom: 1px solid rgba(148, 163, 184, 0.24);
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-    }
-
-    .cost-table td {
-        padding: 0.75rem 0.8rem;
-        border-top: 1px solid rgba(148, 163, 184, 0.24);
-        color: #334155;
-        font-size: 0.88rem;
-        vertical-align: top;
-    }
-
-    .field {
-        width: 100%;
-        min-height: 42px;
-        border: 1px solid rgba(15, 23, 42, 0.16);
-        border-radius: 10px;
-        background: rgba(255, 255, 255, 0.98);
-        color: #0F172A;
-        padding: 0.56rem 0.75rem;
-        transition: all 0.2s ease;
-    }
-
-    .field:focus {
-        outline: none;
-        border-color: rgba(77, 124, 255, 0.7);
-        box-shadow: 0 0 20px -10px rgba(77, 124, 255, 0.52);
-    }
-
-    .field::placeholder {
-        color: rgba(100, 116, 139, 0.65);
-    }
-
-    .summary-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 0.8rem;
-        color: #475569;
-        font-size: 0.9rem;
-    }
-
-    .summary-value {
-        color: #0F172A;
-        font-family: 'Calistoga', Inter, sans-serif;
-        font-size: 1.05rem;
-    }
-
-    .summary-divider {
-        border-top: 1px solid rgba(148, 163, 184, 0.28);
-        padding-top: 0.8rem;
-    }
-
-    .grand-total {
-        color: #93C5FD;
-        font-family: 'Calistoga', Inter, sans-serif;
-        font-size: 1.95rem;
-        line-height: 1;
-        letter-spacing: -0.04em;
-    }
-
-    .link-accent {
-        color: #4D7CFF;
-        font-size: 0.84rem;
-        font-weight: 600;
-    }
-
-    .link-accent:hover {
-        color: #93C5FD;
-    }
-
-    .remove-btn {
-        color: #fda4af;
-        font-size: 0.82rem;
-        font-weight: 600;
-    }
-
-    .remove-btn:hover {
-        color: #f43f5e;
-    }
-
-    .breakdown-table {
-        width: 100%;
-        min-width: 560px;
-        border-collapse: collapse;
-    }
-
-    .breakdown-table th {
-        text-align: left;
-        font-size: 0.67rem;
-        letter-spacing: 0.13em;
-        text-transform: uppercase;
-        color: #64748B;
-        padding: 0.7rem 0.8rem;
-        border-bottom: 1px solid rgba(148, 163, 184, 0.24);
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-    }
-
-    .breakdown-table td {
-        padding: 0.75rem 0.8rem;
-        border-top: 1px solid rgba(148, 163, 184, 0.24);
-        color: #334155;
-        font-size: 0.88rem;
-    }
+    .section-head { display: flex; justify-content: space-between; align-items: center; gap: 0.8rem; flex-wrap: wrap; margin-bottom: 0.9rem; }
+    .section-copy { margin-top: 0.3rem; color: #8A8580; font-size: 0.86rem; }
+    .cost-table-wrap { overflow-x: auto; }
+    .cost-table { min-width: 640px; }
+    .summary-row { display: flex; justify-content: space-between; align-items: center; gap: 0.8rem; color: #8A8580; font-size: 0.9rem; }
+    .summary-value { color: #1B1918; font-size: 1.05rem; font-weight: 700; }
+    .summary-divider { border-top: 1px solid #ECEAE6; padding-top: 0.8rem; }
+    .grand-total { color: #C0612B; font-size: 1.95rem; font-weight: 700; line-height: 1; letter-spacing: -0.04em; }
+    .link-accent { color: #C0612B; font-size: 0.84rem; font-weight: 600; }
+    .link-accent:hover { color: #D4722B; }
+    .remove-btn { color: #8B2020; font-size: 0.82rem; font-weight: 600; }
+    .remove-btn:hover { color: #B33A3A; }
+    .breakdown-table { min-width: 560px; }
 </style>
 {% endblock %}
 
@@ -193,20 +36,20 @@
         {'id': 'costing', 'label': 'Costing', 'url': url_for('menu_costing')},
     ], 'costing') }}
 
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 cost-shell fhq-fade">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 cost-shell">
         <form method="POST" class="space-y-4">
             <div class="cost-grid">
-                <section class="cost-panel p-5">
+                <section class="fhq-card p-5">
                     <div class="section-head">
                         <div>
-                            <h2 class="section-title">Menu Items</h2>
+                            <h2 class="text-xl font-bold tracking-tight text-foxtown-text">Menu Items</h2>
                             <p class="section-copy">Add recipes and amount multipliers to estimate total cost.</p>
                         </div>
                         <button type="button" id="addMenuRow" class="link-accent">+ Add Item</button>
                     </div>
 
                     <div class="cost-table-wrap">
-                        <table class="cost-table">
+                        <table class="fhq-table cost-table">
                             <thead>
                                 <tr>
                                     <th>Recipe</th>
@@ -219,8 +62,8 @@
                                     {% for item in menu_items %}
                                     <tr>
                                         <td>
-                                            <input type="text" class="select-filter menu-filter field mb-2" placeholder="Search recipes...">
-                                            <select name="menu_recipe_id[]" class="menu-select field">
+                                            <input type="text" class="select-filter menu-filter fhq-input mb-2" placeholder="Search recipes...">
+                                            <select name="menu_recipe_id[]" class="menu-select fhq-input">
                                                 <option value="">Select recipe</option>
                                                 {% for rec in recipes %}
                                                     <option value="{{ rec.id }}" {% if rec.id == item.recipe_id %}selected{% endif %}>{{ rec.name }}</option>
@@ -228,7 +71,7 @@
                                             </select>
                                         </td>
                                         <td>
-                                            <input type="number" step="0.01" name="menu_batches[]" value="{{ item.batches }}" class="field">
+                                            <input type="number" step="0.01" name="menu_batches[]" value="{{ item.batches }}" class="fhq-input">
                                         </td>
                                         <td class="text-right">
                                             <button type="button" class="remove-row remove-btn">Remove</button>
@@ -238,8 +81,8 @@
                                 {% else %}
                                     <tr>
                                         <td>
-                                            <input type="text" class="select-filter menu-filter field mb-2" placeholder="Search recipes...">
-                                            <select name="menu_recipe_id[]" class="menu-select field">
+                                            <input type="text" class="select-filter menu-filter fhq-input mb-2" placeholder="Search recipes...">
+                                            <select name="menu_recipe_id[]" class="menu-select fhq-input">
                                                 <option value="">Select recipe</option>
                                                 {% for rec in recipes %}
                                                     <option value="{{ rec.id }}">{{ rec.name }}</option>
@@ -247,7 +90,7 @@
                                             </select>
                                         </td>
                                         <td>
-                                            <input type="number" step="0.01" name="menu_batches[]" value="1" class="field">
+                                            <input type="number" step="0.01" name="menu_batches[]" value="1" class="fhq-input">
                                         </td>
                                         <td class="text-right">
                                             <button type="button" class="remove-row remove-btn">Remove</button>
@@ -259,9 +102,9 @@
                     </div>
                 </section>
 
-                <aside class="cost-panel p-5 space-y-4">
+                <aside class="fhq-card p-5 space-y-4">
                     <div>
-                        <h2 class="section-title text-lg">Cost Summary</h2>
+                        <h2 class="text-lg font-bold tracking-tight text-foxtown-text">Cost Summary</h2>
                         <p class="section-copy">Preview the total before saving a rollout.</p>
                     </div>
 
@@ -271,8 +114,8 @@
                     </div>
 
                     <div>
-                        <label class="cost-label">Q Factor (%)</label>
-                        <input type="number" step="0.1" name="q_factor_percent" value="{{ q_factor_percent }}" class="field">
+                        <label class="block text-sm font-medium text-foxtown-muted mb-1.5">Q Factor (%)</label>
+                        <input type="number" step="0.1" name="q_factor_percent" value="{{ q_factor_percent }}" class="fhq-input">
                     </div>
 
                     <div class="summary-row">
@@ -291,10 +134,10 @@
         </form>
 
         {% if menu_items %}
-        <section class="cost-panel p-5 mt-4">
-            <h2 class="section-title text-lg mb-3">Cost Breakdown</h2>
+        <section class="fhq-card p-5 mt-4">
+            <h2 class="mb-3 text-lg font-bold tracking-tight text-foxtown-text">Cost Breakdown</h2>
             <div class="cost-table-wrap">
-                <table class="breakdown-table">
+                <table class="fhq-table breakdown-table">
                     <thead>
                         <tr>
                             <th>Recipe</th>
@@ -309,7 +152,7 @@
                             <td>{{ item.recipe.name }}</td>
                             <td>{{ item.batches }}</td>
                             <td>${{ "%.2f"|format(item.base_cost) }}</td>
-                            <td class="text-[#0F172A] font-semibold">${{ "%.2f"|format(item.item_total) }}</td>
+                            <td class="text-foxtown-text font-semibold">${{ "%.2f"|format(item.item_total) }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -323,8 +166,8 @@
 <template id="menuRowTemplate">
     <tr>
         <td>
-            <input type="text" class="select-filter menu-filter field mb-2" placeholder="Search recipes...">
-            <select name="menu_recipe_id[]" class="menu-select field">
+            <input type="text" class="select-filter menu-filter fhq-input mb-2" placeholder="Search recipes...">
+            <select name="menu_recipe_id[]" class="menu-select fhq-input">
                 <option value="">Select recipe</option>
                 {% for rec in recipes %}
                     <option value="{{ rec.id }}">{{ rec.name }}</option>
@@ -332,7 +175,7 @@
             </select>
         </td>
         <td>
-            <input type="number" step="0.01" name="menu_batches[]" value="1" class="field">
+            <input type="number" step="0.01" name="menu_batches[]" value="1" class="fhq-input">
         </td>
         <td class="text-right">
             <button type="button" class="remove-row remove-btn">Remove</button>
