@@ -34,100 +34,26 @@
         }
     </script>
     <style>
-        :root {
-            color-scheme: dark;
-        }
-        * {
-            scrollbar-width: none;
-        }
-        *::-webkit-scrollbar {
-            display: none;
-        }
-        body {
-            background: #1B1918;
-        }
-        .board-frame {
-            min-height: 100vh;
-            position: relative;
-        }
-        .board-frame::before {
-            content: "";
-            position: fixed;
-            inset: 0;
-            pointer-events: none;
-            opacity: 0;
-        }
-        .command-card {
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 8px;
-            background: rgba(255, 255, 255, 0.02);
-        }
-        .column-shell {
-            display: flex;
-            flex-direction: column;
-            min-height: 0;
-        }
-        .volume-number {
-            font-weight: 800;
-            line-height: 0.92;
-            letter-spacing: -0.08em;
-            font-variant-numeric: tabular-nums;
-        }
-        .time-lockup {
-            font-variant-numeric: tabular-nums;
-        }
-        .auto-scroll-viewport {
-            overflow: auto;
-            max-height: calc(100vh - 190px);
-            scroll-behavior: smooth;
-        }
-        .event-card {
-            position: relative;
-            border-radius: 8px;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            background: rgba(255, 255, 255, 0.02);
-        }
-        .event-card--critical {
-            border-color: rgba(192, 97, 43, 0.6);
-        }
-        .event-card--high {
-            border-color: rgba(255, 255, 255, 0.14);
-        }
-        .warning-ribbon {
-            border: 1px solid rgba(192, 97, 43, 0.34);
-            background: rgba(192, 97, 43, 0.12);
-            color: #F4D3C3;
-        }
-        .progress-track {
-            position: relative;
-            height: 10px;
-            border-radius: 999px;
-            background: rgba(255, 255, 255, 0.08);
-            overflow: hidden;
-        }
-        .progress-fill {
-            position: absolute;
-            inset: 0 auto 0 0;
-            border-radius: inherit;
-            background: #C0612B;
-        }
-        .event-listing {
-            display: grid;
-            gap: 0.75rem;
-        }
-        .menu-chip {
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            background: rgba(255, 255, 255, 0.03);
-        }
-        .status-pill {
-            border: 1px solid rgba(255, 255, 255, 0.14);
-            background: rgba(255, 255, 255, 0.04);
-        }
-        @media (min-width: 1400px) {
-            .board-grid {
-                grid-template-columns: 1.08fr 1fr 1fr;
-            }
-        }
+        :root { color-scheme: dark; }
+        * { scrollbar-width: none; }
+        *::-webkit-scrollbar { display: none; }
+        body { background: #1B1918; }
+        .board-frame { min-height: 100vh; position: relative; }
+        .command-card, .event-card { border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; background: rgba(255, 255, 255, 0.02); }
+        .column-shell { display: flex; flex-direction: column; min-height: 0; }
+        .volume-number { font-weight: 800; line-height: 0.92; letter-spacing: -0.08em; font-variant-numeric: tabular-nums; }
+        .time-lockup { font-variant-numeric: tabular-nums; }
+        .auto-scroll-viewport { overflow: auto; max-height: calc(100vh - 190px); scroll-behavior: smooth; }
+        .event-card { position: relative; }
+        .event-card--critical { border-color: rgba(192, 97, 43, 0.6); }
+        .event-card--high { border-color: rgba(255, 255, 255, 0.14); }
+        .warning-ribbon { border: 1px solid rgba(192, 97, 43, 0.34); background: rgba(192, 97, 43, 0.12); color: #F4D3C3; }
+        .progress-track { position: relative; height: 10px; border-radius: 999px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
+        .progress-fill { position: absolute; inset: 0 auto 0 0; border-radius: inherit; background: #C0612B; }
+        .event-listing { display: grid; gap: 0.75rem; }
+        .menu-chip { border: 1px solid rgba(255, 255, 255, 0.08); background: rgba(255, 255, 255, 0.03); }
+        .status-pill { border: 1px solid rgba(255, 255, 255, 0.14); background: rgba(255, 255, 255, 0.04); }
+        @media (min-width: 1400px) { .board-grid { grid-template-columns: 1.08fr 1fr 1fr; } }
     </style>
 </head>
 <body class="min-h-screen bg-foxtown-black text-white font-sans">
