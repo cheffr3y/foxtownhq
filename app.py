@@ -294,15 +294,21 @@ def register_blueprint_with_legacy_endpoints(flask_app, blueprint):
             continue
 
         legacy_endpoint = rule.endpoint[len(prefix) :]
-        if not legacy_endpoint or legacy_endpoint in flask_app.view_functions:
+        if not legacy_endpoint:
+            continue
+
+        view_func = flask_app.view_functions[rule.endpoint]
+        existing_view = flask_app.view_functions.get(legacy_endpoint)
+        if existing_view is not None and existing_view is not view_func:
             continue
 
         methods = sorted(m for m in rule.methods if m not in {'HEAD', 'OPTIONS'})
         flask_app.add_url_rule(
             rule.rule,
             endpoint=legacy_endpoint,
-            view_func=flask_app.view_functions[rule.endpoint],
+            view_func=view_func,
             methods=methods,
+            defaults=rule.defaults,
         )
 
 
