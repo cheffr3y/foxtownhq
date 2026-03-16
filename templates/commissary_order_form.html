@@ -5,136 +5,28 @@
 
 {% block extra_head %}
 <style>
-    .order-shell {
-        padding-bottom: 3.5rem;
-    }
-
-    .order-panel {
-        border-radius: 16px;
-        border: 1px solid rgba(15, 23, 42, 0.11);
-        background: rgba(255, 255, 255, 0.96);
-        box-shadow: 0 0 36px -14px rgba(77, 124, 255, 0.24);
-    }
-
-    .field-grid {
-        display: grid;
-        gap: 0.75rem;
-        grid-template-columns: repeat(1, minmax(0, 1fr));
-    }
-
+    .order-shell { padding-bottom: 3.5rem; }
+    .field-grid { display: grid; gap: 0.75rem; grid-template-columns: repeat(1, minmax(0, 1fr)); }
     @media (min-width: 900px) {
-        .field-grid {
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-        }
+        .field-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
     }
-
-    .field-label {
-        display: block;
-        margin-bottom: 0.35rem;
-        font-size: 0.67rem;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-        color: #94A3B8;
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-    }
-
-    .field {
-        width: 100%;
-        min-height: 46px;
-        border: 1px solid rgba(15, 23, 42, 0.15);
-        border-radius: 10px;
-        background: rgba(248, 250, 252, 0.92);
-        color: #0F172A;
-        padding: 0.6rem 0.8rem;
-        transition: all 0.2s ease;
-    }
-
-    .field:focus {
-        outline: none;
-        border-color: rgba(77, 124, 255, 0.7);
-        box-shadow: 0 0 20px -10px rgba(77, 124, 255, 0.52);
-    }
-
-    .field::placeholder {
-        color: rgba(15, 23, 42, 0.35);
-    }
-
-    .section-head {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 0.8rem;
-        margin-bottom: 0.9rem;
-    }
-
-    .section-title {
-        color: #0F172A;
-        font-size: 1.38rem;
-        letter-spacing: -0.03em;
-        font-family: 'Calistoga', Inter, sans-serif;
-    }
-
-    .section-copy {
-        margin-top: 0.25rem;
-        color: #94A3B8;
-        font-size: 0.86rem;
-    }
-
-    .table-wrap {
-        overflow-x: auto;
-    }
-
-    .lines-table {
-        width: 100%;
-        min-width: 1120px;
-        border-collapse: collapse;
-    }
-
-    .lines-table th {
-        text-align: left;
-        font-size: 0.67rem;
-        letter-spacing: 0.13em;
-        text-transform: uppercase;
-        color: #94A3B8;
-        padding: 0.7rem 0.7rem;
-        border-bottom: 1px solid rgba(148, 163, 184, 0.24);
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-    }
-
-    .lines-table td {
-        padding: 0.72rem 0.7rem;
-        border-top: 1px solid rgba(148, 163, 184, 0.2);
-        color: #334155;
-        font-size: 0.86rem;
-        vertical-align: top;
-    }
-
-    .remove-btn {
-        color: #fda4af;
-        font-size: 0.8rem;
-        font-weight: 600;
-    }
-
-    .remove-btn:hover {
-        color: #f43f5e;
-    }
-
+    .section-head { display: flex; justify-content: space-between; align-items: center; gap: 0.8rem; flex-wrap: wrap; margin-bottom: 0.9rem; }
+    .section-copy { margin-top: 0.25rem; color: #8A8580; font-size: 0.86rem; }
+    .table-wrap { overflow-x: auto; }
+    .lines-table { min-width: 1120px; }
+    .remove-btn { color: #8B2020; font-size: 0.8rem; font-weight: 600; }
+    .remove-btn:hover { color: #B33A3A; }
     .delete-order {
         min-height: 42px;
-        border-radius: 999px;
-        border: 1px solid rgba(248, 113, 113, 0.7);
-        background: rgba(239, 68, 68, 0.22);
-        color: #fecaca;
         padding: 0.5rem 0.95rem;
+        border: 1px solid #F0BFAF;
+        border-radius: 8px;
+        background: #FFF7F5;
+        color: #8B2020;
         font-weight: 600;
         font-size: 0.78rem;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
     }
-
-    .delete-order:hover {
-        background: rgba(239, 68, 68, 0.34);
-    }
+    .delete-order:hover { border-color: #DE9F8C; background: #FFF1ED; }
 </style>
 {% endblock %}
 
@@ -151,13 +43,13 @@
         {'id': 'review', 'label': 'Review', 'url': url_for('commissary_review')},
     ], 'planner') }}
 
-    <form method="POST" class="max-w-[96rem] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4 order-shell fhq-fade" data-needed-date="{{ order.needed_date or '' }}">
-        <section class="order-panel p-5">
-            <h2 class="section-title text-lg mb-4">Order Details</h2>
+    <form method="POST" class="max-w-[96rem] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4 order-shell" data-needed-date="{{ order.needed_date or '' }}">
+        <section class="fhq-card p-5">
+            <h2 class="mb-4 text-lg font-bold tracking-tight text-foxtown-text">Order Details</h2>
             <div class="field-grid">
                 <div>
-                    <label class="field-label">Outlet</label>
-                    <input list="outletOptions" name="outlet" value="{{ order.outlet or '' }}" class="field" required>
+                    <label class="block text-sm font-medium text-foxtown-muted mb-1.5">Outlet</label>
+                    <input list="outletOptions" name="outlet" value="{{ order.outlet or '' }}" class="fhq-input" required>
                     <datalist id="outletOptions">
                         {% for outlet in outlet_options %}
                         <option value="{{ outlet }}"></option>
@@ -165,43 +57,43 @@
                     </datalist>
                 </div>
                 <div>
-                    <label class="field-label">Needed Date</label>
-                    <input type="date" name="needed_date" value="{{ order.needed_date or '' }}" class="field" required>
+                    <label class="block text-sm font-medium text-foxtown-muted mb-1.5">Needed Date</label>
+                    <input type="date" name="needed_date" value="{{ order.needed_date or '' }}" class="fhq-input" required>
                 </div>
                 <div>
-                    <label class="field-label">Status</label>
-                    <select name="status" class="field">
+                    <label class="block text-sm font-medium text-foxtown-muted mb-1.5">Status</label>
+                    <select name="status" class="fhq-input">
                         {% for value, label in status_options %}
                         <option value="{{ value }}" {% if (order.status or 'draft') == value %}selected{% endif %}>{{ label }}</option>
                         {% endfor %}
                     </select>
                 </div>
                 <div>
-                    <label class="field-label">Source</label>
-                    <select name="source" class="field">
+                    <label class="block text-sm font-medium text-foxtown-muted mb-1.5">Source</label>
+                    <select name="source" class="fhq-input">
                         {% for value, label in source_options %}
                         <option value="{{ value }}" {% if (order.source or 'outlet_request') == value %}selected{% endif %}>{{ label }}</option>
                         {% endfor %}
                     </select>
                 </div>
                 <div class="md:col-span-4">
-                    <label class="field-label">Notes</label>
-                    <textarea name="notes" rows="3" class="field">{{ order.notes or '' }}</textarea>
+                    <label class="block text-sm font-medium text-foxtown-muted mb-1.5">Notes</label>
+                    <textarea name="notes" rows="3" class="fhq-input">{{ order.notes or '' }}</textarea>
                 </div>
             </div>
         </section>
 
-        <section class="order-panel p-5">
+        <section class="fhq-card p-5">
             <div class="section-head">
                 <div>
-                    <h2 class="section-title">Order Items</h2>
+                    <h2 class="text-xl font-bold tracking-tight text-foxtown-text">Order Items</h2>
                     <p class="section-copy">Recipe, quantity, optional prep window for multi-day projects, and line notes.</p>
                 </div>
                 <button type="button" id="addLineBtn" class="fhq-btn fhq-btn--outline">+ Add line</button>
             </div>
 
             <div class="table-wrap">
-                <table class="lines-table" id="linesTable">
+                <table class="fhq-table lines-table" id="linesTable">
                     <thead>
                         <tr>
                             <th class="min-w-[340px]">Recipe</th>
@@ -226,18 +118,18 @@
                                     data-role="recipe-search"
                                     list="recipeSearchOptions"
                                     value="{{ selected_recipe.display_label if selected_recipe else (line.recipe_name or '') }}"
-                                    class="field"
+                                    class="fhq-input"
                                     placeholder="Search recipe..."
                                 >
                             </td>
                             <td>
-                                <input name="line_item_name[]" data-role="item-name" value="{{ line.item_name or line.recipe_name or '' }}" class="field" placeholder="Defaults to recipe name">
+                                <input name="line_item_name[]" data-role="item-name" value="{{ line.item_name or line.recipe_name or '' }}" class="fhq-input" placeholder="Defaults to recipe name">
                             </td>
-                            <td><input type="number" step="0.01" min="0" name="line_qty[]" value="{{ line.quantity or '' }}" class="field"></td>
-                            <td><input name="line_unit[]" data-role="line-unit" value="{{ line.quantity_unit or line.yield_unit or 'each' }}" class="field"></td>
-                            <td><input type="date" name="line_prep_start[]" value="{{ line.prep_start_date or order.needed_date or '' }}" class="field"></td>
-                            <td><input type="date" name="line_prep_end[]" value="{{ line.prep_end_date or line.prep_start_date or order.needed_date or '' }}" class="field"></td>
-                            <td><input name="line_notes[]" value="{{ line.notes or line.line_notes or '' }}" class="field" placeholder="Pack size, delivery notes"></td>
+                            <td><input type="number" step="0.01" min="0" name="line_qty[]" value="{{ line.quantity or '' }}" class="fhq-input"></td>
+                            <td><input name="line_unit[]" data-role="line-unit" value="{{ line.quantity_unit or line.yield_unit or 'each' }}" class="fhq-input"></td>
+                            <td><input type="date" name="line_prep_start[]" value="{{ line.prep_start_date or order.needed_date or '' }}" class="fhq-input"></td>
+                            <td><input type="date" name="line_prep_end[]" value="{{ line.prep_end_date or line.prep_start_date or order.needed_date or '' }}" class="fhq-input"></td>
+                            <td><input name="line_notes[]" value="{{ line.notes or line.line_notes or '' }}" class="fhq-input" placeholder="Pack size, delivery notes"></td>
                             <td><button type="button" class="removeRow remove-btn">Remove</button></td>
                         </tr>
                         {% endfor %}
@@ -283,16 +175,16 @@
             type="text"
             data-role="recipe-search"
             list="recipeSearchOptions"
-            class="field"
+            class="fhq-input"
             placeholder="Search recipe..."
         >
     </td>
-    <td><input name="line_item_name[]" data-role="item-name" class="field" placeholder="Defaults to recipe name"></td>
-    <td><input type="number" step="0.01" min="0" name="line_qty[]" value="1" class="field"></td>
-    <td><input name="line_unit[]" data-role="line-unit" value="each" class="field"></td>
-    <td><input type="date" name="line_prep_start[]" class="field"></td>
-    <td><input type="date" name="line_prep_end[]" class="field"></td>
-    <td><input name="line_notes[]" class="field" placeholder="Pack size, delivery notes"></td>
+    <td><input name="line_item_name[]" data-role="item-name" class="fhq-input" placeholder="Defaults to recipe name"></td>
+    <td><input type="number" step="0.01" min="0" name="line_qty[]" value="1" class="fhq-input"></td>
+    <td><input name="line_unit[]" data-role="line-unit" value="each" class="fhq-input"></td>
+    <td><input type="date" name="line_prep_start[]" class="fhq-input"></td>
+    <td><input type="date" name="line_prep_end[]" class="fhq-input"></td>
+    <td><input name="line_notes[]" class="fhq-input" placeholder="Pack size, delivery notes"></td>
     <td><button type="button" class="removeRow remove-btn">Remove</button></td>
 </tr>
 </template>
