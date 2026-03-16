@@ -5,125 +5,19 @@
 
 {% block extra_head %}
 <style>
-    .review-shell {
-        padding-bottom: 3rem;
-    }
-
-    .review-panel {
-        border-radius: 16px;
-        border: 1px solid rgba(15, 23, 42, 0.1);
-        background: rgba(255, 255, 255, 0.96);
-        box-shadow: 0 0 36px -14px rgba(77, 124, 255, 0.24);
-    }
-
-    .controls-grid {
-        display: grid;
-        gap: 0.58rem;
-        grid-template-columns: repeat(1, minmax(0, 1fr));
-        align-items: end;
-    }
-
+    .review-shell { padding-bottom: 3rem; }
+    .controls-grid,
+    .summary-grid { display: grid; gap: 0.58rem; grid-template-columns: repeat(1, minmax(0, 1fr)); align-items: end; }
     @media (min-width: 980px) {
-        .controls-grid {
-            grid-template-columns: minmax(220px, 0.9fr) minmax(220px, 0.9fr) auto;
-        }
+        .controls-grid { grid-template-columns: minmax(220px, 0.9fr) minmax(220px, 0.9fr) auto; }
     }
-
-    .field-label {
-        display: block;
-        margin-bottom: 0.3rem;
-        font-size: 0.64rem;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-        color: #94A3B8;
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-    }
-
-    .field {
-        width: 100%;
-        min-height: 42px;
-        border: 1px solid rgba(15, 23, 42, 0.15);
-        border-radius: 10px;
-        background: rgba(248, 250, 252, 0.92);
-        color: #0F172A;
-        padding: 0.5rem 0.72rem;
-        transition: all 0.2s ease;
-    }
-
-    .field:focus {
-        outline: none;
-        border-color: rgba(77, 124, 255, 0.72);
-        box-shadow: 0 0 20px -10px rgba(77, 124, 255, 0.55);
-    }
-
-    .summary-grid {
-        display: grid;
-        gap: 0.75rem;
-        grid-template-columns: repeat(1, minmax(0, 1fr));
-    }
-
     @media (min-width: 1080px) {
-        .summary-grid {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-        }
+        .summary-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     }
-
-    .summary-card {
-        border-radius: 12px;
-        border: 1px solid rgba(15, 23, 42, 0.11);
-        background: rgba(248, 250, 252, 0.92);
-        padding: 0.75rem;
-    }
-
-    .summary-label {
-        font-size: 0.66rem;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-        color: #94A3B8;
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-    }
-
-    .summary-value {
-        margin-top: 0.15rem;
-        color: #0F172A;
-        font-size: 1.8rem;
-        font-family: 'Calistoga', Inter, sans-serif;
-        letter-spacing: -0.03em;
-    }
-
-    .table-wrap {
-        overflow-x: auto;
-    }
-
-    .review-table {
-        width: 100%;
-        min-width: 780px;
-        border-collapse: collapse;
-    }
-
-    .review-table th {
-        text-align: left;
-        font-size: 0.66rem;
-        letter-spacing: 0.13em;
-        text-transform: uppercase;
-        color: #94A3B8;
-        padding: 0.66rem 0.72rem;
-        border-bottom: 1px solid rgba(148, 163, 184, 0.24);
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-    }
-
-    .review-table td {
-        padding: 0.7rem 0.72rem;
-        border-top: 1px solid rgba(148, 163, 184, 0.2);
-        color: #334155;
-        font-size: 0.84rem;
-        vertical-align: top;
-    }
-
-    .empty-note {
-        color: #94A3B8;
-        font-size: 0.88rem;
-    }
+    .summary-value { margin-top: 0.15rem; color: #1B1918; font-size: 1.8rem; font-weight: 700; letter-spacing: -0.03em; }
+    .table-wrap { overflow-x: auto; }
+    .review-table { min-width: 780px; }
+    .empty-note { color: #8A8580; font-size: 0.88rem; }
 </style>
 {% endblock %}
 
@@ -141,16 +35,16 @@
         {'id': 'review', 'label': 'Review', 'url': url_for('commissary_review')},
     ], 'review') }}
 
-    <div class="max-w-[96rem] mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-4 review-shell fhq-fade">
-        <section class="review-panel p-4">
+    <div class="max-w-[96rem] mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-4 review-shell">
+        <section class="fhq-card p-4">
             <form method="GET" action="{{ url_for('commissary_review', week_start=week_start) }}" class="controls-grid">
                 <div>
-                    <label class="field-label">Week Start</label>
-                    <input type="date" name="week_start" class="field" value="{{ week_start }}">
+                    <label class="block text-sm font-medium text-foxtown-muted mb-1.5">Week Start</label>
+                    <input type="date" name="week_start" class="fhq-input" value="{{ week_start }}">
                 </div>
                 <div>
-                    <label class="field-label">Outlet</label>
-                    <select name="outlet" class="field">
+                    <label class="block text-sm font-medium text-foxtown-muted mb-1.5">Outlet</label>
+                    <select name="outlet" class="fhq-input">
                         <option value="">All Outlets</option>
                         {% for outlet in outlet_options %}
                         <option value="{{ outlet }}" {% if selected_outlet == outlet %}selected{% endif %}>{{ outlet }}</option>
@@ -159,31 +53,31 @@
                 </div>
                 <button type="submit" class="fhq-btn fhq-btn--outline">Apply Outlet Filter</button>
             </form>
-            <p class="mt-2 text-sm text-slate-500">Week window: {{ week_start }} to {{ week_end }}</p>
+            <p class="mt-2 text-sm text-foxtown-muted">Week window: {{ week_start }} to {{ week_end }}</p>
         </section>
 
-        <section class="review-panel p-4">
+        <section class="fhq-card p-4">
             <div class="summary-grid">
-                <div class="summary-card">
-                    <div class="summary-label">Total Production Lines</div>
+                <div class="fhq-card p-4">
+                    <div class="fhq-section-head mb-0">Total Production Lines</div>
                     <div class="summary-value">{{ review.total_lines }}</div>
                 </div>
-                <div class="summary-card">
-                    <div class="summary-label">Signed Off Lines</div>
+                <div class="fhq-card p-4">
+                    <div class="fhq-section-head mb-0">Signed Off Lines</div>
                     <div class="summary-value">{{ review.signed_off_lines }}</div>
                 </div>
-                <div class="summary-card">
-                    <div class="summary-label">Completion Rate</div>
+                <div class="fhq-card p-4">
+                    <div class="fhq-section-head mb-0">Completion Rate</div>
                     <div class="summary-value">{{ review.completion_rate }}%</div>
                 </div>
             </div>
         </section>
 
-        <section class="review-panel p-4">
-            <h2 class="text-xl font-display text-foxtown-ink mb-3">Daily Production Breakdown</h2>
+        <section class="fhq-card p-4">
+            <h2 class="mb-3 text-xl font-bold tracking-tight text-foxtown-text">Daily Production Breakdown</h2>
             {% if review.daily_rows %}
             <div class="table-wrap">
-                <table class="review-table">
+                <table class="fhq-table review-table">
                     <thead>
                         <tr>
                             <th>Day</th>
@@ -215,11 +109,11 @@
             {% endif %}
         </section>
 
-        <section class="review-panel p-4">
-            <h2 class="text-xl font-display text-foxtown-ink mb-3">Items by Outlet</h2>
+        <section class="fhq-card p-4">
+            <h2 class="mb-3 text-xl font-bold tracking-tight text-foxtown-text">Items by Outlet</h2>
             {% if review.items_by_outlet %}
             <div class="table-wrap">
-                <table class="review-table">
+                <table class="fhq-table review-table">
                     <thead>
                         <tr>
                             <th>Outlet</th>
@@ -241,11 +135,11 @@
             {% endif %}
         </section>
 
-        <section class="review-panel p-4">
-            <h2 class="text-xl font-display text-foxtown-ink mb-3">Transfers Summary</h2>
+        <section class="fhq-card p-4">
+            <h2 class="mb-3 text-xl font-bold tracking-tight text-foxtown-text">Transfers Summary</h2>
             {% if review.transfers %}
             <div class="table-wrap">
-                <table class="review-table">
+                <table class="fhq-table review-table">
                     <thead>
                         <tr>
                             <th>Date</th>
@@ -273,11 +167,11 @@
             {% endif %}
         </section>
 
-        <section class="review-panel p-4">
-            <h2 class="text-xl font-display text-foxtown-ink mb-3">Issues / Flags</h2>
+        <section class="fhq-card p-4">
+            <h2 class="mb-3 text-xl font-bold tracking-tight text-foxtown-text">Issues / Flags</h2>
             {% if review.incomplete_lines %}
             <div class="table-wrap">
-                <table class="review-table">
+                <table class="fhq-table review-table">
                     <thead>
                         <tr>
                             <th>Date</th>
