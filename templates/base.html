@@ -221,6 +221,13 @@
         }
         .top-nav-link:hover { color: #fff; background: rgba(255,255,255,0.08); }
         .top-nav-link.active { color: #fff; background: rgba(255,255,255,0.1); }
+        .fhq-content-shell > .max-w-\[96rem\].mx-auto.px-4.sm\:px-6.lg\:px-8 {
+            max-width: none;
+            margin-left: 0;
+            margin-right: 0;
+            padding-left: 0;
+            padding-right: 0;
+        }
     </style>
     {% block extra_head %}{% endblock %}
 </head>
@@ -258,8 +265,18 @@
                     <span>Search</span>
                     <span style="font-size:10px;line-height:1;padding:3px 5px;border-radius:5px;background:rgba(255,255,255,0.14);color:rgba(255,255,255,0.85);">⌘K</span>
                 </div>
-                <div style="width:28px;height:28px;border-radius:999px;background:#2B2826;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">
-                    {{ (current_user.username[:1] if current_user and current_user.username else 'U')|upper }}
+                <div class="relative" id="userMenu">
+                    <button type="button" onclick="document.getElementById('userDropdown').classList.toggle('hidden')"
+                        style="width:28px;height:28px;border-radius:999px;background:#2B2826;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;border:none;cursor:pointer;">
+                        {{ (current_user.username[:1] if current_user and current_user.username else 'U')|upper }}
+                    </button>
+                    <div id="userDropdown" class="hidden"
+                        style="position:absolute;right:0;top:36px;min-width:140px;background:#fff;border:1px solid #ECEAE6;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.08);overflow:hidden;z-index:60;">
+                        <a href="{{ url_for('logout') }}"
+                            style="display:block;padding:8px 14px;font-size:13px;font-weight:500;color:#1B1918;text-decoration:none;">
+                            Sign Out
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
@@ -268,7 +285,7 @@
 
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+        <div class="max-w-[96rem] mx-auto px-4 sm:px-6 lg:px-8 pt-4">
             <div class="space-y-2">
                 {% for category, message in messages %}
                     <div class="rounded-lg px-4 py-3 text-sm font-medium border {% if category == 'success' %}bg-[#EEFBEF] text-[#2B7A30] border-[#C2E8C4]{% elif category == 'error' %}bg-[#FFF7F5] text-[#8B2020] border-[#F0BFAF]{% else %}bg-[#EEF3FF] text-[#2656A8] border-[#A8C4F0]{% endif %}">
@@ -280,7 +297,9 @@
         {% endif %}
     {% endwith %}
 
+    {% if show_global_nav %}<div class="max-w-[96rem] mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-10 fhq-content-shell">{% endif %}
     {% block content %}{% endblock %}
+    {% if show_global_nav %}</div>{% endif %}
     <script>
         (function () {
             document.addEventListener('submit', (event) => {
@@ -338,6 +357,14 @@
                     searchInput.select();
                 });
             }
+
+            document.addEventListener('click', (event) => {
+                const menu = document.getElementById('userMenu');
+                const dropdown = document.getElementById('userDropdown');
+                if (menu && dropdown && !menu.contains(event.target)) {
+                    dropdown.classList.add('hidden');
+                }
+            });
 
             document.addEventListener('keydown', (event) => {
                 const key = (event.key || '').toLowerCase();
