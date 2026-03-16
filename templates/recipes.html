@@ -5,265 +5,52 @@
 
 {% block extra_head %}
 <style>
-    .recipes-shell {
-        padding-bottom: 3rem;
-    }
-
-    .unit-toggle {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.2rem;
-        border-radius: 999px;
-        border: 1px solid rgba(15, 23, 42, 0.16);
-        background: rgba(248, 250, 252, 0.9);
-        padding: 0.2rem;
-    }
-
+    .recipes-shell { padding-bottom: 3rem; }
+    .unit-toggle,
+    .row-actions { display: inline-flex; align-items: center; gap: 0.2rem; }
+    .unit-toggle { padding: 0.2rem; border: 1px solid #ECEAE6; border-radius: 999px; background: #fff; }
     .unit-toggle a {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.35rem 0.72rem;
         border-radius: 999px;
-        padding: 0.3rem 0.65rem;
-        font-size: 0.72rem;
-        letter-spacing: 0.06em;
+        font-size: 0.74rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
         text-transform: uppercase;
-        color: #94A3B8;
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-        transition: all 0.2s ease;
+        color: #8A8580;
+        transition: background-color 0.15s ease, color 0.15s ease;
     }
-
-    .unit-toggle a:hover {
-        color: #0F172A;
-    }
-
-    .unit-toggle a.is-active {
-        background: linear-gradient(to right, #0052FF, #4D7CFF);
-        color: #0F172A;
-        box-shadow: 0 0 16px -8px rgba(77, 124, 255, 0.7);
-    }
-
-    .stats-row {
-        display: grid;
-        gap: 0.7rem;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
+    .unit-toggle a:hover { color: #1B1918; }
+    .unit-toggle a.is-active { background: #C0612B; color: #fff; }
+    .stats-row { display: grid; gap: 0.7rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
     @media (min-width: 900px) {
-        .stats-row {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-        }
+        .stats-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     }
-
-    .stats-card {
-        border-radius: 14px;
-        border: 1px solid rgba(15, 23, 42, 0.12);
-        background: rgba(255, 255, 255, 0.96);
-        padding: 0.85rem 0.95rem;
-    }
-
-    .stats-label {
-        font-size: 0.67rem;
-        letter-spacing: 0.13em;
-        text-transform: uppercase;
-        color: #94A3B8;
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-    }
-
-    .stats-value {
-        margin-top: 0.32rem;
-        color: #0F172A;
-        font-size: 1.52rem;
-        line-height: 1;
-        letter-spacing: -0.04em;
-        font-family: 'Calistoga', Inter, sans-serif;
-    }
-
-    .recipes-panel {
-        border-radius: 16px;
-        border: 1px solid rgba(15, 23, 42, 0.1);
-        background: rgba(255, 255, 255, 0.96);
-        box-shadow: 0 0 38px -14px rgba(77, 124, 255, 0.24);
-    }
-
-    .filters-grid {
-        display: grid;
-        gap: 0.7rem;
-        grid-template-columns: repeat(1, minmax(0, 1fr));
-    }
-
+    .filters-grid { display: grid; gap: 0.7rem; grid-template-columns: repeat(1, minmax(0, 1fr)); }
     @media (min-width: 768px) {
-        .filters-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
+        .filters-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
-
     @media (min-width: 1280px) {
-        .filters-grid {
-            grid-template-columns: minmax(0, 1.3fr) repeat(4, minmax(0, 1fr)) auto;
-            align-items: end;
-        }
+        .filters-grid { grid-template-columns: minmax(0, 1.3fr) repeat(4, minmax(0, 1fr)) auto; align-items: end; }
     }
-
-    .field-label {
-        display: block;
-        margin-bottom: 0.34rem;
-        color: #94A3B8;
-        font-size: 0.67rem;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-    }
-
-    .field {
-        width: 100%;
-        min-height: 46px;
-        border: 1px solid rgba(15, 23, 42, 0.15);
-        border-radius: 10px;
-        background: rgba(248, 250, 252, 0.92);
-        color: #0F172A;
-        padding: 0.63rem 0.8rem;
-        transition: all 0.2s ease;
-    }
-
-    .field:focus {
-        outline: none;
-        border-color: rgba(77, 124, 255, 0.7);
-        box-shadow: 0 0 20px -10px rgba(77, 124, 255, 0.55);
-    }
-
-    .field::placeholder {
-        color: rgba(15, 23, 42, 0.32);
-    }
-
-    .table-wrap {
-        overflow-x: auto;
-    }
-
-    .recipes-table {
-        width: 100%;
-        min-width: 1080px;
-        border-collapse: collapse;
-    }
-
-    .recipes-table thead {
-        background: rgba(0, 82, 255, 0.08);
-    }
-
-    .recipes-table th {
-        text-align: left;
-        font-size: 0.67rem;
-        letter-spacing: 0.13em;
-        text-transform: uppercase;
-        color: #94A3B8;
-        padding: 0.8rem 1rem;
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-    }
-
-    .recipes-table td {
-        border-top: 1px solid rgba(148, 163, 184, 0.2);
-        color: #334155;
-        font-size: 0.88rem;
-        padding: 0.85rem 1rem;
-        vertical-align: top;
-    }
-
-    .recipes-table tbody tr {
-        transition: background-color 0.2s ease;
-    }
-
-    .recipes-table tbody tr:hover {
-        background: rgba(77, 124, 255, 0.08);
-    }
-
-    .recipes-table .sticky-right {
-        position: sticky;
-        right: 0;
-        background: rgba(255, 255, 255, 0.96);
-    }
-
-    .recipe-name {
-        color: #0F172A;
-        font-size: 0.95rem;
-        font-weight: 600;
-    }
-
-    .recipe-meta {
-        margin-top: 0.2rem;
-        color: #94A3B8;
-        font-size: 0.75rem;
-        max-width: 440px;
-    }
-
-    .tag {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.33rem;
-        font-size: 0.7rem;
-        letter-spacing: 0.1em;
-        text-transform: uppercase;
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-    }
-
-    .tag i {
-        width: 0.42rem;
-        height: 0.42rem;
-        border-radius: 999px;
-        display: inline-block;
-    }
-
-    .tag-rm {
-        color: #93C5FD;
-    }
-
-    .tag-rm i {
-        background: #4D7CFF;
-        box-shadow: 0 0 12px rgba(77, 124, 255, 0.6);
-    }
-
-    .tag-rb {
-        color: #93c5fd;
-    }
-
-    .tag-rb i {
-        background: #3b82f6;
-    }
-
-    .row-actions {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.7rem;
-        opacity: 0;
-        transition: opacity 0.15s ease;
-    }
-
+    .table-wrap { overflow-x: auto; }
+    .recipes-table { min-width: 1080px; }
+    .recipes-table .sticky-right { position: sticky; right: 0; background: #fff; }
+    .recipes-table tbody tr:hover { background: #FCFBFA; }
+    .recipe-name { font-size: 0.95rem; font-weight: 600; color: #1B1918; }
+    .recipe-meta,
+    .empty-copy { margin-top: 0.2rem; font-size: 0.78rem; color: #8A8580; }
+    .tag { display: inline-flex; align-items: center; gap: 0.33rem; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #C0612B; }
+    .tag i { width: 0.42rem; height: 0.42rem; border-radius: 999px; display: inline-block; background: #C0612B; }
+    .row-actions { gap: 0.7rem; opacity: 0; transition: opacity 0.15s ease; }
     tr:hover .row-actions,
-    tr:focus-within .row-actions {
-        opacity: 1;
-    }
-
-    .row-action {
-        color: #94A3B8;
-        font-size: 0.8rem;
-        font-weight: 600;
-    }
-
-    .row-action:hover {
-        color: #93C5FD;
-    }
-
-    .empty-block {
-        padding: 2.4rem 1.5rem;
-        text-align: center;
-    }
-
-    .empty-title {
-        color: #0F172A;
-        font-size: 1.42rem;
-        font-family: 'Calistoga', Inter, sans-serif;
-    }
-
-    .empty-copy {
-        margin-top: 0.45rem;
-        color: #94A3B8;
-    }
+    tr:focus-within .row-actions { opacity: 1; }
+    .row-action { font-size: 0.82rem; font-weight: 600; color: #8A8580; }
+    .row-action:hover { color: #1B1918; }
+    .empty-block { padding: 2.4rem 1.5rem; text-align: center; }
+    .empty-title { font-size: 1.35rem; font-weight: 700; color: #1B1918; }
 </style>
 {% endblock %}
 
@@ -282,40 +69,40 @@
         {'id': 'generator', 'label': 'Generator', 'url': url_for('recipe_generator')},
     ], 'all') }}
 
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4 recipes-shell fhq-fade">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4 recipes-shell">
         <div class="stats-row">
-            <div class="stats-card">
-                <div class="stats-label">Plated (RM)</div>
-                <div class="stats-value">{{ menu_count }}</div>
+            <div class="fhq-card p-4">
+                <div class="fhq-section-head mb-0">Plated (RM)</div>
+                <div class="mt-1 text-3xl font-bold tracking-tight text-foxtown-text">{{ menu_count }}</div>
             </div>
-            <div class="stats-card">
-                <div class="stats-label">Batch (RB)</div>
-                <div class="stats-value">{{ batch_count }}</div>
+            <div class="fhq-card p-4">
+                <div class="fhq-section-head mb-0">Batch (RB)</div>
+                <div class="mt-1 text-3xl font-bold tracking-tight text-foxtown-text">{{ batch_count }}</div>
             </div>
             {% if active_filter_count > 0 %}
-            <div class="stats-card">
-                <div class="stats-label">Active Filters</div>
-                <div class="stats-value">{{ active_filter_count }}</div>
+            <div class="fhq-card p-4">
+                <div class="fhq-section-head mb-0">Active Filters</div>
+                <div class="mt-1 text-3xl font-bold tracking-tight text-foxtown-text">{{ active_filter_count }}</div>
             </div>
             {% endif %}
         </div>
 
-        <div class="recipes-panel p-4">
+        <div class="fhq-card p-4">
             <form method="GET" action="{{ url_for('recipes') }}" class="filters-grid">
                 <div>
-                    <label for="q" class="field-label">Search</label>
+                    <label for="q" class="block text-sm font-medium text-foxtown-muted mb-1.5">Search</label>
                     <input
                         type="text"
                         id="q"
                         name="q"
                         value="{{ search_query }}"
                         placeholder="Recipe name or descriptor"
-                        class="field"
+                        class="fhq-input"
                     >
                 </div>
                 <div>
-                    <label for="recipe_type" class="field-label">Type</label>
-                    <select id="recipe_type" name="recipe_type" class="field">
+                    <label for="recipe_type" class="block text-sm font-medium text-foxtown-muted mb-1.5">Type</label>
+                    <select id="recipe_type" name="recipe_type" class="fhq-input">
                         <option value="">All types</option>
                         {% for value, label in recipe_type_choices %}
                         <option value="{{ value }}" {% if selected_recipe_type == value %}selected{% endif %}>{{ label }}</option>
@@ -323,8 +110,8 @@
                     </select>
                 </div>
                 <div>
-                    <label for="category" class="field-label">Category</label>
-                    <select id="category" name="category" class="field">
+                    <label for="category" class="block text-sm font-medium text-foxtown-muted mb-1.5">Category</label>
+                    <select id="category" name="category" class="fhq-input">
                         <option value="">All categories</option>
                         {% for category in category_options %}
                         <option value="{{ category }}" {% if selected_category == category %}selected{% endif %}>{{ category }}</option>
@@ -332,8 +119,8 @@
                     </select>
                 </div>
                 <div>
-                    <label for="venue" class="field-label">Venue</label>
-                    <select id="venue" name="venue" class="field">
+                    <label for="venue" class="block text-sm font-medium text-foxtown-muted mb-1.5">Venue</label>
+                    <select id="venue" name="venue" class="fhq-input">
                         <option value="">All venues</option>
                         {% for venue in venues %}
                         <option value="{{ venue.id }}" {% if selected_venue == venue.id %}selected{% endif %}>{{ venue.name }}</option>
@@ -347,10 +134,10 @@
             </form>
         </div>
 
-        <div class="recipes-panel overflow-hidden">
+        <div class="fhq-card overflow-hidden">
             {% if recipes %}
             <div class="table-wrap">
-                <table class="recipes-table">
+                <table class="fhq-table recipes-table">
                     <thead>
                         <tr>
                             <th>Recipe</th>
@@ -377,7 +164,7 @@
                                 {% elif recipe.recipe_type == 'batch' %}
                                     <span class="tag tag-rb"><i></i>RB</span>
                                 {% else %}
-                                    <span class="text-stone-500">--</span>
+                                    <span class="text-foxtown-muted">--</span>
                                 {% endif %}
                             </td>
                             <td>{{ recipe.category or 'Uncategorized' }}</td>
@@ -390,7 +177,7 @@
                                 {% if recipe.venue_names %}
                                     <span class="block truncate whitespace-nowrap" title="{{ recipe.venue_names }}">{{ recipe.venue_names }}</span>
                                 {% else %}
-                                    <span class="block truncate whitespace-nowrap text-stone-500" title="All venues">All venues</span>
+                                    <span class="block truncate whitespace-nowrap text-foxtown-muted" title="All venues">All venues</span>
                                 {% endif %}
                             </td>
                             <td class="sticky-right text-right">
