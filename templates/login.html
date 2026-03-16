@@ -5,249 +5,32 @@
 {% block extra_head %}
 <style>
     .login-shell {
-        min-height: 100vh;
+        min-height: calc(100vh - 48px);
         display: flex;
         align-items: center;
         justify-content: center;
         padding: 3rem 1.5rem;
     }
-
-    .login-grid {
-        width: 100%;
-        max-width: 1120px;
-        display: grid;
-        gap: 1.5rem;
-        align-items: stretch;
-    }
-
-    @media (min-width: 1024px) {
-        .login-grid {
-            grid-template-columns: minmax(0, 1.08fr) minmax(320px, 0.92fr);
-        }
-    }
-
-    .login-showcase {
-        position: relative;
-        overflow: hidden;
-        border-radius: 20px;
-        padding: 1.6rem;
-        border: 1px solid rgba(15, 23, 42, 0.1);
-        background:
-            radial-gradient(circle at 20% -5%, rgba(77, 124, 255, 0.16), transparent 40%),
-            radial-gradient(circle at 80% 0%, rgba(147, 197, 253, 0.12), transparent 36%),
-            rgba(255, 255, 255, 0.96);
-        backdrop-filter: blur(12px);
-        box-shadow: 0 0 48px -14px rgba(77, 124, 255, 0.2);
-    }
-
-    .login-showcase::after {
-        content: "";
-        position: absolute;
-        inset: 0;
-        pointer-events: none;
-        background: linear-gradient(135deg, rgba(77, 124, 255, 0.08), transparent 42%);
-    }
-
-    .login-title {
-        margin-top: 0.9rem;
-        font-size: clamp(2.1rem, 5.4vw, 4.7rem);
-        line-height: 0.94;
-        letter-spacing: -0.04em;
-        font-family: 'Calistoga', Inter, sans-serif;
-        color: #0F172A;
-    }
-
-    .login-title .accent {
-        background: linear-gradient(to right, #4D7CFF, #93C5FD);
-        -webkit-background-clip: text;
-        background-clip: text;
-        color: transparent;
-    }
-
-    .login-copy {
-        margin-top: 0.8rem;
-        color: #94A3B8;
-        max-width: 58ch;
-        line-height: 1.6;
-        font-size: 1rem;
-    }
-
-    .login-metrics {
-        margin-top: 1.2rem;
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 0.7rem;
-    }
-
-    .login-metric {
-        border-radius: 14px;
-        border: 1px solid rgba(15, 23, 42, 0.1);
-        background: rgba(248, 250, 252, 0.92);
-        padding: 0.82rem;
-    }
-
-    .login-metric .label {
-        font-size: 0.66rem;
-        letter-spacing: 0.14em;
-        text-transform: uppercase;
-        color: #94A3B8;
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-    }
-
-    .login-metric .value {
-        margin-top: 0.38rem;
-        font-family: 'Calistoga', Inter, sans-serif;
-        font-size: 1.2rem;
-        color: #0F172A;
-    }
-
-    .orb-wrap {
-        margin-top: 1rem;
-        position: relative;
-        height: 185px;
-    }
-
-    .orb-core {
-        position: absolute;
-        left: 50%;
-        top: 50%;
-        width: 115px;
-        height: 115px;
-        transform: translate(-50%, -50%);
-        border-radius: 999px;
-        background: radial-gradient(circle at 38% 34%, rgba(147, 197, 253, 0.9), rgba(77, 124, 255, 0.65), rgba(248, 250, 252, 0.92));
-        box-shadow:
-            0 0 42px -10px rgba(77, 124, 255, 0.76),
-            inset 0 0 30px rgba(77, 124, 255, 0.32);
-        animation: float 8s ease-in-out infinite;
-    }
-
-    .orb-ring {
-        position: absolute;
-        inset: -28px;
-        border-radius: 999px;
-        border: 1px solid rgba(77, 124, 255, 0.42);
-        animation: spin 11s linear infinite;
-    }
-
-    .orb-ring::before {
-        content: "";
-        position: absolute;
-        width: 9px;
-        height: 9px;
-        border-radius: 999px;
-        background: #93C5FD;
-        box-shadow: 0 0 12px rgba(147, 197, 253, 0.7);
-        top: -5px;
-        left: 50%;
-        transform: translateX(-50%);
-    }
-
-    .orb-ring--inner {
-        inset: -15px;
-        border-color: rgba(147, 197, 253, 0.38);
-        animation: spinReverse 16s linear infinite;
-    }
-
-    .login-panel {
-        border-radius: 20px;
-        border: 1px solid rgba(15, 23, 42, 0.12);
-        background: rgba(255, 255, 255, 0.88);
-        backdrop-filter: blur(14px);
-        padding: 1.5rem;
-        box-shadow: 0 0 42px -14px rgba(77, 124, 255, 0.3);
-    }
-
-    @media (min-width: 768px) {
-        .login-panel {
-            padding: 2rem;
-        }
-    }
-
-    .login-label {
-        display: block;
-        margin-bottom: 0.35rem;
-        font-size: 0.75rem;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-        color: #94A3B8;
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-    }
-
-    .login-error {
-        margin-bottom: 0.8rem;
-        border-radius: 10px;
-        border: 1px solid rgba(248, 113, 113, 0.5);
-        background: rgba(239, 68, 68, 0.12);
-        color: #fecaca;
-        padding: 0.6rem 0.8rem;
-        font-size: 0.86rem;
-    }
-
+    .login-card { width: 100%; max-width: 420px; }
+    .login-error,
     .login-success {
         margin-bottom: 0.8rem;
-        border-radius: 10px;
-        border: 1px solid rgba(74, 222, 128, 0.5);
-        background: rgba(34, 197, 94, 0.12);
-        color: #bbf7d0;
-        padding: 0.6rem 0.8rem;
+        padding: 0.75rem 0.9rem;
+        border-radius: 8px;
         font-size: 0.86rem;
     }
-
-    @keyframes spin {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
-    }
-
-    @keyframes spinReverse {
-        from { transform: rotate(360deg); }
-        to { transform: rotate(0deg); }
-    }
+    .login-error { border: 1px solid #F0BFAF; background: #FFF7F5; color: #8B2020; }
+    .login-success { border: 1px solid #C2E8C4; background: #EEFBEF; color: #2B7A30; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="login-shell">
-    <div class="login-grid fhq-fade">
-        <section class="login-showcase">
-            <span class="fhq-chip"><span class="fhq-ping"></span> Culinary Command Center</span>
-            <h1 class="login-title">Foxtown <span class="accent">HQ</span></h1>
-            <p class="login-copy">
-                A secure, high-contrast operations workspace for menu costing, event prep, and commissary execution.
-                Built for speed, precision, and trusted handoffs.
-            </p>
-
-            <div class="login-metrics">
-                <div class="login-metric">
-                    <div class="label">Cost Control</div>
-                    <div class="value">Live ingredient cadence</div>
-                </div>
-                <div class="login-metric">
-                    <div class="label">Rollouts</div>
-                    <div class="value">Venue menu sequencing</div>
-                </div>
-                <div class="login-metric">
-                    <div class="label">Packets</div>
-                    <div class="value">Prep + service exports</div>
-                </div>
-                <div class="login-metric">
-                    <div class="label">Tracking</div>
-                    <div class="value">Sub-recipe visibility</div>
-                </div>
-            </div>
-
-            <div class="orb-wrap" aria-hidden="true">
-                <div class="orb-core">
-                    <span class="orb-ring"></span>
-                    <span class="orb-ring orb-ring--inner"></span>
-                </div>
-            </div>
-        </section>
-
-        <section class="login-panel">
+    <section class="login-card fhq-card p-6 sm:p-8">
+            <div class="fhq-section-head mb-0">Foxtown HQ</div>
             <div class="mb-8">
-                <h2 class="text-3xl font-heading text-[#0F172A]">Sign in</h2>
-                <p class="text-sm text-stone-500 mt-2">Use your assigned credentials to access Foxtown HQ.</p>
+                <h1 class="mt-1 text-3xl font-bold tracking-tight text-foxtown-text">Sign in</h1>
+                <p class="mt-2 text-sm text-foxtown-muted">Use your assigned credentials to access Foxtown HQ.</p>
             </div>
 
             {% with messages = get_flashed_messages(with_categories=true) %}
@@ -262,7 +45,7 @@
 
             <form method="POST" class="space-y-5">
                 <div>
-                    <label for="username" class="login-label">Username</label>
+                    <label for="username" class="block text-sm font-medium text-foxtown-muted mb-1.5">Username</label>
                     <input
                         id="username"
                         type="text"
@@ -275,7 +58,7 @@
                 </div>
 
                 <div>
-                    <label for="password" class="login-label">Password</label>
+                    <label for="password" class="block text-sm font-medium text-foxtown-muted mb-1.5">Password</label>
                     <input
                         id="password"
                         type="password"
@@ -289,12 +72,11 @@
 
                 <button
                     type="submit"
-                    class="fhq-btn fhq-btn--primary w-full"
+                    class="fhq-btn w-full bg-foxtown-ember text-white hover:bg-foxtown-emberLight"
                 >
                     Sign In
                 </button>
             </form>
-        </section>
-    </div>
+    </section>
 </div>
 {% endblock %}
