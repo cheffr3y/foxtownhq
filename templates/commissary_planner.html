@@ -5,378 +5,99 @@
 
 {% block extra_head %}
 <style>
-    .comm-shell {
-        padding-bottom: 3rem;
+    .comm-shell { padding-bottom: 3rem; }
+    .controls-grid,
+    .signoff-tools,
+    .signoff-grid,
+    .signoff-cards { display: grid; gap: 0.7rem; }
+    .controls-grid { grid-template-columns: repeat(1, minmax(0, 1fr)); align-items: end; }
+    @media (min-width: 900px) {
+        .signoff-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     }
-
-    .comm-panel {
-        border-radius: 16px;
-        border: 1px solid rgba(15, 23, 42, 0.1);
-        background: rgba(255, 255, 255, 0.96);
-        box-shadow: 0 0 36px -14px rgba(77, 124, 255, 0.24);
-    }
-
-    .controls-grid {
-        display: grid;
-        gap: 0.6rem;
-        grid-template-columns: repeat(1, minmax(0, 1fr));
-        align-items: end;
-    }
-
     @media (min-width: 980px) {
-        .controls-grid {
-            grid-template-columns: minmax(180px, 0.8fr) minmax(180px, 0.8fr) auto auto;
-        }
+        .controls-grid { grid-template-columns: minmax(180px, 0.8fr) minmax(180px, 0.8fr) auto auto; }
+        .signoff-tools { grid-template-columns: auto minmax(180px, 0.9fr) auto; align-items: center; }
     }
-
-    .comm-label {
-        display: block;
-        margin-bottom: 0.32rem;
-        font-size: 0.64rem;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-        color: #94A3B8;
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-    }
-
-    .comm-field {
-        width: 100%;
-        min-height: 42px;
-        border: 1px solid rgba(15, 23, 42, 0.15);
-        border-radius: 10px;
-        background: rgba(248, 250, 252, 0.92);
-        color: #0F172A;
-        padding: 0.5rem 0.72rem;
-        transition: all 0.2s ease;
-    }
-
-    .comm-field:focus {
-        outline: none;
-        border-color: rgba(77, 124, 255, 0.72);
-        box-shadow: 0 0 20px -10px rgba(77, 124, 255, 0.55);
-    }
-
-    .planner-tabs {
-        display: inline-flex;
-        border-radius: 999px;
-        border: 1px solid rgba(15, 23, 42, 0.14);
-        background: rgba(248, 250, 252, 0.92);
-        padding: 0.2rem;
-        gap: 0.2rem;
-        flex-wrap: wrap;
-    }
-
-    .planner-tab {
-        border-radius: 999px;
-        border: 1px solid transparent;
-        color: #334155;
-        background: transparent;
-        padding: 0.42rem 0.9rem;
-        font-size: 0.7rem;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-    }
-
-    .planner-tab.is-active {
-        border-color: rgba(77, 124, 255, 0.62);
-        background: rgba(77, 124, 255, 0.14);
-        color: #0F172A;
-    }
-
-    .manage-row {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.5rem;
-        align-items: center;
-    }
-
-    .manage-pill {
-        border-radius: 999px;
-        border: 1px solid rgba(148, 163, 184, 0.45);
-        background: rgba(248, 250, 252, 0.9);
-        color: #334155;
-        padding: 0.26rem 0.62rem;
-        font-size: 0.68rem;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-    }
-
-    .section-head {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 0.7rem;
-        margin-bottom: 0.8rem;
-        flex-wrap: wrap;
-    }
-
-    .section-title {
-        color: #0F172A;
-        font-size: 1.2rem;
-        letter-spacing: -0.03em;
-        font-family: 'Calistoga', Inter, sans-serif;
-    }
-
-    .table-wrap {
-        overflow-x: auto;
-    }
-
-    .production-table {
-        width: 100%;
-        min-width: 620px;
-        border-collapse: collapse;
-    }
-
-    .production-table th {
-        text-align: left;
-        font-size: 0.66rem;
-        letter-spacing: 0.13em;
-        text-transform: uppercase;
-        color: #94A3B8;
-        padding: 0.66rem 0.72rem;
-        border-bottom: 1px solid rgba(148, 163, 184, 0.24);
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-    }
-
-    .production-table td {
-        padding: 0.7rem 0.72rem;
-        border-top: 1px solid rgba(148, 163, 184, 0.2);
-        color: #334155;
-        font-size: 0.84rem;
-    }
-
-    .signoff-tools {
-        display: grid;
-        gap: 0.7rem;
-    }
-
-    @media (min-width: 980px) {
-        .signoff-tools {
-            grid-template-columns: auto minmax(180px, 0.9fr) auto;
-            align-items: center;
-        }
-    }
-
-    .week-pills {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.36rem;
-    }
-
+    .manage-row,
+    .week-pills,
+    .section-head,
+    .signoff-head,
+    .signoff-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+    .section-head,
+    .signoff-head { justify-content: space-between; margin-bottom: 0.8rem; }
+    .table-wrap { overflow-x: auto; }
+    .production-table { min-width: 620px; }
+    .manage-pill,
     .week-pill {
         display: inline-flex;
         align-items: center;
+        gap: 0.3rem;
+        padding: 0.4rem 0.72rem;
+        border: 1px solid #ECEAE6;
         border-radius: 999px;
-        border: 1px solid rgba(15, 23, 42, 0.15);
-        background: rgba(248, 250, 252, 0.92);
-        color: #334155;
-        padding: 0.28rem 0.62rem;
-        font-size: 0.68rem;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+        background: #fff;
+        color: #8A8580;
         text-decoration: none;
-    }
-
-    .week-pill.is-active {
-        border-color: rgba(77, 124, 255, 0.62);
-        background: rgba(77, 124, 255, 0.14);
-        color: #0F172A;
-    }
-
-    .pill-badge {
-        display: inline-block;
-        margin-left: 0.28rem;
-        padding: 0.08rem 0.32rem;
-        border-radius: 999px;
-        font-size: 0.58rem;
-        background: rgba(251, 191, 36, 0.25);
-        color: #92400e;
-    }
-
-    .pill-badge--done {
-        background: rgba(16, 185, 129, 0.2);
-        color: #065f46;
-    }
-
-    .signoff-progress {
-        font-size: 0.78rem;
-        letter-spacing: 0.08em;
+        font-size: 0.74rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
         text-transform: uppercase;
-        color: #334155;
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+        transition: border-color 0.15s ease, color 0.15s ease;
     }
-
-    .day-panel[hidden] {
-        display: none !important;
-    }
-
-    .signoff-cards {
-        display: grid;
-        gap: 0.7rem;
-        margin-top: 0.8rem;
-    }
-
-    .signoff-card {
-        border-radius: 14px;
-        border: 1px solid rgba(15, 23, 42, 0.12);
-        background: rgba(248, 250, 252, 0.92);
-        padding: 0.78rem;
-    }
-
-    .signoff-head {
-        display: flex;
-        justify-content: space-between;
-        gap: 0.6rem;
-        align-items: flex-start;
-    }
-
-    .signoff-item {
-        color: #0F172A;
-        font-size: 1.06rem;
-        line-height: 1.1;
-        letter-spacing: -0.02em;
-        font-family: 'Calistoga', Inter, sans-serif;
-    }
-
-    .signoff-meta {
-        margin-top: 0.2rem;
-        color: #64748B;
-        font-size: 0.76rem;
-    }
-
+    .manage-pill:hover,
+    .week-pill:hover,
+    .week-pill.is-active { border-color: #C8C2BB; color: #1B1918; }
+    .week-pill.is-active,
+    .week-row.is-active { background: #FCFBFA; }
+    .pill-badge,
     .signoff-status {
-        min-width: 104px;
-        text-align: center;
-        border-radius: 999px;
-        padding: 0.28rem 0.56rem;
-        font-size: 0.7rem;
-        letter-spacing: 0.1em;
-        text-transform: uppercase;
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-        border: 1px solid transparent;
-    }
-
-    .signoff-status--done {
-        color: #ecfdf5;
-        background: rgba(16, 185, 129, 0.86);
-        border-color: rgba(110, 231, 183, 0.9);
-    }
-
-    .signoff-status--pending {
-        color: #111827;
-        background: rgba(251, 191, 36, 0.92);
-        border-color: rgba(252, 211, 77, 0.95);
-    }
-
-    .signoff-actions {
-        margin-top: 0.6rem;
-        display: flex;
-        flex-wrap: wrap;
+        display: inline-flex;
         align-items: center;
-        gap: 0.42rem;
+        justify-content: center;
+        border-radius: 999px;
+        font-size: 0.68rem;
+        font-weight: 600;
+        border: 1px solid #ECEAE6;
+        white-space: nowrap;
     }
-
-    .signoff-grid {
-        margin-top: 0.6rem;
-        display: grid;
-        gap: 0.45rem;
-        grid-template-columns: repeat(1, minmax(0, 1fr));
-    }
-
-    @media (min-width: 900px) {
-        .signoff-grid {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-        }
-    }
-
-    .signoff-input,
-    .signoff-notes {
-        width: 100%;
-        border: 1px solid rgba(15, 23, 42, 0.13);
-        border-radius: 9px;
-        background: rgba(248, 250, 252, 0.92);
-        color: #0F172A;
-        padding: 0.42rem 0.58rem;
-        font-size: 0.82rem;
-    }
-
-    .signoff-notes {
-        min-height: 76px;
-        resize: vertical;
-    }
-
-    .save-state {
-        color: #94A3B8;
-        font-size: 0.71rem;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-    }
-
-    .save-state.is-saving {
-        color: #fbbf24;
-    }
-
-    .save-state.is-error {
-        color: #fb7185;
-    }
-
-    .save-state.is-saved {
-        color: #34d399;
-    }
-
-    .week-glance {
-        margin-top: 1rem;
-        border: 1px solid rgba(15, 23, 42, 0.12);
-        border-radius: 12px;
-        overflow: hidden;
-    }
-
+    .pill-badge { min-width: 2.2rem; padding: 0.12rem 0.38rem; background: #FFF8EE; color: #A0590A; border-color: #F0D9A0; }
+    .pill-badge--done,
+    .signoff-status--done { background: #EEFBEF; color: #2B7A30; border-color: #C2E8C4; }
+    .signoff-progress,
+    .save-state { font-size: 0.74rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #8A8580; }
+    .day-panel[hidden] { display: none !important; }
+    .signoff-cards { margin-top: 0.8rem; }
+    .signoff-head { align-items: flex-start; }
+    .signoff-item { font-size: 1.05rem; font-weight: 700; color: #1B1918; }
+    .signoff-meta,
+    .empty-note { font-size: 0.82rem; color: #8A8580; }
+    .signoff-status { min-width: 104px; padding: 0.28rem 0.6rem; }
+    .signoff-status--pending { background: #FFF8EE; color: #A0590A; border-color: #F0D9A0; }
+    .signoff-actions,
+    .signoff-grid { margin-top: 0.6rem; }
+    .signoff-notes { min-height: 76px; resize: vertical; }
+    .save-state.is-saving { color: #A0590A; }
+    .save-state.is-error { color: #8B2020; }
+    .save-state.is-saved { color: #2B7A30; }
+    .week-glance { margin-top: 1rem; border: 1px solid #ECEAE6; border-radius: 8px; overflow: hidden; }
     .week-row {
         display: grid;
         grid-template-columns: minmax(110px, 0.8fr) minmax(90px, 0.7fr) minmax(120px, 0.8fr) auto;
         gap: 0.45rem;
         align-items: center;
-        padding: 0.54rem 0.66rem;
-        border-top: 1px solid rgba(148, 163, 184, 0.18);
-        background: rgba(248, 250, 252, 0.92);
         width: 100%;
+        padding: 0.6rem 0.72rem;
+        border-top: 1px solid #ECEAE6;
+        background: #fff;
         text-align: left;
+        font-size: 0.84rem;
+        color: #1B1918;
     }
-
-    .week-row:first-child {
-        border-top: none;
-    }
-
-    .week-row.is-active {
-        background: rgba(77, 124, 255, 0.12);
-    }
-
-    .week-indicator {
-        justify-self: end;
-        font-size: 0.9rem;
-        font-weight: 700;
-    }
-
-    .week-indicator.is-empty {
-        color: #94A3B8;
-    }
-
-    .week-indicator.is-partial {
-        color: #d97706;
-    }
-
-    .week-indicator.is-complete {
-        color: #059669;
-    }
-
-    .empty-note {
-        color: #94A3B8;
-        font-size: 0.88rem;
-    }
+    .week-row:first-child { border-top: none; }
+    .week-indicator { justify-self: end; font-size: 0.9rem; font-weight: 700; }
+    .week-indicator.is-empty { color: #A09A94; }
+    .week-indicator.is-partial { color: #A0590A; }
+    .week-indicator.is-complete { color: #2B7A30; }
 </style>
 {% endblock %}
 
@@ -395,23 +116,23 @@
     ], 'planner') }}
 
     <div
-        class="max-w-[96rem] mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-4 comm-shell fhq-fade"
+        class="max-w-[96rem] mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-4 comm-shell"
         id="plannerRoot"
         data-initial-tab="{{ active_tab }}"
         data-initial-signoff-day="{{ signoff_day }}"
         data-current-user="{{ current_user_name }}"
     >
-        <section class="comm-panel p-4">
+        <section class="fhq-card p-4">
             <form method="GET" class="controls-grid" id="plannerFilterForm">
                 <input type="hidden" name="tab" id="plannerTabInput" value="{{ active_tab }}">
                 <input type="hidden" name="signoff_day" id="signoffDayInput" value="{{ signoff_day }}">
                 <div>
-                    <label class="comm-label">Production Date</label>
-                    <input type="date" name="day" value="{{ selected_day }}" class="comm-field">
+                    <label class="block text-sm font-medium text-foxtown-muted mb-1.5">Production Date</label>
+                    <input type="date" name="day" value="{{ selected_day }}" class="fhq-input">
                 </div>
                 <div>
-                    <label class="comm-label">Outlet</label>
-                    <select name="outlet" class="comm-field">
+                    <label class="block text-sm font-medium text-foxtown-muted mb-1.5">Outlet</label>
+                    <select name="outlet" class="fhq-input">
                         <option value="">All Outlets</option>
                         {% for outlet in outlet_options %}
                         <option value="{{ outlet }}" {% if selected_outlet == outlet %}selected{% endif %}>{{ outlet }}</option>
@@ -429,9 +150,9 @@
             <button type="button" class="planner-tab" data-planner-tab-btn="transfers" aria-pressed="false">Transfers</button>
         </div>
 
-        <section class="comm-panel p-3">
+        <section class="fhq-card p-3">
             <div class="manage-row">
-                <span class="comm-label !mb-0">Manage</span>
+                <span class="fhq-section-head mb-0">Manage</span>
                 <a class="manage-pill" href="{{ url_for('commissary_standing_prep') }}">Standing Prep</a>
                 <a class="manage-pill" href="{{ url_for('commissary_stats') }}">Stats</a>
                 <a class="manage-pill" href="{{ url_for('commissary_review', week_start=week_start, outlet=(selected_outlet or None)) }}">Weekly Review</a>
@@ -439,9 +160,9 @@
             </div>
         </section>
 
-        <section class="comm-panel p-4" data-planner-tab-panel="production" hidden>
+        <section class="fhq-card p-4" data-planner-tab-panel="production" hidden>
             <div class="section-head">
-                <h2 class="section-title">Today's Production</h2>
+                <h2 class="text-xl font-bold tracking-tight text-foxtown-text">Today's Production</h2>
                 <a href="{{ url_for('commissary_packet_print', outlet=(selected_outlet or None), week_start=week_start, day=selected_day, include_shopping=0) }}" target="_blank" class="fhq-btn fhq-btn--primary">Print Day Packet</a>
             </div>
             <div class="week-pills mb-3">
@@ -459,9 +180,9 @@
             {% if production_groups %}
                 {% for group in production_groups %}
                 <div class="mb-4">
-                    <div class="comm-label !mb-2">{{ group.outlet }}</div>
+                    <div class="fhq-section-head mb-2">{{ group.outlet }}</div>
                     <div class="table-wrap">
-                        <table class="production-table">
+                        <table class="fhq-table production-table">
                             <thead>
                                 <tr>
                                     <th>Item</th>
@@ -487,9 +208,9 @@
             {% endif %}
         </section>
 
-        <section class="comm-panel p-4" data-planner-tab-panel="signoff" hidden data-signoff-root>
+        <section class="fhq-card p-4" data-planner-tab-panel="signoff" hidden data-signoff-root>
             <div class="section-head">
-                <h2 class="section-title">Sign Off</h2>
+                <h2 class="text-xl font-bold tracking-tight text-foxtown-text">Sign Off</h2>
                 <div class="signoff-progress" data-progress-text>0 of 0 signed off</div>
             </div>
 
@@ -506,7 +227,7 @@
                     </button>
                     {% endfor %}
                 </div>
-                <input type="date" class="comm-field" id="signoffDayPicker" value="{{ signoff_day }}">
+                <input type="date" class="fhq-input" id="signoffDayPicker" value="{{ signoff_day }}">
                 <a href="{{ url_for('commissary_production_log', log_date=signoff_day, outlet=(selected_outlet or None), remaining=0) }}" class="fhq-btn fhq-btn--outline">Open Full Log Page</a>
             </div>
 
@@ -516,7 +237,7 @@
                 {% if entries %}
                 <div class="signoff-cards">
                     {% for entry in entries %}
-                    <form method="POST" action="{{ url_for('commissary_production_log_update', line_id=entry.line_id) }}" class="signoff-card" data-log-form data-day="{{ day.date_iso }}">
+                    <form method="POST" action="{{ url_for('commissary_production_log_update', line_id=entry.line_id) }}" class="fhq-card p-4" data-log-form data-day="{{ day.date_iso }}">
                         <input type="hidden" name="production_date" value="{{ day.date_iso }}">
                         <input type="hidden" name="ajax" value="1">
                         <input type="hidden" name="signed_off_by" value="{{ current_user_name }}">
@@ -539,9 +260,9 @@
                         </div>
 
                         <div class="signoff-grid">
-                            <input type="text" name="made_by" value="{{ entry.made_by or '' }}" class="signoff-input" placeholder="Made by">
-                            <input type="text" name="tasted_by" value="{{ entry.tasted_by or '' }}" class="signoff-input" placeholder="Tasted by">
-                            <textarea name="production_notes" class="signoff-notes" placeholder="Notes">{{ entry.production_notes or '' }}</textarea>
+                            <input type="text" name="made_by" value="{{ entry.made_by or '' }}" class="fhq-input" placeholder="Made by">
+                            <input type="text" name="tasted_by" value="{{ entry.tasted_by or '' }}" class="fhq-input" placeholder="Tasted by">
+                            <textarea name="production_notes" class="fhq-input signoff-notes" placeholder="Notes">{{ entry.production_notes or '' }}</textarea>
                         </div>
                     </form>
                     {% endfor %}
@@ -553,7 +274,7 @@
             {% endfor %}
 
             <div class="section-head mt-5 !mb-2">
-                <h3 class="section-title !text-[1.02rem]">Week at a Glance</h3>
+                <h3 class="text-lg font-bold tracking-tight text-foxtown-text">Week at a Glance</h3>
             </div>
             <div class="week-glance">
                 {% for day in week_signoff_summary %}
@@ -571,11 +292,11 @@
             </div>
         </section>
 
-        <section class="comm-panel p-4" data-planner-tab-panel="transfers" hidden>
+        <section class="fhq-card p-4" data-planner-tab-panel="transfers" hidden>
             <div class="section-head">
-                <h2 class="section-title">Transfers</h2>
+                <h2 class="text-xl font-bold tracking-tight text-foxtown-text">Transfers</h2>
             </div>
-            <p class="text-slate-600 text-sm mb-3">Open the transfer log with current planner context.</p>
+            <p class="text-sm text-foxtown-muted mb-3">Open the transfer log with current planner context.</p>
             <a
                 href="{{ url_for('commissary_transfers', outlet_filter=(selected_outlet or None), production_date=signoff_day) }}"
                 class="fhq-btn fhq-btn--primary"
