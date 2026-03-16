@@ -24,6 +24,13 @@
         z-index: 30;
         background: #f8fafc;
     }
+    .menu-lines-table tr.event-only-row td {
+        background: #fff7ed;
+    }
+    .menu-lines-table tr.event-only-row td.sticky-col-1,
+    .menu-lines-table tr.event-only-row td.sticky-col-2 {
+        background: #fff7ed;
+    }
 </style>
 <div class="min-h-screen">
     <div class="max-w-[96rem] mx-auto px-4 sm:px-6 lg:px-8 pt-6">
@@ -183,7 +190,10 @@
         <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-6">
             <div class="flex items-center justify-between mb-4">
                 <h2 class="text-xl font-display text-foxtown-ink">Menu Lines</h2>
-                <button type="button" id="addLineBtn" class="text-foxtown-ember font-semibold hover:text-orange-700">+ Add line</button>
+                <div class="flex items-center gap-3">
+                    <button type="button" id="addLineBtn" class="text-foxtown-ember font-semibold hover:text-orange-700">+ Add Standard Item</button>
+                    <button type="button" id="addCustomLineBtn" class="rounded-full border border-amber-300 bg-amber-50 px-3 py-1.5 text-amber-800 font-semibold hover:bg-amber-100">+ Add Custom Item</button>
+                </div>
             </div>
             <p class="text-sm text-stone-500 mb-4">Catalog selection drives recipe rollups. You can override event menu name, descriptor, section, and custom mods on each line.</p>
             <p class="text-sm text-stone-500 mb-4">Use <strong>Customize Recipes</strong> when an item needs real recipe swaps for this event only (example: change salad, swap side, swap dessert). It creates a private copy, opens the editor, then returns to this event.</p>
@@ -204,9 +214,30 @@
                     </thead>
                     <tbody id="lineRows" class="divide-y divide-stone-100">
                         {% for line in lines %}
-                        <tr>
+                        {% set is_custom_line = line.is_custom_item or line.is_event_only %}
+                        <tr{% if is_custom_line %} class="event-only-row" data-line-type="custom"{% else %} data-line-type="standard"{% endif %}>
                             <td class="py-2 pr-2 w-[220px] min-w-[220px] sticky-col-1">
                                 <input type="hidden" name="line_id[]" value="{{ line.line_id or line.id or '' }}">
+                                {% if is_custom_line %}
+                                <input type="hidden" name="line_menu_item_id[]" value="{{ line.menu_item_id or '' }}">
+                                <input type="hidden" name="line_is_custom[]" value="1">
+                                <input type="hidden" name="line_recipe_id[]" data-role="recipe-id" value="{{ line.recipe_id or '' }}">
+                                <div class="space-y-2">
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <span class="inline-flex items-center rounded-full bg-amber-200 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-900">Custom</span>
+                                        <span class="inline-flex items-center rounded-full border border-amber-300 bg-white/80 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-800">Event Only</span>
+                                    </div>
+                                    <input
+                                        type="text"
+                                        data-role="recipe-search"
+                                        list="recipeSearchOptions"
+                                        value="{{ line.recipe_display_label or line.recipe_name or '' }}"
+                                        class="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm bg-white/90"
+                                        placeholder="Link recipe for prep/costing (optional)"
+                                    >
+                                </div>
+                                {% else %}
+                                <input type="hidden" name="line_is_custom[]" value="0">
                                 <select name="line_menu_item_id[]" data-role="menu-item-select" class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm">
                                     <option value="">Select menu item</option>
                                     {% for item in menu_items %}
@@ -224,27 +255,41 @@
                                     {% endfor %}
                                 </select>
                                 <input type="hidden" name="line_recipe_id[]" data-role="recipe-id" value="{{ line.recipe_id or '' }}">
+                                {% endif %}
                             </td>
                             <td class="py-2 pr-2 w-[220px] min-w-[220px] sticky-col-2">
-                                <input name="line_menu_item_name[]" data-role="menu-item-name" value="{{ line.menu_item_name or '' }}" class="w-full px-3 py-2 border border-stone-300 rounded-lg" placeholder="Event menu name">
+                                <input name="line_menu_item_name[]" data-role="menu-item-name" value="{{ line.menu_item_name or '' }}" class="w-full px-3 py-2 border {% if is_custom_line %}border-amber-300 bg-white/90{% else %}border-stone-300{% endif %} rounded-lg" placeholder="Event menu name">
                             </td>
                             <td class="py-2 pr-2">
-                                <textarea name="line_menu_descriptor[]" data-role="menu-descriptor" rows="2" class="w-full px-3 py-2 border border-stone-300 rounded-lg" placeholder="Guest-facing descriptor">{{ line.menu_descriptor or '' }}</textarea>
+                                <textarea name="line_menu_descriptor[]" data-role="menu-descriptor" rows="2" class="w-full px-3 py-2 border {% if is_custom_line %}border-amber-300 bg-white/90{% else %}border-stone-300{% endif %} rounded-lg" placeholder="Guest-facing descriptor">{{ line.menu_descriptor or '' }}</textarea>
                             </td>
                             <td class="py-2 pr-2">
+                                {% if is_custom_line %}
+                                <select name="line_menu_section[]" data-role="menu-section" class="w-full px-3 py-2 border border-amber-300 rounded-lg bg-white/90">
+                                    <option value="">Select section</option>
+                                    {% for sec in section_options %}
+                                    <option value="{{ sec }}" {% if (line.menu_section or '') == sec %}selected{% endif %}>{{ sec }}</option>
+                                    {% endfor %}
+                                </select>
+                                {% else %}
                                 <input name="line_menu_section[]" data-role="menu-section" value="{{ line.menu_section or '' }}" class="w-full px-3 py-2 border border-stone-300 rounded-lg" placeholder="Appetizers">
+                                {% endif %}
                             </td>
-                            <td class="py-2 pr-2"><input type="number" step="0.01" min="0" name="line_qty[]" value="{{ line.quantity or '' }}" class="w-full px-3 py-2 border border-stone-300 rounded-lg"></td>
-                            <td class="py-2 pr-2"><input name="line_unit[]" value="{{ line.quantity_unit or line.yield_unit or 'each' }}" class="w-full px-3 py-2 border border-stone-300 rounded-lg"></td>
+                            <td class="py-2 pr-2"><input type="number" step="0.01" min="0" name="line_qty[]" value="{{ line.quantity or '' }}" class="w-full px-3 py-2 border {% if is_custom_line %}border-amber-300 bg-white/90{% else %}border-stone-300{% endif %} rounded-lg"></td>
+                            <td class="py-2 pr-2"><input name="line_unit[]" value="{{ line.quantity_unit or line.yield_unit or 'each' }}" class="w-full px-3 py-2 border {% if is_custom_line %}border-amber-300 bg-white/90{% else %}border-stone-300{% endif %} rounded-lg"></td>
                             <td class="py-2 pr-2">
-                                <input name="line_notes[]" value="{{ line.notes or '' }}" class="w-full px-3 py-2 border border-stone-300 rounded-lg" placeholder="No nuts, sauce on side">
+                                <input name="line_notes[]" value="{{ line.notes or '' }}" class="w-full px-3 py-2 border {% if is_custom_line %}border-amber-300 bg-white/90{% else %}border-stone-300{% endif %} rounded-lg" placeholder="No nuts, sauce on side">
                                 <input type="hidden" name="line_choice_selections[]" data-role="choice-selections" value="{{ line.choice_selections or line.line_choice_selections or '' }}">
+                                {% if is_custom_line %}
+                                <div class="mt-2 text-xs font-medium text-amber-800">Recipe link is optional. Leave it blank for event-summary-only items.</div>
+                                {% else %}
                                 <div data-role="choice-editor" class="mt-2"></div>
                                 <div data-role="choice-summary" class="mt-1 text-xs text-stone-500"></div>
+                                {% endif %}
                             </td>
                             <td class="py-2 pr-2">
                                 <div class="flex items-center gap-3 whitespace-nowrap">
-                                    {% if event.id and (line.line_id or line.id) %}
+                                    {% if (not is_custom_line) and event.id and (line.line_id or line.id) %}
                                     <button
                                         type="button"
                                         class="cloneRow text-foxtown-ember hover:text-orange-700 font-semibold"
@@ -253,6 +298,8 @@
                                     >
                                         Customize Recipes
                                     </button>
+                                    {% elif is_custom_line %}
+                                    <span class="text-amber-800 text-xs font-medium">Event Only</span>
                                     {% else %}
                                     <span class="text-stone-400 text-xs">Save event first</span>
                                     {% endif %}
@@ -326,10 +373,17 @@ function submitDuplicateEvent(formId, baseName, baseDate) {
 }
 </script>
 
+<datalist id="recipeSearchOptions">
+    {% for recipe in recipe_options %}
+    <option value="{{ recipe.display_label|e }}" data-id="{{ recipe.id }}" data-default-unit="{{ recipe.default_component_unit or recipe.yield_unit or 'each' }}"></option>
+    {% endfor %}
+</datalist>
+
 <template id="lineRowTemplate">
-<tr data-line-id="">
+<tr data-line-id="" data-line-type="standard">
     <td class="py-2 pr-2 w-[220px] min-w-[220px] sticky-col-1">
         <input type="hidden" name="line_id[]" value="">
+        <input type="hidden" name="line_is_custom[]" value="0">
         <select name="line_menu_item_id[]" data-role="menu-item-select" class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm">
             <option value="">Select menu item</option>
             {% for item in menu_items %}
@@ -373,12 +427,84 @@ function submitDuplicateEvent(formId, baseName, baseDate) {
 </tr>
 </template>
 
+<template id="customLineRowTemplate">
+<tr data-line-id="" data-line-type="custom" class="event-only-row">
+    <td class="py-2 pr-2 w-[220px] min-w-[220px] sticky-col-1">
+        <input type="hidden" name="line_id[]" value="">
+        <input type="hidden" name="line_menu_item_id[]" value="">
+        <input type="hidden" name="line_is_custom[]" value="1">
+        <input type="hidden" name="line_recipe_id[]" data-role="recipe-id" value="">
+        <div class="space-y-2">
+            <div class="flex items-center gap-2 flex-wrap">
+                <span class="inline-flex items-center rounded-full bg-amber-200 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-900">Custom</span>
+                <span class="inline-flex items-center rounded-full border border-amber-300 bg-white/80 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-800">Event Only</span>
+            </div>
+            <input
+                type="text"
+                data-role="recipe-search"
+                list="recipeSearchOptions"
+                class="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm bg-white/90"
+                placeholder="Link recipe for prep/costing (optional)"
+            >
+        </div>
+    </td>
+    <td class="py-2 pr-2 w-[220px] min-w-[220px] sticky-col-2">
+        <input name="line_menu_item_name[]" data-role="menu-item-name" class="w-full px-3 py-2 border border-amber-300 bg-white/90 rounded-lg" placeholder="Custom event item name">
+    </td>
+    <td class="py-2 pr-2">
+        <textarea name="line_menu_descriptor[]" data-role="menu-descriptor" rows="2" class="w-full px-3 py-2 border border-amber-300 bg-white/90 rounded-lg" placeholder="Guest-facing descriptor"></textarea>
+    </td>
+    <td class="py-2 pr-2">
+        <select name="line_menu_section[]" data-role="menu-section" class="w-full px-3 py-2 border border-amber-300 rounded-lg bg-white/90">
+            <option value="">Select section</option>
+            {% for sec in section_options %}
+            <option value="{{ sec }}">{{ sec }}</option>
+            {% endfor %}
+        </select>
+    </td>
+    <td class="py-2 pr-2"><input type="number" step="0.01" min="0" name="line_qty[]" value="1" class="w-full px-3 py-2 border border-amber-300 bg-white/90 rounded-lg"></td>
+    <td class="py-2 pr-2"><input name="line_unit[]" value="each" class="w-full px-3 py-2 border border-amber-300 bg-white/90 rounded-lg"></td>
+    <td class="py-2 pr-2">
+        <input name="line_notes[]" class="w-full px-3 py-2 border border-amber-300 bg-white/90 rounded-lg" placeholder="Custom notes">
+        <input type="hidden" name="line_choice_selections[]" data-role="choice-selections" value="">
+        <div class="mt-2 text-xs font-medium text-amber-800">Recipe link is optional. Leave it blank for event-summary-only items.</div>
+    </td>
+    <td class="py-2 pr-2">
+        <div class="flex items-center gap-3 whitespace-nowrap">
+            <button type="button" class="removeRow text-red-600 hover:text-red-800 font-semibold">Remove</button>
+        </div>
+    </td>
+</tr>
+</template>
+
 <script>
 (function () {
     const lineRows = document.getElementById('lineRows');
     const addLineBtn = document.getElementById('addLineBtn');
-    const template = document.getElementById('lineRowTemplate');
+    const addCustomLineBtn = document.getElementById('addCustomLineBtn');
+    const standardTemplate = document.getElementById('lineRowTemplate');
+    const customTemplate = document.getElementById('customLineRowTemplate');
     const choiceOptionsByItem = {{ (menu_item_choice_options or {})|tojson }};
+    const recipeOptions = {{ (recipe_options or [])|tojson }};
+    const recipeById = new Map();
+    const recipeByDisplay = new Map();
+    const recipeByName = new Map();
+
+    recipeOptions.forEach((recipe) => {
+        const id = (recipe.id || '').trim();
+        if (id) recipeById.set(id, recipe);
+
+        const displayKey = (recipe.display_label || '').trim().toLowerCase();
+        if (displayKey && !recipeByDisplay.has(displayKey)) {
+            recipeByDisplay.set(displayKey, recipe);
+        }
+
+        const nameKey = (recipe.name || '').trim().toLowerCase();
+        if (nameKey) {
+            if (!recipeByName.has(nameKey)) recipeByName.set(nameKey, []);
+            recipeByName.get(nameKey).push(recipe);
+        }
+    });
 
     function parseChoiceSelections(raw) {
         if (!raw) return [];
@@ -427,6 +553,14 @@ function submitDuplicateEvent(formId, baseName, baseDate) {
         });
         hiddenInput.value = items.length ? JSON.stringify({ items }) : '';
         updateChoiceSummary(row, items);
+    }
+
+    function findRecipeFromSearch(value) {
+        const key = (value || '').trim().toLowerCase();
+        if (!key) return null;
+        if (recipeByDisplay.has(key)) return recipeByDisplay.get(key);
+        const nameMatches = recipeByName.get(key) || [];
+        return nameMatches.length === 1 ? nameMatches[0] : null;
     }
 
     function renderChoiceEditor(row) {
@@ -513,7 +647,7 @@ function submitDuplicateEvent(formId, baseName, baseDate) {
         updateChoiceSelections(row);
     }
 
-    function syncRow(row, forceDefaults = false) {
+    function syncStandardRow(row, forceDefaults = false) {
         if (!row) return;
         const select = row.querySelector('[data-role="menu-item-select"]');
         const recipeIdInput = row.querySelector('[data-role="recipe-id"]');
@@ -538,16 +672,53 @@ function submitDuplicateEvent(formId, baseName, baseDate) {
         if (lineUnitInput && defaultUnit && (forceDefaults || !lineUnitInput.value.trim())) lineUnitInput.value = defaultUnit;
     }
 
+    function syncCustomRow(row, forceDefaults = false) {
+        if (!row) return;
+        const recipeSearchInput = row.querySelector('[data-role="recipe-search"]');
+        const recipeIdInput = row.querySelector('[data-role="recipe-id"]');
+        const menuNameInput = row.querySelector('[data-role="menu-item-name"]');
+        const lineUnitInput = row.querySelector('input[name="line_unit[]"]');
+        if (!recipeSearchInput || !recipeIdInput) return;
+
+        let recipe = findRecipeFromSearch(recipeSearchInput.value);
+        if (!recipe && recipeIdInput.value) {
+            recipe = recipeById.get(recipeIdInput.value) || null;
+        }
+        if (recipe) {
+            recipeIdInput.value = recipe.id || '';
+            if (forceDefaults && recipe.display_label) {
+                recipeSearchInput.value = recipe.display_label;
+            }
+        } else {
+            recipeIdInput.value = '';
+        }
+
+        const recipeName = recipe ? (recipe.name || '') : '';
+        const defaultUnit = recipe ? (recipe.default_component_unit || recipe.yield_unit || 'each') : '';
+
+        if (menuNameInput && recipeName && (forceDefaults || !menuNameInput.value.trim())) {
+            menuNameInput.value = recipeName;
+        }
+        if (lineUnitInput && defaultUnit && (forceDefaults || !lineUnitInput.value.trim())) {
+            lineUnitInput.value = defaultUnit;
+        }
+    }
+
     function bindRow(row) {
         if (!row) return;
         const select = row.querySelector('[data-role="menu-item-select"]');
+        const recipeSearchInput = row.querySelector('[data-role="recipe-search"]');
         const removeBtn = row.querySelector('.removeRow');
         const cloneBtn = row.querySelector('.cloneRow');
         if (select) {
             select.addEventListener('change', () => {
-                syncRow(row, true);
+                syncStandardRow(row, true);
                 renderChoiceEditor(row);
             });
+        }
+        if (recipeSearchInput) {
+            recipeSearchInput.addEventListener('change', () => syncCustomRow(row, true));
+            recipeSearchInput.addEventListener('blur', () => syncCustomRow(row, false));
         }
         if (removeBtn) {
             removeBtn.addEventListener('click', () => row.remove());
@@ -576,15 +747,19 @@ function submitDuplicateEvent(formId, baseName, baseDate) {
                 form.submit();
             });
         }
-        syncRow(row, false);
+        syncStandardRow(row, false);
+        syncCustomRow(row, false);
         renderChoiceEditor(row);
     }
 
-    addLineBtn.addEventListener('click', () => {
+    function appendRow(template) {
         const clone = template.content.cloneNode(true);
         lineRows.appendChild(clone);
         bindRow(lineRows.lastElementChild);
-    });
+    }
+
+    addLineBtn.addEventListener('click', () => appendRow(standardTemplate));
+    addCustomLineBtn.addEventListener('click', () => appendRow(customTemplate));
 
     Array.from(lineRows.querySelectorAll('tr')).forEach((row) => bindRow(row));
     if (!lineRows.querySelector('tr')) {

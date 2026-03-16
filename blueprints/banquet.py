@@ -27,6 +27,7 @@ from helpers.banquet import (
     build_banquet_prep_groups,
     clone_banquet_menu_item,
     ensure_banquet_event_beo_files_table,
+    ensure_banquet_menu_item_event_only_column,
     ensure_banquet_shopping_checks_table,
     event_beo_file_path,
     get_banquet_date_window,
@@ -127,6 +128,28 @@ def insert_banquet_event_menu_line(
         notes,
         sort_order
     ))
+
+def get_banquet_event_recipe_options(cur, venue_id):
+    recipe_options = get_component_recipes_for_venue(cur, venue_id)
+    seen_labels = set()
+    recipe_label_map = {}
+    for recipe in recipe_options:
+        recipe_type = (recipe.get('recipe_type') or '').upper()
+        if recipe.get('option_source') == 'menu_item' and recipe.get('menu_item_name'):
+            base_label = f"{recipe.get('menu_item_name')} [Menu Item] -> {recipe.get('name')}{f' ({recipe_type})' if recipe_type else ''}"
+        else:
+            base_label = f"{recipe.get('name')}{f' ({recipe_type})' if recipe_type else ''}"
+        candidate = base_label
+        suffix = 2
+        while candidate.lower() in seen_labels:
+            candidate = f"{base_label} [{suffix}]"
+            suffix += 1
+        seen_labels.add(candidate.lower())
+        recipe['display_label'] = candidate
+        recipe_id = recipe.get('id')
+        if recipe_id and (recipe_id not in recipe_label_map or recipe.get('option_source') == 'recipe'):
+            recipe_label_map[recipe_id] = candidate
+    return recipe_options, recipe_label_map
 
 @bp.route('/banquet-planner')
 @login_required
@@ -271,12 +294,17 @@ def banquet_event_new():
         if not banquet_tables_ready(cur):
             flash('Banquet tables are missing. Run migrations first.', 'error')
             return redirect(url_for('banquet_planner'))
+        had_event_only_column = db_column_exists(cur, 'public.banquet_menu_items', 'is_event_only')
+        ensure_banquet_menu_item_event_only_column(cur)
+        if not had_event_only_column:
+            conn.commit()
 
         venues = get_active_venues(cur)
         banquet_venue = resolve_banquet_venue(venues)
         default_venue_id = banquet_venue.get('id') or ''
         banquet_venue_name = banquet_venue.get('name') or 'Banquets'
         has_line_choice_selections = banquet_event_line_choice_column_ready(cur)
+        recipe_options, recipe_label_map = get_banquet_event_recipe_options(cur, default_venue_id)
 
         event = {
             'name': '',
@@ -381,7 +409,12 @@ def banquet_event_new():
                                 match = cur.fetchone()
                                 recipe_id = match.get('recipe_id') if match else None
                         else:
-                            menu_item_id = resolve_or_create_banquet_menu_item(cur, line, venue_id)
+                            menu_item_id = resolve_or_create_banquet_menu_item(
+                                cur,
+                                line,
+                                venue_id,
+                                is_event_only=line.get('is_custom_item', False)
+                            )
                             if not menu_item_id:
                                 continue
                             upsert_menu_item_recipe_link(cur, menu_item_id, recipe_id)
@@ -413,6 +446,14 @@ def banquet_event_new():
         else:
             lines = []
 
+        for line in lines:
+            if 'notes' not in line:
+                line['notes'] = line.get('line_notes')
+            if 'choice_selections' not in line:
+                line['choice_selections'] = line.get('line_choice_selections')
+            line['is_custom_item'] = bool(line.get('is_custom_item') or line.get('is_event_only'))
+            line['recipe_display_label'] = recipe_label_map.get(line.get('recipe_id'), line.get('recipe_name') or '')
+
         menu_items = list_banquet_menu_items(cur, event.get('venue_id') or '')
         menu_item_ids = [item.get('id') for item in menu_items if item.get('id')]
         menu_item_choice_options = {}
@@ -438,6 +479,7 @@ def banquet_event_new():
             guest_count_history=[],
             lines=lines,
             menu_items=menu_items,
+            recipe_options=recipe_options,
             menu_item_choice_options=menu_item_choice_options,
             venues=venues,
             banquet_venue_name=banquet_venue_name,
@@ -453,6 +495,10 @@ def banquet_event_edit(event_id):
         if not banquet_tables_ready(cur):
             flash('Banquet tables are missing. Run migrations first.', 'error')
             return redirect(url_for('banquet_planner'))
+        had_event_only_column = db_column_exists(cur, 'public.banquet_menu_items', 'is_event_only')
+        ensure_banquet_menu_item_event_only_column(cur)
+        if not had_event_only_column:
+            conn.commit()
 
         event = get_banquet_event(cur, event_id)
         if not event:
@@ -466,6 +512,7 @@ def banquet_event_edit(event_id):
         banquet_venue = resolve_banquet_venue(venues)
         banquet_venue_id = banquet_venue.get('id') or ''
         banquet_venue_name = banquet_venue.get('name') or 'Banquets'
+        recipe_options, recipe_label_map = get_banquet_event_recipe_options(cur, banquet_venue_id)
         if banquet_venue_id:
             event['venue_id'] = banquet_venue_id
 
@@ -642,7 +689,12 @@ def banquet_event_edit(event_id):
                                 match = cur.fetchone()
                                 recipe_id = match.get('recipe_id') if match else None
                         else:
-                            menu_item_id = resolve_or_create_banquet_menu_item(cur, line, venue_id)
+                            menu_item_id = resolve_or_create_banquet_menu_item(
+                                cur,
+                                line,
+                                venue_id,
+                                is_event_only=line.get('is_custom_item', False)
+                            )
                             if not menu_item_id:
                                 continue
                             upsert_menu_item_recipe_link(cur, menu_item_id, recipe_id)
@@ -684,6 +736,8 @@ def banquet_event_edit(event_id):
                 line['notes'] = line.get('line_notes')
             if 'choice_selections' not in line:
                 line['choice_selections'] = line.get('line_choice_selections')
+            line['is_custom_item'] = bool(line.get('is_custom_item') or line.get('is_event_only'))
+            line['recipe_display_label'] = recipe_label_map.get(line.get('recipe_id'), line.get('recipe_name') or '')
 
         menu_items = list_banquet_menu_items(cur, event.get('venue_id') or '')
         menu_item_ids = [item.get('id') for item in menu_items if item.get('id')]
@@ -721,6 +775,7 @@ def banquet_event_edit(event_id):
             guest_count_history=guest_count_history,
             lines=lines,
             menu_items=menu_items,
+            recipe_options=recipe_options,
             menu_item_choice_options=menu_item_choice_options,
             venues=venues,
             banquet_venue_name=banquet_venue_name,
@@ -1022,6 +1077,10 @@ def banquet_template_import():
         if not banquet_tables_ready(cur):
             flash('Banquet tables are missing. Run migrations first.', 'error')
             return redirect(url_for('banquet_planner'))
+        had_event_only_column = db_column_exists(cur, 'public.banquet_menu_items', 'is_event_only')
+        ensure_banquet_menu_item_event_only_column(cur)
+        if not had_event_only_column:
+            conn.commit()
         venues = get_active_venues(cur)
         banquet_venue = resolve_banquet_venue(venues)
         banquet_venue_id = banquet_venue.get('id') or ''

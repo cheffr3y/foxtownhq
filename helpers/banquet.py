@@ -118,6 +118,14 @@ def banquet_tables_ready(cur):
     )
     return all(db_table_exists(cur, table_name) for table_name in required)
 
+def ensure_banquet_menu_item_event_only_column(cur):
+    from helpers.db_helpers import db_column_exists
+    if not db_column_exists(cur, 'public.banquet_menu_items', 'is_event_only'):
+        cur.execute("""
+            ALTER TABLE banquet_menu_items
+            ADD COLUMN is_event_only BOOLEAN NOT NULL DEFAULT FALSE
+        """)
+
 def banquet_shopping_checks_ready(cur):
     return db_table_exists(cur, 'public.banquet_shopping_checks')
 
@@ -334,8 +342,10 @@ def list_banquet_menu_items(cur, venue_id=''):
     if not banquet_tables_ready(cur):
         return []
     has_base_yield = db_column_exists(cur, 'public.banquet_menu_items', 'base_yield_qty') and db_column_exists(cur, 'public.banquet_menu_items', 'base_yield_unit')
+    has_event_only_column = db_column_exists(cur, 'public.banquet_menu_items', 'is_event_only')
     base_yield_qty_sql = "mi.base_yield_qty" if has_base_yield else "1::numeric"
     base_yield_unit_sql = "mi.base_yield_unit" if has_base_yield else "'each'"
+    event_only_filter_sql = " AND (mi.is_event_only IS NULL OR mi.is_event_only = FALSE)" if has_event_only_column else ""
     if venue_id:
         cur.execute("""
             SELECT mi.id,
@@ -371,9 +381,13 @@ def list_banquet_menu_items(cur, venue_id=''):
                 FROM banquet_menu_item_ingredients
                 GROUP BY menu_item_id
             ) extra ON extra.menu_item_id = mi.id
-            WHERE mi.venue_id = %s OR mi.venue_id IS NULL
+            WHERE (mi.venue_id = %s OR mi.venue_id IS NULL){event_only_filter_sql}
             ORDER BY COALESCE(mi.menu_section, 'zzzz'), mi.name
-        """.format(base_yield_qty_sql=base_yield_qty_sql, base_yield_unit_sql=base_yield_unit_sql), (venue_id,))
+        """.format(
+            base_yield_qty_sql=base_yield_qty_sql,
+            base_yield_unit_sql=base_yield_unit_sql,
+            event_only_filter_sql=event_only_filter_sql
+        ), (venue_id,))
     else:
         cur.execute("""
             SELECT mi.id,
@@ -409,8 +423,13 @@ def list_banquet_menu_items(cur, venue_id=''):
                 FROM banquet_menu_item_ingredients
                 GROUP BY menu_item_id
             ) extra ON extra.menu_item_id = mi.id
+            WHERE 1 = 1{event_only_filter_sql}
             ORDER BY COALESCE(mi.menu_section, 'zzzz'), mi.name
-        """.format(base_yield_qty_sql=base_yield_qty_sql, base_yield_unit_sql=base_yield_unit_sql))
+        """.format(
+            base_yield_qty_sql=base_yield_qty_sql,
+            base_yield_unit_sql=base_yield_unit_sql,
+            event_only_filter_sql=event_only_filter_sql
+        ))
     return cur.fetchall()
 
 def get_banquet_menu_item(cur, menu_item_id):
@@ -594,7 +613,9 @@ def get_banquet_event_lines(cur, event_id):
     if not banquet_tables_ready(cur):
         return []
     has_choice_selections_column = db_column_exists(cur, 'public.banquet_event_menu_items', 'choice_selections')
+    has_event_only_column = db_column_exists(cur, 'public.banquet_menu_items', 'is_event_only')
     choice_selections_sql = "emi.choice_selections AS line_choice_selections" if has_choice_selections_column else "NULL::text AS line_choice_selections"
+    event_only_sql = "mi.is_event_only AS is_event_only" if has_event_only_column else "FALSE AS is_event_only"
     cur.execute(f"""
         SELECT emi.id AS line_id,
                emi.event_id,
@@ -607,6 +628,7 @@ def get_banquet_event_lines(cur, event_id):
                emi.quantity_unit,
                emi.notes AS line_notes,
                {choice_selections_sql},
+               {event_only_sql},
                r.name AS recipe_name,
                r.yield_qty,
                r.yield_unit,
@@ -624,49 +646,68 @@ def get_banquet_event_lines(cur, event_id):
         WHERE emi.event_id = %s
         ORDER BY COALESCE(emi.sort_order, 0), emi.id
     """, (event_id,))
-    return cur.fetchall()
+    rows = cur.fetchall()
+    for row in rows:
+        row['is_event_only'] = bool(row.get('is_event_only', False))
+    return rows
 
-def resolve_or_create_banquet_menu_item(cur, line, venue_id=''):
+def resolve_or_create_banquet_menu_item(cur, line, venue_id='', is_event_only=False):
     name = clean_menu_text(line.get('menu_item_name'))
     if not name:
         return None
 
-    cur.execute("""
-        SELECT id, menu_section, menu_descriptor
-        FROM banquet_menu_items
-        WHERE LOWER(name) = LOWER(%s)
-          AND (venue_id = %s OR venue_id IS NULL)
-        ORDER BY CASE WHEN venue_id = %s THEN 0 ELSE 1 END, created_at
-        LIMIT 1
-    """, (name, venue_id or None, venue_id or None))
-    existing = cur.fetchone()
-    if existing:
-        updates = []
-        params = []
-        if line.get('menu_section') and not existing.get('menu_section'):
-            updates.append('menu_section = %s')
-            params.append(line.get('menu_section'))
-        if line.get('menu_descriptor') and not existing.get('menu_descriptor'):
-            updates.append('menu_descriptor = %s')
-            params.append(line.get('menu_descriptor'))
-        if updates:
-            updates.append('updated_at = CURRENT_TIMESTAMP')
-            params.append(existing['id'])
-            cur.execute(f"UPDATE banquet_menu_items SET {', '.join(updates)} WHERE id = %s", params)
-        return existing['id']
+    has_event_only_column = db_column_exists(cur, 'public.banquet_menu_items', 'is_event_only')
+    if not is_event_only:
+        cur.execute("""
+            SELECT id, menu_section, menu_descriptor
+            FROM banquet_menu_items
+            WHERE LOWER(name) = LOWER(%s)
+              AND (venue_id = %s OR venue_id IS NULL)
+            ORDER BY CASE WHEN venue_id = %s THEN 0 ELSE 1 END, created_at
+            LIMIT 1
+        """, (name, venue_id or None, venue_id or None))
+        existing = cur.fetchone()
+        if existing:
+            updates = []
+            params = []
+            if line.get('menu_section') and not existing.get('menu_section'):
+                updates.append('menu_section = %s')
+                params.append(line.get('menu_section'))
+            if line.get('menu_descriptor') and not existing.get('menu_descriptor'):
+                updates.append('menu_descriptor = %s')
+                params.append(line.get('menu_descriptor'))
+            if updates:
+                updates.append('updated_at = CURRENT_TIMESTAMP')
+                params.append(existing['id'])
+                cur.execute(f"UPDATE banquet_menu_items SET {', '.join(updates)} WHERE id = %s", params)
+            return existing['id']
 
     menu_item_id = generate_id('bmi_')
-    cur.execute("""
-        INSERT INTO banquet_menu_items (id, name, venue_id, menu_section, menu_descriptor, notes)
-        VALUES (%s, %s, %s, %s, %s, %s)
-    """, (
-        menu_item_id,
-        name,
-        venue_id or None,
-        line.get('menu_section') or None,
-        line.get('menu_descriptor') or None,
-        None
-    ))
+    if has_event_only_column:
+        cur.execute("""
+            INSERT INTO banquet_menu_items (id, name, venue_id, menu_section, menu_descriptor, notes, is_event_only)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """, (
+            menu_item_id,
+            name,
+            venue_id or None,
+            line.get('menu_section') or None,
+            line.get('menu_descriptor') or None,
+            None,
+            bool(is_event_only)
+        ))
+    else:
+        cur.execute("""
+            INSERT INTO banquet_menu_items (id, name, venue_id, menu_section, menu_descriptor, notes)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (
+            menu_item_id,
+            name,
+            venue_id or None,
+            line.get('menu_section') or None,
+            line.get('menu_descriptor') or None,
+            None
+        ))
     return menu_item_id
 
 def upsert_menu_item_recipe_link(cur, menu_item_id, recipe_id):
@@ -836,6 +877,7 @@ def parse_event_recipe_lines(request):
     line_ids = request.form.getlist('line_id[]')
     menu_item_ids = request.form.getlist('line_menu_item_id[]')
     recipe_ids = request.form.getlist('line_recipe_id[]')
+    line_is_custom_flags = request.form.getlist('line_is_custom[]')
     names = request.form.getlist('line_menu_item_name[]')
     descriptors = request.form.getlist('line_menu_descriptor[]')
     sections = request.form.getlist('line_menu_section[]')
@@ -846,7 +888,7 @@ def parse_event_recipe_lines(request):
 
     max_len = max(
         len(line_ids), len(menu_item_ids), len(recipe_ids), len(names), len(descriptors), len(sections),
-        len(quantities), len(quantity_units), len(notes), len(choice_selections), 0
+        len(quantities), len(quantity_units), len(notes), len(choice_selections), len(line_is_custom_flags), 0
     )
     rows = []
     errors = []
@@ -877,7 +919,8 @@ def parse_event_recipe_lines(request):
             'quantity': qty,
             'quantity_unit': normalize_unit(qty_unit) or qty_unit or None,
             'notes': note or None,
-            'choice_selections': choice_selection_text
+            'choice_selections': choice_selection_text,
+            'is_custom_item': (line_is_custom_flags[idx] if idx < len(line_is_custom_flags) else '') == '1'
         })
     return rows, errors
 
@@ -1817,6 +1860,7 @@ __all__ = [
     'BANQUET_STATUS_CHOICES',
     'resolve_banquet_venue',
     'banquet_tables_ready',
+    'ensure_banquet_menu_item_event_only_column',
     'banquet_shopping_checks_ready',
     'auto_complete_past_banquet_events',
     'banquet_event_beo_files_ready',
