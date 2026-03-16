@@ -5,254 +5,61 @@
 
 {% block extra_head %}
 <style>
-    .log-shell {
-        padding-bottom: 3.5rem;
+    .log-shell { padding-bottom: 3.5rem; }
+    .log-controls,
+    .detail-grid,
+    .log-cards,
+    .cleanup-grid { display: grid; gap: 0.55rem; }
+    .log-controls { grid-template-columns: repeat(1, minmax(0, 1fr)); align-items: end; }
+    @media (min-width: 900px) {
+        .detail-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     }
-
-    .log-panel {
-        border-radius: 16px;
-        border: 1px solid rgba(15, 23, 42, 0.1);
-        background: rgba(255, 255, 255, 0.96);
-        box-shadow: 0 0 36px -14px rgba(77, 124, 255, 0.24);
-    }
-
-    .log-controls {
-        display: grid;
-        gap: 0.55rem;
-        grid-template-columns: repeat(1, minmax(0, 1fr));
-        align-items: end;
-    }
-
     @media (min-width: 960px) {
-        .log-controls {
-            grid-template-columns: minmax(0, 1fr) minmax(200px, 0.9fr) minmax(200px, 0.9fr) minmax(160px, 0.72fr) auto;
-        }
+        .log-controls { grid-template-columns: minmax(0, 1fr) minmax(200px, 0.9fr) minmax(200px, 0.9fr) minmax(160px, 0.72fr) auto; }
     }
-
-    .log-label {
-        display: block;
-        margin-bottom: 0.3rem;
-        font-size: 0.64rem;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-        color: #94A3B8;
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-    }
-
-    .log-field {
-        width: 100%;
-        min-height: 42px;
-        border: 1px solid rgba(15, 23, 42, 0.15);
-        border-radius: 10px;
-        background: rgba(248, 250, 252, 0.92);
-        color: #0F172A;
-        padding: 0.5rem 0.72rem;
-        transition: all 0.2s ease;
-    }
-
-    .log-field:focus {
-        outline: none;
-        border-color: rgba(77, 124, 255, 0.72);
-        box-shadow: 0 0 20px -10px rgba(77, 124, 255, 0.55);
-    }
-
-    .progress-wrap {
-        padding: 0.9rem 1rem;
-    }
-
-    .progress-head {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 0.6rem;
-        flex-wrap: wrap;
-    }
-
-    .progress-title {
-        color: #0F172A;
-        font-size: 1rem;
-        font-family: 'Calistoga', Inter, sans-serif;
-    }
-
-    .progress-meta {
-        color: #334155;
-        font-size: 0.8rem;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-    }
-
-    .progress-track {
-        margin-top: 0.56rem;
-        width: 100%;
-        height: 12px;
-        border-radius: 999px;
-        overflow: hidden;
-        background: rgba(30, 41, 59, 0.8);
-        border: 1px solid rgba(15, 23, 42, 0.12);
-    }
-
-    .progress-track > span {
-        display: block;
-        height: 100%;
-        background: linear-gradient(to right, #0052FF, #4D7CFF, #93C5FD);
-        box-shadow: 0 0 18px rgba(77, 124, 255, 0.65);
-    }
-
-    .log-cards {
-        display: grid;
-        gap: 0.8rem;
-    }
-
-    .log-card {
-        border-radius: 14px;
-        border: 1px solid rgba(15, 23, 42, 0.12);
-        background: rgba(248, 250, 252, 0.92);
-        padding: 0.76rem;
-    }
-
-    .log-card-head {
-        display: flex;
-        justify-content: space-between;
-        gap: 0.62rem;
-        align-items: flex-start;
-    }
-
-    .log-item {
-        color: #0F172A;
-        font-size: clamp(1.02rem, 2.4vw, 1.28rem);
-        line-height: 1.08;
-        letter-spacing: -0.02em;
-        font-family: 'Calistoga', Inter, sans-serif;
-    }
-
-    .log-meta {
-        margin-top: 0.22rem;
-        color: #64748B;
-        font-size: 0.78rem;
-    }
-
+    .progress-wrap { padding: 1rem; }
+    .progress-head,
+    .log-card-head,
+    .log-actions,
+    .cleanup-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+    .progress-head,
+    .log-card-head { justify-content: space-between; }
+    .progress-title { font-size: 1rem; font-weight: 700; color: #1B1918; }
+    .progress-meta,
+    .save-state,
+    .notes-details > summary,
+    .cleanup-head { font-size: 0.74rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #8A8580; }
+    .progress-track { margin-top: 0.6rem; height: 10px; border: 1px solid #ECEAE6; border-radius: 999px; background: #F1EFEC; overflow: hidden; }
+    .progress-track > span { display: block; height: 100%; background: #C0612B; }
+    .log-cards { gap: 0.8rem; }
+    .log-card-head { align-items: flex-start; }
+    .log-item { font-size: clamp(1.02rem, 2.4vw, 1.28rem); line-height: 1.08; font-weight: 700; color: #1B1918; }
+    .log-meta,
+    .cleanup-meta,
+    .empty-note { font-size: 0.82rem; color: #8A8580; }
     .log-status {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         min-width: 112px;
-        text-align: center;
-        border-radius: 999px;
         padding: 0.3rem 0.58rem;
-        font-size: 0.72rem;
-        letter-spacing: 0.1em;
-        text-transform: uppercase;
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-        border: 1px solid transparent;
+        border-radius: 999px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        border: 1px solid #ECEAE6;
         white-space: nowrap;
     }
-
-    .log-status--done {
-        color: #ecfdf5;
-        background: rgba(16, 185, 129, 0.86);
-        border-color: rgba(110, 231, 183, 0.9);
-    }
-
-    .log-status--pending {
-        color: #111827;
-        background: rgba(251, 191, 36, 0.92);
-        border-color: rgba(252, 211, 77, 0.95);
-    }
-
-    .log-actions {
-        margin-top: 0.62rem;
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 0.4rem;
-    }
-
-    .save-state {
-        color: #94A3B8;
-        font-size: 0.71rem;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-    }
-
-    .save-state.is-saving {
-        color: #fbbf24;
-    }
-
-    .save-state.is-error {
-        color: #fb7185;
-    }
-
-    .save-state.is-saved {
-        color: #34d399;
-    }
-
-    .notes-details {
-        margin-top: 0.58rem;
-        border-radius: 10px;
-        border: 1px dashed rgba(148, 163, 184, 0.42);
-        background: rgba(248, 250, 252, 0.92);
-    }
-
-    .notes-details > summary {
-        list-style: none;
-        cursor: pointer;
-        padding: 0.54rem 0.62rem;
-        color: #334155;
-        font-size: 0.78rem;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-    }
-
-    .notes-details > summary::-webkit-details-marker {
-        display: none;
-    }
-
-    .notes-body {
-        border-top: 1px dashed rgba(148, 163, 184, 0.35);
-        padding: 0.58rem 0.62rem 0.64rem;
-        display: grid;
-        gap: 0.48rem;
-    }
-
-    .notes-field {
-        width: 100%;
-        min-height: 86px;
-        border: 1px solid rgba(15, 23, 42, 0.14);
-        border-radius: 10px;
-        background: rgba(248, 250, 252, 0.9);
-        color: #0F172A;
-        padding: 0.5rem 0.62rem;
-        resize: vertical;
-    }
-
-    .detail-grid {
-        display: grid;
-        gap: 0.42rem;
-        grid-template-columns: repeat(1, minmax(0, 1fr));
-    }
-
-    @media (min-width: 900px) {
-        .detail-grid {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-        }
-    }
-
-    .detail-input {
-        width: 100%;
-        min-height: 38px;
-        border: 1px solid rgba(15, 23, 42, 0.13);
-        border-radius: 9px;
-        background: rgba(248, 250, 252, 0.92);
-        color: #0F172A;
-        padding: 0.42rem 0.58rem;
-        font-size: 0.82rem;
-    }
-
-    .cleanup-grid {
-        display: grid;
-        gap: 0.42rem;
-    }
-
+    .log-status--done { background: #EEFBEF; color: #2B7A30; border-color: #C2E8C4; }
+    .log-status--pending { background: #FFF8EE; color: #A0590A; border-color: #F0D9A0; }
+    .log-actions { margin-top: 0.62rem; }
+    .save-state.is-saving { color: #A0590A; }
+    .save-state.is-error { color: #8B2020; }
+    .save-state.is-saved { color: #2B7A30; }
+    .notes-details { margin-top: 0.58rem; border: 1px dashed #DDD8D3; border-radius: 8px; background: #FCFBFA; }
+    .notes-details > summary { list-style: none; cursor: pointer; padding: 0.55rem 0.62rem; }
+    .notes-details > summary::-webkit-details-marker { display: none; }
+    .notes-body { border-top: 1px dashed #DDD8D3; padding: 0.58rem 0.62rem 0.64rem; display: grid; gap: 0.48rem; }
+    .notes-field { min-height: 86px; resize: vertical; }
     .cleanup-head,
     .cleanup-row {
         display: grid;
@@ -260,56 +67,12 @@
         grid-template-columns: minmax(220px, 2fr) minmax(120px, 1fr) minmax(120px, 1fr) minmax(120px, 1fr) minmax(170px, 1.2fr) minmax(160px, 1fr) minmax(140px, 0.8fr) minmax(180px, 1.2fr);
         align-items: center;
     }
-
-    .cleanup-head {
-        padding: 0.52rem 0.6rem;
-        border-bottom: 1px solid rgba(148, 163, 184, 0.3);
-        font-size: 0.64rem;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-        color: #94A3B8;
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-    }
-
-    .cleanup-row {
-        padding: 0.56rem 0.6rem;
-        border-top: 1px solid rgba(148, 163, 184, 0.15);
-    }
-
-    .cleanup-item {
-        color: #0F172A;
-        font-weight: 600;
-        font-size: 0.82rem;
-    }
-
-    .cleanup-meta {
-        color: #64748B;
-        font-size: 0.72rem;
-        margin-top: 0.1rem;
-    }
-
-    .cleanup-input {
-        width: 100%;
-        min-height: 34px;
-        border: 1px solid rgba(15, 23, 42, 0.13);
-        border-radius: 8px;
-        background: rgba(248, 250, 252, 0.92);
-        color: #0F172A;
-        padding: 0.35rem 0.5rem;
-        font-size: 0.76rem;
-    }
-
-    .cleanup-actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.32rem;
-        align-items: center;
-    }
-
-    .empty-note {
-        color: #94A3B8;
-        font-size: 0.88rem;
-    }
+    .cleanup-head { padding: 0.6rem; border-bottom: 1px solid #ECEAE6; }
+    .cleanup-row { padding: 0.6rem; border-top: 1px solid #ECEAE6; }
+    .cleanup-item { font-size: 0.86rem; font-weight: 600; color: #1B1918; }
+    .cleanup-meta { margin-top: 0.1rem; }
+    .cleanup-input,
+    .detail-input { min-height: 36px; padding: 0.42rem 0.58rem; font-size: 0.82rem; }
 </style>
 {% endblock %}
 
@@ -328,15 +91,15 @@
     ], 'log') }}
 
     <div class="max-w-[92rem] mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-4 log-shell" id="logRoot" data-current-user="{{ current_user_name }}">
-        <section class="log-panel p-4">
+        <section class="fhq-card p-4">
             <form method="GET" class="log-controls">
                 <div>
-                    <label class="log-label">Production Date</label>
-                    <input type="date" name="date" value="{{ selected_date }}" class="log-field">
+                    <label class="block text-sm font-medium text-foxtown-muted mb-1.5">Production Date</label>
+                    <input type="date" name="date" value="{{ selected_date }}" class="fhq-input">
                 </div>
                 <div>
-                    <label class="log-label">Outlet</label>
-                    <select name="outlet" class="log-field">
+                    <label class="block text-sm font-medium text-foxtown-muted mb-1.5">Outlet</label>
+                    <select name="outlet" class="fhq-input">
                         <option value="">All Outlets</option>
                         {% for outlet in outlet_options %}
                         <option value="{{ outlet }}" {% if selected_outlet == outlet %}selected{% endif %}>{{ outlet }}</option>
@@ -344,15 +107,15 @@
                     </select>
                 </div>
                 <div>
-                    <label class="log-label">Filter</label>
-                    <select name="remaining" class="log-field">
+                    <label class="block text-sm font-medium text-foxtown-muted mb-1.5">Filter</label>
+                    <select name="remaining" class="fhq-input">
                         <option value="1" {% if show_remaining_only %}selected{% endif %}>Show Remaining Only</option>
                         <option value="0" {% if not show_remaining_only %}selected{% endif %}>Show All</option>
                     </select>
                 </div>
                 <div>
-                    <label class="log-label">Mode</label>
-                    <select name="mode" class="log-field">
+                    <label class="block text-sm font-medium text-foxtown-muted mb-1.5">Mode</label>
+                    <select name="mode" class="fhq-input">
                         <option value="cards" {% if view_mode == 'cards' %}selected{% endif %}>Mobile Cards</option>
                         <option value="table" {% if view_mode == 'table' %}selected{% endif %}>Desktop Cleanup</option>
                     </select>
@@ -362,7 +125,7 @@
         </section>
 
         {% set progress_pct = ((signed_count / total_count) * 100)|round|int if total_count else 0 %}
-        <section class="log-panel progress-wrap">
+        <section class="fhq-card progress-wrap">
             <div class="progress-head">
                 <div>
                     <div class="progress-title">Daily Sign-off Progress</div>
@@ -378,13 +141,13 @@
                 </form>
             </div>
             <div class="progress-track"><span data-progress-bar style="width: {{ progress_pct }}%"></span></div>
-            <div class="mt-2 text-xs text-slate-500">Remaining: <span data-remaining-count>{{ remaining_count }}</span></div>
+            <div class="mt-2 text-xs text-foxtown-muted">Remaining: <span data-remaining-count>{{ remaining_count }}</span></div>
         </section>
 
         <section class="space-y-3">
             {% if entries %}
                 {% if view_mode == 'table' %}
-                <div class="log-panel p-3">
+                <div class="fhq-card p-3">
                     <div class="cleanup-grid">
                         <div class="cleanup-head">
                             <span>Item</span>
@@ -409,19 +172,19 @@
                                     {% if entry.prep_day_label %} · {{ entry.prep_day_label }}{% endif %}
                                 </div>
                             </div>
-                            <div><input type="text" name="assigned_to" value="{{ entry.assigned_to or '' }}" class="cleanup-input" placeholder="Assigned"></div>
-                            <div><input type="text" name="made_by" value="{{ entry.made_by or '' }}" class="cleanup-input" placeholder="Made"></div>
-                            <div><input type="text" name="tasted_by" value="{{ entry.tasted_by or '' }}" class="cleanup-input" placeholder="Tasted"></div>
-                            <div><input type="text" name="production_notes" value="{{ entry.production_notes or '' }}" class="cleanup-input" placeholder="Notes"></div>
+                            <div><input type="text" name="assigned_to" value="{{ entry.assigned_to or '' }}" class="fhq-input cleanup-input" placeholder="Assigned"></div>
+                            <div><input type="text" name="made_by" value="{{ entry.made_by or '' }}" class="fhq-input cleanup-input" placeholder="Made"></div>
+                            <div><input type="text" name="tasted_by" value="{{ entry.tasted_by or '' }}" class="fhq-input cleanup-input" placeholder="Tasted"></div>
+                            <div><input type="text" name="production_notes" value="{{ entry.production_notes or '' }}" class="fhq-input cleanup-input" placeholder="Notes"></div>
                             <div class="flex items-center gap-1">
-                                <input type="number" step="0.01" min="0" name="actual_yield" value="{{ entry.actual_yield or '' }}" class="cleanup-input" placeholder="Yield">
-                                <input type="text" name="actual_yield_unit" value="{{ entry.actual_yield_unit or entry.quantity_unit or '' }}" class="cleanup-input" placeholder="Unit">
+                                <input type="number" step="0.01" min="0" name="actual_yield" value="{{ entry.actual_yield or '' }}" class="fhq-input cleanup-input" placeholder="Yield">
+                                <input type="text" name="actual_yield_unit" value="{{ entry.actual_yield_unit or entry.quantity_unit or '' }}" class="fhq-input cleanup-input" placeholder="Unit">
                             </div>
                             <div>
                                 <span class="log-status {% if entry.signed_off %}log-status--done{% else %}log-status--pending{% endif %}" data-status>{% if entry.signed_off %}Done{% else %}Pending{% endif %}</span>
                             </div>
                             <div class="cleanup-actions">
-                                <input type="text" name="signed_off_by" value="{{ entry.signed_off_by or '' }}" class="cleanup-input" placeholder="Signed by">
+                                <input type="text" name="signed_off_by" value="{{ entry.signed_off_by or '' }}" class="fhq-input cleanup-input" placeholder="Signed by">
                                 <button type="button" class="fhq-btn fhq-btn--primary" data-quick-signoff>Sign</button>
                                 <button type="button" class="fhq-btn fhq-btn--outline" data-mark-pending>Undo</button>
                                 <span class="save-state" data-save-state>Not saved</span>
@@ -435,7 +198,7 @@
                     {% for entry in entries %}
                     <form method="POST"
                           action="{{ url_for('commissary_production_log_update', line_id=entry.line_id) }}"
-                          class="log-card"
+                          class="fhq-card p-4 log-card"
                           data-log-form>
                         <input type="hidden" name="production_date" value="{{ selected_date }}">
                         <input type="hidden" name="ajax" value="1">
@@ -464,18 +227,18 @@
                             <summary>Details: Assignment, QA, Notes, Yield</summary>
                             <div class="notes-body">
                                 <div class="detail-grid">
-                                    <input type="text" name="assigned_to" value="{{ entry.assigned_to or '' }}" placeholder="Assigned cook" class="detail-input">
-                                    <input type="text" name="made_by" value="{{ entry.made_by or '' }}" placeholder="Made by" class="detail-input">
-                                    <input type="text" name="tasted_by" value="{{ entry.tasted_by or '' }}" placeholder="Tasted by" class="detail-input">
+                                    <input type="text" name="assigned_to" value="{{ entry.assigned_to or '' }}" placeholder="Assigned cook" class="fhq-input detail-input">
+                                    <input type="text" name="made_by" value="{{ entry.made_by or '' }}" placeholder="Made by" class="fhq-input detail-input">
+                                    <input type="text" name="tasted_by" value="{{ entry.tasted_by or '' }}" placeholder="Tasted by" class="fhq-input detail-input">
                                 </div>
                                 <div class="detail-grid">
-                                    <input type="text" name="signed_off_by" value="{{ entry.signed_off_by or '' }}" placeholder="Signed off by" class="detail-input">
-                                    <input type="number" step="0.01" min="0" name="actual_yield" value="{{ entry.actual_yield or '' }}" placeholder="Actual yield" class="detail-input">
-                                    <input type="text" name="actual_yield_unit" value="{{ entry.actual_yield_unit or entry.quantity_unit or '' }}" placeholder="Yield unit" class="detail-input">
+                                    <input type="text" name="signed_off_by" value="{{ entry.signed_off_by or '' }}" placeholder="Signed off by" class="fhq-input detail-input">
+                                    <input type="number" step="0.01" min="0" name="actual_yield" value="{{ entry.actual_yield or '' }}" placeholder="Actual yield" class="fhq-input detail-input">
+                                    <input type="text" name="actual_yield_unit" value="{{ entry.actual_yield_unit or entry.quantity_unit or '' }}" placeholder="Yield unit" class="fhq-input detail-input">
                                 </div>
-                                <textarea name="production_notes" class="notes-field" placeholder="Production notes, quality notes, issues...">{{ entry.production_notes or '' }}</textarea>
-                                <label class="log-label !mb-0">Quick Camera Capture</label>
-                                <input type="file" name="photo" accept="image/*" capture="environment" class="detail-input">
+                                <textarea name="production_notes" class="fhq-input notes-field" placeholder="Production notes, quality notes, issues...">{{ entry.production_notes or '' }}</textarea>
+                                <label class="block text-sm font-medium text-foxtown-muted">Quick Camera Capture</label>
+                                <input type="file" name="photo" accept="image/*" capture="environment" class="fhq-input detail-input">
                             </div>
                         </details>
                     </form>
@@ -483,7 +246,7 @@
                 </div>
                 {% endif %}
             {% else %}
-            <div class="log-panel p-4">
+            <div class="fhq-card p-4">
                 <p class="empty-note">No matching production lines for this date/filter.</p>
             </div>
             {% endif %}
