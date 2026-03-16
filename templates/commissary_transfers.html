@@ -5,89 +5,14 @@
 
 {% block extra_head %}
 <style>
-    .transfer-shell {
-        padding-bottom: 3rem;
-    }
-
-    .transfer-panel {
-        border-radius: 16px;
-        border: 1px solid rgba(15, 23, 42, 0.1);
-        background: rgba(255, 255, 255, 0.96);
-        box-shadow: 0 0 36px -14px rgba(77, 124, 255, 0.24);
-    }
-
-    .field-grid {
-        display: grid;
-        gap: 0.58rem;
-        grid-template-columns: repeat(1, minmax(0, 1fr));
-    }
-
+    .transfer-shell { padding-bottom: 3rem; }
+    .field-grid { display: grid; gap: 0.58rem; grid-template-columns: repeat(1, minmax(0, 1fr)); }
     @media (min-width: 980px) {
-        .field-grid {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-        }
+        .field-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     }
-
-    .field-label {
-        display: block;
-        margin-bottom: 0.3rem;
-        font-size: 0.64rem;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-        color: #94A3B8;
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-    }
-
-    .field {
-        width: 100%;
-        min-height: 42px;
-        border: 1px solid rgba(15, 23, 42, 0.15);
-        border-radius: 10px;
-        background: rgba(248, 250, 252, 0.92);
-        color: #0F172A;
-        padding: 0.5rem 0.72rem;
-        transition: all 0.2s ease;
-    }
-
-    .field:focus {
-        outline: none;
-        border-color: rgba(77, 124, 255, 0.72);
-        box-shadow: 0 0 20px -10px rgba(77, 124, 255, 0.55);
-    }
-
-    .table-wrap {
-        overflow-x: auto;
-    }
-
-    .transfer-table {
-        width: 100%;
-        min-width: 840px;
-        border-collapse: collapse;
-    }
-
-    .transfer-table th {
-        text-align: left;
-        font-size: 0.66rem;
-        letter-spacing: 0.13em;
-        text-transform: uppercase;
-        color: #94A3B8;
-        padding: 0.66rem 0.72rem;
-        border-bottom: 1px solid rgba(148, 163, 184, 0.24);
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-    }
-
-    .transfer-table td {
-        padding: 0.68rem 0.72rem;
-        border-top: 1px solid rgba(148, 163, 184, 0.2);
-        color: #334155;
-        font-size: 0.84rem;
-        vertical-align: top;
-    }
-
-    .line-note {
-        color: #64748B;
-        font-size: 0.75rem;
-    }
+    .table-wrap { overflow-x: auto; }
+    .transfer-table { min-width: 840px; }
+    .line-note { color: #8A8580; font-size: 0.75rem; }
 </style>
 {% endblock %}
 
@@ -105,22 +30,22 @@
         {'id': 'review', 'label': 'Review', 'url': url_for('commissary_review')},
     ], 'transfers') }}
 
-    <div class="max-w-[96rem] mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-4 transfer-shell fhq-fade">
-        <section class="transfer-panel p-4">
-            <h2 class="text-xl font-display text-foxtown-ink mb-3">Log Transfer</h2>
+    <div class="max-w-[96rem] mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-4 transfer-shell">
+        <section class="fhq-card p-4">
+            <h2 class="mb-3 text-xl font-bold tracking-tight text-foxtown-text">Log Transfer</h2>
             <form method="POST" class="space-y-3" id="transferForm">
                 <div class="field-grid">
                     <div>
-                        <label class="field-label">Production Date</label>
-                        <input type="date" name="production_date" class="field" value="{{ transfer.production_date or '' }}" required>
+                        <label class="block text-sm font-medium text-foxtown-muted mb-1.5">Production Date</label>
+                        <input type="date" name="production_date" class="fhq-input" value="{{ transfer.production_date or '' }}" required>
                     </div>
                     <div>
-                        <label class="field-label">From Location</label>
-                        <input type="text" name="from_location" class="field" value="{{ transfer.from_location or 'Commissary' }}" required>
+                        <label class="block text-sm font-medium text-foxtown-muted mb-1.5">From Location</label>
+                        <input type="text" name="from_location" class="fhq-input" value="{{ transfer.from_location or 'Commissary' }}" required>
                     </div>
                     <div>
-                        <label class="field-label">Destination Outlet</label>
-                        <input list="transferOutletOptions" name="to_outlet" class="field" value="{{ transfer.to_outlet or '' }}" required>
+                        <label class="block text-sm font-medium text-foxtown-muted mb-1.5">Destination Outlet</label>
+                        <input list="transferOutletOptions" name="to_outlet" class="fhq-input" value="{{ transfer.to_outlet or '' }}" required>
                         <datalist id="transferOutletOptions">
                             {% for outlet in outlet_options %}
                             <option value="{{ outlet }}"></option>
@@ -128,23 +53,23 @@
                         </datalist>
                     </div>
                     <div>
-                        <label class="field-label">Transferred By</label>
-                        <input type="text" name="transferred_by" class="field" value="{{ transfer.transferred_by or '' }}">
+                        <label class="block text-sm font-medium text-foxtown-muted mb-1.5">Transferred By</label>
+                        <input type="text" name="transferred_by" class="fhq-input" value="{{ transfer.transferred_by or '' }}">
                     </div>
                     <div>
-                        <label class="field-label">Transfer Method</label>
-                        <select name="transfer_method" class="field">
+                        <label class="block text-sm font-medium text-foxtown-muted mb-1.5">Transfer Method</label>
+                        <select name="transfer_method" class="fhq-input">
                             <option value="delivery" {% if (transfer.transfer_method or 'delivery') == 'delivery' %}selected{% endif %}>Delivery</option>
                             <option value="pickup" {% if (transfer.transfer_method or 'delivery') == 'pickup' %}selected{% endif %}>Pickup</option>
                         </select>
                     </div>
                     <div class="md:col-span-3">
-                        <label class="field-label">Transfer Notes</label>
-                        <input type="text" name="notes" class="field" value="{{ transfer.notes or '' }}" placeholder="Driver, condition, timing notes">
+                        <label class="block text-sm font-medium text-foxtown-muted mb-1.5">Transfer Notes</label>
+                        <input type="text" name="notes" class="fhq-input" value="{{ transfer.notes or '' }}" placeholder="Driver, condition, timing notes">
                     </div>
                     <div>
-                        <label class="field-label">Production Log Filter</label>
-                        <select name="outlet_filter" class="field">
+                        <label class="block text-sm font-medium text-foxtown-muted mb-1.5">Production Log Filter</label>
+                        <select name="outlet_filter" class="fhq-input">
                             <option value="">All Outlets</option>
                             {% for outlet in outlet_options %}
                             <option value="{{ outlet }}" {% if selected_outlet_filter == outlet %}selected{% endif %}>{{ outlet }}</option>
@@ -154,7 +79,7 @@
                 </div>
 
                 <div class="table-wrap">
-                    <table class="transfer-table" id="transferLinesTable">
+                    <table class="fhq-table transfer-table" id="transferLinesTable">
                         <thead>
                             <tr>
                                 <th>From Production Log (Optional)</th>
@@ -169,7 +94,7 @@
                             {% for line in transfer_lines %}
                             <tr>
                                 <td>
-                                    <select name="line_production_log_id[]" class="field" data-role="production-log">
+                                    <select name="line_production_log_id[]" class="fhq-input" data-role="production-log">
                                         <option value="">Manual line</option>
                                         {% for option in production_log_options %}
                                         <option
@@ -184,10 +109,10 @@
                                         {% endfor %}
                                     </select>
                                 </td>
-                                <td><input type="text" name="line_item_name[]" class="field" value="{{ line.item_name or '' }}"></td>
-                                <td><input type="number" step="0.01" min="0" name="line_qty[]" class="field" value="{{ line.quantity or '' }}"></td>
-                                <td><input type="text" name="line_unit[]" class="field" value="{{ line.quantity_unit or '' }}"></td>
-                                <td><input type="text" name="line_notes[]" class="field" value="{{ line.notes or '' }}"></td>
+                                <td><input type="text" name="line_item_name[]" class="fhq-input" value="{{ line.item_name or '' }}"></td>
+                                <td><input type="number" step="0.01" min="0" name="line_qty[]" class="fhq-input" value="{{ line.quantity or '' }}"></td>
+                                <td><input type="text" name="line_unit[]" class="fhq-input" value="{{ line.quantity_unit or '' }}"></td>
+                                <td><input type="text" name="line_notes[]" class="fhq-input" value="{{ line.notes or '' }}"></td>
                                 <td><button type="button" class="fhq-btn fhq-btn--ghost removeTransferRow">Remove</button></td>
                             </tr>
                             {% endfor %}
@@ -202,11 +127,11 @@
             </form>
         </section>
 
-        <section class="transfer-panel p-4">
-            <h2 class="text-xl font-display text-foxtown-ink mb-3">Recent Transfers</h2>
+        <section class="fhq-card p-4">
+            <h2 class="mb-3 text-xl font-bold tracking-tight text-foxtown-text">Recent Transfers</h2>
             {% if transfers %}
             <div class="table-wrap">
-                <table class="transfer-table">
+                <table class="fhq-table transfer-table">
                     <thead>
                         <tr>
                             <th>Date</th>
@@ -247,7 +172,7 @@
                 </table>
             </div>
             {% else %}
-            <p class="text-sm text-slate-500">No transfers logged yet.</p>
+            <p class="text-sm text-foxtown-muted">No transfers logged yet.</p>
             {% endif %}
         </section>
     </div>
@@ -256,7 +181,7 @@
 <template id="transferLineTemplate">
 <tr>
     <td>
-        <select name="line_production_log_id[]" class="field" data-role="production-log">
+        <select name="line_production_log_id[]" class="fhq-input" data-role="production-log">
             <option value="">Manual line</option>
             {% for option in production_log_options %}
             <option
@@ -270,10 +195,10 @@
             {% endfor %}
         </select>
     </td>
-    <td><input type="text" name="line_item_name[]" class="field" placeholder="Item"></td>
-    <td><input type="number" step="0.01" min="0" name="line_qty[]" class="field" value="1"></td>
-    <td><input type="text" name="line_unit[]" class="field" value="each"></td>
-    <td><input type="text" name="line_notes[]" class="field" placeholder="Optional"></td>
+    <td><input type="text" name="line_item_name[]" class="fhq-input" placeholder="Item"></td>
+    <td><input type="number" step="0.01" min="0" name="line_qty[]" class="fhq-input" value="1"></td>
+    <td><input type="text" name="line_unit[]" class="fhq-input" value="each"></td>
+    <td><input type="text" name="line_notes[]" class="fhq-input" placeholder="Optional"></td>
     <td><button type="button" class="fhq-btn fhq-btn--ghost removeTransferRow">Remove</button></td>
 </tr>
 </template>
