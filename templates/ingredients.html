@@ -5,182 +5,41 @@
 
 {% block extra_head %}
 <style>
-    .ing-shell {
-        padding-bottom: 3.5rem;
-    }
-
-    .ing-panel {
-        border-radius: 16px;
-        border: 1px solid rgba(15, 23, 42, 0.1);
-        background: rgba(255, 255, 255, 0.96);
-        box-shadow: 0 0 36px -14px rgba(77, 124, 255, 0.24);
-    }
-
-    .notice {
-        border-radius: 14px;
-        border: 1px solid rgba(148, 163, 184, 0.25);
-        background: rgba(255, 255, 255, 0.96);
-        padding: 0.9rem 1rem;
-    }
-
-    .notice-amber {
-        border-color: rgba(147, 197, 253, 0.4);
-        background: linear-gradient(140deg, rgba(0, 82, 255, 0.15), rgba(147, 197, 253, 0.08));
-    }
-
-    .notice-title {
-        color: #0F172A;
-        font-weight: 600;
-        font-size: 0.95rem;
-    }
-
-    .notice-copy {
-        margin-top: 0.3rem;
-        color: #94A3B8;
-        font-size: 0.86rem;
-    }
-
-    .search-field {
-        width: 100%;
-        min-height: 48px;
-        border: 1px solid rgba(15, 23, 42, 0.15);
-        border-radius: 10px;
-        background: rgba(248, 250, 252, 0.92);
-        color: #0F172A;
-        padding: 0.62rem 0.8rem;
-        transition: all 0.2s ease;
-    }
-
-    .search-field:focus {
-        outline: none;
-        border-color: rgba(77, 124, 255, 0.7);
-        box-shadow: 0 0 20px -10px rgba(77, 124, 255, 0.52);
-    }
-
-    .search-field::placeholder {
-        color: rgba(15, 23, 42, 0.35);
-    }
-
-    .table-wrap {
-        overflow-x: auto;
-    }
-
-    .ing-table {
-        width: 100%;
-        min-width: 1040px;
-        border-collapse: collapse;
-    }
-
-    .ing-table thead {
-        background: rgba(0, 82, 255, 0.08);
-    }
-
-    .ing-table th {
-        text-align: left;
-        font-size: 0.67rem;
-        letter-spacing: 0.13em;
-        text-transform: uppercase;
-        color: #94A3B8;
-        padding: 0.75rem 0.95rem;
-        border-bottom: 1px solid rgba(148, 163, 184, 0.24);
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-    }
-
-    .ing-table td {
-        padding: 0.82rem 0.95rem;
-        border-top: 1px solid rgba(148, 163, 184, 0.2);
-        color: #334155;
-        font-size: 0.88rem;
-        vertical-align: top;
-    }
-
-    .ing-table tbody tr {
-        transition: background-color 0.2s ease;
-    }
-
-    .ing-table tbody tr:hover {
-        background: rgba(77, 124, 255, 0.08);
-    }
-
-    .ing-name {
-        color: #0F172A;
-        font-weight: 600;
-        font-size: 0.94rem;
-    }
-
+    .ing-shell { padding-bottom: 3.5rem; }
+    .notice { padding: 0.9rem 1rem; border: 1px solid #ECEAE6; border-radius: 8px; background: #fff; }
+    .notice-amber { border-color: #F0D9A0; background: #FFF8EE; }
+    .notice-title,
+    .ing-name,
+    .empty-title { color: #1B1918; font-weight: 600; }
+    .notice-copy,
+    .muted,
+    .empty-copy { margin-top: 0.3rem; font-size: 0.86rem; color: #8A8580; }
+    .table-wrap { overflow-x: auto; }
+    .ing-table { min-width: 1040px; }
+    .ing-table tbody tr:hover { background: #FCFBFA; }
     .tag {
         display: inline-flex;
         align-items: center;
+        padding: 0.22rem 0.58rem;
+        border: 1px solid #ECEAE6;
         border-radius: 999px;
-        border: 1px solid rgba(148, 163, 184, 0.4);
-        background: rgba(148, 163, 184, 0.12);
-        padding: 0.2rem 0.55rem;
-        color: #334155;
+        background: #FCFBFA;
+        color: #8A8580;
         font-size: 0.68rem;
-        letter-spacing: 0.08em;
+        font-weight: 600;
+        letter-spacing: 0.04em;
         text-transform: uppercase;
-        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
     }
-
-    .muted {
-        color: #94A3B8;
-    }
-
-    .price-urgent {
-        color: #93C5FD;
-        font-weight: 600;
-    }
-
-    .price-urgent-note {
-        color: #f59e0b;
-        font-size: 0.75rem;
-    }
-
-    .sticky-actions {
-        position: sticky;
-        right: 0;
-        background: rgba(255, 255, 255, 0.96);
-    }
-
-    tr:hover .sticky-actions {
-        background: rgba(30, 21, 14, 0.96);
-    }
-
-    .action-link {
-        color: #4D7CFF;
-        font-size: 0.82rem;
-        font-weight: 600;
-    }
-
-    .action-link:hover {
-        color: #93C5FD;
-    }
-
-    .delete-link {
-        color: #fda4af;
-        font-size: 0.82rem;
-        font-weight: 600;
-    }
-
-    .delete-link:hover {
-        color: #f43f5e;
-    }
-
-    .empty-block {
-        padding: 2.2rem 1.4rem;
-        text-align: center;
-    }
-
-    .empty-title {
-        color: #0F172A;
-        font-size: 1.34rem;
-        font-family: 'Calistoga', Inter, sans-serif;
-    }
-
-    .empty-copy {
-        margin-top: 0.4rem;
-        color: #94A3B8;
-    }
+    .price-urgent { color: #C0612B; font-weight: 600; }
+    .price-urgent-note { color: #A0590A; font-size: 0.75rem; }
+    .sticky-actions { position: sticky; right: 0; background: #fff; }
+    tr:hover .sticky-actions { background: #FCFBFA; }
+    .action-link { color: #C0612B; font-size: 0.82rem; font-weight: 600; }
+    .action-link:hover { color: #D4722B; }
+    .delete-link { color: #8B2020; font-size: 0.82rem; font-weight: 600; }
+    .delete-link:hover { color: #B33A3A; }
+    .empty-block { padding: 2.2rem 1.4rem; text-align: center; }
+    .empty-title { font-size: 1.34rem; }
 </style>
 {% endblock %}
 
@@ -190,7 +49,7 @@
     <a href="{{ url_for('new_ingredient') }}" class="fhq-btn fhq-btn--primary" data-shortcut="new">+ New Ingredient</a>
     {% endcall %}
 
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4 ing-shell fhq-fade">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4 ing-shell">
         {% if only_needs_update %}
         <div class="notice">
             <div class="flex items-center justify-between gap-4">
@@ -214,17 +73,17 @@
         </div>
         {% endif %}
 
-        <div class="ing-panel p-4">
+        <div class="fhq-card p-4">
             <input
                 type="text"
                 id="searchInput"
                 placeholder="Search ingredients..."
-                class="search-field"
+                class="fhq-input"
                 data-shortcut="search"
             >
         </div>
 
-        <div class="ing-panel overflow-hidden">
+        <div class="fhq-card overflow-hidden">
             {% if ingredients %}
             <div class="table-wrap">
                 <table class="fhq-table ing-table">
@@ -264,7 +123,7 @@
                                     <span class="muted italic">Not set</span>
                                 {% endif %}
                             </td>
-                            <td class="font-mono">
+                            <td>
                                 {% if ingredient.g_code %}
                                     {{ ingredient.g_code }}
                                 {% else %}
