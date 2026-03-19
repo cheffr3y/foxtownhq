@@ -27,7 +27,19 @@
 <div class="pkt-sub-card{% if level > 0 %} pkt-sub-card-nested{% endif %}">
     <div class="pkt-sub-card-header">
         <span class="pkt-bold">{{ sub_card.recipe_name }}</span>
-        <span class="pkt-mono">{{ sub_card.display_required.quantity }} {{ sub_card.display_required.unit }} · {{ "%.2f"|format(sub_card.required_batches or 0) }} batches</span>
+        <span class="pkt-mono pkt-qty-strong">{{ sub_card.display_required.quantity }} {{ sub_card.display_required.unit }}</span>
+    </div>
+    <div class="pkt-make-or-pull">
+        <label class="pkt-mop-option">
+            <span class="pkt-checkbox"></span>
+            <span>Make from scratch</span>
+        </label>
+        <label class="pkt-mop-option">
+            <span class="pkt-checkbox"></span>
+            <span>Pull from stock &mdash; Need:
+                <strong>{{ sub_card.display_required.quantity }} {{ sub_card.display_required.unit }}</strong>
+            </span>
+        </label>
     </div>
     {% if sub_card.ingredient_rows %}
     <table class="pkt-table pkt-table-ingredients">
@@ -61,10 +73,9 @@
             <tr>
                 <th style="width:5%">✓</th>
                 <th>Sub-Recipe</th>
-                <th class="text-right" style="width:15%">Qty</th>
-                <th style="width:12%">Unit</th>
-                <th class="text-right" style="width:14%">Batches</th>
-                <th style="width:24%">Plan</th>
+                <th class="text-right" style="width:18%">Qty</th>
+                <th style="width:13%">Unit</th>
+                <th style="width:22%">Plan</th>
             </tr>
         </thead>
         <tbody>
@@ -74,7 +85,6 @@
                 <td class="pkt-bold">{{ sub.recipe_name }}</td>
                 <td class="text-right pkt-mono pkt-qty">{{ sub.display_required.quantity if sub.display_required.quantity not in (None, '') else '—' }}</td>
                 <td>{{ sub.display_required.unit or '—' }}</td>
-                <td class="text-right pkt-mono">{{ "%.2f"|format(sub.required_batches or 0) }}</td>
                 <td>
                     {% if sub.covered_by_stock_prep %}
                     <span class="pkt-plan-badge pkt-plan-badge-stock">From stocked prep (see above): {{ sub.stock_prep_recipe_name or sub.recipe_name }}</span>
@@ -180,13 +190,13 @@
         <table class="pkt-table pkt-table-accountability">
             <thead>
                 <tr>
-                    <th style="width:4%">[ ]</th>
-                    <th style="width:28%">Item</th>
-                    <th style="width:11%">Qty</th>
-                    <th style="width:14%">Outlet</th>
-                    <th style="width:14%">Assigned Cook</th>
-                    <th style="width:12%">Produced By</th>
-                    <th style="width:17%">Chef Sign-off / Notes</th>
+                    <th style="width:3%">[ ]</th>
+                    <th style="width:30%">Item</th>
+                    <th style="width:9%">Qty</th>
+                    <th style="width:10%">Outlet</th>
+                    <th style="width:18%">Assigned Cook</th>
+                    <th style="width:15%">Produced By</th>
+                    <th style="width:15%">Chef Sign-off / Notes</th>
                 </tr>
             </thead>
             <tbody>
@@ -213,7 +223,7 @@
         {% endif %}
     </div>
 
-    <div class="pkt-section break-inside-avoid break-before-page">
+    <div class="pkt-section break-inside-avoid break-before-page print:hidden">
         <div class="pkt-section-header">
             <h2>Order Summary</h2>
             <span class="pkt-date-range">
@@ -391,10 +401,9 @@
                         <tr>
                             <th style="width:5%">✓</th>
                             <th>Sub-Recipe</th>
-                            <th class="text-right" style="width:15%">Qty</th>
-                            <th style="width:12%">Unit</th>
-                            <th class="text-right" style="width:14%">Batches</th>
-                            <th style="width:24%">Plan</th>
+                            <th class="text-right" style="width:18%">Qty</th>
+                            <th style="width:13%">Unit</th>
+                            <th style="width:22%">Plan</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -404,7 +413,6 @@
                             <td class="pkt-bold">{{ sub.recipe_name }}</td>
                             <td class="text-right pkt-mono pkt-qty pkt-qty-strong">{{ sub.display_required.quantity if sub.display_required.quantity not in (None, '') else '—' }}</td>
                             <td>{{ sub.display_required.unit or '—' }}</td>
-                            <td class="text-right pkt-mono">{{ "%.2f"|format(sub.required_batches or 0) }}</td>
                             <td>
                                 {% if sub.covered_by_stock_prep %}
                                 <span class="pkt-plan-badge pkt-plan-badge-stock">From stocked prep (see above): {{ sub.stock_prep_recipe_name or sub.recipe_name }}</span>
@@ -413,24 +421,25 @@
                                 {% endif %}
                             </td>
                         </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% for sub in prep.subrecipe_rows %}
+                    {% if not sub.covered_by_stock_prep %}
                         {% set sub_card_match = namespace(card=None) %}
                         {% for sub_card in group.sub_cards %}
                             {% if sub_card.recipe_id == sub.recipe_id %}
                                 {% set sub_card_match.card = sub_card %}
                             {% endif %}
                         {% endfor %}
-                        {% if sub_card_match.card and not sub.covered_by_stock_prep %}
-                        <tr class="pkt-sub-detail-row">
-                            <td colspan="6">
-                                <div class="pkt-sub-detail-wrap">
-                                    {{ render_sub_card(sub_card_match.card, 0) }}
-                                </div>
-                            </td>
-                        </tr>
+                        {% if sub_card_match.card %}
+                        <div class="pkt-sub-attachment">
+                            <div class="pkt-sub-attachment-label">Sub-Recipe</div>
+                            {{ render_sub_card(sub_card_match.card, 0) }}
+                        </div>
                         {% endif %}
-                        {% endfor %}
-                    </tbody>
-                </table>
+                    {% endif %}
+                {% endfor %}
             </div>
             {% endif %}
 
@@ -526,8 +535,8 @@
     padding: 0.25rem 0.5rem;
 }
 .pkt-table-accountability tbody td {
-    min-height: 45px;
-    height: 45px;
+    min-height: 56px;
+    height: 56px;
     vertical-align: middle;
 }
 .pkt-account-row td {
@@ -699,15 +708,45 @@
     gap: 0.75rem;
     margin-bottom: 0.35rem;
 }
+.pkt-make-or-pull {
+    display: flex;
+    gap: 1.5rem;
+    align-items: center;
+    padding: 0.4rem 0.6rem;
+    background: #f5f5f4;
+    border: 1px solid #d6d3d1;
+    border-radius: 0.3rem;
+    margin-bottom: 0.5rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #1c1917;
+}
+.pkt-mop-option {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    cursor: default;
+}
+.pkt-mop-option strong {
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+}
 .pkt-sub-card-children {
     margin-top: 0.5rem;
 }
-.pkt-sub-detail-row td {
-    background: #fff !important;
-    padding: 0.35rem !important;
+.pkt-sub-attachment {
+    margin-top: 0.65rem;
+    margin-left: 1rem;
+    border-left: 3px solid #a8a29e;
+    padding-left: 0.75rem;
 }
-.pkt-sub-detail-wrap {
-    margin: 0.2rem 0;
+.pkt-sub-attachment-label {
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 700;
+    color: #78716c;
+    margin-bottom: 0.25rem;
 }
 .pkt-plan-badge {
     display: inline-flex;
@@ -838,6 +877,8 @@
     border-radius: 999px;
 }
 @media print {
+    nav,
+    .print\:hidden,
     .screen-only,
     .screen-only * { display: none !important; }
     body {
@@ -867,9 +908,38 @@
     .pkt-section-shopping .pkt-section-header h2 {
         font-size: 0.8rem !important;
     }
+    .pkt-card-header {
+        background: #fff !important;
+        color: #000 !important;
+        border-bottom: 2pt solid #000 !important;
+    }
+    .pkt-card-header * {
+        color: #000 !important;
+    }
+    .pkt-prep-family-header {
+        background: #fff !important;
+    }
+    .pkt-step-num {
+        background: #fff !important;
+        color: #000 !important;
+        border: 1.5pt solid #000 !important;
+    }
     .pkt-prep-group {
         page-break-before: always;
         break-before: page;
+    }
+    .pkt-make-or-pull {
+        border: 1.5pt solid #000 !important;
+        background: #fff !important;
+        padding: 0.35rem 0.5rem;
+        margin-bottom: 0.4rem;
+    }
+    .pkt-sub-attachment {
+        border-left: 2pt solid #000 !important;
+        margin-left: 0.75rem;
+    }
+    .pkt-sub-attachment-label {
+        color: #000 !important;
     }
     .break-before-page {
         page-break-before: always;

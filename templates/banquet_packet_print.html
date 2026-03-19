@@ -108,7 +108,7 @@
     {#  SECTION 1 — BEO SERVICE BRIEF (optional)          #}
     {# ═══════════════════════════════════════════════════ #}
     {% if include_beo %}
-    <div class="pkt-section pkt-beo-first-page">
+    <div class="pkt-section pkt-screen-only pkt-beo-first-page">
         <div class="pkt-section-header">
             <h2>BEO Service Brief</h2>
             <span class="pkt-date-range">{{ start_date }} – {{ end_date }}</span>
@@ -198,7 +198,7 @@
     {# ═══════════════════════════════════════════════════ #}
     {#  SECTION 2 — EVENT SUMMARY                         #}
     {# ═══════════════════════════════════════════════════ #}
-    <div class="pkt-section break-inside-avoid">
+    <div class="pkt-section break-inside-avoid pkt-screen-only">
         <div class="pkt-section-header">
             <h2>Event Summary</h2>
             <span class="pkt-date-range">{{ start_date }} – {{ end_date }}</span>
@@ -284,7 +284,7 @@
 
         {% for group in prep_groups %}
         {% set prep = group.root %}
-        <div class="pkt-prep-card {% if not loop.first %}break-before-page{% endif %}">
+        <div class="pkt-prep-card break-before-page">
             {# ── Card header bar ── #}
             <div class="pkt-card-header">
                 <div class="pkt-card-title">
@@ -402,7 +402,7 @@
     {#  SECTION 5 — DIRECT MENU PULLS                     #}
     {# ═══════════════════════════════════════════════════ #}
     {% if datasets.weekly_menu_pulls %}
-    <div class="pkt-section break-before-page">
+    <div class="pkt-section break-before-page pkt-screen-only">
         <div class="pkt-section-header">
             <h2>Direct Menu Pulls</h2>
         </div>
@@ -437,7 +437,7 @@
     {# ═══════════════════════════════════════════════════ #}
     {#  SECTION 6 — DAILY PREP CHECKLIST                  #}
     {# ═══════════════════════════════════════════════════ #}
-    <div class="break-before-page">
+    <div class="break-before-page pkt-screen-only">
         <div class="pkt-section-header pkt-section-header-standalone">
             <h2>Daily Prep</h2>
         </div>
@@ -925,29 +925,22 @@
 /*  PRINT OVERRIDES                           */
 /* ═══════════════════════════════════════════ */
 @media print {
-    nav, .print\:hidden, .screen-only { display: none !important; }
-    body {
+    nav, .print\:hidden, .screen-only, .pkt-screen-only { display: none !important; }
+    body { background: #fff !important; }
+    #printRoot { max-width: none !important; padding: 0 !important; margin: 0 !important; }
+
+    .pkt-card-header {
         background: #fff !important;
-    }
-    * {
-        background: transparent !important;
         color: #000 !important;
-        border-radius: 0 !important;
-        box-shadow: none !important;
-        text-shadow: none !important;
+        border-bottom: 2pt solid #000 !important;
     }
-    #printRoot {
-        max-width: none !important;
-        padding: 0 !important;
-        margin: 0 !important;
-    }
-    .pkt-section {
-        border: 1px solid #999;
-        border-radius: 0;
-        box-shadow: none;
-    }
+    .pkt-card-header * { color: #000 !important; }
+    .pkt-card-title h3 { font-size: 18pt; }
+    .pkt-yield-number { font-size: 24pt; }
+    .pkt-yield-unit { color: #000 !important; opacity: 1; }
+
     .pkt-prep-card {
-        border: 2px solid #000;
+        border: 2pt solid #000 !important;
         break-inside: avoid;
         page-break-inside: avoid;
     }
@@ -955,45 +948,25 @@
         break-before: page;
         page-break-before: always;
     }
-    .pkt-card-header {
-        border-bottom: 1px solid #000 !important;
-    }
     .pkt-step-num {
-        border: 1px solid #000 !important;
+        background: #fff !important;
+        color: #000 !important;
+        border: 1.5pt solid #000 !important;
     }
-    .pkt-guests {
-        border: 1px solid #000 !important;
-    }
-    .pkt-vendor-label {
-        border: 1px solid #000 !important;
-    }
-    .pkt-prep-family-header {
-        border: 1px solid #000;
-        border-left: 6px solid #000;
-        border-radius: 0;
-        background: transparent !important;
-    }
-    .break-inside-avoid { break-inside: avoid; page-break-inside: avoid; }
-    .break-before-page { break-before: page; page-break-before: always; }
-    .pkt-beo-first-page { break-after: page; page-break-after: always; }
-    .pkt-day-block { break-inside: avoid; page-break-inside: avoid; }
-    .pkt-pull-card { break-inside: avoid; page-break-inside: avoid; }
-    .pkt-beo-card { break-inside: auto; page-break-inside: auto; }
-    table { page-break-inside: auto; }
-    tr { page-break-inside: avoid; page-break-after: auto; }
+    .pkt-alt-row:nth-child(odd) td { background: #f5f5f4 !important; }
+    .pkt-sub-section { background: #fafaf9 !important; }
+    .pkt-card-meta { background: #f5f5f4 !important; }
 
-    /* Tighten for print */
-    .pkt-card-body { padding: 0.5rem 0.75rem; }
-    .pkt-card-header { padding: 0.6rem 0.75rem; }
-    .pkt-card-meta { padding: 0.3rem 0.75rem; }
-    .pkt-section-header h2 { font-size: 16pt; }
-    .pkt-card-title h3 { font-size: 18pt; }
-    .pkt-yield-number { font-size: 24pt; }
     .pkt-table thead th { font-size: 8pt; }
     .pkt-table tbody td { font-size: 11pt; }
     .pkt-qty-strong { font-size: 14pt; font-weight: 800; }
     .pkt-step { font-size: 11pt; line-height: 1.6; }
-    .pkt-day-header { font-size: 20pt; }
+
+    .break-inside-avoid { break-inside: avoid; page-break-inside: avoid; }
+    .break-before-page { break-before: page; page-break-before: always; }
+
+    table { page-break-inside: auto; }
+    tr { page-break-inside: avoid; page-break-after: auto; }
 
     @page {
         margin: 0.5in;
