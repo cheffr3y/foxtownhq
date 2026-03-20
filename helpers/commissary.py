@@ -17,7 +17,7 @@ from helpers.recipes import (
     ratio_from_line_quantity,
 )
 from helpers.shared import parse_float_field, to_float
-from helpers.units import convert_cost_per_unit, convert_quantity_between_units, normalize_count_unit, normalize_unit, smart_quantity
+from helpers.units import convert_cost_per_unit, convert_count_units, convert_quantity_between_units, normalize_count_unit, normalize_unit, smart_quantity
 from helpers.venues import get_active_venues
 
 def get_commissary_week_window(week_start_raw=''):
@@ -92,6 +92,29 @@ def resolve_commissary_rollup_quantity(quantity, quantity_unit, production_log=N
         return 0, actual_unit, 'pending'
 
     return requested_qty, requested_unit, 'planned'
+
+
+def resolve_commissary_remaining_quantity(quantity, quantity_unit, production_log=None):
+    planned_qty = to_float(quantity)
+    planned_unit = quantity_unit or 'each'
+    log = production_log or {}
+    actual_qty = to_float(log.get('actual_yield'))
+    actual_unit = clean_menu_text(log.get('actual_yield_unit')) or planned_unit
+    if actual_qty <= 0:
+        return planned_qty, planned_unit
+
+    converted_actual = None
+    if actual_unit == planned_unit:
+        converted_actual = actual_qty
+    else:
+        converted_actual = convert_quantity_between_units(actual_qty, actual_unit, planned_unit)
+        if converted_actual is None:
+            converted_actual = convert_count_units(actual_qty, actual_unit, planned_unit)
+
+    if converted_actual is None:
+        return planned_qty, planned_unit
+
+    return max(planned_qty - converted_actual, 0), planned_unit
 
 def ensure_commissary_tables(cur):
     cur.execute("""
@@ -987,8 +1010,10 @@ def build_commissary_datasets(cur, start_date, end_date, outlet='', unit_system=
 
     standing_items = get_commissary_standing_items(cur, active_only=True)
     logs_by_line_day = {}
+    logs_by_line = defaultdict(dict)
     line_ids = [line.get('id') for order in orders for line in order.get('lines', []) if line.get('id')]
     if line_ids:
+        log_history_start = start_date - timedelta(days=14)
         cur.execute(
             """
             SELECT
@@ -1008,14 +1033,14 @@ def build_commissary_datasets(cur, start_date, end_date, outlet='', unit_system=
             WHERE line_id = ANY(%s)
               AND production_date BETWEEN %s AND %s
         """,
-            (line_ids, start_date, end_date),
+            (line_ids, log_history_start, end_date),
         )
         for log_row in cur.fetchall():
             line_id = log_row.get('line_id')
             log_date = log_row.get('production_date')
             if not line_id or not log_date:
                 continue
-            logs_by_line_day[(line_id, log_date)] = {
+            log_payload = {
                 'id': None,
                 'date': log_date,
                 'assigned_to': clean_menu_text(log_row.get('assigned_to')),
@@ -1029,6 +1054,8 @@ def build_commissary_datasets(cur, start_date, end_date, outlet='', unit_system=
                 'pending_rollup': bool(log_row.get('pending_rollup')),
                 'updated_at': log_row.get('updated_at'),
             }
+            logs_by_line_day[(line_id, log_date)] = log_payload
+            logs_by_line[line_id][log_date] = log_payload
 
     daily_production_days = []
     day_cursor = start_date
@@ -1041,17 +1068,50 @@ def build_commissary_datasets(cur, start_date, end_date, outlet='', unit_system=
                 line_end = line.get('prep_end_date') or line_start
                 if line_end < line_start:
                     line_start, line_end = line_end, line_start
-                if day_cursor < line_start or day_cursor > line_end:
+                production_log = logs_by_line_day.get((line.get('id'), day_cursor)) or {}
+                prior_logs = logs_by_line.get(line.get('id'), {})
+                latest_prior_log = None
+                latest_prior_date = None
+                if prior_logs:
+                    prior_dates = [log_date for log_date in prior_logs.keys() if log_date < day_cursor]
+                    if prior_dates:
+                        latest_prior_date = max(prior_dates)
+                        latest_prior_log = prior_logs.get(latest_prior_date) or None
+
+                carryover_active = bool(
+                    latest_prior_log
+                    and latest_prior_log.get('pending_rollup')
+                    and not latest_prior_log.get('signed_off')
+                )
+                is_within_window = line_start <= day_cursor <= line_end if line_start and line_end else False
+                if not is_within_window and not carryover_active:
                     continue
                 day_total = ((line_end - line_start).days + 1) if line_start and line_end else 1
                 day_index = ((day_cursor - line_start).days + 1) if line_start else 1
-                production_log = logs_by_line_day.get((line.get('id'), day_cursor)) or {}
+                display_quantity = line.get('quantity')
+                display_unit = line.get('quantity_unit') or 'each'
+                carryover_label = ''
+                if carryover_active:
+                    remaining_qty, remaining_unit = resolve_commissary_remaining_quantity(
+                        line.get('quantity'),
+                        line.get('quantity_unit') or 'each',
+                        latest_prior_log,
+                    )
+                    if remaining_qty <= 0:
+                        continue
+                    display_quantity = remaining_qty
+                    display_unit = remaining_unit or display_unit
+                    carryover_label = (
+                        f"Carryover from {latest_prior_date.strftime('%a %-m/%-d')}"
+                        if latest_prior_date else
+                        'Carryover'
+                    )
                 entry_rows.append({
                     'source': source_key,
                     'source_label': source_label_map.get(source_key, 'Outlet Request'),
                     'item_name': line.get('item_name') or line.get('recipe_name') or 'Item',
-                    'quantity': line.get('quantity'),
-                    'quantity_unit': line.get('quantity_unit') or 'each',
+                    'quantity': display_quantity,
+                    'quantity_unit': display_unit,
                     'assigned_to': production_log.get('assigned_to') or '',
                     'made_by': production_log.get('made_by') or '',
                     'tasted_by': production_log.get('tasted_by') or '',
@@ -1070,6 +1130,8 @@ def build_commissary_datasets(cur, start_date, end_date, outlet='', unit_system=
                     'prep_day_index': day_index,
                     'prep_day_total': day_total,
                     'prep_day_label': f"Day {day_index}/{day_total}" if day_total > 1 else '',
+                    'carryover_label': carryover_label,
+                    'is_carryover': bool(carryover_label),
                     'is_standing_suggestion': False,
                 })
 

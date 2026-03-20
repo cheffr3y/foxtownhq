@@ -171,6 +171,7 @@
                                 <div class="cleanup-meta">
                                     {{ entry.quantity }} {{ entry.quantity_unit }} · {{ entry.outlet }} · {{ entry.source_label }}
                                     {% if entry.prep_day_label %} · {{ entry.prep_day_label }}{% endif %}
+                                    {% if entry.carryover_label %} · {{ entry.carryover_label }}{% endif %}
                                 </div>
                             </div>
                             <div><input type="text" name="assigned_to" value="{{ entry.assigned_to or '' }}" class="fhq-input cleanup-input" placeholder="Assigned"></div>
@@ -212,6 +213,7 @@
                                 <div class="log-meta">
                                     {{ entry.quantity }} {{ entry.quantity_unit }} · {{ entry.outlet }} · {{ entry.source_label }}
                                     {% if entry.prep_day_label %} · {{ entry.prep_day_label }}{% endif %}
+                                    {% if entry.carryover_label %} · {{ entry.carryover_label }}{% endif %}
                                 </div>
                             </div>
                             <span class="log-status {% if entry.signed_off %}log-status--done{% else %}log-status--pending{% endif %}" data-status>

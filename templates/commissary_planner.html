@@ -190,7 +190,10 @@
                         <div class="signoff-head">
                             <div>
                                 <div class="signoff-item">{{ entry.item_name }}</div>
-                                <div class="signoff-meta">{{ entry.quantity }} {{ entry.quantity_unit }} · {{ entry.outlet }}</div>
+                                <div class="signoff-meta">
+                                    {{ entry.quantity }} {{ entry.quantity_unit }} · {{ entry.outlet }}
+                                    {% if entry.carryover_label %} · {{ entry.carryover_label }}{% endif %}
+                                </div>
                             </div>
                             <span class="signoff-status {% if entry.signed_off %}signoff-status--done{% else %}signoff-status--pending{% endif %}" data-status>
                                 {% if entry.signed_off %}Done{% else %}Pending{% endif %}
