@@ -260,11 +260,16 @@
                 </div>
             </div>
             <div class="flex items-center gap-2 shrink-0">
-                <div id="globalSearchTrigger" style="height:30px;border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:0 9px;display:flex;align-items:center;gap:8px;color:rgba(255,255,255,0.68);font-size:12px;">
+                <button
+                    id="globalSearchTrigger"
+                    type="button"
+                    aria-label="Open search"
+                    style="height:30px;border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:0 9px;display:flex;align-items:center;gap:8px;color:rgba(255,255,255,0.68);font-size:12px;background:transparent;cursor:pointer;"
+                >
                     <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
                     <span>Search</span>
                     <span style="font-size:10px;line-height:1;padding:3px 5px;border-radius:5px;background:rgba(255,255,255,0.14);color:rgba(255,255,255,0.85);">⌘K</span>
-                </div>
+                </button>
                 <div class="relative" id="userMenu">
                     <button type="button" onclick="document.getElementById('userDropdown').classList.toggle('hidden')"
                         style="width:28px;height:28px;border-radius:999px;background:#2B2826;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;border:none;cursor:pointer;">
@@ -348,13 +353,33 @@
                 return searchInput instanceof HTMLInputElement ? searchInput : null;
             };
 
-            const searchTrigger = document.getElementById('globalSearchTrigger');
-            if (searchTrigger) {
-                searchTrigger.addEventListener('click', () => {
+            const openGlobalSearch = () => {
+                const searchUrl = '{{ url_for("search") }}';
+                const currentPath = window.location.pathname.replace(/\/+$/, '') || '/';
+                const searchPath = new URL(searchUrl, window.location.origin).pathname.replace(/\/+$/, '') || '/';
+
+                if (currentPath === searchPath) {
                     const searchInput = findSearchInput();
                     if (!searchInput) return;
                     searchInput.focus();
                     searchInput.select();
+                    return;
+                }
+
+                const searchInput = findSearchInput();
+                const params = new URLSearchParams();
+                if (searchInput && searchInput.value.trim()) {
+                    params.set('q', searchInput.value.trim());
+                }
+
+                const destination = params.toString() ? `${searchUrl}?${params.toString()}` : searchUrl;
+                window.location.assign(destination);
+            };
+
+            const searchTrigger = document.getElementById('globalSearchTrigger');
+            if (searchTrigger) {
+                searchTrigger.addEventListener('click', () => {
+                    openGlobalSearch();
                 });
             }
 
@@ -372,11 +397,8 @@
                 const searchShortcut = key === 'k' && (event.metaKey || event.ctrlKey) && !event.altKey;
 
                 if (searchShortcut) {
-                    const searchInput = findSearchInput();
-                    if (!searchInput) return;
                     event.preventDefault();
-                    searchInput.focus();
-                    searchInput.select();
+                    openGlobalSearch();
                     return;
                 }
 
@@ -384,11 +406,8 @@
 
                 if (key === '/') {
                     if (isTypingContext(target)) return;
-                    const searchInput = findSearchInput();
-                    if (!searchInput) return;
                     event.preventDefault();
-                    searchInput.focus();
-                    searchInput.select();
+                    openGlobalSearch();
                     return;
                 }
 
