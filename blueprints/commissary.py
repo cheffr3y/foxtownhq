@@ -111,6 +111,7 @@ def build_weekly_review_context(cur, week_start, week_end, selected_outlet=''):
                         'tasted_by': entry.get('tasted_by') or '',
                         'production_notes': entry.get('production_notes') or '',
                         'signed_off': bool(entry.get('signed_off')),
+                        'pending_rollup': bool(entry.get('pending_rollup')),
                         'signed_off_by': entry.get('signed_off_by') or '',
                         'prep_day_label': entry.get('prep_day_label') or '',
                         'notes': entry.get('notes') or '',
@@ -123,23 +124,35 @@ def build_weekly_review_context(cur, week_start, week_end, selected_outlet=''):
 
     items_by_outlet = {}
     incomplete_lines = []
+    deferred_lines = []
     for row in daily_rows:
         outlet_name = row.get('outlet') or DEFAULT_COMMISSARY_OUTLET
         items_by_outlet[outlet_name] = items_by_outlet.get(outlet_name, 0) + 1
         if not row.get('signed_off'):
-            incomplete_lines.append(
-                {
-                    'needed_date': row.get('production_date'),
-                    'outlet': outlet_name,
-                    'item_name': row.get('item_name'),
-                    'assigned_to': row.get('assigned_to') or '',
-                    'made_by': row.get('made_by') or '',
-                    'tasted_by': row.get('tasted_by') or '',
-                    'production_notes': row.get('production_notes') or '',
-                    'notes': row.get('notes') or '',
-                    'prep_day_label': row.get('prep_day_label') or '',
-                }
-            )
+            if row.get('pending_rollup'):
+                deferred_lines.append(
+                    {
+                        'needed_date': row.get('production_date'),
+                        'outlet': outlet_name,
+                        'item_name': row.get('item_name'),
+                        'reason': row.get('production_notes') or '',
+                        'assigned_to': row.get('assigned_to') or '',
+                    }
+                )
+            else:
+                incomplete_lines.append(
+                    {
+                        'needed_date': row.get('production_date'),
+                        'outlet': outlet_name,
+                        'item_name': row.get('item_name'),
+                        'assigned_to': row.get('assigned_to') or '',
+                        'made_by': row.get('made_by') or '',
+                        'tasted_by': row.get('tasted_by') or '',
+                        'production_notes': row.get('production_notes') or '',
+                        'notes': row.get('notes') or '',
+                        'prep_day_label': row.get('prep_day_label') or '',
+                    }
+                )
 
     daily_rows.sort(
         key=lambda row: (
@@ -183,6 +196,7 @@ def build_weekly_review_context(cur, week_start, week_end, selected_outlet=''):
         'items_by_outlet': outlet_rows,
         'daily_rows': daily_rows,
         'incomplete_lines': incomplete_lines,
+        'deferred_lines': deferred_lines,
         'transfers': transfers,
     }
 
@@ -1983,9 +1997,11 @@ def commissary_review_pdf(week_start):
     def p(value, style=base_style, default='-'):
         return Paragraph(html_text(value, default), style)
 
-    def status_p(is_signed):
+    def status_p(is_signed, is_deferred=False):
         if is_signed:
             return Paragraph('<font color="#2E7D32"><b>Signed</b></font>', base_style)
+        if is_deferred:
+            return Paragraph('<font color="#A0590A"><b>Deferred</b></font>', base_style)
         return Paragraph('<font color="#D4432A"><b>Pending</b></font>', base_style)
 
     def draw_footer(pdf_canvas, page_num, total_pages):
@@ -2147,6 +2163,58 @@ def commissary_review_pdf(week_start):
     story.append(outlet_table)
     story.append(Spacer(1, 12))
 
+    deferred_rows = review.get('deferred_lines') or []
+    if deferred_rows:
+        story.append(Paragraph('Deferred', section_title_style))
+        deferred_data = [
+            [
+                Paragraph('Date', table_header_style),
+                Paragraph('Item', table_header_style),
+                Paragraph('Outlet', table_header_style),
+                Paragraph('Reason', table_header_style),
+            ]
+        ]
+        for row in deferred_rows[:15]:
+            deferred_data.append(
+                [
+                    p(fmt_date(row.get('needed_date'))),
+                    p(row.get('item_name') or 'Item'),
+                    p(row.get('outlet') or '-'),
+                    p(row.get('reason') or '-'),
+                ]
+            )
+        deferred_table = Table(
+            deferred_data,
+            colWidths=[content_width * 0.16, content_width * 0.28, content_width * 0.2, content_width * 0.36],
+            repeatRows=1,
+        )
+        deferred_table.setStyle(
+            TableStyle(
+                [
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#FFF8EE')),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#A0590A')),
+                    ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                    ('ROWBACKGROUNDS', (0, 1), (-1, -1), [white, light_gray]),
+                    ('GRID', (0, 0), (-1, -1), 0.4, border_gray),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 5),
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 5),
+                    ('TOPPADDING', (0, 0), (-1, -1), 3.5),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 3.5),
+                ]
+            )
+        )
+        story.append(deferred_table)
+        remaining_deferred = len(deferred_rows) - min(len(deferred_rows), 15)
+        if remaining_deferred > 0:
+            story.append(Spacer(1, 4))
+            story.append(
+                Paragraph(
+                    f'<font color="#A0590A"><b>and {format_number(remaining_deferred)} more deferred items...</b></font>',
+                    subtle_note_style,
+                )
+            )
+        story.append(Spacer(1, 12))
+
     story.append(Paragraph('Issues / Flags', section_title_style))
     incomplete_rows = review.get('incomplete_lines') or []
     if incomplete_rows:
@@ -2279,7 +2347,7 @@ def commissary_review_pdf(week_start):
                     p(qty_label(row)),
                     p(row.get('made_by') or '-'),
                     p(row.get('tasted_by') or '-'),
-                    status_p(bool(row.get('signed_off'))),
+                    status_p(bool(row.get('signed_off')), bool(row.get('pending_rollup'))),
                     p(notes),
                 ]
             )

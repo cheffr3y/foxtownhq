@@ -8,7 +8,7 @@
     .comm-shell { padding-bottom: 3rem; }
     .controls-grid, .signoff-tools, .signoff-grid, .signoff-cards { display: grid; gap: 0.7rem; }
     .controls-grid { grid-template-columns: repeat(1, minmax(0, 1fr)); align-items: end; }
-    .manage-row, .week-pills, .section-head, .signoff-head, .signoff-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+    .manage-row, .week-pills, .section-head, .signoff-head, .signoff-actions, .signoff-action-group { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
     .section-head, .signoff-head { justify-content: space-between; margin-bottom: 0.8rem; }
     .table-wrap { overflow-x: auto; }
     .production-table { min-width: 620px; }
@@ -26,8 +26,15 @@
     .signoff-meta, .empty-note { font-size: 0.82rem; color: #8A8580; }
     .signoff-status { min-width: 104px; padding: 0.28rem 0.6rem; }
     .signoff-status--pending { background: #FFF8EE; color: #A0590A; border-color: #F0D9A0; }
+    .signoff-status--deferred { background: #FFF8EE; color: #A0590A; border-color: #F0D9A0; }
     .signoff-actions, .signoff-grid { margin-top: 0.6rem; }
     .signoff-notes { min-height: 76px; resize: vertical; }
+    .signoff-detail { display: none; margin-top: 0.6rem; }
+    .signoff-detail.is-open { display: block; }
+    .signoff-pending-row { display: none; margin-top: 0.6rem; }
+    .signoff-pending-row.is-open { display: block; }
+    .signoff-field-error { font-size: 0.75rem; color: #C0612B; margin-top: 0.2rem; display: none; }
+    .signoff-field-error.is-visible { display: block; }
     .save-state.is-saving, .week-indicator.is-partial { color: #A0590A; }
     .save-state.is-error { color: #8B2020; }
     .save-state.is-saved, .week-indicator.is-complete { color: #2B7A30; }
@@ -36,7 +43,7 @@
     .week-row:first-child { border-top: none; }
     .week-indicator { justify-self: end; font-size: 0.9rem; font-weight: 700; }
     .week-indicator.is-empty { color: #A09A94; }
-    @media (min-width: 900px) { .signoff-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+    @media (min-width: 900px) { .signoff-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
     @media (min-width: 980px) {
         .controls-grid { grid-template-columns: minmax(180px, 0.8fr) minmax(180px, 0.8fr) auto auto; }
         .signoff-tools { grid-template-columns: auto minmax(180px, 0.9fr) auto; align-items: center; }
@@ -180,7 +187,7 @@
                 {% if entries %}
                 <div class="signoff-cards">
                     {% for entry in entries %}
-                    <form method="POST" action="{{ url_for('commissary_production_log_update', line_id=entry.line_id) }}" class="fhq-card p-4" data-log-form data-day="{{ day.date_iso }}">
+                    <form method="POST" action="{{ url_for('commissary_production_log_update', line_id=entry.line_id) }}" class="fhq-card p-4" data-log-form data-day="{{ day.date_iso }}" data-default-yield-unit="{{ entry.actual_yield_unit or entry.quantity_unit or '' }}" data-initial-mode="default" data-start-mode="{{ 'pending' if entry.pending_rollup else 'default' }}">
                         <input type="hidden" name="production_date" value="{{ day.date_iso }}">
                         <input type="hidden" name="ajax" value="1">
                         <input type="hidden" name="signed_off_by" value="{{ current_user_name }}">
@@ -195,25 +202,48 @@
                                     {% if entry.carryover_label %} · {{ entry.carryover_label }}{% endif %}
                                 </div>
                             </div>
-                            <span class="signoff-status {% if entry.signed_off %}signoff-status--done{% else %}signoff-status--pending{% endif %}" data-status>
-                                {% if entry.signed_off %}Done{% else %}Pending{% endif %}
+                            <span
+                                class="signoff-status {% if entry.signed_off %}signoff-status--done{% elif entry.pending_rollup %}signoff-status--deferred{% else %}signoff-status--pending{% endif %}"
+                                data-status
+                            >
+                                {% if entry.signed_off %}Done{% elif entry.pending_rollup %}Deferred{% else %}Pending{% endif %}
                             </span>
                         </div>
 
                         <div class="signoff-actions">
-                            <button type="button" class="fhq-btn fhq-btn--primary" data-quick-signoff>One-Tap Sign-Off</button>
-                            <button type="button" class="fhq-btn fhq-btn--outline" data-mark-pending>Mark Pending</button>
+                            <div class="signoff-action-group" data-default-actions {% if entry.pending_rollup %}hidden{% endif %}>
+                                <button type="button" class="fhq-btn fhq-btn--primary" data-expand-signoff>Sign Off</button>
+                                <button type="button" class="fhq-btn fhq-btn--outline" data-mark-pending>Pending</button>
+                            </div>
+                            <div class="signoff-action-group" data-edit-actions {% if not entry.pending_rollup %}hidden{% endif %}>
+                                <button type="button" class="fhq-btn fhq-btn--primary" data-save-signoff {% if entry.pending_rollup %}hidden{% endif %}>Save Sign-Off</button>
+                                <button type="button" class="fhq-btn fhq-btn--outline" data-save-pending {% if not entry.pending_rollup %}hidden{% endif %}>Save Pending</button>
+                                <button type="button" class="fhq-btn fhq-btn--outline" data-cancel-edit>Cancel</button>
+                            </div>
                             <span class="save-state" data-save-state>Not saved</span>
                         </div>
 
-                        <div class="signoff-grid">
-                            <input type="text" name="made_by" value="{{ entry.made_by or '' }}" class="fhq-input" placeholder="Made by">
-                            <input type="text" name="tasted_by" value="{{ entry.tasted_by or '' }}" class="fhq-input" placeholder="Tasted by">
-                            <input type="number" step="0.01" min="0" name="actual_yield" value="{{ entry.actual_yield or '' }}" class="fhq-input" placeholder="Actual yield">
-                            <input type="text" name="actual_yield_unit" value="{{ entry.actual_yield_unit or entry.quantity_unit or '' }}" class="fhq-input" placeholder="Yield unit">
-                            <textarea name="production_notes" class="fhq-input signoff-notes" placeholder="Notes">{{ entry.production_notes or '' }}</textarea>
+                        <div class="signoff-detail {% if entry.pending_rollup %}is-open{% endif %}" data-signoff-detail>
+                            <div class="signoff-grid" data-signoff-grid {% if entry.pending_rollup %}hidden{% endif %}>
+                                <div>
+                                    <input type="text" name="made_by" value="{{ entry.made_by or '' }}" class="fhq-input" placeholder="Made by">
+                                    <div class="signoff-field-error" data-error-for="made_by"></div>
+                                </div>
+                                <div>
+                                    <input type="text" name="tasted_by" value="{{ entry.tasted_by or '' }}" class="fhq-input" placeholder="Tasted by">
+                                </div>
+                                <div>
+                                    <input type="number" step="0.01" min="0" name="actual_yield" value="{{ entry.actual_yield or '' }}" class="fhq-input" placeholder="Actual yield">
+                                </div>
+                                <div>
+                                    <input type="text" name="actual_yield_unit" value="{{ entry.actual_yield_unit or entry.quantity_unit or '' }}" class="fhq-input" placeholder="Yield unit">
+                                </div>
+                            </div>
+                            <div class="signoff-pending-row {% if entry.pending_rollup %}is-open{% endif %}" data-pending-row>
+                                <textarea name="production_notes" class="fhq-input signoff-notes" placeholder="Notes or defer reason">{{ entry.production_notes or '' }}</textarea>
+                                <div class="signoff-field-error" data-error-for="production_notes"></div>
+                            </div>
                         </div>
-                        <div class="empty-note mt-2">Pending items stop counting in weekly rollups unless actual yield is entered.</div>
                     </form>
                     {% endfor %}
                 </div>
@@ -292,12 +322,24 @@
             if (tabInput) tabInput.value = tabName;
         }
 
-        function setStatus(form, done) {
+        function setStatus(form) {
             const badge = form.querySelector('[data-status]');
             if (!badge) return;
-            badge.classList.toggle('signoff-status--done', !!done);
-            badge.classList.toggle('signoff-status--pending', !done);
-            badge.textContent = done ? 'Done' : 'Pending';
+            const signedInput = form.querySelector('[data-role="signed-off"]');
+            const pendingRollupInput = form.querySelector('[data-role="pending-rollup"]');
+            const isSigned = !!(signedInput && signedInput.checked);
+            const isDeferred = !!(pendingRollupInput && pendingRollupInput.value === '1');
+            badge.classList.remove('signoff-status--done', 'signoff-status--pending', 'signoff-status--deferred');
+            if (isSigned) {
+                badge.classList.add('signoff-status--done');
+                badge.textContent = 'Done';
+            } else if (isDeferred) {
+                badge.classList.add('signoff-status--deferred');
+                badge.textContent = 'Deferred';
+            } else {
+                badge.classList.add('signoff-status--pending');
+                badge.textContent = 'Pending';
+            }
         }
 
         function setSaveState(form, text, toneClass) {
@@ -380,8 +422,10 @@
                     throw new Error(data.error || 'Save failed');
                 }
 
+                const pendingRollupInput = form.querySelector('[data-role="pending-rollup"]');
                 if (signedInput) signedInput.checked = !!data.signed_off;
-                setStatus(form, signedInput && signedInput.checked);
+                if (pendingRollupInput) pendingRollupInput.value = data.pending_rollup ? '1' : '0';
+                setStatus(form);
                 refreshProgress();
                 setSaveState(form, 'Saved', 'is-saved');
                 return true;
@@ -391,57 +435,145 @@
             }
         }
 
-        function queueSave(form, delayMs) {
-            if (form._saveTimer) {
-                window.clearTimeout(form._saveTimer);
-            }
-            form._saveTimer = window.setTimeout(() => {
-                saveForm(form);
-            }, delayMs || 450);
+        function snapshotFormState(form, mode) {
+            form.dataset.initialMode = mode || 'default';
+            Array.from(form.elements).forEach((field) => {
+                if (!(field instanceof HTMLElement) || !field.name) return;
+                if (field instanceof HTMLInputElement && field.type === 'checkbox') {
+                    field.dataset.initialChecked = field.checked ? '1' : '0';
+                } else {
+                    field.dataset.initialValue = field.value || '';
+                }
+            });
         }
 
-        function applyQuickSignoff(form) {
-            const signedInput = form.querySelector('[data-role="signed-off"]');
-            const pendingRollupInput = form.querySelector('[data-role="pending-rollup"]');
-            const madeByInput = form.querySelector('input[name="made_by"]');
-            const tastedByInput = form.querySelector('input[name="tasted_by"]');
+        function restoreFormState(form) {
+            Array.from(form.elements).forEach((field) => {
+                if (!(field instanceof HTMLElement) || !field.name) return;
+                if (field instanceof HTMLInputElement && field.type === 'checkbox') {
+                    field.checked = field.dataset.initialChecked === '1';
+                } else if (Object.prototype.hasOwnProperty.call(field.dataset, 'initialValue')) {
+                    field.value = field.dataset.initialValue || '';
+                }
+            });
+        }
 
-            if (signedInput) signedInput.checked = true;
-            if (pendingRollupInput) pendingRollupInput.value = '0';
-            if (madeByInput && !madeByInput.value.trim()) madeByInput.value = currentUser;
+        function showFieldError(form, name, message) {
+            const error = form.querySelector(`[data-error-for="${name}"]`);
+            if (!error) return;
+            error.textContent = message;
+            error.classList.add('is-visible');
+        }
+
+        function clearErrors(form) {
+            Array.from(form.querySelectorAll('[data-error-for]')).forEach((error) => {
+                error.textContent = '';
+                error.classList.remove('is-visible');
+            });
+        }
+
+        function setFormMode(form, mode) {
+            const detail = form.querySelector('[data-signoff-detail]');
+            const signoffGrid = form.querySelector('[data-signoff-grid]');
+            const pendingRow = form.querySelector('[data-pending-row]');
+            const defaultActions = form.querySelector('[data-default-actions]');
+            const editActions = form.querySelector('[data-edit-actions]');
+            const saveSignoffBtn = form.querySelector('[data-save-signoff]');
+            const savePendingBtn = form.querySelector('[data-save-pending]');
+
+            form.dataset.mode = mode;
+            if (detail) detail.classList.toggle('is-open', mode !== 'default');
+            if (signoffGrid) signoffGrid.hidden = mode === 'pending' || mode === 'default';
+            if (pendingRow) pendingRow.classList.toggle('is-open', mode !== 'default');
+            if (defaultActions) defaultActions.hidden = mode !== 'default';
+            if (editActions) editActions.hidden = mode === 'default';
+            if (saveSignoffBtn) saveSignoffBtn.hidden = mode !== 'signoff';
+            if (savePendingBtn) savePendingBtn.hidden = mode !== 'pending';
+            clearErrors(form);
+            setStatus(form);
+        }
+
+        function expandSignoff(form) {
+            const tastedByInput = form.querySelector('input[name="tasted_by"]');
+            const actualYieldUnitInput = form.querySelector('input[name="actual_yield_unit"]');
+            const madeByInput = form.querySelector('input[name="made_by"]');
+
+            setFormMode(form, 'signoff');
             if (tastedByInput && !tastedByInput.value.trim()) tastedByInput.value = currentUser;
-            setStatus(form, true);
+            if (actualYieldUnitInput && !actualYieldUnitInput.value.trim()) {
+                actualYieldUnitInput.value = form.dataset.defaultYieldUnit || '';
+            }
+            if (madeByInput) madeByInput.focus();
         }
 
         function bindForm(form) {
-            const quickBtn = form.querySelector('[data-quick-signoff]');
+            const quickBtn = form.querySelector('[data-expand-signoff]');
             const pendingBtn = form.querySelector('[data-mark-pending]');
+            const saveSignoffBtn = form.querySelector('[data-save-signoff]');
+            const savePendingBtn = form.querySelector('[data-save-pending]');
+            const cancelBtn = form.querySelector('[data-cancel-edit]');
             const signedInput = form.querySelector('[data-role="signed-off"]');
             const pendingRollupInput = form.querySelector('[data-role="pending-rollup"]');
+            const madeByInput = form.querySelector('input[name="made_by"]');
+            const notesInput = form.querySelector('textarea[name="production_notes"]');
 
-            setStatus(form, signedInput && signedInput.checked);
-
-            form.addEventListener('input', (event) => {
-                const target = event.target;
-                if (!(target instanceof HTMLElement)) return;
-                if (target.matches('textarea, input[type="text"], input[type="number"]')) {
-                    queueSave(form, 520);
-                }
-            });
+            snapshotFormState(form, form.dataset.initialMode || 'default');
+            setFormMode(form, form.dataset.startMode || form.dataset.initialMode || 'default');
 
             if (quickBtn) {
-                quickBtn.addEventListener('click', async () => {
-                    applyQuickSignoff(form);
-                    await saveForm(form);
+                quickBtn.addEventListener('click', () => {
+                    expandSignoff(form);
                 });
             }
 
             if (pendingBtn) {
-                pendingBtn.addEventListener('click', async () => {
+                pendingBtn.addEventListener('click', () => {
                     if (signedInput) signedInput.checked = false;
                     if (pendingRollupInput) pendingRollupInput.value = '1';
-                    setStatus(form, false);
-                    await saveForm(form);
+                    setFormMode(form, 'pending');
+                });
+            }
+
+            if (saveSignoffBtn) {
+                saveSignoffBtn.addEventListener('click', async () => {
+                    clearErrors(form);
+                    if (madeByInput && !madeByInput.value.trim()) {
+                        showFieldError(form, 'made_by', 'Made by is required.');
+                        madeByInput.focus();
+                        return;
+                    }
+                    if (signedInput) signedInput.checked = true;
+                    if (pendingRollupInput) pendingRollupInput.value = '0';
+                    const saved = await saveForm(form);
+                    if (saved) {
+                        snapshotFormState(form, 'default');
+                        setFormMode(form, 'default');
+                    }
+                });
+            }
+
+            if (savePendingBtn) {
+                savePendingBtn.addEventListener('click', async () => {
+                    clearErrors(form);
+                    if (!notesInput || !notesInput.value.trim()) {
+                        showFieldError(form, 'production_notes', 'Reason required to mark as deferred.');
+                        if (notesInput) notesInput.focus();
+                        return;
+                    }
+                    if (signedInput) signedInput.checked = false;
+                    if (pendingRollupInput) pendingRollupInput.value = '1';
+                    const saved = await saveForm(form);
+                    if (saved) {
+                        snapshotFormState(form, 'default');
+                        setFormMode(form, 'pending');
+                    }
+                });
+            }
+
+            if (cancelBtn) {
+                cancelBtn.addEventListener('click', () => {
+                    restoreFormState(form);
+                    setFormMode(form, form.dataset.initialMode || 'default');
                 });
             }
         }
