@@ -20,7 +20,7 @@ from helpers.recipes import (
     ratio_from_line_quantity,
 )
 from helpers.shared import generate_id, parse_float_field, to_float
-from helpers.units import convert_cost_per_unit, convert_quantity_between_units, normalize_unit, smart_quantity
+from helpers.units import convert_cost_per_unit, convert_quantity_between_units, normalize_count_unit, normalize_unit, smart_quantity
 
 def get_banquet_date_window(start_raw, end_raw):
     today = date.today()
@@ -710,7 +710,17 @@ def resolve_or_create_banquet_menu_item(cur, line, venue_id='', is_event_only=Fa
         ))
     return menu_item_id
 
-def upsert_menu_item_recipe_link(cur, menu_item_id, recipe_id):
+def resolve_banquet_recipe_link_unit(cur, recipe_id, preferred_unit=None):
+    candidate_unit = normalize_unit(preferred_unit) or normalize_count_unit(preferred_unit) or clean_menu_text(preferred_unit)
+    if candidate_unit:
+        return candidate_unit
+
+    recipe = get_recipe_by_id(cur, recipe_id) if recipe_id else None
+    recipe_unit = normalize_unit((recipe or {}).get('yield_unit')) or normalize_count_unit((recipe or {}).get('yield_unit')) or clean_menu_text((recipe or {}).get('yield_unit'))
+    return recipe_unit or 'serving'
+
+
+def upsert_menu_item_recipe_link(cur, menu_item_id, recipe_id, preferred_unit=None):
     if not menu_item_id or not recipe_id:
         return
     cur.execute("""
@@ -722,10 +732,12 @@ def upsert_menu_item_recipe_link(cur, menu_item_id, recipe_id):
     """, (menu_item_id, recipe_id))
     if cur.fetchone():
         return
+
+    link_unit = resolve_banquet_recipe_link_unit(cur, recipe_id, preferred_unit=preferred_unit)
     cur.execute("""
         INSERT INTO banquet_menu_item_recipes (menu_item_id, recipe_id, quantity, unit)
-        VALUES (%s, %s, 1, 'serving')
-    """, (menu_item_id, recipe_id))
+        VALUES (%s, %s, 1, %s)
+    """, (menu_item_id, recipe_id, link_unit))
 
 def make_unique_banquet_menu_item_name(cur, base_name, venue_id):
     candidate = clean_menu_text(base_name) or 'Custom Menu Item'
@@ -1078,9 +1090,11 @@ def fetch_banquet_event_lines(cur, start_date, end_date, venue_id=''):
         return []
     has_base_yield = db_column_exists(cur, 'public.banquet_menu_items', 'base_yield_qty') and db_column_exists(cur, 'public.banquet_menu_items', 'base_yield_unit')
     has_choice_selections_column = db_column_exists(cur, 'public.banquet_event_menu_items', 'choice_selections')
+    has_event_only_column = db_column_exists(cur, 'public.banquet_menu_items', 'is_event_only')
     base_yield_qty_sql = "mi.base_yield_qty" if has_base_yield else "1::numeric"
     base_yield_unit_sql = "mi.base_yield_unit" if has_base_yield else "'each'"
     choice_selections_sql = "emi.choice_selections AS line_choice_selections" if has_choice_selections_column else "NULL::text AS line_choice_selections"
+    event_only_sql = "mi.is_event_only AS is_event_only" if has_event_only_column else "FALSE AS is_event_only"
     params = [start_date, end_date, list(BANQUET_ACTIVE_STATUSES)]
     venue_filter_sql = ""
     if venue_id:
@@ -1112,6 +1126,7 @@ def fetch_banquet_event_lines(cur, start_date, end_date, venue_id=''):
                emi.quantity_unit,
                emi.notes AS line_notes,
                {choice_selections_sql},
+               {event_only_sql},
                r.name AS recipe_name,
                r.category AS recipe_category,
                r.yield_qty,
@@ -1134,7 +1149,10 @@ def fetch_banquet_event_lines(cur, start_date, end_date, venue_id=''):
           {venue_filter_sql}
         ORDER BY e.event_date, e.name, COALESCE(emi.sort_order, 0), emi.id
     """, params)
-    return cur.fetchall()
+    rows = cur.fetchall()
+    for row in rows:
+        row['is_event_only'] = bool(row.get('is_event_only', False))
+    return rows
 
 def build_banquet_datasets(cur, start_date, end_date, venue_id='', unit_system='imperial'):
     rows = fetch_banquet_event_lines(cur, start_date, end_date, venue_id)
@@ -1225,13 +1243,26 @@ def build_banquet_datasets(cur, start_date, end_date, venue_id='', unit_system='
 
         line_recipes = []
         for component in menu_item_recipe_components.get(effective_menu_item_id, []):
+            component_unit = component.get('unit') or component.get('yield_unit')
+            line_quantity_unit = normalize_unit(row.get('quantity_unit')) or normalize_count_unit(row.get('quantity_unit')) or clean_menu_text(row.get('quantity_unit'))
+            if (
+                row.get('is_event_only')
+                and normalize_recipe_type(component.get('recipe_type')) == 'batch'
+                and to_float(component.get('quantity')) == 1
+                and normalize_count_unit(component_unit) == 'each'
+                and line_quantity_unit
+                and not normalize_count_unit(line_quantity_unit)
+            ):
+                # Older event-only links stored batch recipes as "1 serving", which turns
+                # output quantities like "4 fl oz" into whole-batch multipliers.
+                component_unit = line_quantity_unit
             line_recipes.append({
                 'id': component.get('recipe_id'),
                 'name': component.get('recipe_name'),
                 'yield_qty': component.get('yield_qty'),
                 'yield_unit': component.get('yield_unit'),
                 'quantity': to_float(component.get('quantity')),
-                'unit': component.get('unit') or component.get('yield_unit'),
+                'unit': component_unit,
                 'recipe_type': component.get('recipe_type'),
                 'choice_group': component.get('choice_group'),
                 'choice_weight_percent': to_float(component.get('choice_weight_percent'))
@@ -1308,6 +1339,7 @@ def build_banquet_datasets(cur, start_date, end_date, venue_id='', unit_system='
             'quantity_unit': row.get('quantity_unit') or row.get('yield_unit') or 'each',
             'base_yield_qty': to_float(row.get('base_yield_qty')) or 1,
             'base_yield_unit': row.get('base_yield_unit') or 'each',
+            'is_event_only': bool(row.get('is_event_only')),
             'notes': row.get('line_notes'),
             'choice_selections': line_choice_selections,
             'recipe': line_recipes[0] if line_recipes else recipe,

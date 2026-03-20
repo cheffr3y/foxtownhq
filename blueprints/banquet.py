@@ -417,7 +417,12 @@ def banquet_event_new():
                             )
                             if not menu_item_id:
                                 continue
-                            upsert_menu_item_recipe_link(cur, menu_item_id, recipe_id)
+                            upsert_menu_item_recipe_link(
+                                cur,
+                                menu_item_id,
+                                recipe_id,
+                                preferred_unit=line.get('quantity_unit') if line.get('is_custom_item') else None
+                            )
 
                         insert_banquet_event_menu_line(
                             cur,
@@ -697,7 +702,12 @@ def banquet_event_edit(event_id):
                             )
                             if not menu_item_id:
                                 continue
-                            upsert_menu_item_recipe_link(cur, menu_item_id, recipe_id)
+                            upsert_menu_item_recipe_link(
+                                cur,
+                                menu_item_id,
+                                recipe_id,
+                                preferred_unit=line.get('quantity_unit') if line.get('is_custom_item') else None
+                            )
 
                         insert_banquet_event_menu_line(
                             cur,
