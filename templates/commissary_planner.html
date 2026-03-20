@@ -36,7 +36,7 @@
     .week-row:first-child { border-top: none; }
     .week-indicator { justify-self: end; font-size: 0.9rem; font-weight: 700; }
     .week-indicator.is-empty { color: #A09A94; }
-    @media (min-width: 900px) { .signoff-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+    @media (min-width: 900px) { .signoff-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
     @media (min-width: 980px) {
         .controls-grid { grid-template-columns: minmax(180px, 0.8fr) minmax(180px, 0.8fr) auto auto; }
         .signoff-tools { grid-template-columns: auto minmax(180px, 0.9fr) auto; align-items: center; }
@@ -184,6 +184,7 @@
                         <input type="hidden" name="production_date" value="{{ day.date_iso }}">
                         <input type="hidden" name="ajax" value="1">
                         <input type="hidden" name="signed_off_by" value="{{ current_user_name }}">
+                        <input type="hidden" name="pending_rollup" value="{{ 1 if entry.pending_rollup else 0 }}" data-role="pending-rollup">
                         <input type="checkbox" name="signed_off" value="1" data-role="signed-off" class="sr-only" {% if entry.signed_off %}checked{% endif %}>
 
                         <div class="signoff-head">
@@ -205,8 +206,11 @@
                         <div class="signoff-grid">
                             <input type="text" name="made_by" value="{{ entry.made_by or '' }}" class="fhq-input" placeholder="Made by">
                             <input type="text" name="tasted_by" value="{{ entry.tasted_by or '' }}" class="fhq-input" placeholder="Tasted by">
+                            <input type="number" step="0.01" min="0" name="actual_yield" value="{{ entry.actual_yield or '' }}" class="fhq-input" placeholder="Actual yield">
+                            <input type="text" name="actual_yield_unit" value="{{ entry.actual_yield_unit or entry.quantity_unit or '' }}" class="fhq-input" placeholder="Yield unit">
                             <textarea name="production_notes" class="fhq-input signoff-notes" placeholder="Notes">{{ entry.production_notes or '' }}</textarea>
                         </div>
+                        <div class="empty-note mt-2">Pending items stop counting in weekly rollups unless actual yield is entered.</div>
                     </form>
                     {% endfor %}
                 </div>
@@ -395,10 +399,12 @@
 
         function applyQuickSignoff(form) {
             const signedInput = form.querySelector('[data-role="signed-off"]');
+            const pendingRollupInput = form.querySelector('[data-role="pending-rollup"]');
             const madeByInput = form.querySelector('input[name="made_by"]');
             const tastedByInput = form.querySelector('input[name="tasted_by"]');
 
             if (signedInput) signedInput.checked = true;
+            if (pendingRollupInput) pendingRollupInput.value = '0';
             if (madeByInput && !madeByInput.value.trim()) madeByInput.value = currentUser;
             if (tastedByInput && !tastedByInput.value.trim()) tastedByInput.value = currentUser;
             setStatus(form, true);
@@ -408,13 +414,14 @@
             const quickBtn = form.querySelector('[data-quick-signoff]');
             const pendingBtn = form.querySelector('[data-mark-pending]');
             const signedInput = form.querySelector('[data-role="signed-off"]');
+            const pendingRollupInput = form.querySelector('[data-role="pending-rollup"]');
 
             setStatus(form, signedInput && signedInput.checked);
 
             form.addEventListener('input', (event) => {
                 const target = event.target;
                 if (!(target instanceof HTMLElement)) return;
-                if (target.matches('textarea, input[type="text"]')) {
+                if (target.matches('textarea, input[type="text"], input[type="number"]')) {
                     queueSave(form, 520);
                 }
             });
@@ -429,6 +436,7 @@
             if (pendingBtn) {
                 pendingBtn.addEventListener('click', async () => {
                     if (signedInput) signedInput.checked = false;
+                    if (pendingRollupInput) pendingRollupInput.value = '1';
                     setStatus(form, false);
                     await saveForm(form);
                 });

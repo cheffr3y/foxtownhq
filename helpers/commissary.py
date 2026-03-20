@@ -73,6 +73,26 @@ def normalize_commissary_source(source):
     valid_sources = {choice[0] for choice in COMMISSARY_SOURCE_CHOICES}
     return raw if raw in valid_sources else 'outlet_request'
 
+
+def resolve_commissary_rollup_quantity(quantity, quantity_unit, production_log=None):
+    requested_qty = to_float(quantity)
+    requested_unit = quantity_unit or 'each'
+    log = production_log or {}
+    actual_qty = to_float(log.get('actual_yield'))
+    actual_unit = clean_menu_text(log.get('actual_yield_unit')) or requested_unit
+
+    if log.get('signed_off'):
+        if actual_qty > 0:
+            return actual_qty, actual_unit, 'actual'
+        return requested_qty, requested_unit, 'planned'
+
+    if log.get('pending_rollup'):
+        if actual_qty > 0:
+            return actual_qty, actual_unit, 'actual'
+        return 0, actual_unit, 'pending'
+
+    return requested_qty, requested_unit, 'planned'
+
 def ensure_commissary_tables(cur):
     cur.execute("""
         CREATE TABLE IF NOT EXISTS commissary_orders (
@@ -212,6 +232,7 @@ def ensure_commissary_tables(cur):
     cur.execute("ALTER TABLE commissary_production_logs ADD COLUMN IF NOT EXISTS signed_off_at TIMESTAMP")
     cur.execute("ALTER TABLE commissary_production_logs ADD COLUMN IF NOT EXISTS actual_yield NUMERIC")
     cur.execute("ALTER TABLE commissary_production_logs ADD COLUMN IF NOT EXISTS actual_yield_unit TEXT")
+    cur.execute("ALTER TABLE commissary_production_logs ADD COLUMN IF NOT EXISTS pending_rollup BOOLEAN NOT NULL DEFAULT FALSE")
     cur.execute("ALTER TABLE commissary_production_logs ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
     cur.execute("ALTER TABLE commissary_production_logs ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
     cur.execute("ALTER TABLE commissary_production_logs ALTER COLUMN order_id DROP NOT NULL")
@@ -230,6 +251,11 @@ def ensure_commissary_tables(cur):
         UPDATE commissary_production_logs
         SET production_notes = notes
         WHERE COALESCE(TRIM(production_notes), '') = '' AND COALESCE(TRIM(notes), '') <> ''
+    """)
+    cur.execute("""
+        UPDATE commissary_production_logs
+        SET pending_rollup = FALSE
+        WHERE pending_rollup IS NULL
     """)
     cur.execute(
         """
@@ -572,6 +598,7 @@ def fetch_commissary_order_rows(cur, start_date, end_date, outlet=''):
                COALESCE(pl.production_notes, pl.notes) AS production_notes,
                pl.actual_yield,
                pl.actual_yield_unit,
+               COALESCE(pl.pending_rollup, FALSE) AS production_pending_rollup,
                pl.updated_at AS production_updated_at,
         """
         production_join_sql = """
@@ -591,6 +618,7 @@ def fetch_commissary_order_rows(cur, start_date, end_date, outlet=''):
                NULL::TEXT AS production_notes,
                NULL::NUMERIC AS actual_yield,
                NULL::TEXT AS actual_yield_unit,
+               FALSE AS production_pending_rollup,
                NULL::TIMESTAMP AS production_updated_at,
         """
         production_join_sql = ""
@@ -688,6 +716,7 @@ def build_commissary_datasets(cur, start_date, end_date, outlet='', unit_system=
             'notes': clean_menu_text(row.get('production_notes')),
             'actual_yield': to_float(row.get('actual_yield')),
             'actual_yield_unit': row.get('actual_yield_unit'),
+            'pending_rollup': bool(row.get('production_pending_rollup')),
             'updated_at': row.get('production_updated_at')
         }
         has_production_log = any([
@@ -697,8 +726,15 @@ def build_commissary_datasets(cur, start_date, end_date, outlet='', unit_system=
             production_log.get('signed_off_by'),
             production_log.get('tasted_by'),
             production_log.get('notes'),
-            production_log.get('actual_yield')
+            production_log.get('actual_yield'),
+            production_log.get('pending_rollup'),
         ])
+
+        rollup_quantity, rollup_quantity_unit, rollup_basis = resolve_commissary_rollup_quantity(
+            quantity,
+            quantity_unit,
+            production_log,
+        )
 
         line = {
             'id': row.get('line_id'),
@@ -708,6 +744,9 @@ def build_commissary_datasets(cur, start_date, end_date, outlet='', unit_system=
             'recipe_type': normalize_recipe_type(row.get('recipe_type')),
             'quantity': quantity,
             'quantity_unit': quantity_unit,
+            'rollup_quantity': rollup_quantity,
+            'rollup_quantity_unit': rollup_quantity_unit,
+            'rollup_basis': rollup_basis,
             'prep_start_date': row.get('prep_start_date') or orders_map[order_id].get('needed_date'),
             'prep_end_date': row.get('prep_end_date') or row.get('prep_start_date') or orders_map[order_id].get('needed_date'),
             'notes': row.get('line_notes'),
@@ -729,19 +768,19 @@ def build_commissary_datasets(cur, start_date, end_date, outlet='', unit_system=
             }
             ratio = ratio_from_line_quantity(
                 {
-                    'quantity': quantity,
-                    'quantity_unit': quantity_unit
+                    'quantity': rollup_quantity,
+                    'quantity_unit': rollup_quantity_unit
                 },
                 recipe
             )
             line['ratio'] = ratio
             line_cost_total = get_recipe_total_cost(cur, recipe_id, unit_system, apply_q_factor=True) * ratio
             line['estimated_cost_total'] = line_cost_total
-            line['estimated_cost_per_unit'] = line_cost_total / quantity if quantity > 0 else None
+            line['estimated_cost_per_unit'] = line_cost_total / rollup_quantity if rollup_quantity > 0 else None
 
             recipe_yield_qty = to_float(recipe.get('yield_qty'))
             required_output_qty = (recipe_yield_qty * ratio) if recipe_yield_qty > 0 else ratio
-            required_output_unit = recipe.get('yield_unit') or quantity_unit
+            required_output_unit = recipe.get('yield_unit') or rollup_quantity_unit
             root_key = (recipe_id, required_output_unit)
             batch_usage_qty[root_key] = batch_usage_qty.get(root_key, 0) + required_output_qty
             batch_usage_orders[recipe_id].add(order_id)
@@ -963,6 +1002,7 @@ def build_commissary_datasets(cur, start_date, end_date, outlet='', unit_system=
                 COALESCE(production_notes, notes) AS production_notes,
                 actual_yield,
                 actual_yield_unit,
+                COALESCE(pending_rollup, FALSE) AS pending_rollup,
                 updated_at
             FROM commissary_production_logs
             WHERE line_id = ANY(%s)
@@ -986,6 +1026,7 @@ def build_commissary_datasets(cur, start_date, end_date, outlet='', unit_system=
                 'notes': clean_menu_text(log_row.get('production_notes')),
                 'actual_yield': to_float(log_row.get('actual_yield')),
                 'actual_yield_unit': log_row.get('actual_yield_unit'),
+                'pending_rollup': bool(log_row.get('pending_rollup')),
                 'updated_at': log_row.get('updated_at'),
             }
 
@@ -1018,6 +1059,7 @@ def build_commissary_datasets(cur, start_date, end_date, outlet='', unit_system=
                     'production_notes': production_log.get('notes') or '',
                     'actual_yield': production_log.get('actual_yield') or '',
                     'actual_yield_unit': production_log.get('actual_yield_unit') or (line.get('quantity_unit') or 'each'),
+                    'pending_rollup': bool(production_log.get('pending_rollup')),
                     'signed_off': bool(production_log.get('signed_off')),
                     'outlet': order.get('outlet') or DEFAULT_COMMISSARY_OUTLET,
                     'order_id': order.get('id'),

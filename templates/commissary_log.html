@@ -163,6 +163,7 @@
                         <form method="POST" action="{{ url_for('commissary_production_log_update', line_id=entry.line_id) }}" class="cleanup-row" data-log-form>
                             <input type="hidden" name="production_date" value="{{ selected_date }}">
                             <input type="hidden" name="ajax" value="1">
+                            <input type="hidden" name="pending_rollup" value="{{ 1 if entry.pending_rollup else 0 }}" data-role="pending-rollup">
                             <input type="checkbox" name="signed_off" value="1" data-role="signed-off" class="sr-only" {% if entry.signed_off %}checked{% endif %}>
 
                             <div>
@@ -202,6 +203,7 @@
                           data-log-form>
                         <input type="hidden" name="production_date" value="{{ selected_date }}">
                         <input type="hidden" name="ajax" value="1">
+                        <input type="hidden" name="pending_rollup" value="{{ 1 if entry.pending_rollup else 0 }}" data-role="pending-rollup">
                         <input type="checkbox" name="signed_off" value="1" data-role="signed-off" class="sr-only" {% if entry.signed_off %}checked{% endif %}>
 
                         <div class="log-card-head">
@@ -237,6 +239,7 @@
                                     <input type="text" name="actual_yield_unit" value="{{ entry.actual_yield_unit or entry.quantity_unit or '' }}" placeholder="Yield unit" class="fhq-input detail-input">
                                 </div>
                                 <textarea name="production_notes" class="fhq-input notes-field" placeholder="Production notes, quality notes, issues...">{{ entry.production_notes or '' }}</textarea>
+                                <div class="text-xs text-foxtown-muted">Pending items stop counting in weekly rollups unless actual yield is entered.</div>
                                 <label class="block text-sm font-medium text-foxtown-muted">Quick Camera Capture</label>
                                 <input type="file" name="photo" accept="image/*" capture="environment" class="fhq-input detail-input">
                             </div>
@@ -367,11 +370,13 @@
 
         function applyQuickSignoff(form) {
             const signedInput = form.querySelector('[data-role="signed-off"]');
+            const pendingRollupInput = form.querySelector('[data-role="pending-rollup"]');
             const madeByInput = form.querySelector('input[name="made_by"]');
             const tastedByInput = form.querySelector('input[name="tasted_by"]');
             const signedByInput = form.querySelector('input[name="signed_off_by"]');
 
             if (signedInput) signedInput.checked = true;
+            if (pendingRollupInput) pendingRollupInput.value = '0';
             if (madeByInput && !madeByInput.value.trim()) madeByInput.value = currentUser;
             if (tastedByInput && !tastedByInput.value.trim()) tastedByInput.value = currentUser;
             if (signedByInput && !signedByInput.value.trim()) signedByInput.value = currentUser;
@@ -382,6 +387,7 @@
             const quickBtn = form.querySelector('[data-quick-signoff]');
             const pendingBtn = form.querySelector('[data-mark-pending]');
             const signedInput = form.querySelector('[data-role="signed-off"]');
+            const pendingRollupInput = form.querySelector('[data-role="pending-rollup"]');
 
             setStatus(form, signedInput && signedInput.checked);
 
@@ -411,6 +417,7 @@
             if (pendingBtn) {
                 pendingBtn.addEventListener('click', async () => {
                     if (signedInput) signedInput.checked = false;
+                    if (pendingRollupInput) pendingRollupInput.value = '1';
                     setStatus(form, false);
                     await saveForm(form);
                 });

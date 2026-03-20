@@ -263,6 +263,7 @@ def upsert_commissary_line_production_log(cur, line_id, production_date, payload
     actual_yield = to_float(payload.get('actual_yield'))
     actual_yield_unit = clean_menu_text(payload.get('actual_yield_unit'))
     signed_off = bool(payload.get('signed_off'))
+    pending_rollup = bool(payload.get('pending_rollup')) and not signed_off
 
     has_values = any([
         assigned_to,
@@ -273,6 +274,7 @@ def upsert_commissary_line_production_log(cur, line_id, production_date, payload
         actual_yield,
         actual_yield_unit,
         signed_off,
+        pending_rollup,
     ])
 
     if not has_values:
@@ -303,10 +305,12 @@ def upsert_commissary_line_production_log(cur, line_id, production_date, payload
                 production_notes,
                 actual_yield,
                 actual_yield_unit,
+                pending_rollup,
                 signed_off_at,
                 updated_at
             )
             VALUES (
+                %s,
                 %s,
                 %s,
                 %s,
@@ -330,6 +334,7 @@ def upsert_commissary_line_production_log(cur, line_id, production_date, payload
                 production_notes = EXCLUDED.production_notes,
                 actual_yield = EXCLUDED.actual_yield,
                 actual_yield_unit = EXCLUDED.actual_yield_unit,
+                pending_rollup = EXCLUDED.pending_rollup,
                 signed_off_at = CASE
                     WHEN EXCLUDED.signed_off THEN COALESCE(commissary_production_logs.signed_off_at, CURRENT_TIMESTAMP)
                     ELSE NULL
@@ -347,6 +352,7 @@ def upsert_commissary_line_production_log(cur, line_id, production_date, payload
                 production_notes or None,
                 actual_yield or None,
                 actual_yield_unit or None,
+                pending_rollup,
                 signed_off,
             ),
         )
@@ -364,6 +370,7 @@ def upsert_commissary_line_production_log(cur, line_id, production_date, payload
                 production_notes = %s,
                 actual_yield = %s,
                 actual_yield_unit = %s,
+                pending_rollup = %s,
                 signed_off_at = CASE
                     WHEN %s THEN COALESCE(signed_off_at, CURRENT_TIMESTAMP)
                     ELSE NULL
@@ -381,6 +388,7 @@ def upsert_commissary_line_production_log(cur, line_id, production_date, payload
                 production_notes or None,
                 actual_yield or None,
                 actual_yield_unit or None,
+                pending_rollup,
                 signed_off,
                 line_id,
                 production_date,
@@ -400,10 +408,12 @@ def upsert_commissary_line_production_log(cur, line_id, production_date, payload
                     production_notes,
                     actual_yield,
                     actual_yield_unit,
+                    pending_rollup,
                     signed_off_at,
                     updated_at
                 )
                 VALUES (
+                    %s,
                     %s,
                     %s,
                     %s,
@@ -429,6 +439,7 @@ def upsert_commissary_line_production_log(cur, line_id, production_date, payload
                     production_notes or None,
                     actual_yield or None,
                     actual_yield_unit or None,
+                    pending_rollup,
                     signed_off,
                 ),
             )
@@ -518,6 +529,9 @@ def commissary_planner():
                             'signed_off': bool(entry.get('signed_off')),
                             'made_by': entry.get('made_by') or '',
                             'tasted_by': entry.get('tasted_by') or '',
+                            'actual_yield': entry.get('actual_yield') or '',
+                            'actual_yield_unit': entry.get('actual_yield_unit') or (entry.get('quantity_unit') or 'each'),
+                            'pending_rollup': bool(entry.get('pending_rollup')),
                             'production_notes': entry.get('production_notes') or '',
                         }
                     )
@@ -1004,6 +1018,7 @@ def commissary_production_log_update(line_id):
         actual_yield_raw = (request.form.get('actual_yield') or '').strip()
         actual_yield_unit = clean_menu_text(request.form.get('actual_yield_unit'))
         signed_off = (request.form.get('signed_off') or '').strip().lower() in ('1', 'true', 'on', 'yes')
+        pending_rollup = (request.form.get('pending_rollup') or '').strip().lower() in ('1', 'true', 'on', 'yes')
 
         week_start = (request.form.get('week_start') or '').strip()
         selected_day = (request.form.get('day') or '').strip()
@@ -1028,6 +1043,7 @@ def commissary_production_log_update(line_id):
                     'actual_yield': actual_yield_raw,
                     'actual_yield_unit': actual_yield_unit,
                     'signed_off': signed_off,
+                    'pending_rollup': pending_rollup,
                 },
             )
             if saved:
@@ -1047,6 +1063,7 @@ def commissary_production_log_update(line_id):
                     'ok': True,
                     'saved': True,
                     'signed_off': signed_off,
+                    'pending_rollup': pending_rollup,
                     'updated_at': updated_at.isoformat() if updated_at else None,
                     'message': 'Production log updated.',
                 }
@@ -1138,14 +1155,16 @@ def commissary_production_log_bulk_signoff():
                         production_date,
                         signed_off,
                         signed_off_by,
+                        pending_rollup,
                         signed_off_at,
                         updated_at
                     )
-                    VALUES (%s, %s, TRUE, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    VALUES (%s, %s, TRUE, %s, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                     ON CONFLICT (line_id, production_date)
                     DO UPDATE SET
                         signed_off = TRUE,
                         signed_off_by = EXCLUDED.signed_off_by,
+                        pending_rollup = FALSE,
                         signed_off_at = COALESCE(commissary_production_logs.signed_off_at, CURRENT_TIMESTAMP),
                         updated_at = CURRENT_TIMESTAMP
                 """,
