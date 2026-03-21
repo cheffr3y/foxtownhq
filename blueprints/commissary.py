@@ -96,6 +96,8 @@ def build_weekly_review_context(cur, week_start, week_end, selected_outlet=''):
     for day_group in datasets.get('daily_production_days', []) or []:
         for source_group in day_group.get('source_groups', []) or []:
             for entry in source_group.get('entries', []) or []:
+                if entry.get('cancelled_line'):
+                    continue
                 if not entry.get('line_id'):
                     continue
                 daily_rows.append(
@@ -112,6 +114,7 @@ def build_weekly_review_context(cur, week_start, week_end, selected_outlet=''):
                         'production_notes': entry.get('production_notes') or '',
                         'signed_off': bool(entry.get('signed_off')),
                         'pending_rollup': bool(entry.get('pending_rollup')),
+                        'cancelled_line': bool(entry.get('cancelled_line')),
                         'signed_off_by': entry.get('signed_off_by') or '',
                         'prep_day_label': entry.get('prep_day_label') or '',
                         'notes': entry.get('notes') or '',
@@ -278,6 +281,11 @@ def upsert_commissary_line_production_log(cur, line_id, production_date, payload
     actual_yield_unit = clean_menu_text(payload.get('actual_yield_unit'))
     signed_off = bool(payload.get('signed_off'))
     pending_rollup = bool(payload.get('pending_rollup')) and not signed_off
+    cancelled_line = bool(payload.get('cancelled_line'))
+
+    if cancelled_line:
+        signed_off = False
+        pending_rollup = False
 
     has_values = any([
         assigned_to,
@@ -289,6 +297,7 @@ def upsert_commissary_line_production_log(cur, line_id, production_date, payload
         actual_yield_unit,
         signed_off,
         pending_rollup,
+        cancelled_line,
     ])
 
     if not has_values:
@@ -320,10 +329,12 @@ def upsert_commissary_line_production_log(cur, line_id, production_date, payload
                 actual_yield,
                 actual_yield_unit,
                 pending_rollup,
+                cancelled_line,
                 signed_off_at,
                 updated_at
             )
             VALUES (
+                %s,
                 %s,
                 %s,
                 %s,
@@ -349,6 +360,7 @@ def upsert_commissary_line_production_log(cur, line_id, production_date, payload
                 actual_yield = EXCLUDED.actual_yield,
                 actual_yield_unit = EXCLUDED.actual_yield_unit,
                 pending_rollup = EXCLUDED.pending_rollup,
+                cancelled_line = EXCLUDED.cancelled_line,
                 signed_off_at = CASE
                     WHEN EXCLUDED.signed_off THEN COALESCE(commissary_production_logs.signed_off_at, CURRENT_TIMESTAMP)
                     ELSE NULL
@@ -367,6 +379,7 @@ def upsert_commissary_line_production_log(cur, line_id, production_date, payload
                 actual_yield or None,
                 actual_yield_unit or None,
                 pending_rollup,
+                cancelled_line,
                 signed_off,
             ),
         )
@@ -385,6 +398,7 @@ def upsert_commissary_line_production_log(cur, line_id, production_date, payload
                 actual_yield = %s,
                 actual_yield_unit = %s,
                 pending_rollup = %s,
+                cancelled_line = %s,
                 signed_off_at = CASE
                     WHEN %s THEN COALESCE(signed_off_at, CURRENT_TIMESTAMP)
                     ELSE NULL
@@ -403,6 +417,7 @@ def upsert_commissary_line_production_log(cur, line_id, production_date, payload
                 actual_yield or None,
                 actual_yield_unit or None,
                 pending_rollup,
+                cancelled_line,
                 signed_off,
                 line_id,
                 production_date,
@@ -423,10 +438,12 @@ def upsert_commissary_line_production_log(cur, line_id, production_date, payload
                     actual_yield,
                     actual_yield_unit,
                     pending_rollup,
+                    cancelled_line,
                     signed_off_at,
                     updated_at
                 )
                 VALUES (
+                    %s,
                     %s,
                     %s,
                     %s,
@@ -454,6 +471,7 @@ def upsert_commissary_line_production_log(cur, line_id, production_date, payload
                     actual_yield or None,
                     actual_yield_unit or None,
                     pending_rollup,
+                    cancelled_line,
                     signed_off,
                 ),
             )
@@ -546,11 +564,19 @@ def commissary_planner():
                             'actual_yield': entry.get('actual_yield') or '',
                             'actual_yield_unit': entry.get('actual_yield_unit') or (entry.get('quantity_unit') or 'each'),
                             'pending_rollup': bool(entry.get('pending_rollup')),
+                            'cancelled_line': bool(entry.get('cancelled_line')),
                             'production_notes': entry.get('production_notes') or '',
                         }
                     )
-            entries.sort(key=lambda row: ((row.get('signed_off') is True), (row.get('item_name') or '').lower()))
-            signed_count = sum(1 for row in entries if row.get('signed_off'))
+            entries.sort(
+                key=lambda row: (
+                    row.get('cancelled_line') is True,
+                    row.get('signed_off') is True,
+                    (row.get('item_name') or '').lower(),
+                )
+            )
+            active_entries = [row for row in entries if not row.get('cancelled_line')]
+            signed_count = sum(1 for row in active_entries if row.get('signed_off'))
             day_iso = day_cursor.isoformat()
             signoff_entries_by_day[day_iso] = entries
             week_signoff_summary.append(
@@ -558,7 +584,7 @@ def commissary_planner():
                     'date': day_cursor,
                     'date_iso': day_iso,
                     'day_label': day_cursor.strftime('%a'),
-                    'entry_count': len(entries),
+                    'entry_count': len(active_entries),
                     'signed_off_count': signed_count,
                 }
             )
@@ -1033,6 +1059,11 @@ def commissary_production_log_update(line_id):
         actual_yield_unit = clean_menu_text(request.form.get('actual_yield_unit'))
         signed_off = (request.form.get('signed_off') or '').strip().lower() in ('1', 'true', 'on', 'yes')
         pending_rollup = (request.form.get('pending_rollup') or '').strip().lower() in ('1', 'true', 'on', 'yes')
+        cancelled_line = (request.form.get('cancelled_line') or '').strip().lower() in ('1', 'true', 'on', 'yes')
+
+        if cancelled_line:
+            signed_off = False
+            pending_rollup = False
 
         week_start = (request.form.get('week_start') or '').strip()
         selected_day = (request.form.get('day') or '').strip()
@@ -1058,6 +1089,7 @@ def commissary_production_log_update(line_id):
                     'actual_yield_unit': actual_yield_unit,
                     'signed_off': signed_off,
                     'pending_rollup': pending_rollup,
+                    'cancelled_line': cancelled_line,
                 },
             )
             if saved:
@@ -1078,6 +1110,7 @@ def commissary_production_log_update(line_id):
                     'saved': True,
                     'signed_off': signed_off,
                     'pending_rollup': pending_rollup,
+                    'cancelled_line': cancelled_line,
                     'updated_at': updated_at.isoformat() if updated_at else None,
                     'message': 'Production log updated.',
                 }
@@ -1088,6 +1121,8 @@ def commissary_production_log_update(line_id):
                     'ok': True,
                     'saved': False,
                     'signed_off': False,
+                    'pending_rollup': False,
+                    'cancelled_line': False,
                     'updated_at': None,
                     'message': 'Production log cleared.',
                 }

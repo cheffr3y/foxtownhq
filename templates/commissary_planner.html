@@ -27,6 +27,7 @@
     .signoff-status { min-width: 104px; padding: 0.28rem 0.6rem; }
     .signoff-status--pending { background: #FFF8EE; color: #A0590A; border-color: #F0D9A0; }
     .signoff-status--deferred { background: #FFF8EE; color: #A0590A; border-color: #F0D9A0; }
+    .signoff-status--cancelled { background: #F1EFE8; color: #5F5E5A; border-color: #D3D1C7; }
     .signoff-actions, .signoff-grid { margin-top: 0.6rem; }
     .signoff-notes { min-height: 76px; resize: vertical; }
     .signoff-detail { display: none; margin-top: 0.6rem; }
@@ -35,6 +36,8 @@
     .signoff-pending-row.is-open { display: block; }
     .signoff-field-error { font-size: 0.75rem; color: #C0612B; margin-top: 0.2rem; display: none; }
     .signoff-field-error.is-visible { display: block; }
+    .signoff-cancel-link { background: none; border: none; padding: 0; font-size: 0.8rem; color: #8A8580; cursor: pointer; text-decoration: underline; }
+    .signoff-cancel-link:hover { color: #C0612B; }
     .save-state.is-saving, .week-indicator.is-partial { color: #A0590A; }
     .save-state.is-error { color: #8B2020; }
     .save-state.is-saved, .week-indicator.is-complete { color: #2B7A30; }
@@ -187,11 +190,12 @@
                 {% if entries %}
                 <div class="signoff-cards">
                     {% for entry in entries %}
-                    <form method="POST" action="{{ url_for('commissary_production_log_update', line_id=entry.line_id) }}" class="fhq-card p-4" data-log-form data-day="{{ day.date_iso }}" data-default-yield-unit="{{ entry.actual_yield_unit or entry.quantity_unit or '' }}" data-initial-mode="default" data-start-mode="{{ 'pending' if entry.pending_rollup else 'default' }}">
+                    <form method="POST" action="{{ url_for('commissary_production_log_update', line_id=entry.line_id) }}" class="fhq-card p-4" data-log-form data-day="{{ day.date_iso }}" data-default-yield-unit="{{ entry.actual_yield_unit or entry.quantity_unit or '' }}" data-initial-mode="default" data-start-mode="{{ 'cancelled' if entry.cancelled_line else ('pending' if entry.pending_rollup else 'default') }}">
                         <input type="hidden" name="production_date" value="{{ day.date_iso }}">
                         <input type="hidden" name="ajax" value="1">
                         <input type="hidden" name="signed_off_by" value="{{ current_user_name }}">
                         <input type="hidden" name="pending_rollup" value="{{ 1 if entry.pending_rollup else 0 }}" data-role="pending-rollup">
+                        <input type="hidden" name="cancelled_line" value="{{ 1 if entry.cancelled_line else 0 }}" data-role="cancelled-line">
                         <input type="checkbox" name="signed_off" value="1" data-role="signed-off" class="sr-only" {% if entry.signed_off %}checked{% endif %}>
 
                         <div class="signoff-head">
@@ -203,28 +207,33 @@
                                 </div>
                             </div>
                             <span
-                                class="signoff-status {% if entry.signed_off %}signoff-status--done{% elif entry.pending_rollup %}signoff-status--deferred{% else %}signoff-status--pending{% endif %}"
+                                class="signoff-status {% if entry.cancelled_line %}signoff-status--cancelled{% elif entry.signed_off %}signoff-status--done{% elif entry.pending_rollup %}signoff-status--deferred{% else %}signoff-status--pending{% endif %}"
                                 data-status
                             >
-                                {% if entry.signed_off %}Done{% elif entry.pending_rollup %}Deferred{% else %}Pending{% endif %}
+                                {% if entry.cancelled_line %}Cancelled{% elif entry.signed_off %}Done{% elif entry.pending_rollup %}Deferred{% else %}Pending{% endif %}
                             </span>
                         </div>
 
                         <div class="signoff-actions">
-                            <div class="signoff-action-group" data-default-actions {% if entry.pending_rollup %}hidden{% endif %}>
+                            <div class="signoff-action-group" data-default-actions {% if entry.pending_rollup or entry.cancelled_line %}hidden{% endif %}>
                                 <button type="button" class="fhq-btn fhq-btn--primary" data-expand-signoff>Sign Off</button>
                                 <button type="button" class="fhq-btn fhq-btn--outline" data-mark-pending>Pending</button>
+                                <button type="button" class="signoff-cancel-link" data-cancel-item>Cancel item</button>
                             </div>
-                            <div class="signoff-action-group" data-edit-actions {% if not entry.pending_rollup %}hidden{% endif %}>
+                            <div class="signoff-action-group" data-edit-actions {% if not entry.pending_rollup or entry.cancelled_line %}hidden{% endif %}>
                                 <button type="button" class="fhq-btn fhq-btn--primary" data-save-signoff {% if entry.pending_rollup %}hidden{% endif %}>Save Sign-Off</button>
                                 <button type="button" class="fhq-btn fhq-btn--outline" data-save-pending {% if not entry.pending_rollup %}hidden{% endif %}>Save Pending</button>
                                 <button type="button" class="fhq-btn fhq-btn--outline" data-cancel-edit>Cancel</button>
                             </div>
+                            <div class="signoff-action-group" data-cancelled-actions {% if not entry.cancelled_line %}hidden{% endif %}>
+                                <span class="signoff-status signoff-status--cancelled">Cancelled</span>
+                                <button type="button" class="signoff-cancel-link" data-restore-item>Restore</button>
+                            </div>
                             <span class="save-state" data-save-state>Not saved</span>
                         </div>
 
-                        <div class="signoff-detail {% if entry.pending_rollup %}is-open{% endif %}" data-signoff-detail>
-                            <div class="signoff-grid" data-signoff-grid {% if entry.pending_rollup %}hidden{% endif %}>
+                        <div class="signoff-detail {% if entry.pending_rollup and not entry.cancelled_line %}is-open{% endif %}" data-signoff-detail>
+                            <div class="signoff-grid" data-signoff-grid {% if entry.pending_rollup or entry.cancelled_line %}hidden{% endif %}>
                                 <div>
                                     <input type="text" name="made_by" value="{{ entry.made_by or '' }}" class="fhq-input" placeholder="Made by">
                                     <div class="signoff-field-error" data-error-for="made_by"></div>
@@ -239,7 +248,7 @@
                                     <input type="text" name="actual_yield_unit" value="{{ entry.actual_yield_unit or entry.quantity_unit or '' }}" class="fhq-input" placeholder="Yield unit">
                                 </div>
                             </div>
-                            <div class="signoff-pending-row {% if entry.pending_rollup %}is-open{% endif %}" data-pending-row>
+                            <div class="signoff-pending-row {% if entry.pending_rollup and not entry.cancelled_line %}is-open{% endif %}" data-pending-row>
                                 <textarea name="production_notes" class="fhq-input signoff-notes" placeholder="Notes or defer reason">{{ entry.production_notes or '' }}</textarea>
                                 <div class="signoff-field-error" data-error-for="production_notes"></div>
                             </div>
@@ -327,10 +336,15 @@
             if (!badge) return;
             const signedInput = form.querySelector('[data-role="signed-off"]');
             const pendingRollupInput = form.querySelector('[data-role="pending-rollup"]');
+            const cancelledLineInput = form.querySelector('[data-role="cancelled-line"]');
             const isSigned = !!(signedInput && signedInput.checked);
             const isDeferred = !!(pendingRollupInput && pendingRollupInput.value === '1');
-            badge.classList.remove('signoff-status--done', 'signoff-status--pending', 'signoff-status--deferred');
-            if (isSigned) {
+            const isCancelled = !!(cancelledLineInput && cancelledLineInput.value === '1');
+            badge.classList.remove('signoff-status--done', 'signoff-status--pending', 'signoff-status--deferred', 'signoff-status--cancelled');
+            if (isCancelled) {
+                badge.classList.add('signoff-status--cancelled');
+                badge.textContent = 'Cancelled';
+            } else if (isSigned) {
                 badge.classList.add('signoff-status--done');
                 badge.textContent = 'Done';
             } else if (isDeferred) {
@@ -371,6 +385,23 @@
             }
         }
 
+        function updateDayPill(dayIso, signedCount, totalCount) {
+            const pill = root.querySelector(`[data-day-pill="${dayIso}"]`);
+            if (!pill) return;
+            let badge = pill.querySelector('.pill-badge');
+            if (!badge && totalCount > 0) {
+                badge = document.createElement('span');
+                badge.className = 'pill-badge';
+                pill.appendChild(badge);
+            }
+            if (!badge) return;
+            badge.hidden = totalCount <= 0;
+            badge.classList.toggle('pill-badge--done', totalCount > 0 && signedCount >= totalCount);
+            if (totalCount > 0) {
+                badge.textContent = `${signedCount}/${totalCount}`;
+            }
+        }
+
         function refreshProgress() {
             if (!activeDay) return;
             const activePanel = root.querySelector(`[data-day-panel="${activeDay}"]`);
@@ -379,14 +410,19 @@
                 return;
             }
             const forms = Array.from(activePanel.querySelectorAll('[data-log-form]'));
-            const total = forms.length;
-            const signed = forms.filter((form) => {
+            const activeForms = forms.filter((form) => {
+                const cancelledLineInput = form.querySelector('[data-role="cancelled-line"]');
+                return !(cancelledLineInput && cancelledLineInput.value === '1');
+            });
+            const total = activeForms.length;
+            const signed = activeForms.filter((form) => {
                 const signedInput = form.querySelector('[data-role="signed-off"]');
                 return !!(signedInput && signedInput.checked);
             }).length;
 
             if (progressText) progressText.textContent = `${signed} of ${total} signed off`;
             updateWeekRow(activeDay, signed, total);
+            updateDayPill(activeDay, signed, total);
         }
 
         async function saveForm(form) {
@@ -423,8 +459,10 @@
                 }
 
                 const pendingRollupInput = form.querySelector('[data-role="pending-rollup"]');
+                const cancelledLineInput = form.querySelector('[data-role="cancelled-line"]');
                 if (signedInput) signedInput.checked = !!data.signed_off;
                 if (pendingRollupInput) pendingRollupInput.value = data.pending_rollup ? '1' : '0';
+                if (cancelledLineInput) cancelledLineInput.value = data.cancelled_line ? '1' : '0';
                 setStatus(form);
                 refreshProgress();
                 setSaveState(form, 'Saved', 'is-saved');
@@ -478,17 +516,21 @@
             const pendingRow = form.querySelector('[data-pending-row]');
             const defaultActions = form.querySelector('[data-default-actions]');
             const editActions = form.querySelector('[data-edit-actions]');
+            const cancelledActions = form.querySelector('[data-cancelled-actions]');
             const saveSignoffBtn = form.querySelector('[data-save-signoff]');
             const savePendingBtn = form.querySelector('[data-save-pending]');
+            const saveState = form.querySelector('[data-save-state]');
 
             form.dataset.mode = mode;
-            if (detail) detail.classList.toggle('is-open', mode !== 'default');
-            if (signoffGrid) signoffGrid.hidden = mode === 'pending' || mode === 'default';
-            if (pendingRow) pendingRow.classList.toggle('is-open', mode !== 'default');
+            if (detail) detail.classList.toggle('is-open', mode !== 'default' && mode !== 'cancelled');
+            if (signoffGrid) signoffGrid.hidden = mode === 'pending' || mode === 'default' || mode === 'cancelled';
+            if (pendingRow) pendingRow.classList.toggle('is-open', mode !== 'default' && mode !== 'cancelled');
             if (defaultActions) defaultActions.hidden = mode !== 'default';
-            if (editActions) editActions.hidden = mode === 'default';
+            if (editActions) editActions.hidden = mode === 'default' || mode === 'cancelled';
+            if (cancelledActions) cancelledActions.hidden = mode !== 'cancelled';
             if (saveSignoffBtn) saveSignoffBtn.hidden = mode !== 'signoff';
             if (savePendingBtn) savePendingBtn.hidden = mode !== 'pending';
+            if (saveState) saveState.hidden = mode === 'cancelled';
             clearErrors(form);
             setStatus(form);
         }
@@ -512,8 +554,11 @@
             const saveSignoffBtn = form.querySelector('[data-save-signoff]');
             const savePendingBtn = form.querySelector('[data-save-pending]');
             const cancelBtn = form.querySelector('[data-cancel-edit]');
+            const cancelItemBtn = form.querySelector('[data-cancel-item]');
+            const restoreItemBtn = form.querySelector('[data-restore-item]');
             const signedInput = form.querySelector('[data-role="signed-off"]');
             const pendingRollupInput = form.querySelector('[data-role="pending-rollup"]');
+            const cancelledLineInput = form.querySelector('[data-role="cancelled-line"]');
             const madeByInput = form.querySelector('input[name="made_by"]');
             const notesInput = form.querySelector('textarea[name="production_notes"]');
 
@@ -530,6 +575,7 @@
                 pendingBtn.addEventListener('click', () => {
                     if (signedInput) signedInput.checked = false;
                     if (pendingRollupInput) pendingRollupInput.value = '1';
+                    if (cancelledLineInput) cancelledLineInput.value = '0';
                     setFormMode(form, 'pending');
                 });
             }
@@ -544,6 +590,7 @@
                     }
                     if (signedInput) signedInput.checked = true;
                     if (pendingRollupInput) pendingRollupInput.value = '0';
+                    if (cancelledLineInput) cancelledLineInput.value = '0';
                     const saved = await saveForm(form);
                     if (saved) {
                         snapshotFormState(form, 'default');
@@ -562,6 +609,7 @@
                     }
                     if (signedInput) signedInput.checked = false;
                     if (pendingRollupInput) pendingRollupInput.value = '1';
+                    if (cancelledLineInput) cancelledLineInput.value = '0';
                     const saved = await saveForm(form);
                     if (saved) {
                         snapshotFormState(form, 'default');
@@ -574,6 +622,40 @@
                 cancelBtn.addEventListener('click', () => {
                     restoreFormState(form);
                     setFormMode(form, form.dataset.initialMode || 'default');
+                });
+            }
+
+            if (cancelItemBtn) {
+                cancelItemBtn.addEventListener('click', async () => {
+                    const confirmed = window.confirm('Cancel this item? It will be removed from all rollups for the week.');
+                    if (!confirmed) return;
+                    const previousMode = form.dataset.mode || 'default';
+                    if (cancelledLineInput) cancelledLineInput.value = '1';
+                    if (signedInput) signedInput.checked = false;
+                    if (pendingRollupInput) pendingRollupInput.value = '0';
+                    const saved = await saveForm(form);
+                    if (saved) {
+                        snapshotFormState(form, 'default');
+                        setFormMode(form, 'cancelled');
+                    } else {
+                        restoreFormState(form);
+                        setFormMode(form, previousMode);
+                    }
+                });
+            }
+
+            if (restoreItemBtn) {
+                restoreItemBtn.addEventListener('click', async () => {
+                    const previousMode = form.dataset.mode || 'cancelled';
+                    if (cancelledLineInput) cancelledLineInput.value = '0';
+                    const saved = await saveForm(form);
+                    if (saved) {
+                        snapshotFormState(form, 'default');
+                        setFormMode(form, 'default');
+                    } else {
+                        restoreFormState(form);
+                        setFormMode(form, previousMode);
+                    }
                 });
             }
         }

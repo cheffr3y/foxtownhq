@@ -256,6 +256,7 @@ def ensure_commissary_tables(cur):
     cur.execute("ALTER TABLE commissary_production_logs ADD COLUMN IF NOT EXISTS actual_yield NUMERIC")
     cur.execute("ALTER TABLE commissary_production_logs ADD COLUMN IF NOT EXISTS actual_yield_unit TEXT")
     cur.execute("ALTER TABLE commissary_production_logs ADD COLUMN IF NOT EXISTS pending_rollup BOOLEAN NOT NULL DEFAULT FALSE")
+    cur.execute("ALTER TABLE commissary_production_logs ADD COLUMN IF NOT EXISTS cancelled_line BOOLEAN NOT NULL DEFAULT FALSE")
     cur.execute("ALTER TABLE commissary_production_logs ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
     cur.execute("ALTER TABLE commissary_production_logs ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
     cur.execute("ALTER TABLE commissary_production_logs ALTER COLUMN order_id DROP NOT NULL")
@@ -622,6 +623,7 @@ def fetch_commissary_order_rows(cur, start_date, end_date, outlet=''):
                pl.actual_yield,
                pl.actual_yield_unit,
                COALESCE(pl.pending_rollup, FALSE) AS production_pending_rollup,
+               COALESCE(pl.cancelled_line, FALSE) AS production_cancelled_line,
                pl.updated_at AS production_updated_at,
         """
         production_join_sql = """
@@ -642,6 +644,7 @@ def fetch_commissary_order_rows(cur, start_date, end_date, outlet=''):
                NULL::NUMERIC AS actual_yield,
                NULL::TEXT AS actual_yield_unit,
                FALSE AS production_pending_rollup,
+               FALSE AS production_cancelled_line,
                NULL::TIMESTAMP AS production_updated_at,
         """
         production_join_sql = ""
@@ -740,6 +743,7 @@ def build_commissary_datasets(cur, start_date, end_date, outlet='', unit_system=
             'actual_yield': to_float(row.get('actual_yield')),
             'actual_yield_unit': row.get('actual_yield_unit'),
             'pending_rollup': bool(row.get('production_pending_rollup')),
+            'cancelled_line': bool(row.get('production_cancelled_line')),
             'updated_at': row.get('production_updated_at')
         }
         has_production_log = any([
@@ -751,6 +755,7 @@ def build_commissary_datasets(cur, start_date, end_date, outlet='', unit_system=
             production_log.get('notes'),
             production_log.get('actual_yield'),
             production_log.get('pending_rollup'),
+            production_log.get('cancelled_line'),
         ])
 
         rollup_quantity, rollup_quantity_unit, rollup_basis = resolve_commissary_rollup_quantity(
@@ -1028,6 +1033,7 @@ def build_commissary_datasets(cur, start_date, end_date, outlet='', unit_system=
                 actual_yield,
                 actual_yield_unit,
                 COALESCE(pending_rollup, FALSE) AS pending_rollup,
+                COALESCE(cancelled_line, FALSE) AS cancelled_line,
                 updated_at
             FROM commissary_production_logs
             WHERE line_id = ANY(%s)
@@ -1052,6 +1058,7 @@ def build_commissary_datasets(cur, start_date, end_date, outlet='', unit_system=
                 'actual_yield': to_float(log_row.get('actual_yield')),
                 'actual_yield_unit': log_row.get('actual_yield_unit'),
                 'pending_rollup': bool(log_row.get('pending_rollup')),
+                'cancelled_line': bool(log_row.get('cancelled_line')),
                 'updated_at': log_row.get('updated_at'),
             }
             logs_by_line_day[(line_id, log_date)] = log_payload
@@ -1082,6 +1089,7 @@ def build_commissary_datasets(cur, start_date, end_date, outlet='', unit_system=
                     latest_prior_log
                     and latest_prior_log.get('pending_rollup')
                     and not latest_prior_log.get('signed_off')
+                    and not latest_prior_log.get('cancelled_line')
                 )
                 is_within_window = line_start <= day_cursor <= line_end if line_start and line_end else False
                 if not is_within_window and not carryover_active:
@@ -1120,6 +1128,7 @@ def build_commissary_datasets(cur, start_date, end_date, outlet='', unit_system=
                     'actual_yield': production_log.get('actual_yield') or '',
                     'actual_yield_unit': production_log.get('actual_yield_unit') or (line.get('quantity_unit') or 'each'),
                     'pending_rollup': bool(production_log.get('pending_rollup')),
+                    'cancelled_line': bool(production_log.get('cancelled_line')),
                     'signed_off': bool(production_log.get('signed_off')),
                     'outlet': order.get('outlet') or DEFAULT_COMMISSARY_OUTLET,
                     'order_id': order.get('id'),
@@ -1153,6 +1162,8 @@ def build_commissary_datasets(cur, start_date, end_date, outlet='', unit_system=
                 'production_notes': '',
                 'actual_yield': '',
                 'actual_yield_unit': item.get('default_unit') or item.get('recipe_yield_unit') or 'each',
+                'pending_rollup': False,
+                'cancelled_line': False,
                 'signed_off': False,
                 'outlet': DEFAULT_COMMISSARY_OUTLET,
                 'order_id': None,
@@ -1186,6 +1197,7 @@ def build_commissary_datasets(cur, start_date, end_date, outlet='', unit_system=
         for source_group in day.get('source_groups', [])
         for entry in source_group.get('entries', [])
         if entry.get('line_id')
+        and not entry.get('cancelled_line')
     ]
     total_lines = len(all_daily_line_entries)
     signed_off_line_count = sum(1 for entry in all_daily_line_entries if entry.get('signed_off'))
