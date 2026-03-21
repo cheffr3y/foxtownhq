@@ -18,19 +18,15 @@ from helpers.commissary import (
     COMMISSARY_STATUS_CHOICES,
     DEFAULT_COMMISSARY_OUTLET,
     build_commissary_datasets,
-    build_commissary_prep_groups,
     ensure_commissary_tables,
     get_commissary_order,
     get_commissary_order_lines,
     get_commissary_outlet_options,
-    get_commissary_standing_items,
     get_commissary_week_window,
     normalize_commissary_source,
     normalize_commissary_status,
     parse_commissary_order_lines,
-    parse_commissary_standing_item_form,
 )
-from helpers.formatting import split_instruction_steps
 from helpers.menu import clean_menu_text
 from helpers.recipes import build_component_tree, collect_ingredients_from_components, normalize_recipe_type, ratio_from_line_quantity
 from helpers.shared import generate_id, handle_route_error, to_float
@@ -1304,176 +1300,6 @@ def commissary_production_log(log_date=None):
     )
 
 
-@bp.route('/commissary/standing-prep', methods=['GET', 'POST'])
-@login_required
-def commissary_standing_prep():
-    conn = get_db()
-    with get_cursor() as cur:
-        ensure_commissary_tables(cur)
-        conn.commit()
-
-        recipe_options = list_commissary_recipe_options(cur)
-        valid_recipe_ids = {row['id'] for row in recipe_options if row.get('id')}
-
-        if request.method == 'POST':
-            payload, errors = parse_commissary_standing_item_form(request, valid_recipe_ids)
-            if errors:
-                flash(' '.join(sorted(set(errors))), 'error')
-            else:
-                try:
-                    cur.execute(
-                        """
-                        INSERT INTO commissary_standing_items (
-                            recipe_id,
-                            item_name,
-                            default_quantity,
-                            default_unit,
-                            frequency,
-                            active,
-                            notes
-                        )
-                        VALUES (%s, %s, %s, %s, %s, %s, %s)
-                    """,
-                        (
-                            payload.get('recipe_id'),
-                            payload.get('item_name'),
-                            payload.get('default_quantity'),
-                            payload.get('default_unit'),
-                            payload.get('frequency'),
-                            payload.get('active'),
-                            payload.get('notes'),
-                        ),
-                    )
-                    conn.commit()
-                    flash('Standing prep item added.', 'success')
-                    return redirect(url_for('commissary_standing_prep'))
-                except Exception as exc:
-                    conn.rollback()
-                    traceback.print_exc()
-                    flash(f'Could not add standing prep item: {type(exc).__name__}: {exc}', 'error')
-
-        items = get_commissary_standing_items(cur, active_only=False)
-
-    return render_template(
-        'commissary_standing_prep.html',
-        page_title='Standing Prep Manager',
-        recipe_options=recipe_options,
-        items=items,
-        editing_item=None,
-    )
-
-
-@bp.route('/commissary/standing-prep/<int:item_id>/edit', methods=['GET', 'POST'])
-@login_required
-def commissary_standing_prep_edit(item_id):
-    conn = get_db()
-    with get_cursor() as cur:
-        ensure_commissary_tables(cur)
-        conn.commit()
-
-        recipe_options = list_commissary_recipe_options(cur)
-        valid_recipe_ids = {row['id'] for row in recipe_options if row.get('id')}
-
-        cur.execute(
-            """
-            SELECT
-                item.id,
-                item.recipe_id,
-                item.item_name,
-                item.default_quantity,
-                item.default_unit,
-                item.frequency,
-                item.active,
-                item.notes,
-                r.name AS recipe_name
-            FROM commissary_standing_items item
-            LEFT JOIN recipes r ON r.id = item.recipe_id
-            WHERE item.id = %s
-            LIMIT 1
-        """,
-            (item_id,),
-        )
-        editing_item = cur.fetchone()
-        if not editing_item:
-            flash('Standing prep item not found.', 'error')
-            return redirect(url_for('commissary_standing_prep'))
-
-        if request.method == 'POST':
-            payload, errors = parse_commissary_standing_item_form(request, valid_recipe_ids)
-            if errors:
-                flash(' '.join(sorted(set(errors))), 'error')
-                editing_item = {
-                    **editing_item,
-                    **payload,
-                }
-            else:
-                try:
-                    cur.execute(
-                        """
-                        UPDATE commissary_standing_items
-                        SET recipe_id = %s,
-                            item_name = %s,
-                            default_quantity = %s,
-                            default_unit = %s,
-                            frequency = %s,
-                            active = %s,
-                            notes = %s
-                        WHERE id = %s
-                    """,
-                        (
-                            payload.get('recipe_id'),
-                            payload.get('item_name'),
-                            payload.get('default_quantity'),
-                            payload.get('default_unit'),
-                            payload.get('frequency'),
-                            payload.get('active'),
-                            payload.get('notes'),
-                            item_id,
-                        ),
-                    )
-                    conn.commit()
-                    flash('Standing prep item updated.', 'success')
-                    return redirect(url_for('commissary_standing_prep'))
-                except Exception as exc:
-                    conn.rollback()
-                    traceback.print_exc()
-                    flash(f'Could not update standing prep item: {type(exc).__name__}: {exc}', 'error')
-
-        items = get_commissary_standing_items(cur, active_only=False)
-
-    return render_template(
-        'commissary_standing_prep.html',
-        page_title='Standing Prep Manager',
-        recipe_options=recipe_options,
-        items=items,
-        editing_item=editing_item,
-    )
-
-
-@bp.route('/commissary/standing-prep/<int:item_id>/toggle', methods=['POST'])
-@login_required
-def commissary_standing_prep_toggle(item_id):
-    conn = get_db()
-    with get_cursor() as cur:
-        ensure_commissary_tables(cur)
-        conn.commit()
-        try:
-            cur.execute(
-                """
-                UPDATE commissary_standing_items
-                SET active = NOT active
-                WHERE id = %s
-            """,
-                (item_id,),
-            )
-            conn.commit()
-        except Exception as exc:
-            conn.rollback()
-            traceback.print_exc()
-            flash(f'Could not update standing prep item state: {type(exc).__name__}: {exc}', 'error')
-    return redirect(url_for('commissary_standing_prep'))
-
-
 @bp.route('/commissary/transfers', methods=['GET', 'POST'])
 @login_required
 def commissary_transfers():
@@ -2486,9 +2312,6 @@ def commissary_packet_print():
             include_shopping = (include_shopping_raw or '').strip().lower() in ('1', 'true', 'yes', 'on')
 
         datasets = build_commissary_datasets(cur, start_date, end_date, selected_outlet, selected_units)
-        for prep in datasets.get('weekly_prep', []):
-            prep['instruction_steps'] = split_instruction_steps(prep.get('instructions'))
-        prep_groups = build_commissary_prep_groups(cur, datasets, selected_units)
         checklist_lines = []
         for order in datasets.get('orders', []):
             for line in order.get('lines', []):
@@ -2516,7 +2339,6 @@ def commissary_packet_print():
         generated_at=datetime.now().strftime('%b %d, %Y %I:%M %p'),
         datasets=datasets,
         checklist_lines=checklist_lines,
-        prep_groups=prep_groups,
     )
 
 
@@ -2550,9 +2372,6 @@ def commissary_packet_pdf():
             include_shopping = (include_shopping_raw or '').strip().lower() in ('1', 'true', 'yes', 'on')
 
         datasets = build_commissary_datasets(cur, start_date, end_date, selected_outlet, selected_units)
-        for prep in datasets.get('weekly_prep', []):
-            prep['instruction_steps'] = split_instruction_steps(prep.get('instructions'))
-        prep_groups = build_commissary_prep_groups(cur, datasets, selected_units)
         checklist_lines = []
         for order in datasets.get('orders', []):
             for line in order.get('lines', []):
@@ -2750,172 +2569,6 @@ def commissary_packet_pdf():
         table.setStyle(TableStyle(commands))
         return table
 
-    def validation_block():
-        block = Table(
-            [
-                [
-                    p('Cook Name: ________________________', tiny_style, default=''),
-                    p('Final Temp: ______°F', tiny_style, default=''),
-                ],
-                [
-                    p('Quality Check: [ ] Pass  [ ] Fail', tiny_style, default=''),
-                    p('Chef Signature: ________________________', tiny_style, default=''),
-                ],
-            ],
-            colWidths=[2.85 * inch, 2.85 * inch],
-        )
-        block.setStyle(
-            TableStyle(
-                [
-                    ('BOX', (0, 0), (-1, -1), 0.7, colors.black),
-                    ('INNERGRID', (0, 0), (-1, -1), 0.45, colors.black),
-                    ('LEFTPADDING', (0, 0), (-1, -1), 6),
-                    ('RIGHTPADDING', (0, 0), (-1, -1), 6),
-                    ('TOPPADDING', (0, 0), (-1, -1), 5),
-                    ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
-                ]
-            )
-        )
-        return block
-
-    def prep_meta_line(prep, main_labels=None):
-        used_in_orders = prep.get('used_in_order_labels') or []
-        assigned = prep.get('assigned_cooks') or []
-        parts = []
-        if used_in_orders:
-            parts.append(f"Used in orders: {' · '.join(str(item) for item in used_in_orders)}")
-        if main_labels:
-            parts.append(f"Main item(s): {' · '.join(str(item) for item in main_labels)}")
-        parts.append(f"Assigned: {' · '.join(str(item) for item in assigned) if assigned else 'Unassigned'}")
-        parts.append(f"Batches: {format_number(prep.get('required_batches') or 0)}")
-        parts.append(f"Each batch makes {format_number(prep.get('yield_qty') or 0)} {(prep.get('yield_unit') or '').strip()}")
-        return ' | '.join(parts)
-
-    def render_prep_card(story, prep, main_labels=None, card_title='Production Card'):
-        story.append(Paragraph(card_title, subheading_style))
-        display_required = prep.get('display_required') or {}
-        display_qty = display_required.get('quantity')
-        if display_qty in (None, ''):
-            display_qty_text = '—'
-        else:
-            display_qty_text = str(display_qty)
-        display_unit = (display_required.get('unit') or '').strip()
-        display_label = f'{display_qty_text} {display_unit}'.strip()
-        title_data = [
-            [p(prep.get('recipe_name') or 'Recipe', label_style), p(display_label, label_style)]
-        ]
-        title_table = Table(title_data, colWidths=[4.65 * inch, 1.05 * inch])
-        title_table.setStyle(
-            TableStyle(
-                [
-                    ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#E9EDF5')),
-                    ('BOX', (0, 0), (-1, -1), 0.7, colors.black),
-                    ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
-                    ('LEFTPADDING', (0, 0), (-1, -1), 6),
-                    ('RIGHTPADDING', (0, 0), (-1, -1), 6),
-                    ('TOPPADDING', (0, 0), (-1, -1), 4),
-                    ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-                ]
-            )
-        )
-        story.append(title_table)
-        story.append(Paragraph(html_text(prep_meta_line(prep, main_labels), ''), muted_style))
-        story.append(Spacer(1, 4))
-
-        ingredient_rows = prep.get('ingredient_rows') or []
-        if ingredient_rows:
-            story.append(Paragraph('Ingredients', label_style))
-            ingredient_data = [
-                [
-                    Paragraph('✓', table_header_style),
-                    Paragraph('Ingredient', table_header_style),
-                    Paragraph('Qty', table_header_style),
-                    Paragraph('Unit', table_header_style),
-                ]
-            ]
-            for row in ingredient_rows:
-                ingredient_data.append(
-                    [
-                        p('[ ]'),
-                        p(row.get('name') or 'Ingredient'),
-                        p(row.get('display_quantity') if row.get('display_quantity') not in (None, '') else '—'),
-                        p(row.get('display_unit') or '—'),
-                    ]
-                )
-            ing_table = Table(ingredient_data, colWidths=[0.3 * inch, 3.75 * inch, 1.0 * inch, 0.65 * inch], repeatRows=1)
-            style_table(ing_table, align_right_cols=[2])
-            story.append(ing_table)
-        else:
-            story.append(Paragraph('No direct raw ingredients - built from sub-recipes below.', muted_style))
-
-        subrecipe_rows = prep.get('subrecipe_rows') or []
-        if subrecipe_rows:
-            story.append(Spacer(1, 4))
-            story.append(Paragraph('Sub-Recipe Pulls', label_style))
-            subrecipe_data = [
-                [
-                    Paragraph('✓', table_header_style),
-                    Paragraph('Sub-Recipe', table_header_style),
-                    Paragraph('Qty', table_header_style),
-                    Paragraph('Unit', table_header_style),
-                    Paragraph('Batches', table_header_style),
-                    Paragraph('Plan', table_header_style),
-                ]
-            ]
-            for row in subrecipe_rows:
-                plan_label = 'Make here'
-                if row.get('covered_by_stock_prep'):
-                    source_name = row.get('stock_prep_recipe_name') or row.get('recipe_name') or 'stocked prep'
-                    plan_label = f'From stocked prep: {source_name}'
-                subrecipe_data.append(
-                    [
-                        p('[ ]'),
-                        p(row.get('recipe_name') or 'Sub-recipe'),
-                        p((row.get('display_required') or {}).get('quantity') or '—'),
-                        p((row.get('display_required') or {}).get('unit') or '—'),
-                        p(format_number(row.get('required_batches') or 0)),
-                        p(plan_label, tiny_style),
-                    ]
-                )
-            sub_table = Table(
-                subrecipe_data,
-                colWidths=[0.3 * inch, 2.15 * inch, 0.75 * inch, 0.6 * inch, 0.72 * inch, 1.23 * inch],
-                repeatRows=1,
-            )
-            style_table(sub_table, align_right_cols=[2, 4])
-            story.append(sub_table)
-            child_cards = prep.get('child_cards') or []
-            if not child_cards and prep.get('sub_cards'):
-                child_cards = prep.get('sub_cards') or []
-            if child_cards:
-                child_lookup = {}
-                for child in child_cards:
-                    recipe_id = child.get('recipe_id')
-                    if recipe_id and recipe_id not in child_lookup:
-                        child_lookup[recipe_id] = child
-                rendered = set()
-                for row in subrecipe_rows:
-                    recipe_id = row.get('recipe_id')
-                    if row.get('covered_by_stock_prep') or not recipe_id:
-                        continue
-                    sub_card = child_lookup.get(recipe_id)
-                    if not sub_card or recipe_id in rendered:
-                        continue
-                    rendered.add(recipe_id)
-                    story.append(Spacer(1, 5))
-                    render_prep_card(story, sub_card, main_labels=None, card_title=f"Sub-Card: {sub_card.get('recipe_name') or 'Sub-recipe'}")
-
-        steps = prep.get('instruction_steps') or []
-        if steps:
-            story.append(Spacer(1, 4))
-            story.append(Paragraph('Method', label_style))
-            for index, step in enumerate(steps, start=1):
-                story.append(Paragraph(f'{index}. {html_text(step, "")}', base_style))
-
-        story.append(Spacer(1, 4))
-        story.append(validation_block())
-        story.append(Spacer(1, 8))
-
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
         buffer,
@@ -3066,19 +2719,6 @@ def commissary_packet_pdf():
                 story.append(Spacer(1, 6))
         else:
             story.append(Paragraph('No shopping items for the selected window.', muted_style))
-
-    if prep_groups:
-        for group in prep_groups:
-            story.append(PageBreak())
-            story.append(Paragraph(f"Weekly Production Cards - {to_text(group.get('main_label'), 'Main Item')}", section_title_style))
-            root = group.get('root') or {}
-            root_with_children = dict(root)
-            root_with_children['sub_cards'] = group.get('sub_cards') or []
-            render_prep_card(story, root_with_children, main_labels=group.get('main_labels') or [])
-    else:
-        story.append(PageBreak())
-        story.append(Paragraph('Weekly Production Cards', section_title_style))
-        story.append(Paragraph('No production cards in this date window.', muted_style))
 
     doc.build(story, onFirstPage=draw_first_page, onLaterPages=draw_later_pages, canvasmaker=NumberedCanvas)
     payload = buffer.getvalue()

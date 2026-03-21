@@ -3,7 +3,7 @@ from datetime import date, datetime, timedelta
 
 from helpers.banquet import derive_prep_family_label
 from helpers.db_helpers import db_table_exists
-from helpers.formatting import collect_ingredient_usage_from_components, normalize_match_key, split_instruction_steps
+from helpers.formatting import collect_ingredient_usage_from_components, normalize_match_key
 from helpers.menu import clean_menu_text
 from helpers.recipes import (
     build_component_tree,
@@ -543,63 +543,6 @@ def parse_commissary_order_lines(request, valid_recipe_ids):
     return rows, errors
 
 
-def get_commissary_standing_items(cur, active_only=False):
-    if not db_table_exists(cur, 'public.commissary_standing_items'):
-        return []
-    params = []
-    where_sql = ""
-    if active_only:
-        where_sql = "WHERE item.active = TRUE"
-    cur.execute(f"""
-        SELECT
-            item.id,
-            item.recipe_id,
-            item.item_name,
-            item.default_quantity,
-            item.default_unit,
-            item.frequency,
-            item.active,
-            item.notes,
-            item.created_at,
-            r.name AS recipe_name,
-            r.yield_unit AS recipe_yield_unit
-        FROM commissary_standing_items item
-        LEFT JOIN recipes r ON r.id = item.recipe_id
-        {where_sql}
-        ORDER BY item.active DESC, COALESCE(item.frequency, 'daily'), LOWER(COALESCE(item.item_name, r.name, ''))
-    """, params)
-    return cur.fetchall()
-
-
-def parse_commissary_standing_item_form(request, valid_recipe_ids):
-    errors = []
-    recipe_id = (request.form.get('recipe_id') or '').strip()
-    item_name = clean_menu_text(request.form.get('item_name'))
-    qty = parse_float_field(request.form.get('default_quantity'), 'Default quantity', errors, required=True, min_value=0.0001)
-    unit_raw = clean_menu_text(request.form.get('default_unit'))
-    frequency = (request.form.get('frequency') or 'daily').strip().lower()
-    active = (request.form.get('active') or '').strip().lower() in ('1', 'true', 'on', 'yes')
-    notes = clean_menu_text(request.form.get('notes'))
-
-    if recipe_id and recipe_id not in valid_recipe_ids:
-        errors.append('Standing prep recipe is not valid.')
-    if not recipe_id and not item_name:
-        errors.append('Standing prep requires a recipe or item name.')
-    if frequency not in ('daily', 'weekly', 'as_needed'):
-        frequency = 'daily'
-
-    unit = normalize_unit(unit_raw) or normalize_count_unit(unit_raw) or unit_raw or 'each'
-    return {
-        'recipe_id': recipe_id or None,
-        'item_name': item_name or None,
-        'default_quantity': qty if qty is not None else 1,
-        'default_unit': unit,
-        'frequency': frequency,
-        'active': active,
-        'notes': notes or None,
-    }, errors
-
-
 def fetch_commissary_order_rows(cur, start_date, end_date, outlet=''):
     if not commissary_tables_ready(cur):
         return []
@@ -1013,7 +956,6 @@ def build_commissary_datasets(cur, start_date, end_date, outlet='', unit_system=
             order['daily_ingredients'] = ingredient_rows
         daily_groups.append({'date': day, 'orders': day_orders})
 
-    standing_items = get_commissary_standing_items(cur, active_only=True)
     logs_by_line_day = {}
     logs_by_line = defaultdict(dict)
     line_ids = [line.get('id') for order in orders for line in order.get('lines', []) if line.get('id')]
@@ -1144,35 +1086,6 @@ def build_commissary_datasets(cur, start_date, end_date, outlet='', unit_system=
                     'is_standing_suggestion': False,
                 })
 
-        for item in standing_items:
-            frequency = (item.get('frequency') or 'daily').strip().lower()
-            include_item = frequency == 'daily' or (frequency == 'weekly' and day_cursor.weekday() == 0)
-            if not include_item:
-                continue
-            entry_rows.append({
-                'source': 'standing_prep',
-                'source_label': source_label_map.get('standing_prep', 'Standing Prep'),
-                'item_name': item.get('item_name') or item.get('recipe_name') or 'Standing Prep',
-                'quantity': to_float(item.get('default_quantity')),
-                'quantity_unit': item.get('default_unit') or item.get('recipe_yield_unit') or 'each',
-                'assigned_to': '',
-                'made_by': '',
-                'tasted_by': '',
-                'signed_off_by': '',
-                'production_notes': '',
-                'actual_yield': '',
-                'actual_yield_unit': item.get('default_unit') or item.get('recipe_yield_unit') or 'each',
-                'pending_rollup': False,
-                'cancelled_line': False,
-                'signed_off': False,
-                'outlet': DEFAULT_COMMISSARY_OUTLET,
-                'order_id': None,
-                'line_id': None,
-                'notes': item.get('notes') or '',
-                'standing_item_id': item.get('id'),
-                'is_standing_suggestion': True,
-            })
-
         source_groups = []
         for source_key in source_display_order:
             source_entries = [entry for entry in entry_rows if entry.get('source') == source_key]
@@ -1225,7 +1138,6 @@ def build_commissary_datasets(cur, start_date, end_date, outlet='', unit_system=
         'orders': orders,
         'daily_groups': daily_groups,
         'daily_production_days': daily_production_days,
-        'standing_items': standing_items,
         'source_choices': COMMISSARY_SOURCE_CHOICES,
         'shopping_ingredients': ingredient_master,
         'shopping_total_cost': ingredient_total_cost,
@@ -1236,254 +1148,6 @@ def build_commissary_datasets(cur, start_date, end_date, outlet='', unit_system=
         'signed_off_line_count': signed_off_line_count,
         'total_estimated_cost': total_estimated_cost
     }
-
-def build_commissary_prep_groups(cur, datasets, unit_system='imperial'):
-    weekly_prep = datasets.get('weekly_prep') or []
-    if not weekly_prep:
-        return []
-
-    prep_by_recipe = {}
-    for prep in weekly_prep:
-        recipe_id = prep.get('recipe_id')
-        if recipe_id and recipe_id not in prep_by_recipe:
-            prep_by_recipe[recipe_id] = prep
-
-    root_recipe_sequence = []
-    root_recipe_labels = defaultdict(list)
-    for order in datasets.get('orders', []):
-        for line in order.get('lines', []):
-            recipe_id = line.get('recipe_id')
-            if not recipe_id:
-                continue
-            if recipe_id not in root_recipe_sequence:
-                root_recipe_sequence.append(recipe_id)
-            line_label = clean_menu_text(line.get('item_name') or line.get('recipe_name') or '')
-            if line_label and line_label not in root_recipe_labels[recipe_id]:
-                root_recipe_labels[recipe_id].append(line_label)
-
-    if not root_recipe_sequence:
-        root_recipe_sequence = [prep.get('recipe_id') for prep in weekly_prep if prep.get('recipe_id')]
-    stocked_root_recipe_ids = {recipe_id for recipe_id in root_recipe_sequence if recipe_id}
-    original_root_order = {recipe_id: idx for idx, recipe_id in enumerate(root_recipe_sequence) if recipe_id}
-
-    # Ensure stocked dependency cards appear before recipes that consume them.
-    dependency_map = {recipe_id: set() for recipe_id in stocked_root_recipe_ids}
-    for recipe_id in stocked_root_recipe_ids:
-        prep_row = prep_by_recipe.get(recipe_id) or {}
-        for sub_row in prep_row.get('subrecipe_rows', []) or []:
-            child_recipe_id = sub_row.get('recipe_id')
-            if child_recipe_id in stocked_root_recipe_ids and child_recipe_id != recipe_id:
-                dependency_map[recipe_id].add(child_recipe_id)
-
-    ordered_roots = []
-    visited = set()
-    visiting = set()
-
-    def visit(recipe_id):
-        if recipe_id in visited:
-            return
-        if recipe_id in visiting:
-            # Cycle fallback: keep original order behavior without recursion blowup.
-            return
-        visiting.add(recipe_id)
-        deps = sorted(
-            dependency_map.get(recipe_id, set()),
-            key=lambda dep_id: original_root_order.get(dep_id, 10**9)
-        )
-        for dep_id in deps:
-            visit(dep_id)
-        visiting.remove(recipe_id)
-        visited.add(recipe_id)
-        ordered_roots.append(recipe_id)
-
-    for recipe_id in root_recipe_sequence:
-        if recipe_id:
-            visit(recipe_id)
-    root_recipe_sequence = ordered_roots
-
-    root_recipe_name_map = {}
-    for recipe_id in stocked_root_recipe_ids:
-        prep_row = prep_by_recipe.get(recipe_id) or {}
-        root_recipe_name_map[recipe_id] = prep_row.get('recipe_name') or 'Main prep card'
-
-    ingredient_name_map = {
-        row.get('id'): row.get('name')
-        for row in datasets.get('shopping_ingredients', [])
-        if row.get('id')
-    }
-    recipe_cache = {}
-
-    def get_recipe_cached(recipe_id):
-        if not recipe_id:
-            return None
-        if recipe_id not in recipe_cache:
-            recipe_cache[recipe_id] = get_recipe_by_id(cur, recipe_id)
-        return recipe_cache.get(recipe_id)
-
-    def build_sub_card(recipe_id, required_qty, required_unit, required_batches, ancestry, group_root_recipe_id):
-        if not recipe_id:
-            return None
-        recipe = get_recipe_cached(recipe_id)
-        if not recipe:
-            return None
-
-        batches = to_float(required_batches)
-        if batches <= 0:
-            yield_qty = to_float(recipe.get('yield_qty'))
-            if yield_qty > 0 and to_float(required_qty) > 0:
-                required_qty_in_yield = to_float(required_qty)
-                yield_unit = recipe.get('yield_unit') or required_unit
-                if required_unit and yield_unit and required_unit != yield_unit:
-                    converted = convert_quantity_between_units(required_qty_in_yield, required_unit, yield_unit)
-                    if converted is not None:
-                        required_qty_in_yield = converted
-                batches = required_qty_in_yield / yield_qty
-            else:
-                batches = to_float(required_qty)
-        if batches <= 0:
-            return None
-
-        components, _, _ = build_component_tree(
-            cur,
-            recipe_id,
-            batches,
-            0,
-            set(),
-            unit_system,
-            apply_q_factor=False
-        )
-
-        ingredient_totals = {}
-        collect_direct_ingredients_for_prep(components, ingredient_totals)
-        ingredient_rows = []
-        for (ing_id, unit), qty in ingredient_totals.items():
-            display = smart_quantity(qty, unit, unit_system)
-            ingredient_rows.append({
-                'ingredient_id': ing_id,
-                'name': ingredient_name_map.get(ing_id, 'Unknown'),
-                'quantity': qty,
-                'unit': unit,
-                'display_quantity': display.get('quantity'),
-                'display_unit': display.get('unit')
-            })
-        ingredient_rows.sort(key=lambda item: (item.get('name') or '').lower())
-
-        subrecipe_totals = {}
-        collect_direct_subrecipes_for_prep(components, subrecipe_totals)
-        subrecipe_rows = []
-        for (child_recipe_id, child_unit), child_qty in subrecipe_totals.items():
-            child_recipe = get_recipe_cached(child_recipe_id)
-            if not child_recipe:
-                continue
-            child_yield_qty = to_float(child_recipe.get('yield_qty'))
-            child_yield_unit = child_recipe.get('yield_unit') or child_unit
-            child_required_qty_in_yield = child_qty
-            if child_unit and child_yield_unit and child_unit != child_yield_unit:
-                converted = convert_quantity_between_units(child_qty, child_unit, child_yield_unit)
-                if converted is not None:
-                    child_required_qty_in_yield = converted
-            child_required_batches = (child_required_qty_in_yield / child_yield_qty) if child_yield_qty > 0 else child_required_qty_in_yield
-            covered_by_stock_prep = child_recipe_id in stocked_root_recipe_ids and child_recipe_id != group_root_recipe_id
-            subrecipe_rows.append({
-                'recipe_id': child_recipe_id,
-                'recipe_name': child_recipe.get('name') or 'Sub-recipe',
-                'required_qty': child_qty,
-                'required_unit': child_unit,
-                'display_required': smart_quantity(child_qty, child_unit, unit_system),
-                'required_batches': child_required_batches,
-                'covered_by_stock_prep': covered_by_stock_prep,
-                'stock_prep_recipe_name': root_recipe_name_map.get(child_recipe_id) if covered_by_stock_prep else None
-            })
-        subrecipe_rows.sort(key=lambda item: (item.get('recipe_name') or '').lower())
-
-        child_cards = []
-        if len(ancestry) < 3:
-            for sub_row in subrecipe_rows:
-                child_recipe_id = sub_row.get('recipe_id')
-                if not child_recipe_id or child_recipe_id in ancestry:
-                    continue
-                if sub_row.get('covered_by_stock_prep'):
-                    continue
-                child_card = build_sub_card(
-                    child_recipe_id,
-                    sub_row.get('required_qty'),
-                    sub_row.get('required_unit'),
-                    sub_row.get('required_batches'),
-                    ancestry | {child_recipe_id},
-                    group_root_recipe_id
-                )
-                if child_card:
-                    child_cards.append(child_card)
-
-        display_required = smart_quantity(required_qty, required_unit, unit_system)
-        if (display_required.get('quantity') in ('', '0')) and to_float(required_qty) <= 0:
-            yield_qty = to_float(recipe.get('yield_qty'))
-            display_required = smart_quantity(yield_qty * batches if yield_qty > 0 else batches, recipe.get('yield_unit') or required_unit, unit_system)
-
-        return {
-            'recipe_id': recipe_id,
-            'recipe_name': recipe.get('name') or 'Sub-recipe',
-            'display_required': display_required,
-            'required_batches': batches,
-            'ingredient_rows': ingredient_rows,
-            'subrecipe_rows': subrecipe_rows,
-            'instruction_steps': split_instruction_steps(recipe.get('instructions')),
-            'child_cards': child_cards
-        }
-
-    groups = []
-    for root_recipe_id in root_recipe_sequence:
-        root_prep = prep_by_recipe.get(root_recipe_id)
-        if not root_prep:
-            continue
-
-        main_labels = (
-            root_recipe_labels.get(root_recipe_id)
-            or root_prep.get('used_in_items')
-            or [root_prep.get('recipe_name')]
-        )
-        main_labels = [label for label in main_labels if label]
-        main_label = main_labels[0] if main_labels else (root_prep.get('recipe_name') or 'Prep Item')
-
-        sub_cards = []
-        root_subrecipe_rows = []
-        for sub_row in root_prep.get('subrecipe_rows', []):
-            sub_recipe_id = sub_row.get('recipe_id')
-            required_batches = to_float(sub_row.get('required_batches'))
-            if not sub_recipe_id or required_batches <= 0:
-                continue
-
-            covered_by_stock_prep = sub_recipe_id in stocked_root_recipe_ids and sub_recipe_id != root_recipe_id
-            enriched_row = dict(sub_row)
-            enriched_row['covered_by_stock_prep'] = covered_by_stock_prep
-            enriched_row['stock_prep_recipe_name'] = root_recipe_name_map.get(sub_recipe_id) if covered_by_stock_prep else None
-            root_subrecipe_rows.append(enriched_row)
-            if covered_by_stock_prep:
-                continue
-
-            sub_card = build_sub_card(
-                sub_recipe_id,
-                sub_row.get('required_qty'),
-                sub_row.get('required_unit'),
-                required_batches,
-                {root_recipe_id, sub_recipe_id},
-                root_recipe_id
-            )
-            if not sub_card:
-                continue
-            if sub_row.get('display_required'):
-                sub_card['display_required'] = sub_row.get('display_required')
-            sub_cards.append(sub_card)
-        root_prep['subrecipe_rows'] = root_subrecipe_rows
-
-        groups.append({
-            'main_label': main_label,
-            'main_labels': main_labels,
-            'root': root_prep,
-            'sub_cards': sub_cards
-        })
-
-    return groups
 
 __all__ = [
     'get_commissary_week_window',
@@ -1499,9 +1163,6 @@ __all__ = [
     'get_commissary_order',
     'get_commissary_order_lines',
     'parse_commissary_order_lines',
-    'get_commissary_standing_items',
-    'parse_commissary_standing_item_form',
     'fetch_commissary_order_rows',
     'build_commissary_datasets',
-    'build_commissary_prep_groups',
 ]
