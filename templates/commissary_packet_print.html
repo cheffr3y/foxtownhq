@@ -46,11 +46,11 @@
     </div>
     {% endif %}
 {%- endmacro %}
-{% macro render_component_grid(components, depth=0) -%}
+{% macro render_component_rows(components, depth=0) -%}
     {% if components %}
         {% for component in components %}
             {% if component.type == 'option_group' %}
-                {{ render_component_grid(component.children or [], depth) }}
+                {{ render_component_rows(component.children or [], depth) }}
             {% else %}
                 {% set component_name = component.name or component.item_name or component.recipe_name or 'Component' %}
                 {% set component_qty = component.display_quantity %}
@@ -61,12 +61,14 @@
                     {% set component_qty = component.scaled_quantity_display %}
                 {% endif %}
                 {% set component_unit = component.display_unit or component.unit or '' %}
-                <div class="pkt-ing-name"{% if depth > 0 %} style="padding-left: {{ depth }}rem;"{% endif %}>{{ component_name }}</div>
-                <div class="pkt-ing-qty">
-                    {{ component_qty if component_qty not in (None, '') else '—' }}{% if component_unit %} {{ component_unit }}{% endif %}
-                </div>
+                <tr class="pkt-alt-row">
+                    <td class="text-center"><span class="pkt-checkbox"></span></td>
+                    <td class="pkt-bold pkt-ingredient-name{% if depth > 0 %} pkt-sub-component{% endif %}"{% if depth > 0 %} style="padding-left: {{ 0.5 + (depth * 0.8) }}rem;"{% endif %}>{{ component_name }}</td>
+                    <td class="text-right pkt-mono pkt-qty pkt-qty-strong">{{ component_qty if component_qty not in (None, '') else '—' }}</td>
+                    <td>{{ component_unit or '—' }}</td>
+                </tr>
                 {% if component.children %}
-                    {{ render_component_grid(component.children, depth + 1) }}
+                    {{ render_component_rows(component.children, depth + 1) }}
                 {% endif %}
             {% endif %}
         {% endfor %}
@@ -78,24 +80,35 @@
         <td colspan="{{ colspan }}" style="padding-top: 0.25rem; padding-bottom: 0.35rem; min-height: 0; height: auto; vertical-align: top;">
             <div class="pkt-recipe-card">
                 {% if components %}
-                <div class="pkt-mise-label">Mise En Place</div>
-                <div class="pkt-ingredient-grid">
-                    {{ render_component_grid(components) }}
+                <div class="pkt-card-body">
+                    <div class="pkt-label">Ingredients</div>
+                    <table class="pkt-table pkt-table-ingredients">
+                        <thead>
+                            <tr>
+                                <th style="width:5%">✓</th>
+                                <th>Ingredient</th>
+                                <th class="text-right" style="width:15%">Qty</th>
+                                <th style="width:12%">Unit</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {{ render_component_rows(components) }}
+                        </tbody>
+                    </table>
                 </div>
                 {% endif %}
-                {% if components and instruction_steps %}
-                <hr class="pkt-method-separator">
-                {% endif %}
                 {% if instruction_steps %}
-                <div class="pkt-method-label">Method</div>
-                <ol class="pkt-method-steps">
-                    {% for step in instruction_steps %}
-                    <li class="pkt-method-step">
-                        <span class="pkt-method-num">{{ loop.index }}.</span>
-                        <span>{{ step }}</span>
-                    </li>
-                    {% endfor %}
-                </ol>
+                <div class="pkt-card-body pkt-method-section">
+                    <div class="pkt-label">Method</div>
+                    <div class="pkt-steps">
+                        {% for step in instruction_steps %}
+                        <div class="pkt-step">
+                            <div class="pkt-step-num">{{ loop.index }}</div>
+                            <div class="pkt-step-text">{{ step }}</div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
                 {% endif %}
             </div>
         </td>
@@ -507,33 +520,29 @@
 .pkt-step-text { flex: 1; }
 .pkt-recipe-card {
     border-left: 3px solid #C0612B;
-    background: #fafaf9;
-    padding: 0.5rem 0.75rem;
+    background: #fff;
     margin-bottom: 0.5rem;
     border-radius: 0 0.25rem 0.25rem 0;
+    overflow: hidden;
 }
-.pkt-mise-label, .pkt-method-label {
-    font-size: 0.6rem;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    font-weight: 700;
-    color: #78716c;
-    margin-bottom: 0.3rem;
-    margin-top: 0;
+.pkt-card-body {
+    padding: 0.6rem 0.85rem;
 }
-.pkt-ingredient-grid {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    column-gap: 1.5rem;
-    row-gap: 0.15rem;
-    margin-bottom: 0;
+.pkt-method-section {
+    border-top: 1px solid #e7e5e4;
 }
-.pkt-ing-name { font-size: 0.82rem; color: #1c1917; }
-.pkt-ing-qty { font-size: 0.82rem; font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; color: #1c1917; }
-.pkt-method-steps { list-style: none; padding: 0; margin: 0; }
-.pkt-method-step { display: flex; gap: 0.5rem; font-size: 0.82rem; line-height: 1.4; margin-bottom: 0.2rem; color: #292524; }
-.pkt-method-num { color: #78716c; font-weight: 600; flex-shrink: 0; min-width: 1.2rem; }
-.pkt-method-separator { border: none; border-top: 1px solid #e7e5e4; margin: 0.4rem 0; }
+.pkt-table-ingredients {
+    margin-top: 0.25rem;
+}
+.pkt-table-ingredients tbody td {
+    padding: 0.3rem 0.5rem;
+}
+.pkt-ingredient-name {
+    font-size: 0.96rem;
+}
+.pkt-sub-component {
+    font-weight: 500;
+}
 .pkt-alt-row:nth-child(odd) td { background: #fafaf9; }
 .pkt-day-block {
     border: 1px solid #d6d3d1;
