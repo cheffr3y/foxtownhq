@@ -46,25 +46,58 @@
     </div>
     {% endif %}
 {%- endmacro %}
+{% macro render_component_grid(components, depth=0) -%}
+    {% if components %}
+        {% for component in components %}
+            {% if component.type == 'option_group' %}
+                {{ render_component_grid(component.children or [], depth) }}
+            {% else %}
+                {% set component_name = component.name or component.item_name or component.recipe_name or 'Component' %}
+                {% set component_qty = component.display_quantity %}
+                {% if component_qty in (None, '') %}
+                    {% set component_qty = component.quantity %}
+                {% endif %}
+                {% if component_qty in (None, '') %}
+                    {% set component_qty = component.scaled_quantity_display %}
+                {% endif %}
+                {% set component_unit = component.display_unit or component.unit or '' %}
+                <div class="pkt-ing-name"{% if depth > 0 %} style="padding-left: {{ depth }}rem;"{% endif %}>{{ component_name }}</div>
+                <div class="pkt-ing-qty">
+                    {{ component_qty if component_qty not in (None, '') else '—' }}{% if component_unit %} {{ component_unit }}{% endif %}
+                </div>
+                {% if component.children %}
+                    {{ render_component_grid(component.children, depth + 1) }}
+                {% endif %}
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+{%- endmacro %}
 {% macro render_component_row(components, instruction_steps, colspan) -%}
     {% if components or instruction_steps %}
     <tr>
         <td colspan="{{ colspan }}" style="padding-top: 0.25rem; padding-bottom: 0.35rem; min-height: 0; height: auto; vertical-align: top;">
-            {% if components %}
-            <div class="pkt-muted" style="margin-bottom: 0.2rem;">Components</div>
-            {{ render_component_steps(components) }}
-            {% endif %}
-            {% if instruction_steps %}
-            <div class="pkt-label" style="margin-top: {% if components %}0.45rem{% else %}0{% endif %};">Method</div>
-            <div class="pkt-steps" style="gap: 0.2rem;">
-                {% for step in instruction_steps %}
-                <div class="pkt-step" style="gap: 0.4rem; font-size: 0.78rem; line-height: 1.25;">
-                    <div class="pkt-step-num" style="width: 1rem; height: 1rem; font-size: 0.56rem; margin-top: 0.05rem;">{{ loop.index }}</div>
-                    <div class="pkt-step-text">{{ step }}</div>
+            <div class="pkt-recipe-card">
+                {% if components %}
+                <div class="pkt-mise-label">Mise En Place</div>
+                <div class="pkt-ingredient-grid">
+                    {{ render_component_grid(components) }}
                 </div>
-                {% endfor %}
+                {% endif %}
+                {% if components and instruction_steps %}
+                <hr class="pkt-method-separator">
+                {% endif %}
+                {% if instruction_steps %}
+                <div class="pkt-method-label">Method</div>
+                <ol class="pkt-method-steps">
+                    {% for step in instruction_steps %}
+                    <li class="pkt-method-step">
+                        <span class="pkt-method-num">{{ loop.index }}.</span>
+                        <span>{{ step }}</span>
+                    </li>
+                    {% endfor %}
+                </ol>
+                {% endif %}
             </div>
-            {% endif %}
         </td>
     </tr>
     {% endif %}
@@ -472,6 +505,35 @@
     margin-top: 0.1rem;
 }
 .pkt-step-text { flex: 1; }
+.pkt-recipe-card {
+    border-left: 3px solid #C0612B;
+    background: #fafaf9;
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 0.5rem;
+    border-radius: 0 0.25rem 0.25rem 0;
+}
+.pkt-mise-label, .pkt-method-label {
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 700;
+    color: #78716c;
+    margin-bottom: 0.3rem;
+    margin-top: 0;
+}
+.pkt-ingredient-grid {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    column-gap: 1.5rem;
+    row-gap: 0.15rem;
+    margin-bottom: 0;
+}
+.pkt-ing-name { font-size: 0.82rem; color: #1c1917; }
+.pkt-ing-qty { font-size: 0.82rem; font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; color: #1c1917; }
+.pkt-method-steps { list-style: none; padding: 0; margin: 0; }
+.pkt-method-step { display: flex; gap: 0.5rem; font-size: 0.82rem; line-height: 1.4; margin-bottom: 0.2rem; color: #292524; }
+.pkt-method-num { color: #78716c; font-weight: 600; flex-shrink: 0; min-width: 1.2rem; }
+.pkt-method-separator { border: none; border-top: 1px solid #e7e5e4; margin: 0.4rem 0; }
 .pkt-alt-row:nth-child(odd) td { background: #fafaf9; }
 .pkt-day-block {
     border: 1px solid #d6d3d1;
@@ -566,6 +628,10 @@
         background: #fff !important;
         color: #000 !important;
         border: 1.5pt solid #000 !important;
+    }
+    .pkt-recipe-card {
+        border-left: 2pt solid #000 !important;
+        background: #fff !important;
     }
     .break-before-page {
         page-break-before: always;
