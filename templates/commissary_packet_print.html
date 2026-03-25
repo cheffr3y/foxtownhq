@@ -46,12 +46,25 @@
     </div>
     {% endif %}
 {%- endmacro %}
-{% macro render_component_row(components, colspan) -%}
-    {% if components %}
+{% macro render_component_row(components, instruction_steps, colspan) -%}
+    {% if components or instruction_steps %}
     <tr>
         <td colspan="{{ colspan }}" style="padding-top: 0.25rem; padding-bottom: 0.35rem; min-height: 0; height: auto; vertical-align: top;">
+            {% if components %}
             <div class="pkt-muted" style="margin-bottom: 0.2rem;">Components</div>
             {{ render_component_steps(components) }}
+            {% endif %}
+            {% if instruction_steps %}
+            <div class="pkt-label" style="margin-top: {% if components %}0.45rem{% else %}0{% endif %};">Method</div>
+            <div class="pkt-steps" style="gap: 0.2rem;">
+                {% for step in instruction_steps %}
+                <div class="pkt-step" style="gap: 0.4rem; font-size: 0.78rem; line-height: 1.25;">
+                    <div class="pkt-step-num" style="width: 1rem; height: 1rem; font-size: 0.56rem; margin-top: 0.05rem;">{{ loop.index }}</div>
+                    <div class="pkt-step-text">{{ step }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
         </td>
     </tr>
     {% endif %}
@@ -69,6 +82,7 @@
             'assigned_to': production_log.assigned_to or '',
             'notes': order_line.notes or '',
             'components': order_line.components or [],
+            'instruction_steps': order_line.instruction_steps or [],
         }] %}
     {% endfor %}
 {% endfor %}
@@ -168,7 +182,7 @@
                     <td><span class="pkt-write-line"></span></td>
                     <td><span class="pkt-write-box"></span></td>
                 </tr>
-                {{ render_component_row(line.components, 7) }}
+                {{ render_component_row(line.components, line.instruction_steps, 7) }}
                 {% endfor %}
             </tbody>
         </table>
@@ -236,7 +250,7 @@
                             <td><span class="pkt-write-line"></span></td>
                             <td><span class="pkt-write-box"></span></td>
                         </tr>
-                        {{ render_component_row(line.components, 6) }}
+                        {{ render_component_row(line.components, line.instruction_steps, 6) }}
                         {% endfor %}
                     </tbody>
                 </table>

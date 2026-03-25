@@ -3,7 +3,7 @@ from datetime import date, datetime, timedelta
 
 from helpers.banquet import derive_prep_family_label
 from helpers.db_helpers import db_table_exists
-from helpers.formatting import collect_ingredient_usage_from_components, normalize_match_key
+from helpers.formatting import collect_ingredient_usage_from_components, normalize_match_key, split_instruction_steps
 from helpers.menu import clean_menu_text
 from helpers.recipes import (
     build_component_tree,
@@ -721,6 +721,8 @@ def build_commissary_datasets(cur, start_date, end_date, outlet='', unit_system=
             'prep_start_date': row.get('prep_start_date') or orders_map[order_id].get('needed_date'),
             'prep_end_date': row.get('prep_end_date') or row.get('prep_start_date') or orders_map[order_id].get('needed_date'),
             'notes': row.get('line_notes'),
+            'instructions': row.get('instructions') or '',
+            'instruction_steps': split_instruction_steps(row.get('instructions')),
             'source': orders_map[order_id].get('source'),
             'estimated_cost_total': None,
             'estimated_cost_per_unit': None,
