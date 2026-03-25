@@ -11,6 +11,68 @@
 {% elif selected_units == 'hybrid' %}
 {% set unit_label = 'Grams + qt/gal/fl oz' %}
 {% endif %}
+{% macro render_component_steps(components, depth=0) -%}
+    {% if components %}
+    <div class="pkt-steps" style="gap: 0.2rem;">
+        {% for component in components %}
+            {% if component.type == 'option_group' %}
+                {{ render_component_steps(component.children or [], depth) }}
+            {% else %}
+                {% set component_name = component.name or component.item_name or component.recipe_name or 'Component' %}
+                {% set component_qty = component.display_quantity %}
+                {% if component_qty in (None, '') %}
+                    {% set component_qty = component.quantity %}
+                {% endif %}
+                {% if component_qty in (None, '') %}
+                    {% set component_qty = component.scaled_quantity_display %}
+                {% endif %}
+                {% set component_unit = component.display_unit or component.unit or '' %}
+                <div class="pkt-step" style="gap: 0.4rem; font-size: 0.78rem; line-height: 1.25;">
+                    <div class="pkt-step-num" style="width: 1rem; height: 1rem; font-size: 0.56rem; margin-top: 0.05rem;">{{ loop.index }}</div>
+                    <div class="pkt-step-text" style="display: flex; justify-content: space-between; gap: 0.75rem; align-items: flex-start;">
+                        <div style="padding-left: {{ depth * 0.9 }}rem;">
+                            {{ component_name }}
+                        </div>
+                        <div class="pkt-muted pkt-mono" style="white-space: nowrap; text-align: right;">
+                            {{ component_qty if component_qty not in (None, '') else '—' }}{% if component_unit %} {{ component_unit }}{% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% if component.children %}
+                    {{ render_component_steps(component.children, depth + 1) }}
+                {% endif %}
+            {% endif %}
+        {% endfor %}
+    </div>
+    {% endif %}
+{%- endmacro %}
+{% macro render_component_row(components, colspan) -%}
+    {% if components %}
+    <tr>
+        <td colspan="{{ colspan }}" style="padding-top: 0.25rem; padding-bottom: 0.35rem; min-height: 0; height: auto; vertical-align: top;">
+            <div class="pkt-muted" style="margin-bottom: 0.2rem;">Components</div>
+            {{ render_component_steps(components) }}
+        </td>
+    </tr>
+    {% endif %}
+{%- endmacro %}
+{% set checklist_ns = namespace(rows=[]) %}
+{% for order in datasets.orders %}
+    {% for order_line in order.lines %}
+        {% set production_log = order_line.production_log or {} %}
+        {% set checklist_ns.rows = checklist_ns.rows + [{
+            'item_name': order_line.item_name or order_line.recipe_name or 'Item',
+            'recipe_name': order_line.recipe_name or '',
+            'quantity': order_line.quantity,
+            'quantity_unit': order_line.quantity_unit or 'each',
+            'outlet': order.outlet or '',
+            'assigned_to': production_log.assigned_to or '',
+            'notes': order_line.notes or '',
+            'components': order_line.components or [],
+        }] %}
+    {% endfor %}
+{% endfor %}
+{% set packet_checklist_lines = checklist_ns.rows|sort(attribute='item_name')|sort(attribute='outlet') %}
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6" id="printRoot">
     <div class="print:hidden screen-only flex justify-between items-center gap-3 flex-wrap">
         <div>
@@ -77,7 +139,7 @@
                 {% endif %}
             </span>
         </div>
-        {% if checklist_lines %}
+        {% if packet_checklist_lines %}
         <table class="pkt-table pkt-table-accountability">
             <thead>
                 <tr>
@@ -91,7 +153,7 @@
                 </tr>
             </thead>
             <tbody>
-                {% for line in checklist_lines %}
+                {% for line in packet_checklist_lines %}
                 <tr class="pkt-account-row">
                     <td class="text-center"><span class="pkt-checkbox"></span></td>
                     <td>
@@ -106,6 +168,7 @@
                     <td><span class="pkt-write-line"></span></td>
                     <td><span class="pkt-write-box"></span></td>
                 </tr>
+                {{ render_component_row(line.components, 7) }}
                 {% endfor %}
             </tbody>
         </table>
@@ -173,6 +236,7 @@
                             <td><span class="pkt-write-line"></span></td>
                             <td><span class="pkt-write-box"></span></td>
                         </tr>
+                        {{ render_component_row(line.components, 6) }}
                         {% endfor %}
                     </tbody>
                 </table>
