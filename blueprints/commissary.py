@@ -2385,14 +2385,20 @@ def commissary_packet_pdf():
                         'outlet': order.get('outlet') or DEFAULT_COMMISSARY_OUTLET,
                         'assigned_to': production_log.get('assigned_to') or '',
                         'notes': line.get('notes') or '',
+                        'components': line.get('components') or [],
+                        'instruction_steps': line.get('instruction_steps') or [],
+                        'production_log': production_log,
                     }
                 )
         checklist_lines.sort(key=lambda row: ((row.get('outlet') or '').lower(), (row.get('item_name') or '').lower()))
 
-    header_navy = colors.HexColor('#1B2A4A')
+    from reportlab.platypus import KeepTogether
+
+    header_black = colors.HexColor('#1A1A1A')
     light_gray = colors.HexColor('#F5F5F5')
-    border_gray = colors.HexColor('#DDDDDD')
+    border_gray = colors.HexColor('#D9D9D9')
     muted_text = colors.HexColor('#4F5B6E')
+    subrecipe_gray = colors.HexColor('#888888')
     white = colors.white
     margin_x = 0.5 * inch
     margin_y = 0.4 * inch
@@ -2427,10 +2433,37 @@ def commissary_packet_pdf():
     def html_text(value, default='-'):
         return escape(to_text(value, default)).replace('\n', '<br/>')
 
-    def qty_label(row):
-        qty = format_number(row.get('quantity'))
-        unit = (row.get('quantity_unit') or 'each').strip() or 'each'
+    def qty_label_values(quantity, unit):
+        qty = format_number(quantity)
+        unit = (unit or 'each').strip() or 'each'
         return f'{qty} {unit}'
+
+    def qty_label(row):
+        return qty_label_values(row.get('quantity'), row.get('quantity_unit'))
+
+    def actual_yield_label(log):
+        qty = to_float(log.get('actual_yield'))
+        unit = clean_menu_text(log.get('actual_yield_unit')) or ''
+        if qty > 0:
+            return qty_label_values(qty, unit or 'each')
+        return '________________'
+
+    def component_qty_label(quantity, unit):
+        qty_text = str(quantity or '').strip() or '—'
+        unit_text = str(unit or '').strip()
+        if qty_text == '—' or not unit_text:
+            return qty_text
+        return f'{qty_text} {unit_text}'
+
+    def signoff_notes_markup(line):
+        parts = []
+        if line.get('notes'):
+            parts.append(f'<b>Line:</b> {html_text(line.get("notes"), "")}')
+        production_notes = (line.get('production_log') or {}).get('notes')
+        if production_notes:
+            parts.append(f'<b>Prod:</b> {html_text(production_notes, "")}')
+        parts.append('________________')
+        return '<br/>'.join(parts)
 
     unit_label = 'Auto'
     if selected_units == 'imperial':
@@ -2445,6 +2478,9 @@ def commissary_packet_pdf():
     else:
         range_label = f'{fmt_date(start_date)} - {fmt_date(end_date)}'
 
+    outlet_names = sorted({row.get('outlet') or DEFAULT_COMMISSARY_OUTLET for row in checklist_lines}, key=lambda value: value.lower())
+    outlet_label = selected_outlet or ', '.join(outlet_names) or 'All Outlets'
+
     base_style = ParagraphStyle(
         'packet-pdf-base',
         fontName='Helvetica',
@@ -2452,66 +2488,129 @@ def commissary_packet_pdf():
         leading=9.5,
         textColor=colors.black,
     )
-    tiny_style = ParagraphStyle(
-        'packet-pdf-tiny',
+    small_style = ParagraphStyle(
+        'packet-pdf-small',
         parent=base_style,
-        fontSize=7.2,
-        leading=8.3,
+        fontSize=7.6,
+        leading=8.8,
     )
     table_header_style = ParagraphStyle(
         'packet-pdf-table-header',
-        parent=base_style,
+        parent=small_style,
         fontName='Helvetica-Bold',
         textColor=white,
-        fontSize=7.2,
-        leading=8.3,
+        fontSize=7.3,
+        leading=8.5,
     )
     section_title_style = ParagraphStyle(
         'packet-pdf-section-title',
         parent=base_style,
         fontName='Helvetica-Bold',
-        fontSize=10.5,
-        leading=12,
-        textColor=header_navy,
-        spaceAfter=4,
-    )
-    subheading_style = ParagraphStyle(
-        'packet-pdf-subheading',
-        parent=base_style,
-        fontName='Helvetica-Bold',
-        fontSize=8.5,
-        leading=10.2,
-        textColor=header_navy,
-        spaceAfter=2,
-    )
-    label_style = ParagraphStyle(
-        'packet-pdf-label',
-        parent=base_style,
-        fontName='Helvetica-Bold',
+        fontSize=11.5,
+        leading=13.5,
+        textColor=header_black,
+        spaceAfter=3,
     )
     muted_style = ParagraphStyle(
         'packet-pdf-muted',
-        parent=base_style,
-        fontSize=7.4,
+        parent=small_style,
+        textColor=muted_text,
+    )
+    signoff_cell_style = ParagraphStyle(
+        'packet-pdf-signoff-cell',
+        parent=small_style,
+        leading=8.8,
+    )
+    signoff_notes_style = ParagraphStyle(
+        'packet-pdf-signoff-notes',
+        parent=small_style,
         leading=8.6,
+    )
+    outlet_header_style = ParagraphStyle(
+        'packet-pdf-outlet-header',
+        parent=base_style,
+        fontName='Helvetica-Bold',
+        fontSize=10.5,
+        leading=12.5,
+        textColor=header_black,
+        spaceBefore=8,
+        spaceAfter=3,
+    )
+    checklist_item_style = ParagraphStyle(
+        'packet-pdf-checklist-item',
+        parent=base_style,
+        fontName='Helvetica-Bold',
+        fontSize=11,
+        leading=13.2,
+        spaceAfter=1,
+    )
+    checklist_subrecipe_style = ParagraphStyle(
+        'packet-pdf-checklist-subrecipe',
+        parent=base_style,
+        fontSize=9,
+        leading=10.8,
+        textColor=subrecipe_gray,
+        leftIndent=20,
+    )
+    card_title_style = ParagraphStyle(
+        'packet-pdf-card-title',
+        parent=base_style,
+        fontName='Helvetica-Bold',
+        fontSize=12,
+        leading=14,
+        textColor=header_black,
+        spaceAfter=1,
+    )
+    card_meta_style = ParagraphStyle(
+        'packet-pdf-card-meta',
+        parent=small_style,
+        textColor=muted_text,
+        spaceAfter=4,
+    )
+    card_component_style = ParagraphStyle(
+        'packet-pdf-card-component',
+        parent=small_style,
+        leading=8.8,
+    )
+    card_subcomponent_style = ParagraphStyle(
+        'packet-pdf-card-subcomponent',
+        parent=small_style,
+        leading=8.8,
+        textColor=subrecipe_gray,
+    )
+    method_step_style = ParagraphStyle(
+        'packet-pdf-method-step',
+        parent=base_style,
+        fontSize=9,
+        leading=11.2,
+        spaceAfter=2,
+    )
+    empty_note_style = ParagraphStyle(
+        'packet-pdf-empty-note',
+        parent=base_style,
+        fontSize=8.2,
+        leading=9.6,
         textColor=muted_text,
     )
 
     def p(value, style=base_style, default='-'):
         return Paragraph(html_text(value, default), style)
 
+    def paragraph_from_markup(value, style):
+        return Paragraph(value, style)
+
     def draw_page_header(pdf_canvas, doc):
         page_width, page_height = letter
         top_y = page_height - 22
         pdf_canvas.saveState()
-        pdf_canvas.setFillColor(header_navy)
+        pdf_canvas.setFillColor(header_black)
         pdf_canvas.setFont('Helvetica-Bold', 11)
         pdf_canvas.drawString(doc.leftMargin, top_y, 'Commissary Production Packet')
         pdf_canvas.setFillColor(muted_text)
         pdf_canvas.setFont('Helvetica', 7.3)
-        detail = f"{shorten(selected_outlet or 'All Outlets', 36)} | {range_label} | {unit_label}"
+        detail = f"{shorten(outlet_label, 60)} | {range_label}"
         pdf_canvas.drawString(doc.leftMargin, top_y - 10, detail)
-        pdf_canvas.drawRightString(page_width - doc.rightMargin, top_y - 10, f'Generated {generated_at}')
+        pdf_canvas.drawRightString(page_width - doc.rightMargin, top_y - 10, f'Auto Generated {generated_at}')
         pdf_canvas.setStrokeColor(border_gray)
         pdf_canvas.setLineWidth(0.6)
         pdf_canvas.line(doc.leftMargin, top_y - 14.5, page_width - doc.rightMargin, top_y - 14.5)
@@ -2551,23 +2650,103 @@ def commissary_packet_pdf():
     def draw_later_pages(pdf_canvas, doc):
         draw_page_header(pdf_canvas, doc)
 
-    def style_table(table, align_right_cols=None):
+    def styled_table(data, col_widths, align_right_cols=None, repeat_rows=1, header_color=header_black):
+        table = Table(data, colWidths=col_widths, repeatRows=repeat_rows)
         commands = [
-            ('BACKGROUND', (0, 0), (-1, 0), header_navy),
+            ('BACKGROUND', (0, 0), (-1, 0), header_color),
             ('TEXTCOLOR', (0, 0), (-1, 0), white),
             ('ROWBACKGROUNDS', (0, 1), (-1, -1), [white, light_gray]),
-            ('GRID', (0, 0), (-1, -1), 0.45, colors.black),
+            ('GRID', (0, 0), (-1, -1), 0.4, border_gray),
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
             ('LEFTPADDING', (0, 0), (-1, -1), 4),
             ('RIGHTPADDING', (0, 0), (-1, -1), 4),
-            ('TOPPADDING', (0, 0), (-1, -1), 3),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+            ('TOPPADDING', (0, 0), (-1, -1), 3.5),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3.5),
         ]
         if align_right_cols:
             for idx in align_right_cols:
                 commands.append(('ALIGN', (idx, 1), (idx, -1), 'RIGHT'))
         table.setStyle(TableStyle(commands))
         return table
+
+    def divider(width):
+        line = Table([[Paragraph('', base_style)]], colWidths=[width])
+        line.setStyle(
+            TableStyle(
+                [
+                    ('LINEBELOW', (0, 0), (-1, 0), 0.6, border_gray),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 0),
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+                    ('TOPPADDING', (0, 0), (-1, -1), 0),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+                ]
+            )
+        )
+        return line
+
+    def checklist_subrecipe_flowables(components, depth=1):
+        flowables = []
+        if not components:
+            return flowables
+        for component in components:
+            comp_type = component.get('type')
+            if comp_type == 'option_group':
+                flowables.extend(checklist_subrecipe_flowables(component.get('children') or [], depth))
+                continue
+            if comp_type != 'ingredient':
+                comp_name = component.get('name') or component.get('item_name') or component.get('recipe_name') or 'Sub-recipe'
+                comp_qty = component.get('display_quantity')
+                if comp_qty in (None, ''):
+                    comp_qty = component.get('quantity')
+                if comp_qty in (None, ''):
+                    comp_qty = component.get('scaled_quantity_display')
+                comp_unit = component.get('display_unit') or component.get('unit') or ''
+                style = ParagraphStyle(
+                    f'packet-pdf-checklist-subrecipe-{depth}',
+                    parent=checklist_subrecipe_style,
+                    leftIndent=20 * depth,
+                )
+                flowables.append(
+                    Paragraph(
+                        f'{escape(comp_name)} &mdash; {escape(component_qty_label(comp_qty, comp_unit))}',
+                        style,
+                    )
+                )
+            flowables.extend(checklist_subrecipe_flowables(component.get('children') or [], depth + 1))
+        return flowables
+
+    def recipe_component_rows(components, depth=0):
+        rows = []
+        if not components:
+            return rows
+        for component in components:
+            comp_type = component.get('type')
+            if comp_type == 'option_group':
+                rows.extend(recipe_component_rows(component.get('children') or [], depth))
+                continue
+            comp_name = component.get('name') or component.get('item_name') or component.get('recipe_name') or 'Component'
+            comp_qty = component.get('display_quantity')
+            if comp_qty in (None, ''):
+                comp_qty = component.get('quantity')
+            if comp_qty in (None, ''):
+                comp_qty = component.get('scaled_quantity_display')
+            comp_unit = component.get('display_unit') or component.get('unit') or '—'
+            name_style = card_component_style if comp_type == 'ingredient' else card_subcomponent_style
+            qty_style = card_component_style if comp_type == 'ingredient' else card_subcomponent_style
+            name_paragraph_style = ParagraphStyle(
+                f'packet-pdf-card-name-{comp_type or "component"}-{depth}',
+                parent=name_style,
+                leftIndent=depth * 12,
+            )
+            rows.append(
+                [
+                    Paragraph(escape(comp_name), name_paragraph_style),
+                    Paragraph(html_text(comp_qty, '—'), qty_style),
+                    Paragraph(html_text(comp_unit, '—'), qty_style),
+                ]
+            )
+            rows.extend(recipe_component_rows(component.get('children') or [], depth + 1))
+        return rows
 
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
@@ -2581,144 +2760,136 @@ def commissary_packet_pdf():
     )
     story = [Spacer(1, 2)]
 
-    story.append(Paragraph('Daily Production Checklist', section_title_style))
+    story.append(Paragraph('Daily Sign-Off Sheet', section_title_style))
     story.append(Paragraph(range_label, muted_style))
-    story.append(Spacer(1, 4))
+    story.append(Spacer(1, 6))
     if checklist_lines:
-        checklist_data = [
+        signoff_data = [
             [
-                Paragraph('[ ]', table_header_style),
                 Paragraph('Item', table_header_style),
                 Paragraph('Qty', table_header_style),
                 Paragraph('Outlet', table_header_style),
                 Paragraph('Assigned Cook', table_header_style),
                 Paragraph('Produced By', table_header_style),
-                Paragraph('Chef Sign-off / Notes', table_header_style),
+                Paragraph('Actual Yield', table_header_style),
+                Paragraph('Tasted By', table_header_style),
+                Paragraph('Temp', table_header_style),
+                Paragraph('Notes / Chef Sign-off', table_header_style),
             ]
         ]
         for line in checklist_lines:
-            item_detail = line.get('item_name') or 'Item'
+            production_log = line.get('production_log') or {}
+            item_detail = f'<b>{escape(line.get("item_name") or "Item")}</b>'
             if line.get('recipe_name') and line.get('recipe_name') != line.get('item_name'):
-                item_detail = f"{item_detail}<br/><font color=\"#4F5B6E\">Recipe: {escape(line.get('recipe_name') or '')}</font>"
-            checklist_data.append(
+                item_detail += f'<br/><font color="#6B7280">Recipe: {escape(line.get("recipe_name") or "")}</font>'
+            signoff_data.append(
                 [
-                    p('[ ]', tiny_style),
-                    Paragraph(item_detail, base_style),
-                    p(qty_label(line), tiny_style),
-                    p(line.get('outlet') or DEFAULT_COMMISSARY_OUTLET),
-                    p(line.get('assigned_to') or '________________'),
-                    p('________________'),
-                    p('________________'),
+                    paragraph_from_markup(item_detail, signoff_cell_style),
+                    p(qty_label(line), signoff_cell_style),
+                    p(line.get('outlet') or DEFAULT_COMMISSARY_OUTLET, signoff_cell_style),
+                    p(line.get('assigned_to') or '________________', signoff_cell_style),
+                    p(production_log.get('made_by') or '________________', signoff_cell_style),
+                    p(actual_yield_label(production_log), signoff_cell_style),
+                    p(production_log.get('tasted_by') or '________________', signoff_cell_style),
+                    p('________________', signoff_cell_style),
+                    paragraph_from_markup(signoff_notes_markup(line), signoff_notes_style),
                 ]
             )
-        checklist_table = Table(
-            checklist_data,
-            colWidths=[0.28 * inch, 1.85 * inch, 0.62 * inch, 0.85 * inch, 0.95 * inch, 0.7 * inch, 1.35 * inch],
-            repeatRows=1,
+        signoff_table = styled_table(
+            signoff_data,
+            col_widths=[
+                doc.width * 0.20,
+                doc.width * 0.08,
+                doc.width * 0.10,
+                doc.width * 0.10,
+                doc.width * 0.10,
+                doc.width * 0.10,
+                doc.width * 0.09,
+                doc.width * 0.07,
+                doc.width * 0.16,
+            ],
+            align_right_cols=[1, 5],
         )
-        style_table(checklist_table)
-        story.append(checklist_table)
+        story.append(signoff_table)
     else:
-        story.append(Paragraph('No production lines found for this date window.', muted_style))
+        story.append(Paragraph('No production items found for this date window.', empty_note_style))
 
-    story.append(Spacer(1, 10))
-    story.append(Paragraph('Order Summary', section_title_style))
-    orders = datasets.get('orders') or []
-    if orders:
-        for idx, order in enumerate(orders):
-            if idx > 0:
-                story.append(PageBreak())
-            outlet_name = order.get('outlet') or DEFAULT_COMMISSARY_OUTLET
-            order_header = (
-                f"<b>{escape(outlet_name)}</b> | Needed {fmt_date(order.get('needed_date'))} | "
-                f"{escape((order.get('status') or 'pending').replace('_', ' ').title())} | "
-                f"{format_number(order.get('line_count') or 0)} lines"
-            )
-            story.append(Paragraph(order_header, base_style))
-            if order.get('notes'):
-                story.append(Paragraph(f"Order Notes: {html_text(order.get('notes'), '')}", muted_style))
-            story.append(Spacer(1, 4))
-            order_table_data = [
-                [
-                    Paragraph('[ ]', table_header_style),
-                    Paragraph('Item Name & Qty', table_header_style),
-                    Paragraph('Assigned Cook', table_header_style),
-                    Paragraph('Produced By', table_header_style),
-                    Paragraph('Chef Sign-off', table_header_style),
-                    Paragraph('Comments / Temp', table_header_style),
-                ]
-            ]
-            for line in order.get('lines', []):
-                production_log = line.get('production_log') or {}
-                item_name = line.get('item_name') or 'Item'
-                if line.get('recipe_name') and line.get('recipe_name') != line.get('item_name'):
-                    item_name = f"{item_name}<br/><font color=\"#4F5B6E\">Recipe: {escape(line.get('recipe_name') or '')}</font>"
-                qty_text = qty_label({'quantity': line.get('quantity'), 'quantity_unit': line.get('quantity_unit')})
-                order_table_data.append(
-                    [
-                        p('[ ]', tiny_style),
-                        Paragraph(f"{item_name}<br/><font name=\"Helvetica\">{escape(qty_text)}</font>", base_style),
-                        p(production_log.get('assigned_to') or '________________'),
-                        p('________________'),
-                        p('________________'),
-                        p('________________'),
-                    ]
-                )
-            order_table = Table(
-                order_table_data,
-                colWidths=[0.28 * inch, 2.05 * inch, 0.95 * inch, 0.78 * inch, 0.78 * inch, 1.06 * inch],
-                repeatRows=1,
-            )
-            style_table(order_table)
-            story.append(order_table)
-            story.append(Spacer(1, 6))
-    else:
-        story.append(Paragraph('No commissary orders found in this date range.', muted_style))
+    story.append(PageBreak())
 
-    if include_shopping:
-        story.append(PageBreak())
-        story.append(Paragraph('Shopping List', section_title_style))
-        shopping_items = datasets.get('shopping_ingredients') or []
-        if shopping_items:
-            vendor_groups = {}
-            vendor_order = []
-            for item in shopping_items:
-                vendor = item.get('vendor') or 'Unassigned Vendor'
-                if vendor not in vendor_groups:
-                    vendor_groups[vendor] = []
-                    vendor_order.append(vendor)
-                vendor_groups[vendor].append(item)
-            for vendor in vendor_order:
-                story.append(Paragraph(vendor, subheading_style))
-                shopping_data = [
-                    [
-                        Paragraph('✓', table_header_style),
-                        Paragraph('Ingredient', table_header_style),
-                        Paragraph('Qty', table_header_style),
-                        Paragraph('Unit', table_header_style),
-                        Paragraph('Category', table_header_style),
-                    ]
-                ]
-                for item in vendor_groups[vendor]:
-                    shopping_data.append(
-                        [
-                            p('[ ]', tiny_style),
-                            p(item.get('name') or 'Ingredient'),
-                            p(item.get('display_quantity') if item.get('display_quantity') not in (None, '') else '—'),
-                            p(item.get('display_unit') or '—'),
-                            p(item.get('category') or 'Uncategorized'),
-                        ]
+    story.append(Paragraph('Production Checklist', section_title_style))
+    story.append(Paragraph('Unified production list grouped by outlet.', muted_style))
+    story.append(Spacer(1, 6))
+    if checklist_lines:
+        outlet_groups = {}
+        for line in checklist_lines:
+            outlet_groups.setdefault(line.get('outlet') or DEFAULT_COMMISSARY_OUTLET, []).append(line)
+        for outlet in sorted(outlet_groups.keys(), key=lambda value: value.lower()):
+            story.append(Paragraph(escape(outlet), outlet_header_style))
+            for line in outlet_groups[outlet]:
+                story.append(
+                    Paragraph(
+                        f'[ ] {escape(line.get("item_name") or "Item")} &mdash; {escape(qty_label(line))}',
+                        checklist_item_style,
                     )
-                shopping_table = Table(
-                    shopping_data,
-                    colWidths=[0.24 * inch, 3.55 * inch, 0.8 * inch, 0.7 * inch, 1.01 * inch],
-                    repeatRows=1,
                 )
-                style_table(shopping_table, align_right_cols=[2])
-                story.append(shopping_table)
-                story.append(Spacer(1, 6))
-        else:
-            story.append(Paragraph('No shopping items for the selected window.', muted_style))
+                for sub_flowable in checklist_subrecipe_flowables(line.get('components') or []):
+                    story.append(sub_flowable)
+                story.append(Spacer(1, 2))
+    else:
+        story.append(Paragraph('No production items found for this date window.', empty_note_style))
+
+    story.append(PageBreak())
+
+    story.append(Paragraph('Scaled Recipe Cards', section_title_style))
+    story.append(Paragraph('Primary production items only.', muted_style))
+    story.append(Spacer(1, 6))
+    if checklist_lines:
+        for idx, line in enumerate(checklist_lines):
+            card_parts = [
+                Paragraph(escape(line.get('item_name') or 'Item'), card_title_style),
+                Paragraph(
+                    f'{escape(qty_label(line))}<br/><font color="#4F5B6E">{escape(line.get("outlet") or DEFAULT_COMMISSARY_OUTLET)}</font>',
+                    card_meta_style,
+                ),
+            ]
+            ingredient_rows = recipe_component_rows(line.get('components') or [])
+            if ingredient_rows:
+                ingredient_data = [
+                    [
+                        Paragraph('Ingredient', table_header_style),
+                        Paragraph('Quantity', table_header_style),
+                        Paragraph('Unit', table_header_style),
+                    ]
+                ] + ingredient_rows
+                ingredient_table = styled_table(
+                    ingredient_data,
+                    col_widths=[doc.width * 0.66, doc.width * 0.17, doc.width * 0.17],
+                    align_right_cols=[1],
+                )
+                card_parts.append(ingredient_table)
+            else:
+                card_parts.append(Paragraph('No scaled component data available.', empty_note_style))
+
+            steps = line.get('instruction_steps') or []
+            if steps:
+                card_parts.append(Spacer(1, 6))
+                card_parts.append(Paragraph('Method', outlet_header_style))
+                for step_index, step in enumerate(steps, start=1):
+                    card_parts.append(
+                        Paragraph(f'<b>{step_index}.</b> {html_text(step, "")}', method_step_style)
+                    )
+            else:
+                card_parts.append(Spacer(1, 4))
+                card_parts.append(Paragraph('No method provided.', empty_note_style))
+
+            if idx < len(checklist_lines) - 1:
+                card_parts.append(Spacer(1, 8))
+                card_parts.append(divider(doc.width))
+                card_parts.append(Spacer(1, 8))
+
+            story.append(KeepTogether(card_parts))
+    else:
+        story.append(Paragraph('No recipe cards available for this date window.', empty_note_style))
 
     doc.build(story, onFirstPage=draw_first_page, onLaterPages=draw_later_pages, canvasmaker=NumberedCanvas)
     payload = buffer.getvalue()
