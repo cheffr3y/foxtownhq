@@ -2446,7 +2446,7 @@ def commissary_packet_pdf():
         unit = clean_menu_text(log.get('actual_yield_unit')) or ''
         if qty > 0:
             return qty_label_values(qty, unit or 'each')
-        return '________________'
+        return '-'
 
     def component_qty_label(quantity, unit):
         qty_text = str(quantity or '').strip() or '—'
@@ -2462,8 +2462,7 @@ def commissary_packet_pdf():
         production_notes = (line.get('production_log') or {}).get('notes')
         if production_notes:
             parts.append(f'<b>Prod:</b> {html_text(production_notes, "")}')
-        parts.append('________________')
-        return '<br/>'.join(parts)
+        return '<br/>'.join(parts) if parts else '-'
 
     unit_label = 'Auto'
     if selected_units == 'imperial':
@@ -2760,21 +2759,17 @@ def commissary_packet_pdf():
     )
     story = [Spacer(1, 2)]
 
-    story.append(Paragraph('Daily Sign-Off Sheet', section_title_style))
+    story.append(Paragraph('Daily Production Summary', section_title_style))
     story.append(Paragraph(range_label, muted_style))
     story.append(Spacer(1, 6))
     if checklist_lines:
         signoff_data = [
             [
                 Paragraph('Item', table_header_style),
-                Paragraph('Qty', table_header_style),
-                Paragraph('Outlet', table_header_style),
-                Paragraph('Assigned Cook', table_header_style),
-                Paragraph('Produced By', table_header_style),
-                Paragraph('Actual Yield', table_header_style),
-                Paragraph('Tasted By', table_header_style),
-                Paragraph('Temp', table_header_style),
-                Paragraph('Notes / Chef Sign-off', table_header_style),
+                Paragraph('Requested Qty', table_header_style),
+                Paragraph('Yield Qty', table_header_style),
+                Paragraph('Made By', table_header_style),
+                Paragraph('Notes', table_header_style),
             ]
         ]
         for line in checklist_lines:
@@ -2782,33 +2777,26 @@ def commissary_packet_pdf():
             item_detail = f'<b>{escape(line.get("item_name") or "Item")}</b>'
             if line.get('recipe_name') and line.get('recipe_name') != line.get('item_name'):
                 item_detail += f'<br/><font color="#6B7280">Recipe: {escape(line.get("recipe_name") or "")}</font>'
+            item_detail += f'<br/><font color="#6B7280">{escape(line.get("outlet") or DEFAULT_COMMISSARY_OUTLET)}</font>'
             signoff_data.append(
                 [
                     paragraph_from_markup(item_detail, signoff_cell_style),
                     p(qty_label(line), signoff_cell_style),
-                    p(line.get('outlet') or DEFAULT_COMMISSARY_OUTLET, signoff_cell_style),
-                    p(line.get('assigned_to') or '________________', signoff_cell_style),
-                    p(production_log.get('made_by') or '________________', signoff_cell_style),
                     p(actual_yield_label(production_log), signoff_cell_style),
-                    p(production_log.get('tasted_by') or '________________', signoff_cell_style),
-                    p('________________', signoff_cell_style),
+                    p(production_log.get('made_by') or '-', signoff_cell_style),
                     paragraph_from_markup(signoff_notes_markup(line), signoff_notes_style),
                 ]
             )
         signoff_table = styled_table(
             signoff_data,
             col_widths=[
-                doc.width * 0.20,
-                doc.width * 0.08,
-                doc.width * 0.10,
-                doc.width * 0.10,
-                doc.width * 0.10,
-                doc.width * 0.10,
-                doc.width * 0.09,
-                doc.width * 0.07,
-                doc.width * 0.16,
+                doc.width * 0.34,
+                doc.width * 0.14,
+                doc.width * 0.14,
+                doc.width * 0.12,
+                doc.width * 0.26,
             ],
-            align_right_cols=[1, 5],
+            align_right_cols=[1, 2],
         )
         story.append(signoff_table)
     else:
