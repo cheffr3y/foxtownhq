@@ -54,6 +54,85 @@ BUFFET_STATION_OPTIONS = [
 DIETARY_FLAGS = ['is_gf', 'is_v', 'is_vg', 'is_df', 'is_nf']
 DIETARY_LABELS = {'is_gf': 'GF', 'is_v': 'V', 'is_vg': 'VG', 'is_df': 'DF', 'is_nf': 'NF'}
 LINE_FIELD_PATTERN = re.compile(r'^lines\[(\d+)\]\[([a-z_]+)\]$')
+BUFFET_SCHEMA_STATEMENTS = [
+    """
+    CREATE TABLE IF NOT EXISTS buffet_events (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        event_date DATE NOT NULL,
+        venue_id TEXT REFERENCES venues(id) ON DELETE SET NULL,
+        building TEXT,
+        room TEXT,
+        service_timing TEXT,
+        ticket_adult NUMERIC DEFAULT 0,
+        ticket_child NUMERIC DEFAULT 0,
+        ticket_senior NUMERIC DEFAULT 0,
+        ticket_comp INTEGER DEFAULT 0,
+        guests_adult INTEGER DEFAULT 0,
+        guests_child INTEGER DEFAULT 0,
+        guests_senior INTEGER DEFAULT 0,
+        guests_comp INTEGER DEFAULT 0,
+        dietary_notes TEXT,
+        notes TEXT,
+        status TEXT NOT NULL DEFAULT 'planning',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS buffet_event_lines (
+        id BIGSERIAL PRIMARY KEY,
+        event_id TEXT NOT NULL REFERENCES buffet_events(id) ON DELETE CASCADE,
+        station TEXT,
+        dish_name TEXT NOT NULL,
+        description TEXT,
+        vessel TEXT,
+        foh_talking_points TEXT,
+        recipe_id TEXT REFERENCES recipes(id) ON DELETE SET NULL,
+        serving_size_qty NUMERIC,
+        serving_size_unit TEXT,
+        is_gf BOOLEAN NOT NULL DEFAULT FALSE,
+        is_v BOOLEAN NOT NULL DEFAULT FALSE,
+        is_vg BOOLEAN NOT NULL DEFAULT FALSE,
+        is_df BOOLEAN NOT NULL DEFAULT FALSE,
+        is_nf BOOLEAN NOT NULL DEFAULT FALSE,
+        sort_order INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_buffet_event_lines_event_id ON buffet_event_lines (event_id, sort_order)",
+    "CREATE INDEX IF NOT EXISTS idx_buffet_events_event_date ON buffet_events (event_date)",
+    """
+    CREATE TABLE IF NOT EXISTS buffet_order_items (
+        id BIGSERIAL PRIMARY KEY,
+        event_id TEXT NOT NULL REFERENCES buffet_events(id) ON DELETE CASCADE,
+        ingredient_id TEXT REFERENCES ingredients(id) ON DELETE SET NULL,
+        ingredient_name TEXT NOT NULL,
+        total_qty NUMERIC,
+        total_unit TEXT,
+        pack_size NUMERIC,
+        pack_unit TEXT,
+        pack_type TEXT DEFAULT 'oz',
+        cases_needed NUMERIC,
+        vendor TEXT,
+        notes TEXT,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_buffet_order_items_event_id ON buffet_order_items (event_id)",
+]
+
+
+def ensure_buffet_schema(cur):
+    has_events = db_table_exists(cur, 'public.buffet_events')
+    has_lines = db_table_exists(cur, 'public.buffet_event_lines')
+    has_order_items = db_table_exists(cur, 'public.buffet_order_items')
+    if has_events and has_lines and has_order_items:
+        return False
+
+    for statement in BUFFET_SCHEMA_STATEMENTS:
+        cur.execute(statement)
+    return True
 
 
 def buffet_tables_ready(cur):
@@ -430,7 +509,10 @@ def build_buffet_order_rollup(cur, event_id, unit_system='imperial'):
 @bp.route('/buffet-planner')
 @login_required
 def buffet_planner():
+    conn = get_db()
     with get_cursor() as cur:
+        if ensure_buffet_schema(cur):
+            conn.commit()
         if not buffet_tables_ready(cur):
             flash('Buffet tables are missing. Run migrations first.', 'error')
             return render_template(
@@ -503,6 +585,8 @@ def buffet_planner():
 def buffet_event_new():
     conn = get_db()
     with get_cursor() as cur:
+        if ensure_buffet_schema(cur):
+            conn.commit()
         if not buffet_tables_ready(cur):
             flash('Buffet tables are missing. Run migrations first.', 'error')
             return redirect(url_for('buffet_planner'))
@@ -644,6 +728,8 @@ def buffet_event_new():
 def buffet_event_edit(event_id):
     conn = get_db()
     with get_cursor() as cur:
+        if ensure_buffet_schema(cur):
+            conn.commit()
         if not buffet_tables_ready(cur):
             flash('Buffet tables are missing. Run migrations first.', 'error')
             return redirect(url_for('buffet_planner'))
@@ -790,6 +876,8 @@ def buffet_event_edit(event_id):
 def buffet_event_prep(event_id):
     conn = get_db()
     with get_cursor() as cur:
+        if ensure_buffet_schema(cur):
+            conn.commit()
         if not buffet_tables_ready(cur):
             flash('Buffet tables are missing. Run migrations first.', 'error')
             return redirect(url_for('buffet_planner'))
@@ -815,6 +903,8 @@ def buffet_event_prep(event_id):
 def buffet_prep_pdf(event_id):
     conn = get_db()
     with get_cursor() as cur:
+        if ensure_buffet_schema(cur):
+            conn.commit()
         if not buffet_tables_ready(cur):
             flash('Buffet tables are missing. Run migrations first.', 'error')
             return redirect(url_for('buffet_planner'))
@@ -1040,7 +1130,10 @@ def buffet_prep_pdf(event_id):
 @bp.route('/buffet-planner/events/<event_id>/order')
 @login_required
 def buffet_event_order(event_id):
+    conn = get_db()
     with get_cursor() as cur:
+        if ensure_buffet_schema(cur):
+            conn.commit()
         if not buffet_tables_ready(cur):
             flash('Buffet tables are missing. Run migrations first.', 'error')
             return redirect(url_for('buffet_planner'))
@@ -1071,6 +1164,8 @@ def buffet_event_order(event_id):
 def buffet_order_save(event_id):
     conn = get_db()
     with get_cursor() as cur:
+        if ensure_buffet_schema(cur):
+            conn.commit()
         if not buffet_tables_ready(cur):
             flash('Buffet tables are missing. Run migrations first.', 'error')
             return redirect(url_for('buffet_planner'))
@@ -1154,7 +1249,10 @@ def buffet_order_save(event_id):
 @bp.route('/buffet-planner/events/<event_id>/order/pdf')
 @login_required
 def buffet_order_pdf(event_id):
+    conn = get_db()
     with get_cursor() as cur:
+        if ensure_buffet_schema(cur):
+            conn.commit()
         if not buffet_tables_ready(cur):
             flash('Buffet tables are missing. Run migrations first.', 'error')
             return redirect(url_for('buffet_planner'))
@@ -1322,6 +1420,8 @@ def buffet_order_pdf(event_id):
 def buffet_event_delete(event_id):
     conn = get_db()
     with get_cursor() as cur:
+        if ensure_buffet_schema(cur):
+            conn.commit()
         if not buffet_tables_ready(cur):
             flash('Buffet tables are missing. Run migrations first.', 'error')
             return redirect(url_for('buffet_planner'))
@@ -1348,6 +1448,8 @@ def buffet_event_delete(event_id):
 def buffet_event_duplicate(event_id):
     conn = get_db()
     with get_cursor() as cur:
+        if ensure_buffet_schema(cur):
+            conn.commit()
         if not buffet_tables_ready(cur):
             flash('Buffet tables are missing. Run migrations first.', 'error')
             return redirect(url_for('buffet_planner'))
