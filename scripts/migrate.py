@@ -296,6 +296,53 @@ MIGRATIONS = [
     WHERE id IN (SELECT id FROM ranked WHERE rn > 1)
     """,
     "CREATE UNIQUE INDEX IF NOT EXISTS idx_comm_prod_logs_line_id_prod_date ON commissary_production_logs (line_id, production_date)",
+    """
+    CREATE TABLE IF NOT EXISTS buffet_events (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        event_date DATE NOT NULL,
+        venue_id TEXT REFERENCES venues(id) ON DELETE SET NULL,
+        building TEXT,
+        room TEXT,
+        service_timing TEXT,
+        ticket_adult NUMERIC DEFAULT 0,
+        ticket_child NUMERIC DEFAULT 0,
+        ticket_senior NUMERIC DEFAULT 0,
+        ticket_comp INTEGER DEFAULT 0,
+        guests_adult INTEGER DEFAULT 0,
+        guests_child INTEGER DEFAULT 0,
+        guests_senior INTEGER DEFAULT 0,
+        guests_comp INTEGER DEFAULT 0,
+        dietary_notes TEXT,
+        notes TEXT,
+        status TEXT NOT NULL DEFAULT 'planning',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS buffet_event_lines (
+        id BIGSERIAL PRIMARY KEY,
+        event_id TEXT NOT NULL REFERENCES buffet_events(id) ON DELETE CASCADE,
+        station TEXT,
+        dish_name TEXT NOT NULL,
+        description TEXT,
+        vessel TEXT,
+        foh_talking_points TEXT,
+        recipe_id TEXT REFERENCES recipes(id) ON DELETE SET NULL,
+        serving_size_qty NUMERIC,
+        serving_size_unit TEXT,
+        is_gf BOOLEAN NOT NULL DEFAULT FALSE,
+        is_v BOOLEAN NOT NULL DEFAULT FALSE,
+        is_vg BOOLEAN NOT NULL DEFAULT FALSE,
+        is_df BOOLEAN NOT NULL DEFAULT FALSE,
+        is_nf BOOLEAN NOT NULL DEFAULT FALSE,
+        sort_order INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_buffet_event_lines_event_id ON buffet_event_lines (event_id, sort_order)",
+    "CREATE INDEX IF NOT EXISTS idx_buffet_events_event_date ON buffet_events (event_date)",
 ]
 
 

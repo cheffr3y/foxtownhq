@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% from "base.html" import page_header %}
+
+{% block title %}Buffet Events - Foxtown HQ{% endblock %}
+
+{% block extra_head %}
+<style>
+    .buffet-table-wrap { overflow-x: auto; }
+    .buffet-table { min-width: 780px; }
+    .buffet-status {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        border: 1px solid transparent;
+        padding: 0.22rem 0.6rem;
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: capitalize;
+    }
+    .buffet-status--planning { background: #F5F5F4; color: #57534E; border-color: #D6D3D1; }
+    .buffet-status--confirmed { background: #EEFBEF; color: #2B7A30; border-color: #C2E8C4; }
+    .buffet-status--completed { background: #EEF3FF; color: #2656A8; border-color: #A8C4F0; }
+    .buffet-status--cancelled { background: #FFF1F1; color: #B42318; border-color: #F2B8B5; }
+    .buffet-empty {
+        border: 1px dashed #D6D3D1;
+        border-radius: 12px;
+        background: #FCFBFA;
+        padding: 2rem;
+        text-align: center;
+    }
+    .buffet-past tbody tr { opacity: 0.82; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen">
+    <div class="max-w-[96rem] mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+        {% call page_header('Buffet Events', 'Build buffet event shells, menus, and reusable seasonal copies.') %}
+        <a href="{{ url_for('buffet_event_new') }}" class="fhq-btn fhq-btn--primary">New Buffet Event</a>
+        {% endcall %}
+    </div>
+
+    <div class="max-w-[96rem] mx-auto px-4 sm:px-6 lg:px-8 pb-10 space-y-6">
+        {% if not upcoming_events and not past_events %}
+        <section class="fhq-card p-6">
+            <div class="buffet-empty">
+                <h2 class="text-lg font-bold text-foxtown-text">No buffet events yet</h2>
+                <p class="mt-2 text-sm text-foxtown-muted">Create your first buffet event to start building menu lines, guest counts, and ticket pricing.</p>
+                <div class="mt-5">
+                    <a href="{{ url_for('buffet_event_new') }}" class="fhq-btn fhq-btn--primary">Create Buffet Event</a>
+                </div>
+            </div>
+        </section>
+        {% endif %}
+
+        <section class="fhq-card p-5">
+            <div class="mb-4">
+                <h2 class="text-xl font-bold tracking-tight text-foxtown-text">Upcoming Events</h2>
+                <p class="text-sm text-foxtown-muted mt-1">Sorted soonest first for active planning.</p>
+            </div>
+            {% if upcoming_events %}
+            <div class="buffet-table-wrap">
+                <table class="fhq-table buffet-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Event Name</th>
+                            <th>Location</th>
+                            <th>Guest Total</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for event in upcoming_events %}
+                        {% set status_key = (event.status or 'planning')|lower %}
+                        <tr>
+                            <td>{{ event.event_date }}</td>
+                            <td class="font-semibold text-foxtown-text">{{ event.name }}</td>
+                            <td>
+                                {% if event.building and event.room %}
+                                {{ event.building }} / {{ event.room }}
+                                {% elif event.building %}
+                                {{ event.building }}
+                                {% elif event.room %}
+                                {{ event.room }}
+                                {% else %}
+                                —
+                                {% endif %}
+                            </td>
+                            <td>{{ event.guest_total or 0 }}</td>
+                            <td><span class="buffet-status buffet-status--{{ status_key if status_key in ['planning', 'confirmed', 'completed', 'cancelled'] else 'planning' }}">{{ event.status or 'planning' }}</span></td>
+                            <td><a href="{{ url_for('buffet_event_edit', event_id=event.id) }}" class="text-foxtown-ember font-semibold hover:text-orange-700">Edit</a></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-sm text-foxtown-muted">No upcoming buffet events on the board right now.</p>
+            {% endif %}
+        </section>
+
+        <section class="fhq-card p-5 buffet-past">
+            <div class="mb-4">
+                <h2 class="text-xl font-bold tracking-tight text-foxtown-text">Past Events</h2>
+                <p class="text-sm text-foxtown-muted mt-1">Most recent 20 buffet events for quick reuse and duplication.</p>
+            </div>
+            {% if past_events %}
+            <div class="buffet-table-wrap">
+                <table class="fhq-table buffet-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Event Name</th>
+                            <th>Location</th>
+                            <th>Guest Total</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for event in past_events %}
+                        {% set status_key = (event.status or 'planning')|lower %}
+                        <tr>
+                            <td>{{ event.event_date }}</td>
+                            <td class="font-semibold text-foxtown-text">{{ event.name }}</td>
+                            <td>
+                                {% if event.building and event.room %}
+                                {{ event.building }} / {{ event.room }}
+                                {% elif event.building %}
+                                {{ event.building }}
+                                {% elif event.room %}
+                                {{ event.room }}
+                                {% else %}
+                                —
+                                {% endif %}
+                            </td>
+                            <td>{{ event.guest_total or 0 }}</td>
+                            <td><span class="buffet-status buffet-status--{{ status_key if status_key in ['planning', 'confirmed', 'completed', 'cancelled'] else 'planning' }}">{{ event.status or 'planning' }}</span></td>
+                            <td><a href="{{ url_for('buffet_event_edit', event_id=event.id) }}" class="text-foxtown-ember font-semibold hover:text-orange-700">Edit</a></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-sm text-foxtown-muted">No past buffet events saved yet.</p>
+            {% endif %}
+        </section>
+    </div>
+</div>
+{% endblock %}
