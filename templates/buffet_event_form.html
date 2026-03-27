@@ -283,6 +283,8 @@
             <div class="fhq-card p-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                 <div class="flex flex-wrap gap-2">
                     {% if mode == 'edit' and event.id %}
+                    <a href="{{ url_for('buffet_event_prep', event_id=event.id) }}" class="fhq-btn fhq-btn--outline">View Prep Sheet</a>
+                    <a href="{{ url_for('buffet_event_order', event_id=event.id) }}" class="fhq-btn fhq-btn--outline">Order Calculator</a>
                     <button type="button" id="toggleDuplicatePanel" class="fhq-btn fhq-btn--outline">Duplicate Event</button>
                     <button type="button" id="toggleDeletePanel" class="fhq-btn fhq-btn--outline">Delete Event</button>
                     {% endif %}

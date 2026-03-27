@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% from "base.html" import page_header %}
+
+{% block title %}Buffet Prep Sheet - Foxtown HQ{% endblock %}
+
+{% block extra_head %}
+<style>
+    .prep-station-table { min-width: 760px; }
+    .prep-emphasis {
+        font-size: 1rem;
+        font-weight: 800;
+        color: #1B1918;
+    }
+    .prep-summary-bar {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.75rem;
+    }
+    .prep-summary-card {
+        border: 1px solid #ECEAE6;
+        border-radius: 12px;
+        background: #FCFBFA;
+        padding: 1rem;
+    }
+    .prep-summary-card .value {
+        display: block;
+        margin-top: 0.35rem;
+        font-size: 1.85rem;
+        line-height: 1;
+        font-weight: 800;
+        color: #1B1918;
+    }
+    .warning-badge {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        background: #FFF8EE;
+        border: 1px solid #F0D9A0;
+        color: #A0590A;
+        padding: 0.2rem 0.55rem;
+        font-size: 0.72rem;
+        font-weight: 700;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen">
+    <div class="max-w-[96rem] mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+        {% call page_header('Buffet Prep Sheet', event.name ~ ' · ' ~ event.event_date ~ ' · ' ~ guest_total ~ ' guests') %}
+        <a href="{{ url_for('buffet_prep_pdf', event_id=event.id) }}" class="fhq-btn fhq-btn--primary">Download PDF</a>
+        <a href="{{ url_for('buffet_event_order', event_id=event.id) }}" class="fhq-btn fhq-btn--outline">Order Calculator</a>
+        <a href="{{ url_for('buffet_event_edit', event_id=event.id) }}" class="fhq-btn fhq-btn--outline">&larr; Back to Event</a>
+        {% endcall %}
+    </div>
+
+    <div class="max-w-[96rem] mx-auto px-4 sm:px-6 lg:px-8 pb-10 space-y-6">
+        {% if no_recipe_lines %}
+        <section class="fhq-alert fhq-alert--amber w-full" style="display:flex;">
+            <div>
+                <strong>The following items have no recipe linked and will not appear in the prep sheet:</strong>
+                {{ no_recipe_lines|join(', ') }}
+            </div>
+        </section>
+        {% endif %}
+
+        {% if stations %}
+            {% for station_name, station_rows in stations.items() %}
+            <section class="fhq-card p-5">
+                <div class="flex items-center justify-between gap-3 mb-4">
+                    <div>
+                        <h2 class="text-xl font-bold tracking-tight text-foxtown-text">{{ station_name }}</h2>
+                        <p class="text-sm text-foxtown-muted mt-1">{{ station_rows|length }} recipe-linked item{{ '' if station_rows|length == 1 else 's' }}</p>
+                    </div>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table class="fhq-table prep-station-table">
+                        <thead>
+                            <tr>
+                                <th>Dish Name</th>
+                                <th>Recipe Linked</th>
+                                <th>Serving Size</th>
+                                <th>Guests</th>
+                                <th>Batches Needed</th>
+                                <th>Total Yield</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in station_rows %}
+                            <tr>
+                                <td class="font-semibold text-foxtown-text">
+                                    {{ row.dish_name }}
+                                    {% if not row.recipe_id %}
+                                    <span class="warning-badge">No Recipe</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ row.recipe_name or 'No Recipe Linked' }}</td>
+                                <td>{{ row.serving_size_qty }} {{ row.serving_size_unit }}</td>
+                                <td>{{ guest_total }}</td>
+                                <td><span class="prep-emphasis">{{ row.batches_needed }}</span></td>
+                                <td>{{ row.total_yield }} {{ row.yield_unit }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+            {% endfor %}
+        {% else %}
+        <section class="fhq-card p-6">
+            <p class="text-sm text-foxtown-muted">No recipe-linked menu lines are available for this event yet.</p>
+        </section>
+        {% endif %}
+
+        <section class="prep-summary-bar">
+            <div class="prep-summary-card">
+                <span class="fhq-section-head mb-0">Total Dish Count</span>
+                <span class="value">{{ total_cards + (no_recipe_lines|length) }}</span>
+            </div>
+            <div class="prep-summary-card">
+                <span class="fhq-section-head mb-0">Recipe-Linked Count</span>
+                <span class="value">{{ total_cards }}</span>
+            </div>
+            <div class="prep-summary-card">
+                <span class="fhq-section-head mb-0">Total Guest Count</span>
+                <span class="value">{{ guest_total }}</span>
+            </div>
+        </section>
+    </div>
+</div>
+{% endblock %}

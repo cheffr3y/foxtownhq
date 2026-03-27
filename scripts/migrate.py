@@ -343,6 +343,24 @@ MIGRATIONS = [
     """,
     "CREATE INDEX IF NOT EXISTS idx_buffet_event_lines_event_id ON buffet_event_lines (event_id, sort_order)",
     "CREATE INDEX IF NOT EXISTS idx_buffet_events_event_date ON buffet_events (event_date)",
+    """
+    CREATE TABLE IF NOT EXISTS buffet_order_items (
+        id BIGSERIAL PRIMARY KEY,
+        event_id TEXT NOT NULL REFERENCES buffet_events(id) ON DELETE CASCADE,
+        ingredient_id TEXT REFERENCES ingredients(id) ON DELETE SET NULL,
+        ingredient_name TEXT NOT NULL,
+        total_qty NUMERIC,
+        total_unit TEXT,
+        pack_size NUMERIC,
+        pack_unit TEXT,
+        pack_type TEXT DEFAULT 'oz',
+        cases_needed NUMERIC,
+        vendor TEXT,
+        notes TEXT,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_buffet_order_items_event_id ON buffet_order_items (event_id)",
 ]
 
 

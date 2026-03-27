@@ -1,16 +1,27 @@
+import io
+import math
 import re
 import traceback
 from collections import defaultdict
 from datetime import date, datetime, timedelta
+from html import escape
 
 from db import get_cursor, get_db
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, Response, flash, redirect, render_template, request, url_for
 from flask_login import login_required
 from helpers.db_helpers import db_table_exists
+from helpers.formatting import make_safe_filename
 from helpers.menu import clean_menu_text
+from helpers.recipes import build_component_tree, collect_ingredients_from_components
 from helpers.shared import generate_id, handle_route_error, parse_float_field, to_float
-from helpers.units import format_number, get_unit_system
+from helpers.units import convert_quantity_between_units, format_number, get_unit_system
 from helpers.venues import get_active_venues
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.pdfgen import canvas
+from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 bp = Blueprint('buffet', __name__)
 
@@ -255,6 +266,165 @@ def _insert_buffet_line(cur, event_id, line, sort_order):
             sort_order,
         ),
     )
+
+
+def build_buffet_prep_sheet(cur, event_id, unit_system='imperial'):
+    event = get_buffet_event(cur, event_id)
+    guest_total = get_guest_total(event)
+    lines = get_buffet_event_lines(cur, event_id)
+
+    grouped = defaultdict(list)
+    no_recipe_lines = []
+    all_cards = []
+
+    for line in lines:
+        recipe_id = line.get('recipe_id')
+        if not recipe_id:
+            no_recipe_lines.append(line.get('dish_name') or 'Unnamed Dish')
+            continue
+
+        serving_qty = to_float(line.get('serving_size_qty')) or 1
+        serving_unit = line.get('serving_size_unit') or line.get('yield_unit') or ''
+        total_needed_qty = serving_qty * guest_total
+        recipe_yield = to_float(line.get('yield_qty')) or 1
+        batches_needed = math.ceil(total_needed_qty / recipe_yield) if recipe_yield > 0 else 0
+        total_yield = batches_needed * recipe_yield
+
+        card = {
+            'dish_name': line.get('dish_name') or 'Dish',
+            'station': line.get('station') or 'Other',
+            'recipe_id': recipe_id,
+            'recipe_name': line.get('recipe_name') or 'Recipe',
+            'yield_qty': recipe_yield,
+            'yield_unit': line.get('yield_unit') or '',
+            'serving_size_qty': serving_qty,
+            'serving_size_unit': serving_unit,
+            'total_needed_qty': total_needed_qty,
+            'batches_needed': batches_needed,
+            'total_yield': total_yield,
+            'assigned_to': '',
+            'status': 'pending',
+        }
+        grouped[card['station']].append(card)
+        all_cards.append(card)
+
+    sorted_grouped = {}
+    for station in sorted(grouped):
+        sorted_grouped[station] = sorted(grouped[station], key=lambda row: (row.get('dish_name') or '').lower())
+
+    return {
+        'stations': sorted_grouped,
+        'guest_total': guest_total,
+        'total_cards': len(all_cards),
+        'no_recipe_lines': no_recipe_lines,
+    }
+
+
+def _cases_needed_for_item(total_qty, total_unit, pack_size, pack_unit, pack_type):
+    pack_size_value = to_float(pack_size)
+    if pack_size_value <= 0:
+        return None
+
+    pack_type_value = (pack_type or 'oz').strip().lower() or 'oz'
+    if pack_type_value == 'fixed':
+        return math.ceil(pack_size_value)
+
+    total_qty_value = to_float(total_qty)
+    if total_qty_value <= 0:
+        return 0
+
+    if pack_type_value == 'pc':
+        return math.ceil(total_qty_value / pack_size_value)
+
+    converted_total = convert_quantity_between_units(total_qty_value, total_unit, pack_unit or 'oz')
+    if converted_total is None:
+        converted_total = convert_quantity_between_units(total_qty_value, total_unit, 'oz')
+    if converted_total is None:
+        return None
+    return math.ceil(converted_total / pack_size_value)
+
+
+def build_buffet_order_rollup(cur, event_id, unit_system='imperial'):
+    event = get_buffet_event(cur, event_id)
+    guest_total = get_guest_total(event)
+    lines = get_buffet_event_lines(cur, event_id)
+    totals = {}
+
+    for line in lines:
+        recipe_id = line.get('recipe_id')
+        if not recipe_id:
+            continue
+
+        serving_size_qty = to_float(line.get('serving_size_qty')) or 1
+        recipe_yield = to_float(line.get('yield_qty'))
+        if recipe_yield <= 0:
+            continue
+
+        scale_ratio = (serving_size_qty * guest_total) / recipe_yield
+        components, _, _ = build_component_tree(cur, recipe_id, scale_ratio, depth=0, path=set(), unit_system=unit_system)
+        collect_ingredients_from_components(components, totals)
+
+    cur.execute(
+        """
+        SELECT
+            boi.*,
+            i.name AS ingredient_table_name,
+            i.vendor AS ingredient_vendor,
+            i.unit AS ingredient_default_unit
+        FROM buffet_order_items boi
+        LEFT JOIN ingredients i ON i.id = boi.ingredient_id
+        WHERE boi.event_id = %s
+        ORDER BY boi.id
+        """,
+        (event_id,),
+    )
+    saved_override_rows = cur.fetchall()
+    saved_override_map = {}
+    for row in saved_override_rows:
+        ingredient_id = row.get('ingredient_id')
+        total_unit = (row.get('total_unit') or '').strip()
+        if ingredient_id:
+            saved_override_map[(ingredient_id, total_unit)] = row
+
+    ingredient_ids = sorted({ingredient_id for ingredient_id, _unit in totals.keys() if ingredient_id})
+    ingredient_map = {}
+    if ingredient_ids:
+        cur.execute(
+            """
+            SELECT id, name, unit, category, cost_per_unit, vendor, vendor_code, g_code
+            FROM ingredients
+            WHERE id = ANY(%s)
+            """,
+            (ingredient_ids,),
+        )
+        ingredient_map = {row['id']: row for row in cur.fetchall()}
+
+    order_items = []
+    for (ingredient_id, total_unit), total_qty in totals.items():
+        ingredient = ingredient_map.get(ingredient_id, {})
+        override = saved_override_map.get((ingredient_id, total_unit), {})
+        pack_size = override.get('pack_size')
+        pack_unit = override.get('pack_unit') or total_unit or ingredient.get('unit') or ''
+        pack_type = override.get('pack_type') or 'oz'
+        cases_needed = _cases_needed_for_item(total_qty, total_unit, pack_size, pack_unit, pack_type)
+        order_items.append(
+            {
+                'ingredient_id': ingredient_id,
+                'ingredient_name': ingredient.get('name') or override.get('ingredient_name') or 'Unknown',
+                'total_qty': total_qty,
+                'total_unit': total_unit,
+                'pack_size': pack_size,
+                'pack_unit': pack_unit,
+                'pack_type': pack_type,
+                'cases_needed': cases_needed,
+                'vendor': override.get('vendor') or ingredient.get('vendor') or '',
+                'notes': override.get('notes') or '',
+                'pack_cost': None,
+            }
+        )
+
+    order_items.sort(key=lambda item: ((item.get('vendor') or '').lower(), (item.get('ingredient_name') or '').lower()))
+    return order_items
 
 
 @bp.route('/buffet-planner')
@@ -612,6 +782,538 @@ def buffet_event_edit(event_id):
         status_choices=BUFFET_STATUS_CHOICES,
         dietary_labels=DIETARY_LABELS,
         guest_total=get_guest_total(event),
+    )
+
+
+@bp.route('/buffet-planner/events/<event_id>/prep')
+@login_required
+def buffet_event_prep(event_id):
+    conn = get_db()
+    with get_cursor() as cur:
+        if not buffet_tables_ready(cur):
+            flash('Buffet tables are missing. Run migrations first.', 'error')
+            return redirect(url_for('buffet_planner'))
+        event = get_buffet_event(cur, event_id)
+        if not event:
+            flash('Event not found.', 'error')
+            return redirect(url_for('buffet_planner'))
+        unit_system = get_unit_system()
+        prep_data = build_buffet_prep_sheet(cur, event_id, unit_system)
+        guest_total = get_guest_total(event)
+        return render_template(
+            'buffet_prep.html',
+            event=event,
+            guest_total=guest_total,
+            stations=prep_data['stations'],
+            no_recipe_lines=prep_data['no_recipe_lines'],
+            total_cards=prep_data['total_cards'],
+        )
+
+
+@bp.route('/buffet-planner/events/<event_id>/prep/pdf')
+@login_required
+def buffet_prep_pdf(event_id):
+    conn = get_db()
+    with get_cursor() as cur:
+        if not buffet_tables_ready(cur):
+            flash('Buffet tables are missing. Run migrations first.', 'error')
+            return redirect(url_for('buffet_planner'))
+        event = get_buffet_event(cur, event_id)
+        if not event:
+            flash('Event not found.', 'error')
+            return redirect(url_for('buffet_planner'))
+
+        prep_data = build_buffet_prep_sheet(cur, event_id, get_unit_system())
+
+    header_navy = colors.HexColor('#1B2A4A')
+    border_gray = colors.HexColor('#DDDDDD')
+    light_gray = colors.HexColor('#F5F5F5')
+    muted_text = colors.HexColor('#4F5B6E')
+    white = colors.white
+    margin_x = 0.5 * inch
+    margin_y = 0.5 * inch
+    generated_at = datetime.now().strftime('%b %d, %Y %I:%M %p')
+
+    base_style = ParagraphStyle(
+        'buffet-pdf-base',
+        fontName='Helvetica',
+        fontSize=8.5,
+        leading=10.2,
+        textColor=colors.black,
+    )
+    table_header_style = ParagraphStyle(
+        'buffet-pdf-table-header',
+        parent=base_style,
+        fontName='Helvetica-Bold',
+        textColor=white,
+        fontSize=8.2,
+        leading=9.5,
+    )
+    section_title_style = ParagraphStyle(
+        'buffet-pdf-section-title',
+        parent=base_style,
+        fontName='Helvetica-Bold',
+        fontSize=12,
+        leading=14,
+        textColor=header_navy,
+        spaceAfter=4,
+    )
+    note_style = ParagraphStyle(
+        'buffet-pdf-note',
+        parent=base_style,
+        textColor=muted_text,
+    )
+    strong_style = ParagraphStyle(
+        'buffet-pdf-strong',
+        parent=base_style,
+        fontName='Helvetica-Bold',
+    )
+
+    def to_text(value, default='-'):
+        text = str(value or '').strip()
+        return text or default
+
+    def html_text(value, default='-'):
+        return escape(to_text(value, default)).replace('\n', '<br/>')
+
+    def p(value, style=base_style, default='-'):
+        return Paragraph(html_text(value, default), style)
+
+    def fmt_qty(qty, unit=''):
+        qty_text = format_number(qty)
+        unit_text = (unit or '').strip()
+        return f'{qty_text} {unit_text}'.strip()
+
+    def draw_header(pdf_canvas, doc):
+        page_width, page_height = letter
+        header_text = f"Buffet Prep Sheet - {event.get('name') or 'Event'} | {event.get('event_date')} | {prep_data['guest_total']} guests"
+        pdf_canvas.saveState()
+        pdf_canvas.setStrokeColor(border_gray)
+        pdf_canvas.setLineWidth(0.6)
+        pdf_canvas.line(doc.leftMargin, page_height - 42, page_width - doc.rightMargin, page_height - 42)
+        pdf_canvas.setFillColor(header_navy)
+        pdf_canvas.setFont('Helvetica-Bold', 11)
+        pdf_canvas.drawString(doc.leftMargin, page_height - 32, header_text[:140])
+        pdf_canvas.restoreState()
+
+    def draw_footer(pdf_canvas, page_num, total_pages):
+        page_width, _ = letter
+        pdf_canvas.setStrokeColor(border_gray)
+        pdf_canvas.setLineWidth(0.6)
+        pdf_canvas.line(margin_x, margin_y + 12, page_width - margin_x, margin_y + 12)
+        pdf_canvas.setFont('Helvetica', 8)
+        pdf_canvas.setFillColor(muted_text)
+        pdf_canvas.drawString(margin_x, margin_y + 2, f'Foxtown HQ | Page {page_num} of {total_pages} | Generated {generated_at}')
+
+    class NumberedCanvas(canvas.Canvas):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self._saved_page_states = []
+
+        def showPage(self):
+            self._saved_page_states.append(dict(self.__dict__))
+            self._startPage()
+
+        def save(self):
+            total_pages = len(self._saved_page_states)
+            for page_num, state in enumerate(self._saved_page_states, start=1):
+                self.__dict__.update(state)
+                draw_footer(self, page_num, total_pages)
+                super().showPage()
+            super().save()
+
+    def draw_first_page(pdf_canvas, doc):
+        draw_header(pdf_canvas, doc)
+
+    def draw_later_pages(pdf_canvas, doc):
+        draw_header(pdf_canvas, doc)
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=letter,
+        leftMargin=margin_x,
+        rightMargin=margin_x,
+        topMargin=0.7 * inch,
+        bottomMargin=0.55 * inch,
+        title=f"Buffet Prep Sheet {event.get('name') or 'Event'}",
+    )
+
+    story = [Spacer(1, 0.15 * inch)]
+    station_names = list(prep_data['stations'].keys())
+    col_widths = [1.8 * inch, 1.5 * inch, 0.9 * inch, 0.5 * inch, 0.8 * inch, 0.9 * inch, 1.1 * inch, 0.3 * inch]
+
+    for station_index, station_name in enumerate(station_names):
+        if station_index > 0:
+            story.append(PageBreak())
+
+        story.append(Paragraph(escape(station_name), section_title_style))
+        station_rows = [
+            [
+                Paragraph('Dish Name', table_header_style),
+                Paragraph('Recipe', table_header_style),
+                Paragraph('Serving Size', table_header_style),
+                Paragraph('Guests', table_header_style),
+                Paragraph('Batches Needed', table_header_style),
+                Paragraph('Total Yield', table_header_style),
+                Paragraph('Assigned To', table_header_style),
+                Paragraph('&#10003;', table_header_style),
+            ]
+        ]
+
+        for card in prep_data['stations'][station_name]:
+            station_rows.append(
+                [
+                    p(card.get('dish_name') or 'Dish'),
+                    p(card.get('recipe_name') or 'Recipe'),
+                    p(fmt_qty(card.get('serving_size_qty'), card.get('serving_size_unit'))),
+                    p(format_number(prep_data['guest_total'])),
+                    Paragraph(f"<b>{escape(format_number(card.get('batches_needed')))}</b>", strong_style),
+                    p(fmt_qty(card.get('total_yield'), card.get('yield_unit'))),
+                    p(' ', default=' '),
+                    p(' ', default=' '),
+                ]
+            )
+
+        station_table = Table(station_rows, colWidths=col_widths, repeatRows=1)
+        station_table.setStyle(
+            TableStyle(
+                [
+                    ('BACKGROUND', (0, 0), (-1, 0), header_navy),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), white),
+                    ('ROWBACKGROUNDS', (0, 1), (-1, -1), [white, light_gray]),
+                    ('GRID', (0, 0), (-1, -1), 0.35, border_gray),
+                    ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 4),
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+                    ('TOPPADDING', (0, 0), (-1, -1), 4),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+                    ('ALIGN', (3, 1), (5, -1), 'CENTER'),
+                    ('ALIGN', (7, 1), (7, -1), 'CENTER'),
+                ]
+            )
+        )
+        story.append(station_table)
+
+    if prep_data['no_recipe_lines']:
+        if station_names:
+            story.append(PageBreak())
+        story.append(Paragraph('Items Without Recipe Links', section_title_style))
+        story.append(Paragraph(
+            'The following dishes are missing recipe links and were not included in the prep calculations.',
+            note_style,
+        ))
+        story.append(Spacer(1, 0.08 * inch))
+        missing_rows = [[Paragraph('Dish Name', table_header_style)]]
+        for dish_name in prep_data['no_recipe_lines']:
+            missing_rows.append([p(dish_name)])
+        missing_table = Table(missing_rows, colWidths=[7.3 * inch], repeatRows=1)
+        missing_table.setStyle(
+            TableStyle(
+                [
+                    ('BACKGROUND', (0, 0), (0, 0), colors.HexColor('#FFF8EE')),
+                    ('TEXTCOLOR', (0, 0), (0, 0), colors.HexColor('#A0590A')),
+                    ('ROWBACKGROUNDS', (0, 1), (-1, -1), [white, light_gray]),
+                    ('GRID', (0, 0), (-1, -1), 0.35, border_gray),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 5),
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 5),
+                    ('TOPPADDING', (0, 0), (-1, -1), 4),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+                ]
+            )
+        )
+        story.append(missing_table)
+
+    doc.build(story, onFirstPage=draw_first_page, onLaterPages=draw_later_pages, canvasmaker=NumberedCanvas)
+    payload = buffer.getvalue()
+    buffer.close()
+
+    event_name_safe = make_safe_filename(event.get('name') or 'buffet_event')
+    filename = f"{event_name_safe}_{event.get('event_date')}_buffet_prep.pdf"
+    return Response(
+        payload,
+        mimetype='application/pdf',
+        headers={'Content-Disposition': f'attachment; filename={filename}'},
+    )
+
+
+@bp.route('/buffet-planner/events/<event_id>/order')
+@login_required
+def buffet_event_order(event_id):
+    with get_cursor() as cur:
+        if not buffet_tables_ready(cur):
+            flash('Buffet tables are missing. Run migrations first.', 'error')
+            return redirect(url_for('buffet_planner'))
+        if not db_table_exists(cur, 'public.buffet_order_items'):
+            flash('Buffet order table is missing. Run migrations first.', 'error')
+            return redirect(url_for('buffet_event_edit', event_id=event_id))
+
+        event = get_buffet_event(cur, event_id)
+        if not event:
+            flash('Event not found.', 'error')
+            return redirect(url_for('buffet_planner'))
+
+        guest_total = get_guest_total(event)
+        order_items = build_buffet_order_rollup(cur, event_id, get_unit_system())
+        total_ext_cost = sum((to_float(item.get('cases_needed')) * to_float(item.get('pack_cost'))) for item in order_items if item.get('pack_cost'))
+
+    return render_template(
+        'buffet_order.html',
+        event=event,
+        guest_total=guest_total,
+        order_items=order_items,
+        total_ext_cost=total_ext_cost,
+    )
+
+
+@bp.route('/buffet-planner/events/<event_id>/order/save', methods=['POST'])
+@login_required
+def buffet_order_save(event_id):
+    conn = get_db()
+    with get_cursor() as cur:
+        if not buffet_tables_ready(cur):
+            flash('Buffet tables are missing. Run migrations first.', 'error')
+            return redirect(url_for('buffet_planner'))
+        if not db_table_exists(cur, 'public.buffet_order_items'):
+            flash('Buffet order table is missing. Run migrations first.', 'error')
+            return redirect(url_for('buffet_event_edit', event_id=event_id))
+
+        event = get_buffet_event(cur, event_id)
+        if not event:
+            flash('Event not found.', 'error')
+            return redirect(url_for('buffet_planner'))
+
+        indexed_rows = defaultdict(dict)
+        for key in request.form.keys():
+            match = LINE_FIELD_PATTERN.match(key.replace('items[', 'lines['))
+            if not match:
+                continue
+            indexed_rows[int(match.group(1))][match.group(2)] = request.form.get(key)
+
+        order_items = build_buffet_order_rollup(cur, event_id, get_unit_system())
+        order_map = {(item.get('ingredient_id'), item.get('total_unit')): item for item in order_items}
+
+        try:
+            cur.execute("DELETE FROM buffet_order_items WHERE event_id = %s", (event_id,))
+            for row_index in sorted(indexed_rows):
+                raw = indexed_rows[row_index]
+                ingredient_id = clean_menu_text(raw.get('ingredient_id')) or None
+                ingredient_name = clean_menu_text(raw.get('ingredient_name')) or 'Unknown'
+                total_unit = clean_menu_text(raw.get('total_unit')) or ''
+                rollup_item = order_map.get((ingredient_id, total_unit), {})
+                total_qty = rollup_item.get('total_qty')
+                pack_size = parse_float_field(raw.get('pack_size'), 'Pack size', [], required=False, min_value=0)
+                pack_unit = clean_menu_text(raw.get('pack_unit')) or None
+                pack_type = clean_menu_text(raw.get('pack_type') or 'oz').lower() or 'oz'
+                vendor = clean_menu_text(raw.get('vendor')) or None
+                notes = clean_menu_text(raw.get('notes')) or None
+                cases_needed = _cases_needed_for_item(total_qty, total_unit, pack_size, pack_unit or total_unit, pack_type)
+
+                cur.execute(
+                    """
+                    INSERT INTO buffet_order_items (
+                        event_id,
+                        ingredient_id,
+                        ingredient_name,
+                        total_qty,
+                        total_unit,
+                        pack_size,
+                        pack_unit,
+                        pack_type,
+                        cases_needed,
+                        vendor,
+                        notes,
+                        updated_at
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+                    """,
+                    (
+                        event_id,
+                        ingredient_id,
+                        ingredient_name,
+                        total_qty,
+                        total_unit or None,
+                        pack_size,
+                        pack_unit,
+                        pack_type,
+                        cases_needed,
+                        vendor,
+                        notes,
+                    ),
+                )
+
+            conn.commit()
+            flash('Buffet order overrides saved.', 'success')
+        except Exception:
+            traceback.print_exc()
+            conn.rollback()
+            flash('Error saving buffet order overrides.', 'error')
+
+    return redirect(url_for('buffet_event_order', event_id=event_id))
+
+
+@bp.route('/buffet-planner/events/<event_id>/order/pdf')
+@login_required
+def buffet_order_pdf(event_id):
+    with get_cursor() as cur:
+        if not buffet_tables_ready(cur):
+            flash('Buffet tables are missing. Run migrations first.', 'error')
+            return redirect(url_for('buffet_planner'))
+        if not db_table_exists(cur, 'public.buffet_order_items'):
+            flash('Buffet order table is missing. Run migrations first.', 'error')
+            return redirect(url_for('buffet_event_edit', event_id=event_id))
+
+        event = get_buffet_event(cur, event_id)
+        if not event:
+            flash('Event not found.', 'error')
+            return redirect(url_for('buffet_planner'))
+
+        guest_total = get_guest_total(event)
+        order_items = build_buffet_order_rollup(cur, event_id, get_unit_system())
+
+    header_navy = colors.HexColor('#1B2A4A')
+    border_gray = colors.HexColor('#DDDDDD')
+    light_gray = colors.HexColor('#F5F5F5')
+    muted_text = colors.HexColor('#4F5B6E')
+    white = colors.white
+    margin_x = 0.5 * inch
+    margin_y = 0.5 * inch
+    generated_at = datetime.now().strftime('%b %d, %Y %I:%M %p')
+
+    base_style = ParagraphStyle('buffet-order-pdf-base', fontName='Helvetica', fontSize=8.3, leading=10, textColor=colors.black)
+    table_header_style = ParagraphStyle('buffet-order-pdf-head', parent=base_style, fontName='Helvetica-Bold', textColor=white, fontSize=8)
+    section_title_style = ParagraphStyle('buffet-order-pdf-section', parent=base_style, fontName='Helvetica-Bold', textColor=header_navy, fontSize=11, leading=13)
+
+    def html_text(value, default='-'):
+        text = str(value or '').strip() or default
+        return escape(text).replace('\n', '<br/>')
+
+    def p(value, style=base_style, default='-'):
+        return Paragraph(html_text(value, default), style)
+
+    def draw_header(pdf_canvas, doc):
+        page_width, page_height = letter
+        header_text = f"Order Calculator - {event.get('name') or 'Event'} | {event.get('event_date')} | {guest_total} guests"
+        pdf_canvas.saveState()
+        pdf_canvas.setStrokeColor(border_gray)
+        pdf_canvas.setLineWidth(0.6)
+        pdf_canvas.line(doc.leftMargin, page_height - 42, page_width - doc.rightMargin, page_height - 42)
+        pdf_canvas.setFillColor(header_navy)
+        pdf_canvas.setFont('Helvetica-Bold', 11)
+        pdf_canvas.drawString(doc.leftMargin, page_height - 32, header_text[:140])
+        pdf_canvas.restoreState()
+
+    def draw_footer(pdf_canvas, page_num, total_pages):
+        page_width, _ = letter
+        pdf_canvas.setStrokeColor(border_gray)
+        pdf_canvas.setLineWidth(0.6)
+        pdf_canvas.line(margin_x, margin_y + 12, page_width - margin_x, margin_y + 12)
+        pdf_canvas.setFont('Helvetica', 8)
+        pdf_canvas.setFillColor(muted_text)
+        pdf_canvas.drawString(margin_x, margin_y + 2, f'Foxtown HQ | Page {page_num} of {total_pages} | Generated {generated_at}')
+
+    class NumberedCanvas(canvas.Canvas):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self._saved_page_states = []
+
+        def showPage(self):
+            self._saved_page_states.append(dict(self.__dict__))
+            self._startPage()
+
+        def save(self):
+            total_pages = len(self._saved_page_states)
+            for page_num, state in enumerate(self._saved_page_states, start=1):
+                self.__dict__.update(state)
+                draw_footer(self, page_num, total_pages)
+                super().showPage()
+            super().save()
+
+    def draw_first_page(pdf_canvas, doc):
+        draw_header(pdf_canvas, doc)
+
+    def draw_later_pages(pdf_canvas, doc):
+        draw_header(pdf_canvas, doc)
+
+    vendor_groups = defaultdict(list)
+    for item in order_items:
+        vendor_groups[item.get('vendor') or 'Unassigned Vendor'].append(item)
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=letter,
+        leftMargin=margin_x,
+        rightMargin=margin_x,
+        topMargin=0.7 * inch,
+        bottomMargin=0.55 * inch,
+        title=f"Buffet Order {event.get('name') or 'Event'}",
+    )
+
+    story = [Spacer(1, 0.15 * inch)]
+    col_widths = [0.25 * inch, 2.2 * inch, 1.0 * inch, 0.8 * inch, 0.6 * inch, 0.8 * inch, 1.1 * inch, 1.0 * inch]
+
+    for vendor_index, vendor in enumerate(sorted(vendor_groups)):
+        if vendor_index > 0:
+            story.append(Spacer(1, 0.12 * inch))
+        story.append(Paragraph(escape(vendor), section_title_style))
+        table_rows = [[
+            Paragraph('&#10003;', table_header_style),
+            Paragraph('Ingredient', table_header_style),
+            Paragraph('Total Needed', table_header_style),
+            Paragraph('Pack Size', table_header_style),
+            Paragraph('Pack Type', table_header_style),
+            Paragraph('Cases Needed', table_header_style),
+            Paragraph('Vendor', table_header_style),
+            Paragraph('Notes', table_header_style),
+        ]]
+        for item in vendor_groups[vendor]:
+            pack_size_text = format_number(item.get('pack_size')) if item.get('pack_size') else '-'
+            if item.get('pack_unit'):
+                pack_size_text = f"{pack_size_text} {item.get('pack_unit')}".strip()
+            cases_needed = format_number(item.get('cases_needed')) if item.get('cases_needed') is not None else '—'
+            table_rows.append([
+                p(' ', default=' '),
+                p(item.get('ingredient_name')),
+                p(f"{format_number(item.get('total_qty'))} {item.get('total_unit')}".strip()),
+                p(pack_size_text),
+                p(item.get('pack_type') or 'oz'),
+                p(cases_needed),
+                p(item.get('vendor') or 'Unassigned Vendor'),
+                p(item.get('notes') or ''),
+            ])
+        order_table = Table(table_rows, colWidths=col_widths, repeatRows=1)
+        order_table.setStyle(
+            TableStyle(
+                [
+                    ('BACKGROUND', (0, 0), (-1, 0), header_navy),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), white),
+                    ('ROWBACKGROUNDS', (0, 1), (-1, -1), [white, light_gray]),
+                    ('GRID', (0, 0), (-1, -1), 0.35, border_gray),
+                    ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 4),
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+                    ('TOPPADDING', (0, 0), (-1, -1), 4),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+                    ('ALIGN', (0, 1), (0, -1), 'CENTER'),
+                    ('ALIGN', (4, 1), (5, -1), 'CENTER'),
+                ]
+            )
+        )
+        story.append(order_table)
+
+    if not order_items:
+        story.append(Paragraph('No recipe-linked ingredient rollup is available for this event yet.', base_style))
+
+    doc.build(story, onFirstPage=draw_first_page, onLaterPages=draw_later_pages, canvasmaker=NumberedCanvas)
+    payload = buffer.getvalue()
+    buffer.close()
+
+    event_name_safe = make_safe_filename(event.get('name') or 'buffet_event')
+    filename = f"{event_name_safe}_{event.get('event_date')}_buffet_order.pdf"
+    return Response(
+        payload,
+        mimetype='application/pdf',
+        headers={'Content-Disposition': f'attachment; filename={filename}'},
     )
 
 
