@@ -225,7 +225,7 @@
                             <th>Description</th>
                             <th>Vessel / Presentation</th>
                             <th>FOH Talking Points</th>
-                            <th>Recipe Link</th>
+                            <th>Recipe / Ingredient</th>
                             <th>Serving Size</th>
                             <th>Dietary Flags</th>
                             <th></th>
@@ -250,8 +250,19 @@
                                 <input type="text" class="line-input line-input--compact" data-field="foh_talking_points" value="{{ line.foh_talking_points or '' }}" placeholder="What FOH should know">
                             </td>
                             <td>
-                                <input type="hidden" data-field="recipe_id" value="{{ line.recipe_id or '' }}">
-                                <input type="text" list="buffetRecipeOptions" class="line-input line-input--compact" data-role="recipe-search" value="{{ line.recipe_display_label or '' }}" placeholder="Search recipes">
+                                <div class="flex gap-1 mb-1.5">
+                                    <button type="button" class="mode-btn mode-btn--recipe text-xs px-2 py-0.5 rounded border font-semibold" data-mode="recipe">Recipe</button>
+                                    <button type="button" class="mode-btn mode-btn--ingredient text-xs px-2 py-0.5 rounded border font-semibold" data-mode="ingredient">Ingredient</button>
+                                </div>
+                                <div class="mode-panel" data-panel="recipe">
+                                    <input type="hidden" data-field="recipe_id" value="{{ line.recipe_id or '' }}">
+                                    <input type="text" list="buffetRecipeOptions" class="line-input line-input--compact" data-role="recipe-search" value="{{ line.recipe_display_label or '' }}" placeholder="Search recipes">
+                                </div>
+                                <div class="mode-panel hidden" data-panel="ingredient">
+                                    <input type="hidden" data-field="direct_ingredient_id" value="{{ line.direct_ingredient_id or '' }}">
+                                    <input type="text" list="buffetIngredientOptions" class="line-input line-input--compact" data-role="ingredient-search" value="{{ line.direct_ingredient_display or '' }}" placeholder="Search ingredients">
+                                    <input type="text" class="line-input line-input--compact mt-1" data-field="direct_ingredient_unit" value="{{ line.direct_ingredient_unit or '' }}" placeholder="Unit (oz, lb, each)">
+                                </div>
                             </td>
                             <td>
                                 <div class="grid grid-cols-[90px_110px] gap-2">
@@ -343,6 +354,12 @@
     {% endfor %}
 </datalist>
 
+<datalist id="buffetIngredientOptions">
+    {% for ing in ingredient_options %}
+    <option value="{{ ing.name|e }}" data-id="{{ ing.id }}" data-unit="{{ ing.unit or '' }}"></option>
+    {% endfor %}
+</datalist>
+
 <template id="buffetLineTemplate">
     <tr class="line-row" data-line-row="1">
         <td>
@@ -361,8 +378,19 @@
             <input type="text" class="line-input line-input--compact" data-field="foh_talking_points" value="" placeholder="What FOH should know">
         </td>
         <td>
-            <input type="hidden" data-field="recipe_id" value="">
-            <input type="text" list="buffetRecipeOptions" class="line-input line-input--compact" data-role="recipe-search" value="" placeholder="Search recipes">
+            <div class="flex gap-1 mb-1.5">
+                <button type="button" class="mode-btn mode-btn--recipe text-xs px-2 py-0.5 rounded border font-semibold" data-mode="recipe">Recipe</button>
+                <button type="button" class="mode-btn mode-btn--ingredient text-xs px-2 py-0.5 rounded border font-semibold" data-mode="ingredient">Ingredient</button>
+            </div>
+            <div class="mode-panel" data-panel="recipe">
+                <input type="hidden" data-field="recipe_id" value="">
+                <input type="text" list="buffetRecipeOptions" class="line-input line-input--compact" data-role="recipe-search" value="" placeholder="Search recipes">
+            </div>
+            <div class="mode-panel hidden" data-panel="ingredient">
+                <input type="hidden" data-field="direct_ingredient_id" value="">
+                <input type="text" list="buffetIngredientOptions" class="line-input line-input--compact" data-role="ingredient-search" value="" placeholder="Search ingredients">
+                <input type="text" class="line-input line-input--compact mt-1" data-field="direct_ingredient_unit" value="" placeholder="Unit (oz, lb, each)">
+            </div>
         </td>
         <td>
             <div class="grid grid-cols-[90px_110px] gap-2">
@@ -397,6 +425,11 @@
     const dietarySummaryValue = document.getElementById('dietarySummaryValue');
     const lineCountValue = document.getElementById('lineCountValue');
     const recipeOptions = Array.from(document.querySelectorAll('#buffetRecipeOptions option'));
+    const ingredientOptions = Array.from(document.querySelectorAll('#buffetIngredientOptions option')).map((option) => ({
+        id: option.dataset.id || '',
+        name: (option.value || '').trim(),
+        unit: (option.dataset.unit || '').trim(),
+    }));
     const recipeByDisplay = new Map();
     const recipeByName = new Map();
     let rowSequence = 0;
@@ -460,6 +493,25 @@
         hidden.value = matches.length === 1 ? matches[0] : '';
     }
 
+    function resolveIngredientId(row) {
+        const search = row.querySelector('[data-role="ingredient-search"]');
+        const hidden = row.querySelector('[data-field="direct_ingredient_id"]');
+        const unitField = row.querySelector('[data-field="direct_ingredient_unit"]');
+        if (!search || !hidden) return;
+        const key = (search.value || '').trim().toLowerCase();
+        if (!key) {
+            hidden.value = '';
+            return;
+        }
+        const option = ingredientOptions.find((item) => item.name.toLowerCase() === key);
+        if (option) {
+            hidden.value = option.id;
+            if (unitField && !unitField.value && option.unit) unitField.value = option.unit;
+        } else {
+            hidden.value = '';
+        }
+    }
+
     function renderStationHeaders() {
         removeStationHeaders();
         let previousStation = null;
@@ -492,7 +544,13 @@
                 if (input && input.checked) counts[flag] += 1;
             });
         });
-        dietarySummaryValue.textContent = `GF: ${counts.is_gf} · V: ${counts.is_v} · VG: ${counts.is_vg} · DF: ${counts.is_df} · NF: ${counts.is_nf}`;
+        const parts = [];
+        if (counts.is_gf) parts.push(`GF: ${counts.is_gf}`);
+        if (counts.is_v) parts.push(`V: ${counts.is_v}`);
+        if (counts.is_vg) parts.push(`VG: ${counts.is_vg}`);
+        if (counts.is_df) parts.push(`DF: ${counts.is_df}`);
+        if (counts.is_nf) parts.push(`NF: ${counts.is_nf}`);
+        dietarySummaryValue.textContent = parts.length ? parts.join(' · ') : 'No dietary flags';
     }
 
     function updateGuestAndRevenue() {
@@ -523,8 +581,45 @@
         reindexRows();
     }
 
+    function wireRowMode(row) {
+        const modeBtns = row.querySelectorAll('.mode-btn');
+        const panels = row.querySelectorAll('.mode-panel');
+
+        function setMode(mode) {
+            modeBtns.forEach((btn) => {
+                const active = btn.dataset.mode === mode;
+                btn.classList.toggle('bg-stone-800', active);
+                btn.classList.toggle('text-white', active);
+                btn.classList.toggle('border-stone-800', active);
+                btn.classList.toggle('bg-white', !active);
+                btn.classList.toggle('text-stone-600', !active);
+                btn.classList.toggle('border-stone-300', !active);
+            });
+            panels.forEach((panel) => {
+                panel.classList.toggle('hidden', panel.dataset.panel !== mode);
+            });
+            if (mode === 'recipe') {
+                const ingredientSearch = row.querySelector('[data-role="ingredient-search"]');
+                row.querySelector('[data-field="direct_ingredient_id"]').value = '';
+                row.querySelector('[data-field="direct_ingredient_unit"]').value = '';
+                if (ingredientSearch) ingredientSearch.value = '';
+            } else {
+                row.querySelector('[data-field="recipe_id"]').value = '';
+                row.querySelector('[data-role="recipe-search"]').value = '';
+            }
+        }
+
+        modeBtns.forEach((btn) => {
+            btn.addEventListener('click', () => setMode(btn.dataset.mode));
+        });
+
+        const hasIngredient = !!row.querySelector('[data-field="direct_ingredient_id"]')?.value;
+        setMode(hasIngredient ? 'ingredient' : 'recipe');
+    }
+
     function wireRow(row) {
         row.dataset.sequence = String(++rowSequence);
+        wireRowMode(row);
 
         row.querySelector('.js-remove-line')?.addEventListener('click', () => {
             row.remove();
@@ -542,6 +637,8 @@
 
         row.querySelector('[data-role="recipe-search"]')?.addEventListener('change', () => resolveRecipeId(row));
         row.querySelector('[data-role="recipe-search"]')?.addEventListener('blur', () => resolveRecipeId(row));
+        row.querySelector('[data-role="ingredient-search"]')?.addEventListener('change', () => resolveIngredientId(row));
+        row.querySelector('[data-role="ingredient-search"]')?.addEventListener('blur', () => resolveIngredientId(row));
     }
 
     function addLine() {
@@ -575,6 +672,7 @@
     getLineRows().forEach((row) => {
         wireRow(row);
         resolveRecipeId(row);
+        resolveIngredientId(row);
     });
 
     if (!getLineRows().length) {
@@ -587,7 +685,10 @@
     updateGuestAndRevenue();
 
     mainForm?.addEventListener('submit', () => {
-        getLineRows().forEach((row) => resolveRecipeId(row));
+        getLineRows().forEach((row) => {
+            resolveRecipeId(row);
+            resolveIngredientId(row);
+        });
         reindexRows();
     });
 })();

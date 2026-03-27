@@ -58,8 +58,53 @@
         {% if no_recipe_lines %}
         <section class="fhq-alert fhq-alert--amber w-full" style="display:flex;">
             <div>
-                <strong>The following items have no recipe linked and will not appear in the prep sheet:</strong>
+                <strong>The following items have neither a recipe nor a direct ingredient linked and will not appear in the prep sheet:</strong>
                 {{ no_recipe_lines|join(', ') }}
+            </div>
+        </section>
+        {% endif %}
+
+        {% if direct_ingredient_lines %}
+        <section class="fhq-card p-5">
+            <div class="flex items-center justify-between gap-3 mb-4">
+                <div>
+                    <h2 class="text-xl font-bold tracking-tight text-foxtown-text">Direct Ingredient Lines</h2>
+                    <p class="text-sm text-foxtown-muted mt-1">{{ direct_ingredient_lines|length }} line{{ '' if direct_ingredient_lines|length == 1 else 's' }} scale directly from serving size x guest count.</p>
+                </div>
+            </div>
+            <div style="overflow-x:auto;">
+                <table class="fhq-table prep-station-table">
+                    <thead>
+                        <tr>
+                            <th>Station</th>
+                            <th>Dish Name</th>
+                            <th>Ingredient</th>
+                            <th>Total Needed</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in direct_ingredient_lines %}
+                        <tr>
+                            <td>{{ row.station }}</td>
+                            <td class="font-semibold text-foxtown-text">
+                                {{ row.dish_name }}
+                                {% set has_flags = row.is_gf or row.is_v or row.is_vg or row.is_df or row.is_nf %}
+                                {% if has_flags %}
+                                <div class="flex flex-wrap gap-1 mt-1">
+                                    {% if row.is_gf %}<span class="text-xs font-bold px-1.5 py-0.5 rounded border bg-green-100 text-green-800 border-green-200">GF</span>{% endif %}
+                                    {% if row.is_v %}<span class="text-xs font-bold px-1.5 py-0.5 rounded border bg-lime-100 text-lime-800 border-lime-200">V</span>{% endif %}
+                                    {% if row.is_vg %}<span class="text-xs font-bold px-1.5 py-0.5 rounded border bg-emerald-100 text-emerald-800 border-emerald-200">VG</span>{% endif %}
+                                    {% if row.is_df %}<span class="text-xs font-bold px-1.5 py-0.5 rounded border bg-blue-100 text-blue-800 border-blue-200">DF</span>{% endif %}
+                                    {% if row.is_nf %}<span class="text-xs font-bold px-1.5 py-0.5 rounded border bg-yellow-100 text-yellow-800 border-yellow-200">NF</span>{% endif %}
+                                </div>
+                                {% endif %}
+                            </td>
+                            <td>{{ row.ingredient_name }}</td>
+                            <td>{{ row.total_qty }} {{ row.unit }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </section>
         {% endif %}
@@ -90,6 +135,16 @@
                             <tr>
                                 <td class="font-semibold text-foxtown-text">
                                     {{ row.dish_name }}
+                                    {% set has_flags = row.is_gf or row.is_v or row.is_vg or row.is_df or row.is_nf %}
+                                    {% if has_flags %}
+                                    <div class="flex flex-wrap gap-1 mt-1">
+                                        {% if row.is_gf %}<span class="text-xs font-bold px-1.5 py-0.5 rounded border bg-green-100 text-green-800 border-green-200">GF</span>{% endif %}
+                                        {% if row.is_v %}<span class="text-xs font-bold px-1.5 py-0.5 rounded border bg-lime-100 text-lime-800 border-lime-200">V</span>{% endif %}
+                                        {% if row.is_vg %}<span class="text-xs font-bold px-1.5 py-0.5 rounded border bg-emerald-100 text-emerald-800 border-emerald-200">VG</span>{% endif %}
+                                        {% if row.is_df %}<span class="text-xs font-bold px-1.5 py-0.5 rounded border bg-blue-100 text-blue-800 border-blue-200">DF</span>{% endif %}
+                                        {% if row.is_nf %}<span class="text-xs font-bold px-1.5 py-0.5 rounded border bg-yellow-100 text-yellow-800 border-yellow-200">NF</span>{% endif %}
+                                    </div>
+                                    {% endif %}
                                     {% if not row.recipe_id %}
                                     <span class="warning-badge">No Recipe</span>
                                     {% endif %}
@@ -115,7 +170,7 @@
         <section class="prep-summary-bar">
             <div class="prep-summary-card">
                 <span class="fhq-section-head mb-0">Total Dish Count</span>
-                <span class="value">{{ total_cards + (no_recipe_lines|length) }}</span>
+                <span class="value">{{ total_cards + (direct_ingredient_lines|length) + (no_recipe_lines|length) }}</span>
             </div>
             <div class="prep-summary-card">
                 <span class="fhq-section-head mb-0">Recipe-Linked Count</span>

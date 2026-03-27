@@ -9,7 +9,7 @@ from html import escape
 from db import get_cursor, get_db
 from flask import Blueprint, Response, flash, redirect, render_template, request, url_for
 from flask_login import login_required
-from helpers.db_helpers import db_table_exists
+from helpers.db_helpers import db_column_exists, db_table_exists
 from helpers.formatting import make_safe_filename
 from helpers.menu import clean_menu_text
 from helpers.recipes import build_component_tree, collect_ingredients_from_components
@@ -100,6 +100,11 @@ BUFFET_SCHEMA_STATEMENTS = [
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     """,
+    """
+    ALTER TABLE buffet_event_lines
+      ADD COLUMN IF NOT EXISTS direct_ingredient_id TEXT REFERENCES ingredients(id) ON DELETE SET NULL,
+      ADD COLUMN IF NOT EXISTS direct_ingredient_unit TEXT
+    """,
     "CREATE INDEX IF NOT EXISTS idx_buffet_event_lines_event_id ON buffet_event_lines (event_id, sort_order)",
     "CREATE INDEX IF NOT EXISTS idx_buffet_events_event_date ON buffet_events (event_date)",
     """
@@ -127,12 +132,24 @@ def ensure_buffet_schema(cur):
     has_events = db_table_exists(cur, 'public.buffet_events')
     has_lines = db_table_exists(cur, 'public.buffet_event_lines')
     has_order_items = db_table_exists(cur, 'public.buffet_order_items')
-    if has_events and has_lines and has_order_items:
-        return False
+    changed = False
 
-    for statement in BUFFET_SCHEMA_STATEMENTS:
-        cur.execute(statement)
-    return True
+    if not (has_events and has_lines and has_order_items):
+        for statement in BUFFET_SCHEMA_STATEMENTS:
+            cur.execute(statement)
+        changed = True
+
+    if db_table_exists(cur, 'public.buffet_event_lines') and not db_column_exists(cur, 'public.buffet_event_lines', 'direct_ingredient_id'):
+        cur.execute(
+            """
+            ALTER TABLE buffet_event_lines
+              ADD COLUMN IF NOT EXISTS direct_ingredient_id TEXT REFERENCES ingredients(id) ON DELETE SET NULL,
+              ADD COLUMN IF NOT EXISTS direct_ingredient_unit TEXT
+            """
+        )
+        changed = True
+
+    return changed
 
 
 def buffet_tables_ready(cur):
@@ -156,12 +173,16 @@ def get_buffet_event_lines(cur, event_id):
         """
         SELECT
             bel.*,
+            bel.direct_ingredient_id,
+            bel.direct_ingredient_unit,
             r.name AS recipe_name,
             r.recipe_type,
             r.yield_qty,
-            r.yield_unit
+            r.yield_unit,
+            di.name AS direct_ingredient_name
         FROM buffet_event_lines bel
         LEFT JOIN recipes r ON r.id = bel.recipe_id
+        LEFT JOIN ingredients di ON di.id = bel.direct_ingredient_id
         WHERE bel.event_id = %s
         ORDER BY bel.sort_order, bel.id
         """,
@@ -186,6 +207,17 @@ def get_recipe_options(cur):
         """
         SELECT id, name, recipe_type, yield_qty, yield_unit
         FROM recipes
+        ORDER BY name
+        """
+    )
+    return cur.fetchall()
+
+
+def get_ingredient_options(cur):
+    cur.execute(
+        """
+        SELECT id, name, unit, category
+        FROM ingredients
         ORDER BY name
         """
     )
@@ -223,6 +255,10 @@ def parse_buffet_lines(request):
             ),
             'serving_size_unit': clean_menu_text(raw_line.get('serving_size_unit')) or None,
         }
+        line['direct_ingredient_id'] = clean_menu_text(raw_line.get('direct_ingredient_id')) or None
+        line['direct_ingredient_unit'] = clean_menu_text(raw_line.get('direct_ingredient_unit')) or None
+        if line['direct_ingredient_id']:
+            line['recipe_id'] = None
         for flag in DIETARY_FLAGS:
             line[flag] = bool(raw_line.get(flag))
         lines.append(line)
@@ -263,7 +299,7 @@ def _prepare_recipe_options(recipe_rows):
     return prepared
 
 
-def _prepare_lines_for_form(lines, recipe_map):
+def _prepare_lines_for_form(lines, recipe_map, ingredient_map=None):
     prepared = []
     for row in lines or []:
         item = dict(row)
@@ -273,6 +309,12 @@ def _prepare_lines_for_form(lines, recipe_map):
             item['recipe_display_label'] = _build_recipe_display_label(item)
         else:
             item['recipe_display_label'] = ''
+        direct_ingredient_id = item.get('direct_ingredient_id')
+        item['direct_ingredient_display'] = (
+            item.get('direct_ingredient_name')
+            or (ingredient_map or {}).get(direct_ingredient_id)
+            or ''
+        )
         prepared.append(item)
     return prepared
 
@@ -307,6 +349,53 @@ def _build_event_form_state(source=None, **overrides):
 
 
 def _insert_buffet_line(cur, event_id, line, sort_order):
+    has_direct = db_column_exists(cur, 'public.buffet_event_lines', 'direct_ingredient_id')
+
+    if has_direct:
+        cur.execute(
+            """
+            INSERT INTO buffet_event_lines (
+                event_id,
+                station,
+                dish_name,
+                description,
+                vessel,
+                foh_talking_points,
+                recipe_id,
+                direct_ingredient_id,
+                direct_ingredient_unit,
+                serving_size_qty,
+                serving_size_unit,
+                is_gf,
+                is_v,
+                is_vg,
+                is_df,
+                is_nf,
+                sort_order
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """,
+            (
+                event_id,
+                line.get('station'),
+                line.get('dish_name'),
+                line.get('description'),
+                line.get('vessel'),
+                line.get('foh_talking_points'),
+                line.get('recipe_id'),
+                line.get('direct_ingredient_id'),
+                line.get('direct_ingredient_unit'),
+                line.get('serving_size_qty'),
+                line.get('serving_size_unit'),
+                bool(line.get('is_gf')),
+                bool(line.get('is_v')),
+                bool(line.get('is_vg')),
+                bool(line.get('is_df')),
+                bool(line.get('is_nf')),
+                sort_order,
+            ),
+        )
+        return
+
     cur.execute(
         """
         INSERT INTO buffet_event_lines (
@@ -354,18 +443,42 @@ def build_buffet_prep_sheet(cur, event_id, unit_system='imperial'):
 
     grouped = defaultdict(list)
     no_recipe_lines = []
+    direct_ingredient_lines = []
     all_cards = []
 
     for line in lines:
         recipe_id = line.get('recipe_id')
-        if not recipe_id:
+        direct_ingredient_id = line.get('direct_ingredient_id')
+        if not recipe_id and not direct_ingredient_id:
             no_recipe_lines.append(line.get('dish_name') or 'Unnamed Dish')
+            continue
+        if direct_ingredient_id:
+            serving_size_qty = to_float(line.get('serving_size_qty')) or 1
+            total_qty = serving_size_qty * guest_total
+            direct_line = {
+                'dish_name': line.get('dish_name') or 'Dish',
+                'station': line.get('station') or 'Other',
+                'ingredient_id': direct_ingredient_id,
+                'ingredient_name': line.get('direct_ingredient_name') or 'Ingredient',
+                'total_qty': total_qty,
+                'unit': (line.get('direct_ingredient_unit') or line.get('serving_size_unit') or '').strip(),
+            }
+            for flag in DIETARY_FLAGS:
+                direct_line[flag] = bool(line.get(flag))
+            direct_ingredient_lines.append(direct_line)
             continue
 
         serving_qty = to_float(line.get('serving_size_qty')) or 1
-        serving_unit = line.get('serving_size_unit') or line.get('yield_unit') or ''
+        serving_unit = (line.get('serving_size_unit') or '').strip()
+        yield_unit = (line.get('yield_unit') or '').strip()
         total_needed_qty = serving_qty * guest_total
+        total_needed_unit = serving_unit
         recipe_yield = to_float(line.get('yield_qty')) or 1
+        if serving_unit and yield_unit and serving_unit != yield_unit:
+            converted = convert_quantity_between_units(total_needed_qty, serving_unit, yield_unit)
+            if converted is not None:
+                total_needed_qty = converted
+                total_needed_unit = yield_unit
         batches_needed = math.ceil(total_needed_qty / recipe_yield) if recipe_yield > 0 else 0
         total_yield = batches_needed * recipe_yield
 
@@ -375,27 +488,32 @@ def build_buffet_prep_sheet(cur, event_id, unit_system='imperial'):
             'recipe_id': recipe_id,
             'recipe_name': line.get('recipe_name') or 'Recipe',
             'yield_qty': recipe_yield,
-            'yield_unit': line.get('yield_unit') or '',
+            'yield_unit': yield_unit,
             'serving_size_qty': serving_qty,
-            'serving_size_unit': serving_unit,
+            'serving_size_unit': serving_unit or yield_unit,
             'total_needed_qty': total_needed_qty,
+            'total_needed_unit': total_needed_unit,
             'batches_needed': batches_needed,
             'total_yield': total_yield,
             'assigned_to': '',
             'status': 'pending',
         }
+        for flag in DIETARY_FLAGS:
+            card[flag] = bool(line.get(flag))
         grouped[card['station']].append(card)
         all_cards.append(card)
 
     sorted_grouped = {}
     for station in sorted(grouped):
         sorted_grouped[station] = sorted(grouped[station], key=lambda row: (row.get('dish_name') or '').lower())
+    direct_ingredient_lines.sort(key=lambda row: ((row.get('station') or '').lower(), (row.get('dish_name') or '').lower()))
 
     return {
         'stations': sorted_grouped,
         'guest_total': guest_total,
         'total_cards': len(all_cards),
         'no_recipe_lines': no_recipe_lines,
+        'direct_ingredient_lines': direct_ingredient_lines,
     }
 
 
@@ -431,17 +549,23 @@ def build_buffet_order_rollup(cur, event_id, unit_system='imperial'):
 
     for line in lines:
         recipe_id = line.get('recipe_id')
-        if not recipe_id:
-            continue
+        direct_ingredient_id = line.get('direct_ingredient_id')
 
-        serving_size_qty = to_float(line.get('serving_size_qty')) or 1
-        recipe_yield = to_float(line.get('yield_qty'))
-        if recipe_yield <= 0:
-            continue
+        if recipe_id:
+            serving_size_qty = to_float(line.get('serving_size_qty')) or 1
+            recipe_yield = to_float(line.get('yield_qty'))
+            if recipe_yield <= 0:
+                continue
 
-        scale_ratio = (serving_size_qty * guest_total) / recipe_yield
-        components, _, _ = build_component_tree(cur, recipe_id, scale_ratio, depth=0, path=set(), unit_system=unit_system)
-        collect_ingredients_from_components(components, totals)
+            scale_ratio = (serving_size_qty * guest_total) / recipe_yield
+            components, _, _ = build_component_tree(cur, recipe_id, scale_ratio, depth=0, path=set(), unit_system=unit_system)
+            collect_ingredients_from_components(components, totals)
+        elif direct_ingredient_id:
+            serving_size_qty = to_float(line.get('serving_size_qty')) or 1
+            total_qty = serving_size_qty * guest_total
+            unit = (line.get('direct_ingredient_unit') or line.get('serving_size_unit') or '').strip()
+            key = (direct_ingredient_id, unit)
+            totals[key] = totals.get(key, 0) + total_qty
 
     cur.execute(
         """
@@ -593,6 +717,8 @@ def buffet_event_new():
 
         recipe_options = _prepare_recipe_options(get_recipe_options(cur))
         recipe_map = {row['id']: row['display_label'] for row in recipe_options if row.get('id')}
+        ingredient_options = get_ingredient_options(cur)
+        ingredient_map = {row['id']: row.get('name') or '' for row in ingredient_options if row.get('id')}
         event = _build_event_form_state()
         lines = []
 
@@ -626,7 +752,7 @@ def buffet_event_new():
                 errors.append('Status is invalid.')
                 status = 'planning'
 
-            lines = _prepare_lines_for_form(parse_buffet_lines(request), recipe_map)
+            lines = _prepare_lines_for_form(parse_buffet_lines(request), recipe_map, ingredient_map)
             event = _build_event_form_state(
                 event,
                 name=name,
@@ -716,6 +842,7 @@ def buffet_event_new():
         event=event,
         lines=lines,
         recipe_options=recipe_options,
+        ingredient_options=ingredient_options,
         station_options=BUFFET_STATION_OPTIONS,
         status_choices=BUFFET_STATUS_CHOICES,
         dietary_labels=DIETARY_LABELS,
@@ -741,6 +868,8 @@ def buffet_event_edit(event_id):
 
         recipe_options = _prepare_recipe_options(get_recipe_options(cur))
         recipe_map = {row['id']: row['display_label'] for row in recipe_options if row.get('id')}
+        ingredient_options = get_ingredient_options(cur)
+        ingredient_map = {row['id']: row.get('name') or '' for row in ingredient_options if row.get('id')}
 
         if request.method == 'POST':
             errors = []
@@ -772,7 +901,7 @@ def buffet_event_edit(event_id):
                 errors.append('Status is invalid.')
                 status = 'planning'
 
-            lines = _prepare_lines_for_form(parse_buffet_lines(request), recipe_map)
+            lines = _prepare_lines_for_form(parse_buffet_lines(request), recipe_map, ingredient_map)
             event = _build_event_form_state(
                 event,
                 id=event_id,
@@ -855,7 +984,7 @@ def buffet_event_edit(event_id):
                     flash('Error updating buffet event.', 'error')
         else:
             event = _build_event_form_state(event, id=event_id)
-            lines = _prepare_lines_for_form(get_buffet_event_lines(cur, event_id), recipe_map)
+            lines = _prepare_lines_for_form(get_buffet_event_lines(cur, event_id), recipe_map, ingredient_map)
 
     return render_template(
         'buffet_event_form.html',
@@ -864,6 +993,7 @@ def buffet_event_edit(event_id):
         event=event,
         lines=lines,
         recipe_options=recipe_options,
+        ingredient_options=ingredient_options,
         station_options=BUFFET_STATION_OPTIONS,
         status_choices=BUFFET_STATUS_CHOICES,
         dietary_labels=DIETARY_LABELS,
@@ -894,6 +1024,7 @@ def buffet_event_prep(event_id):
             guest_total=guest_total,
             stations=prep_data['stations'],
             no_recipe_lines=prep_data['no_recipe_lines'],
+            direct_ingredient_lines=prep_data['direct_ingredient_lines'],
             total_cards=prep_data['total_cards'],
         )
 
@@ -1085,12 +1216,56 @@ def buffet_prep_pdf(event_id):
         )
         story.append(station_table)
 
+    has_previous_sections = bool(station_names)
+
+    if prep_data['direct_ingredient_lines']:
+        if has_previous_sections:
+            story.append(PageBreak())
+        story.append(Paragraph('Direct Ingredient Lines', section_title_style))
+        story.append(Paragraph(
+            'These lines scale directly from serving size times guest count and do not use recipe batch math.',
+            note_style,
+        ))
+        story.append(Spacer(1, 0.08 * inch))
+        direct_rows = [[
+            Paragraph('Station', table_header_style),
+            Paragraph('Dish Name', table_header_style),
+            Paragraph('Ingredient', table_header_style),
+            Paragraph('Total Needed', table_header_style),
+        ]]
+        for row in prep_data['direct_ingredient_lines']:
+            direct_rows.append(
+                [
+                    p(row.get('station') or 'Other'),
+                    p(row.get('dish_name') or 'Dish'),
+                    p(row.get('ingredient_name') or 'Ingredient'),
+                    p(fmt_qty(row.get('total_qty'), row.get('unit'))),
+                ]
+            )
+        direct_table = Table(direct_rows, colWidths=[1.5 * inch, 2.3 * inch, 2.2 * inch, 1.3 * inch], repeatRows=1)
+        direct_table.setStyle(
+            TableStyle(
+                [
+                    ('BACKGROUND', (0, 0), (-1, 0), header_navy),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), white),
+                    ('ROWBACKGROUNDS', (0, 1), (-1, -1), [white, light_gray]),
+                    ('GRID', (0, 0), (-1, -1), 0.35, border_gray),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 5),
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 5),
+                    ('TOPPADDING', (0, 0), (-1, -1), 4),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+                ]
+            )
+        )
+        story.append(direct_table)
+        has_previous_sections = True
+
     if prep_data['no_recipe_lines']:
-        if station_names:
+        if has_previous_sections:
             story.append(PageBreak())
         story.append(Paragraph('Items Without Recipe Links', section_title_style))
         story.append(Paragraph(
-            'The following dishes are missing recipe links and were not included in the prep calculations.',
+            'The following dishes are missing both recipe links and direct ingredients, so they were not included in the prep calculations.',
             note_style,
         ))
         story.append(Spacer(1, 0.08 * inch))

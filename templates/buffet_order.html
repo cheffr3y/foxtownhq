@@ -55,7 +55,7 @@
             <div class="flex items-center justify-between gap-3 mb-4">
                 <div>
                     <h2 class="text-xl font-bold tracking-tight text-foxtown-text">Ingredient Rollup</h2>
-                    <p class="text-sm text-foxtown-muted mt-1">Fill in pack sizes to calculate how many cases you need for this buffet.</p>
+                    <p class="text-sm text-foxtown-muted mt-1">Recipe-linked components and direct-ingredient lines both roll up here for pack planning.</p>
                 </div>
             </div>
             <div class="order-table-wrap">
@@ -99,7 +99,7 @@
                         {% endfor %}
                         {% if not order_items %}
                         <tr>
-                            <td colspan="8" class="text-sm text-foxtown-muted">No recipe-linked ingredients are available for this event yet.</td>
+                            <td colspan="8" class="text-sm text-foxtown-muted">No rolled-up ingredients are available for this event yet.</td>
                         </tr>
                         {% endif %}
                     </tbody>
