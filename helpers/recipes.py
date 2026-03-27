@@ -259,8 +259,8 @@ def parse_weighted_options_from_form(request, recipe_type, cur, errors):
             errors.append('Each weighted option row needs a group name.')
         if not item_type:
             item_type = 'recipe'
-        if item_type != 'recipe':
-            errors.append('Weighted option type must be sub-recipe.')
+        if item_type not in {'recipe', 'ingredient'}:
+            errors.append('Weighted option type must be recipe or ingredient.')
         if not item_id and item_name:
             errors.append(f'Weighted option "{item_name}" was not found. Select it from the list.')
         if not item_id and not item_name:

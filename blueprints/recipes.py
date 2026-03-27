@@ -25,6 +25,70 @@ def escape_like(value):
     return value.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
 
 
+def _weighted_option_source_label(item_type, row):
+    name = (row.get('name') or '').strip() or 'Option'
+    if item_type == 'ingredient':
+        unit = (row.get('unit') or '').strip()
+        return f"{name} [Ingredient]{f' ({unit})' if unit else ''}"
+
+    recipe_type = normalize_recipe_type(row.get('recipe_type'))
+    if recipe_type == 'menu':
+        type_label = 'RM'
+    elif recipe_type == 'batch':
+        type_label = 'RB'
+    else:
+        type_label = 'Recipe'
+    unit = (row.get('yield_unit') or '').strip()
+    return f"{name} [{type_label}]{f' ({unit})' if unit else ''}"
+
+
+def _prepare_weighted_option_sources(ingredients_list, weighted_recipes_list):
+    sources = []
+    label_map = {}
+
+    for ingredient in ingredients_list or []:
+        item_id = ingredient.get('id')
+        if not item_id:
+            continue
+        display_label = _weighted_option_source_label('ingredient', ingredient)
+        sources.append({
+            'item_type': 'ingredient',
+            'item_id': item_id,
+            'name': ingredient.get('name') or '',
+            'display_label': display_label,
+            'default_unit': ingredient.get('unit') or ''
+        })
+        label_map[('ingredient', item_id)] = display_label
+
+    for recipe in weighted_recipes_list or []:
+        item_id = recipe.get('id')
+        if not item_id:
+            continue
+        display_label = _weighted_option_source_label('recipe', recipe)
+        sources.append({
+            'item_type': 'recipe',
+            'item_id': item_id,
+            'name': recipe.get('name') or '',
+            'display_label': display_label,
+            'default_unit': recipe.get('yield_unit') or ''
+        })
+        label_map[('recipe', item_id)] = display_label
+
+    return sources, label_map
+
+
+def _prepare_option_items_for_form(option_items, label_map):
+    prepared = []
+    for option in option_items or []:
+        item = dict(option)
+        item['display_label'] = label_map.get(
+            (item.get('item_type') or 'recipe', item.get('item_id')),
+            item.get('item_name') or ''
+        )
+        prepared.append(item)
+    return prepared
+
+
 @bp.errorhandler(Exception)
 def handle_recipes_error(error):
     return handle_route_error(error, 'recipes')
@@ -370,6 +434,7 @@ def recipe_new():
         """)
         weighted_recipes_list = cur.fetchall()
 
+    weighted_option_sources, option_label_map = _prepare_weighted_option_sources(ingredients_list, weighted_recipes_list)
     return render_template(
         'recipe_form.html',
         mode='new',
@@ -385,11 +450,12 @@ def recipe_new():
         ingredients=ingredients_list,
         recipes=recipes_list,
         weighted_recipes=weighted_recipes_list,
+        weighted_option_sources=weighted_option_sources,
         venues=venues,
         selected_venue_ids=selected_venue_ids,
         ingredient_items=[],
         subrecipe_items=[],
-        option_items=option_items_input
+        option_items=_prepare_option_items_for_form(option_items_input, option_label_map)
     )
 
 @bp.route('/recipes/<recipe_id>/edit', methods=['GET', 'POST'])
@@ -622,6 +688,7 @@ def recipe_edit(recipe_id):
         """, (recipe_id,))
         weighted_recipes_list = cur.fetchall()
 
+    weighted_option_sources, option_label_map = _prepare_weighted_option_sources(ingredients_list, weighted_recipes_list)
     return render_template(
         'recipe_form.html',
         mode='edit',
@@ -629,11 +696,12 @@ def recipe_edit(recipe_id):
         ingredients=ingredients_list,
         recipes=recipes_list,
         weighted_recipes=weighted_recipes_list,
+        weighted_option_sources=weighted_option_sources,
         venues=venues,
         selected_venue_ids=selected_venue_ids,
         ingredient_items=ingredient_items,
         subrecipe_items=subrecipe_items,
-        option_items=option_items
+        option_items=_prepare_option_items_for_form(option_items, option_label_map)
     )
 
 @bp.route('/recipe-generator', methods=['GET', 'POST'])

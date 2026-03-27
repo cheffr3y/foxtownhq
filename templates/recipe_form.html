@@ -243,7 +243,7 @@
                 <div class="flex items-center justify-between mb-4">
                     <div>
                         <h2 class="text-xl font-display text-foxtown-ink">Choice Groups (RM Averages)</h2>
-                        <p class="text-sm text-stone-500">Use this for averages like dressing choice or protein mix. Choose RM or RB recipes; each group must total 100%.</p>
+                        <p class="text-sm text-stone-500">Use this for averages like dressing choice, protein mix, or filling sets. Choose RM/RB recipes or raw ingredients; each group must total 100%.</p>
                     </div>
                     <button type="button" id="addWeightedOptionRow"
                             class="text-foxtown-ember hover:text-orange-700 text-sm font-semibold">
@@ -255,7 +255,7 @@
                         <thead class="text-xs uppercase text-stone-500 border-b border-stone-200">
                             <tr>
                                 <th class="text-left py-2 pr-4">Group Name</th>
-                                <th class="text-left py-2 pr-4">Sub-Recipe</th>
+                                <th class="text-left py-2 pr-4">Recipe / Ingredient</th>
                                 <th class="text-left py-2 pr-4">Qty</th>
                                 <th class="text-left py-2 pr-4">Unit</th>
                                 <th class="text-left py-2 pr-4">Weight %</th>
@@ -273,12 +273,12 @@
                                                class="weighted-group-name w-full border border-stone-300 rounded-xl px-3 py-2">
                                     </td>
                                     <td class="py-2 pr-4">
-                                        <input type="hidden" name="option_item_type[]" value="recipe">
+                                        <input type="hidden" name="option_item_type[]" value="{{ option.item_type or 'recipe' }}">
                                         <input type="text" name="option_item_name[]"
-                                               value="{{ option.item_name or '' }}"
-                                               list="weightedRecipeOptions"
-                                               class="weighted-recipe-autocomplete w-full border border-stone-300 rounded-xl px-3 py-2"
-                                               placeholder="Start typing recipe name...">
+                                               value="{{ option.display_label or option.item_name or '' }}"
+                                               list="weightedOptionSources"
+                                               class="weighted-option-autocomplete w-full border border-stone-300 rounded-xl px-3 py-2"
+                                               placeholder="Start typing recipe or ingredient...">
                                         <input type="hidden" name="option_item_id[]" value="{{ option.item_id or '' }}" class="weighted-item-id">
                                     </td>
                                     <td class="py-2 pr-4">
@@ -313,9 +313,9 @@
                                     <td class="py-2 pr-4">
                                         <input type="hidden" name="option_item_type[]" value="recipe">
                                         <input type="text" name="option_item_name[]"
-                                               list="weightedRecipeOptions"
-                                               class="weighted-recipe-autocomplete w-full border border-stone-300 rounded-xl px-3 py-2"
-                                               placeholder="Start typing recipe name...">
+                                               list="weightedOptionSources"
+                                               class="weighted-option-autocomplete w-full border border-stone-300 rounded-xl px-3 py-2"
+                                               placeholder="Start typing recipe or ingredient...">
                                         <input type="hidden" name="option_item_id[]" value="" class="weighted-item-id">
                                     </td>
                                     <td class="py-2 pr-4">
@@ -382,10 +382,9 @@
     {% endfor %}
 </datalist>
 
-<datalist id="weightedRecipeOptions">
-    {% for rec in weighted_recipes %}
-        <option value="{{ rec.name }}" data-id="{{ rec.id }}" data-unit="{{ rec.yield_unit or '' }}"
-                label="{{ rec.name }}{% if rec.recipe_type == 'menu' %} (RM){% elif rec.recipe_type == 'batch' %} (RB){% elif rec.recipe_type is none %} (Unclassified){% endif %}"></option>
+<datalist id="weightedOptionSources">
+    {% for option in weighted_option_sources %}
+        <option value="{{ option.display_label }}" data-id="{{ option.item_id }}" data-type="{{ option.item_type }}" data-unit="{{ option.default_unit or '' }}"></option>
     {% endfor %}
 </datalist>
 
@@ -421,9 +420,9 @@
         </td>
         <td class="py-2 pr-4">
             <input type="hidden" name="option_item_type[]" value="recipe">
-            <input type="text" name="option_item_name[]" list="weightedRecipeOptions"
-                   class="weighted-recipe-autocomplete w-full border border-stone-300 rounded-xl px-3 py-2"
-                   placeholder="Start typing recipe name...">
+            <input type="text" name="option_item_name[]" list="weightedOptionSources"
+                   class="weighted-option-autocomplete w-full border border-stone-300 rounded-xl px-3 py-2"
+                   placeholder="Start typing recipe or ingredient...">
             <input type="hidden" name="option_item_id[]" value="" class="weighted-item-id">
         </td>
         <td class="py-2 pr-4">
@@ -463,11 +462,12 @@ function findIngredientOption(name) {
     return ingredientOptions.find(option => option.value.toLowerCase() === target) || null;
 }
 
-function findWeightedRecipeOption(name) {
+const weightedOptionSources = Array.from(document.querySelectorAll('#weightedOptionSources option'));
+
+function findWeightedOptionSource(name) {
     const target = (name || '').trim().toLowerCase();
     if (!target) return null;
-    const options = Array.from(document.querySelectorAll('#weightedRecipeOptions option'));
-    return options.find(option => option.value.toLowerCase() === target) || null;
+    return weightedOptionSources.find(option => option.value.toLowerCase() === target) || null;
 }
 
 function findSubRecipeOption(name) {
@@ -521,19 +521,22 @@ function syncSubRecipeRow(row) {
 }
 
 function syncWeightedOptionRow(row) {
-    const input = row.querySelector('.weighted-recipe-autocomplete');
+    const input = row.querySelector('.weighted-option-autocomplete');
     const hiddenId = row.querySelector('.weighted-item-id');
+    const hiddenType = row.querySelector('input[name="option_item_type[]"]');
     const unitInput = row.querySelector('.weighted-option-unit');
-    if (!input || !hiddenId) return;
-    const match = findWeightedRecipeOption(input.value);
+    if (!input || !hiddenId || !hiddenType) return;
+    const match = findWeightedOptionSource(input.value);
     if (match) {
         hiddenId.value = match.dataset.id || '';
+        hiddenType.value = match.dataset.type || 'recipe';
         if (unitInput && !unitInput.value) {
             unitInput.value = match.dataset.unit || '';
         }
         input.classList.remove('border-red-300');
     } else {
         hiddenId.value = '';
+        hiddenType.value = 'recipe';
         if (input.value) {
             input.classList.add('border-red-300');
         } else {
@@ -625,7 +628,7 @@ document.addEventListener('input', (event) => {
         const row = event.target.closest('tr');
         if (row) syncIngredientRow(row);
     }
-    if (event.target.classList.contains('weighted-recipe-autocomplete')) {
+    if (event.target.classList.contains('weighted-option-autocomplete')) {
         const row = event.target.closest('tr');
         if (row) syncWeightedOptionRow(row);
     }
