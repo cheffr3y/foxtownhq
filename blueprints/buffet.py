@@ -1279,6 +1279,14 @@ def buffet_event_prep(event_id):
             direct_ingredient_lines=prep_data['direct_ingredient_lines'],
             prep_station_groups=prep_data['prep_station_groups'],
             total_cards=prep_data['total_cards'],
+            station_costs=prep_data['station_costs'],
+            station_cost_map=prep_data['station_cost_map'],
+            total_linked_lines=prep_data['total_linked_lines'],
+            total_costed_lines=prep_data['total_costed_lines'],
+            uncosted_linked_lines=prep_data['uncosted_linked_lines'],
+            total_estimated_cost=prep_data['total_estimated_cost'],
+            avg_estimated_cost_per_linked_line=prep_data['avg_estimated_cost_per_linked_line'],
+            avg_estimated_cost_per_guest=prep_data['avg_estimated_cost_per_guest'],
         )
 
 
