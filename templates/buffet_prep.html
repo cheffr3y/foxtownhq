@@ -109,66 +109,51 @@
         </section>
         {% endif %}
 
-        {% if prep_subrecipe_rows %}
+        {% if prep_station_groups %}
         <section class="fhq-card p-5">
             <div class="flex items-center justify-between gap-3 mb-4">
                 <div>
-                    <h2 class="text-xl font-bold tracking-tight text-foxtown-text">Sub-Recipe Pulls</h2>
-                    <p class="text-sm text-foxtown-muted mt-1">Weighted menu options and nested batch components roll up here for prep production.</p>
-                </div>
-            </div>
-            <div style="overflow-x:auto;">
-                <table class="fhq-table prep-station-table">
-                    <thead>
-                        <tr>
-                            <th>Recipe</th>
-                            <th>Total Needed</th>
-                            <th>Yield</th>
-                            <th>Batches</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for row in prep_subrecipe_rows %}
-                        <tr>
-                            <td class="font-semibold text-foxtown-text">{{ row.recipe_name }}</td>
-                            <td>{{ row.display_required_qty }} {{ row.display_required_unit }}</td>
-                            <td>{{ row.yield_qty }} {{ row.yield_unit }}</td>
-                            <td><span class="prep-emphasis">{{ row.display_required_batches or '—' }}</span></td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </section>
-        {% endif %}
-
-        {% if prep_ingredient_groups %}
-        <section class="fhq-card p-5">
-            <div class="flex items-center justify-between gap-3 mb-4">
-                <div>
-                    <h2 class="text-xl font-bold tracking-tight text-foxtown-text">Raw Ingredient Pulls by Menu Item</h2>
-                    <p class="text-sm text-foxtown-muted mt-1">Recipe-linked raw ingredients stay allocated to the buffet line they support, even when the same ingredient is cross-utilized elsewhere.</p>
+                    <h2 class="text-xl font-bold tracking-tight text-foxtown-text">Pulls by Station</h2>
+                    <p class="text-sm text-foxtown-muted mt-1">Sub-recipe and raw-ingredient pulls are broken out by buffet station for station-level prep.</p>
                 </div>
             </div>
             <div class="space-y-4">
-                {% for group in prep_ingredient_groups %}
+                {% for group in prep_station_groups %}
                 <div class="border border-stone-200 rounded-xl p-4 bg-stone-50/60">
                     <div class="mb-3">
                         <div class="text-sm uppercase tracking-[0.18em] text-stone-500 font-semibold">{{ group.station }}</div>
-                        <div class="font-semibold text-foxtown-text">
-                            {{ group.dish_name }}
-                            {% set has_flags = group.is_gf or group.is_v or group.is_vg or group.is_df or group.is_nf %}
-                            {% if has_flags %}
-                            <div class="flex flex-wrap gap-1 mt-1">
-                                {% if group.is_gf %}<span class="text-xs font-bold px-1.5 py-0.5 rounded border bg-green-100 text-green-800 border-green-200">GF</span>{% endif %}
-                                {% if group.is_v %}<span class="text-xs font-bold px-1.5 py-0.5 rounded border bg-lime-100 text-lime-800 border-lime-200">V</span>{% endif %}
-                                {% if group.is_vg %}<span class="text-xs font-bold px-1.5 py-0.5 rounded border bg-emerald-100 text-emerald-800 border-emerald-200">VG</span>{% endif %}
-                                {% if group.is_df %}<span class="text-xs font-bold px-1.5 py-0.5 rounded border bg-blue-100 text-blue-800 border-blue-200">DF</span>{% endif %}
-                                {% if group.is_nf %}<span class="text-xs font-bold px-1.5 py-0.5 rounded border bg-yellow-100 text-yellow-800 border-yellow-200">NF</span>{% endif %}
-                            </div>
-                            {% endif %}
-                        </div>
+                        {% if group.dish_names %}
+                        <div class="text-sm text-stone-600 mt-1">{{ group.dish_names|join(', ') }}</div>
+                        {% endif %}
                     </div>
+                    {% if group.subrecipes %}
+                    <div style="overflow-x:auto;">
+                        <table class="fhq-table prep-station-table">
+                            <thead>
+                                <tr>
+                                    <th>Sub-Recipe</th>
+                                    <th>Total Needed</th>
+                                    <th>Yield</th>
+                                    <th>Batches</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in group.subrecipes %}
+                                <tr>
+                                    <td class="font-semibold text-foxtown-text">{{ row.recipe_name }}</td>
+                                    <td>{{ row.display_required_qty }} {{ row.display_required_unit }}</td>
+                                    <td>{{ row.yield_qty }} {{ row.yield_unit }}</td>
+                                    <td><span class="prep-emphasis">{{ row.display_required_batches or '—' }}</span></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% endif %}
+                    {% if group.subrecipes and group.ingredients %}
+                    <div class="h-3"></div>
+                    {% endif %}
+                    {% if group.ingredients %}
                     <div style="overflow-x:auto;">
                         <table class="fhq-table prep-station-table">
                             <thead>
@@ -187,6 +172,7 @@
                             </tbody>
                         </table>
                     </div>
+                    {% endif %}
                 </div>
                 {% endfor %}
             </div>

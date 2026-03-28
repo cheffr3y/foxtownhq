@@ -449,8 +449,7 @@ def build_buffet_prep_sheet(cur, event_id, unit_system='imperial'):
     grouped = defaultdict(list)
     no_recipe_lines = []
     direct_ingredient_lines = []
-    prep_subrecipe_totals = {}
-    prep_ingredient_group_specs = []
+    station_pull_specs = defaultdict(lambda: {'subrecipes': {}, 'ingredients': {}, 'dish_names': set()})
     all_cards = []
 
     for line in lines:
@@ -462,11 +461,12 @@ def build_buffet_prep_sheet(cur, event_id, unit_system='imperial'):
         if direct_ingredient_id:
             serving_size_qty = to_float(line.get('serving_size_qty')) or 1
             total_qty = serving_size_qty * guest_total
+            station_name = line.get('station') or 'Other'
             unit = (line.get('direct_ingredient_unit') or line.get('serving_size_unit') or '').strip()
             display_total = smart_quantity(total_qty, unit, unit_system)
             direct_line = {
                 'dish_name': line.get('dish_name') or 'Dish',
-                'station': line.get('station') or 'Other',
+                'station': station_name,
                 'ingredient_id': direct_ingredient_id,
                 'ingredient_name': line.get('direct_ingredient_name') or 'Ingredient',
                 'total_qty': total_qty,
@@ -477,6 +477,9 @@ def build_buffet_prep_sheet(cur, event_id, unit_system='imperial'):
             for flag in DIETARY_FLAGS:
                 direct_line[flag] = bool(line.get(flag))
             direct_ingredient_lines.append(direct_line)
+            station_pull_specs[station_name]['dish_names'].add(direct_line['dish_name'])
+            key = (direct_ingredient_id, unit)
+            station_pull_specs[station_name]['ingredients'][key] = station_pull_specs[station_name]['ingredients'].get(key, 0) + total_qty
             continue
 
         serving_qty = to_float(line.get('serving_size_qty')) or 1
@@ -520,28 +523,34 @@ def build_buffet_prep_sheet(cur, event_id, unit_system='imperial'):
 
         if recipe_yield_raw and recipe_yield_raw > 0:
             scale_ratio = (serving_qty * guest_total) / recipe_yield_raw
+            line_subrecipe_totals = {}
             line_ingredient_totals = {}
             components, _, _ = build_component_tree(cur, recipe_id, scale_ratio, depth=0, path=set(), unit_system=unit_system, apply_q_factor=False)
-            collect_direct_subrecipes_for_prep(components, prep_subrecipe_totals)
+            collect_direct_subrecipes_for_prep(components, line_subrecipe_totals)
             collect_direct_ingredients_for_prep(components, line_ingredient_totals)
-            if line_ingredient_totals:
-                prep_ingredient_group_specs.append(
-                    {
-                        'dish_name': card['dish_name'],
-                        'station': card['station'],
-                        'flags': {flag: bool(line.get(flag)) for flag in DIETARY_FLAGS},
-                        'totals': line_ingredient_totals,
-                    }
-                )
+            if line_subrecipe_totals or line_ingredient_totals:
+                station_name = card['station']
+                station_pull_specs[station_name]['dish_names'].add(card['dish_name'])
+                for key, qty in line_subrecipe_totals.items():
+                    station_pull_specs[station_name]['subrecipes'][key] = station_pull_specs[station_name]['subrecipes'].get(key, 0) + qty
+                for key, qty in line_ingredient_totals.items():
+                    station_pull_specs[station_name]['ingredients'][key] = station_pull_specs[station_name]['ingredients'].get(key, 0) + qty
 
     sorted_grouped = {}
     for station in sorted(grouped):
         sorted_grouped[station] = sorted(grouped[station], key=lambda row: (row.get('dish_name') or '').lower())
     direct_ingredient_lines.sort(key=lambda row: ((row.get('station') or '').lower(), (row.get('dish_name') or '').lower()))
 
-    prep_subrecipe_rows = []
-    if prep_subrecipe_totals:
-        recipe_ids = sorted({recipe_id for recipe_id, _unit in prep_subrecipe_totals.keys() if recipe_id})
+    prep_station_groups = []
+    if station_pull_specs:
+        recipe_ids = sorted(
+            {
+                recipe_id
+                for station in station_pull_specs.values()
+                for recipe_id, _unit in station['subrecipes'].keys()
+                if recipe_id
+            }
+        )
         recipe_map = {}
         if recipe_ids:
             cur.execute(
@@ -554,40 +563,11 @@ def build_buffet_prep_sheet(cur, event_id, unit_system='imperial'):
             )
             recipe_map = {row['id']: row for row in cur.fetchall()}
 
-        for (subrecipe_id, required_unit), required_qty in prep_subrecipe_totals.items():
-            recipe = recipe_map.get(subrecipe_id, {})
-            yield_qty = to_float(recipe.get('yield_qty'))
-            yield_unit = (recipe.get('yield_unit') or required_unit or '').strip()
-            required_qty_in_yield = required_qty
-            if required_unit and yield_unit and required_unit != yield_unit:
-                converted = convert_quantity_between_units(required_qty, required_unit, yield_unit)
-                if converted is not None:
-                    required_qty_in_yield = converted
-            required_batches = (required_qty_in_yield / yield_qty) if yield_qty > 0 else None
-            display_required = smart_quantity(required_qty_in_yield, yield_unit or required_unit, unit_system)
-            prep_subrecipe_rows.append(
-                {
-                    'recipe_id': subrecipe_id,
-                    'recipe_name': recipe.get('name') or 'Sub-recipe',
-                    'required_qty': required_qty_in_yield,
-                    'required_unit': yield_unit or required_unit,
-                    'required_batches': required_batches,
-                    'display_required_batches': format_number(required_batches) if required_batches is not None else '',
-                    'yield_qty': yield_qty,
-                    'yield_unit': yield_unit,
-                    'display_required_qty': display_required.get('quantity'),
-                    'display_required_unit': display_required.get('unit'),
-                }
-            )
-    prep_subrecipe_rows.sort(key=lambda row: (row.get('recipe_name') or '').lower())
-
-    prep_ingredient_groups = []
-    if prep_ingredient_group_specs:
         ingredient_ids = sorted(
             {
                 ingredient_id
-                for group in prep_ingredient_group_specs
-                for ingredient_id, _unit in group['totals'].keys()
+                for station in station_pull_specs.values()
+                for ingredient_id, _unit in station['ingredients'].keys()
                 if ingredient_id
             }
         )
@@ -603,10 +583,41 @@ def build_buffet_prep_sheet(cur, event_id, unit_system='imperial'):
             )
             ingredient_map = {row['id']: row for row in cur.fetchall()}
 
-        for group in prep_ingredient_group_specs:
+        for station_name in sorted(station_pull_specs):
+            station_spec = station_pull_specs[station_name]
+            subrecipe_rows = []
+            for (subrecipe_id, required_unit), required_qty in sorted(
+                station_spec['subrecipes'].items(),
+                key=lambda item: (recipe_map.get(item[0][0], {}).get('name') or '').lower(),
+            ):
+                recipe = recipe_map.get(subrecipe_id, {})
+                yield_qty = to_float(recipe.get('yield_qty'))
+                yield_unit = (recipe.get('yield_unit') or required_unit or '').strip()
+                required_qty_in_yield = required_qty
+                if required_unit and yield_unit and required_unit != yield_unit:
+                    converted = convert_quantity_between_units(required_qty, required_unit, yield_unit)
+                    if converted is not None:
+                        required_qty_in_yield = converted
+                required_batches = (required_qty_in_yield / yield_qty) if yield_qty > 0 else None
+                display_required = smart_quantity(required_qty_in_yield, yield_unit or required_unit, unit_system)
+                subrecipe_rows.append(
+                    {
+                        'recipe_id': subrecipe_id,
+                        'recipe_name': recipe.get('name') or 'Sub-recipe',
+                        'required_qty': required_qty_in_yield,
+                        'required_unit': yield_unit or required_unit,
+                        'required_batches': required_batches,
+                        'display_required_batches': format_number(required_batches) if required_batches is not None else '',
+                        'yield_qty': yield_qty,
+                        'yield_unit': yield_unit,
+                        'display_required_qty': display_required.get('quantity'),
+                        'display_required_unit': display_required.get('unit'),
+                    }
+                )
+
             ingredient_rows = []
             for (ingredient_id, unit), total_qty in sorted(
-                group['totals'].items(),
+                station_spec['ingredients'].items(),
                 key=lambda item: (ingredient_map.get(item[0][0], {}).get('name') or '').lower(),
             ):
                 ingredient = ingredient_map.get(ingredient_id, {})
@@ -621,14 +632,16 @@ def build_buffet_prep_sheet(cur, event_id, unit_system='imperial'):
                         'display_total_unit': display_total.get('unit'),
                     }
                 )
-            prep_group = {
-                'dish_name': group['dish_name'],
-                'station': group['station'],
-                'ingredients': ingredient_rows,
-            }
-            prep_group.update(group['flags'])
-            prep_ingredient_groups.append(prep_group)
-    prep_ingredient_groups.sort(key=lambda row: ((row.get('station') or '').lower(), (row.get('dish_name') or '').lower()))
+
+            if subrecipe_rows or ingredient_rows:
+                prep_station_groups.append(
+                    {
+                        'station': station_name,
+                        'dish_names': sorted(station_spec['dish_names']),
+                        'subrecipes': subrecipe_rows,
+                        'ingredients': ingredient_rows,
+                    }
+                )
 
     return {
         'stations': sorted_grouped,
@@ -636,8 +649,7 @@ def build_buffet_prep_sheet(cur, event_id, unit_system='imperial'):
         'total_cards': len(all_cards),
         'no_recipe_lines': no_recipe_lines,
         'direct_ingredient_lines': direct_ingredient_lines,
-        'prep_subrecipe_rows': prep_subrecipe_rows,
-        'prep_ingredient_groups': prep_ingredient_groups,
+        'prep_station_groups': prep_station_groups,
     }
 
 
@@ -1152,8 +1164,7 @@ def buffet_event_prep(event_id):
             stations=prep_data['stations'],
             no_recipe_lines=prep_data['no_recipe_lines'],
             direct_ingredient_lines=prep_data['direct_ingredient_lines'],
-            prep_subrecipe_rows=prep_data['prep_subrecipe_rows'],
-            prep_ingredient_groups=prep_data['prep_ingredient_groups'],
+            prep_station_groups=prep_data['prep_station_groups'],
             total_cards=prep_data['total_cards'],
         )
 
@@ -1389,90 +1400,88 @@ def buffet_prep_pdf(event_id):
         story.append(direct_table)
         has_previous_sections = True
 
-    if prep_data['prep_subrecipe_rows']:
+    if prep_data['prep_station_groups']:
         if has_previous_sections:
             story.append(PageBreak())
-        story.append(Paragraph('Sub-Recipe Pulls', section_title_style))
+        story.append(Paragraph('Pulls by Station', section_title_style))
         story.append(Paragraph(
-            'Weighted menu options and nested batch components roll up here for prep production.',
+            'Sub-recipe and raw-ingredient pulls are broken out by buffet station here for station-level prep.',
             note_style,
         ))
         story.append(Spacer(1, 0.08 * inch))
-        subrecipe_rows = [[
-            Paragraph('Recipe', table_header_style),
-            Paragraph('Total Needed', table_header_style),
-            Paragraph('Yield', table_header_style),
-            Paragraph('Batches', table_header_style),
-        ]]
-        for row in prep_data['prep_subrecipe_rows']:
-            subrecipe_rows.append(
-                [
-                    p(row.get('recipe_name') or 'Sub-recipe'),
-                    p(fmt_qty(row.get('display_required_qty'), row.get('display_required_unit'))),
-                    p(fmt_qty(row.get('yield_qty'), row.get('yield_unit'))),
-                    p(row.get('display_required_batches') or '—'),
-                ]
-            )
-        subrecipe_table = Table(subrecipe_rows, colWidths=[3.0 * inch, 1.5 * inch, 1.3 * inch, 1.0 * inch], repeatRows=1)
-        subrecipe_table.setStyle(
-            TableStyle(
-                [
-                    ('BACKGROUND', (0, 0), (-1, 0), header_navy),
-                    ('TEXTCOLOR', (0, 0), (-1, 0), white),
-                    ('ROWBACKGROUNDS', (0, 1), (-1, -1), [white, light_gray]),
-                    ('GRID', (0, 0), (-1, -1), 0.35, border_gray),
-                    ('LEFTPADDING', (0, 0), (-1, -1), 5),
-                    ('RIGHTPADDING', (0, 0), (-1, -1), 5),
-                    ('TOPPADDING', (0, 0), (-1, -1), 4),
-                    ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-                ]
-            )
-        )
-        story.append(subrecipe_table)
-        has_previous_sections = True
-
-    if prep_data['prep_ingredient_groups']:
-        if has_previous_sections:
-            story.append(PageBreak())
-        story.append(Paragraph('Raw Ingredient Pulls by Menu Item', section_title_style))
-        story.append(Paragraph(
-            'Recipe-linked raw ingredients are broken out by buffet line here so cross-utilization stays allocated to the right menu item.',
-            note_style,
-        ))
-        story.append(Spacer(1, 0.08 * inch))
-        for group_index, group in enumerate(prep_data['prep_ingredient_groups']):
-            if group_index > 0:
+        for station_index, station_group in enumerate(prep_data['prep_station_groups']):
+            if station_index > 0:
                 story.append(Spacer(1, 0.12 * inch))
-            group_heading = f"{group.get('station') or 'Other'} - {group.get('dish_name') or 'Dish'}"
-            story.append(Paragraph(escape(group_heading), strong_style))
+            story.append(Paragraph(escape(station_group.get('station') or 'Other'), strong_style))
+            if station_group.get('dish_names'):
+                story.append(Paragraph(
+                    escape(', '.join(station_group['dish_names'])),
+                    note_style,
+                ))
             story.append(Spacer(1, 0.04 * inch))
-            ingredient_rows = [[
-                Paragraph('Ingredient', table_header_style),
-                Paragraph('Total Needed', table_header_style),
-            ]]
-            for row in group.get('ingredients') or []:
-                ingredient_rows.append(
-                    [
-                        p(row.get('ingredient_name') or 'Ingredient'),
-                        p(fmt_qty(row.get('display_total_qty'), row.get('display_total_unit'))),
-                    ]
+
+            if station_group.get('subrecipes'):
+                subrecipe_rows = [[
+                    Paragraph('Sub-Recipe', table_header_style),
+                    Paragraph('Total Needed', table_header_style),
+                    Paragraph('Yield', table_header_style),
+                    Paragraph('Batches', table_header_style),
+                ]]
+                for row in station_group['subrecipes']:
+                    subrecipe_rows.append(
+                        [
+                            p(row.get('recipe_name') or 'Sub-recipe'),
+                            p(fmt_qty(row.get('display_required_qty'), row.get('display_required_unit'))),
+                            p(fmt_qty(row.get('yield_qty'), row.get('yield_unit'))),
+                            p(row.get('display_required_batches') or '—'),
+                        ]
+                    )
+                subrecipe_table = Table(subrecipe_rows, colWidths=[3.0 * inch, 1.5 * inch, 1.3 * inch, 1.0 * inch], repeatRows=1)
+                subrecipe_table.setStyle(
+                    TableStyle(
+                        [
+                            ('BACKGROUND', (0, 0), (-1, 0), header_navy),
+                            ('TEXTCOLOR', (0, 0), (-1, 0), white),
+                            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [white, light_gray]),
+                            ('GRID', (0, 0), (-1, -1), 0.35, border_gray),
+                            ('LEFTPADDING', (0, 0), (-1, -1), 5),
+                            ('RIGHTPADDING', (0, 0), (-1, -1), 5),
+                            ('TOPPADDING', (0, 0), (-1, -1), 4),
+                            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+                        ]
+                    )
                 )
-            ingredient_table = Table(ingredient_rows, colWidths=[4.9 * inch, 2.4 * inch], repeatRows=1)
-            ingredient_table.setStyle(
-                TableStyle(
-                    [
-                        ('BACKGROUND', (0, 0), (-1, 0), header_navy),
-                        ('TEXTCOLOR', (0, 0), (-1, 0), white),
-                        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [white, light_gray]),
-                        ('GRID', (0, 0), (-1, -1), 0.35, border_gray),
-                        ('LEFTPADDING', (0, 0), (-1, -1), 5),
-                        ('RIGHTPADDING', (0, 0), (-1, -1), 5),
-                        ('TOPPADDING', (0, 0), (-1, -1), 4),
-                        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-                    ]
+                story.append(subrecipe_table)
+                story.append(Spacer(1, 0.06 * inch))
+
+            if station_group.get('ingredients'):
+                ingredient_rows = [[
+                    Paragraph('Ingredient', table_header_style),
+                    Paragraph('Total Needed', table_header_style),
+                ]]
+                for row in station_group['ingredients']:
+                    ingredient_rows.append(
+                        [
+                            p(row.get('ingredient_name') or 'Ingredient'),
+                            p(fmt_qty(row.get('display_total_qty'), row.get('display_total_unit'))),
+                        ]
+                    )
+                ingredient_table = Table(ingredient_rows, colWidths=[4.9 * inch, 2.4 * inch], repeatRows=1)
+                ingredient_table.setStyle(
+                    TableStyle(
+                        [
+                            ('BACKGROUND', (0, 0), (-1, 0), header_navy),
+                            ('TEXTCOLOR', (0, 0), (-1, 0), white),
+                            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [white, light_gray]),
+                            ('GRID', (0, 0), (-1, -1), 0.35, border_gray),
+                            ('LEFTPADDING', (0, 0), (-1, -1), 5),
+                            ('RIGHTPADDING', (0, 0), (-1, -1), 5),
+                            ('TOPPADDING', (0, 0), (-1, -1), 4),
+                            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+                        ]
+                    )
                 )
-            )
-            story.append(ingredient_table)
+                story.append(ingredient_table)
         has_previous_sections = True
 
     if prep_data['no_recipe_lines']:
