@@ -82,7 +82,7 @@
                                 <input type="hidden" name="items[{{ loop.index0 }}][ingredient_name]" value="{{ item.ingredient_name or '' }}">
                                 <input type="hidden" name="items[{{ loop.index0 }}][total_unit]" value="{{ item.total_unit or '' }}">
                             </td>
-                            <td>{{ item.total_qty }} {{ item.total_unit }}</td>
+                            <td>{{ item.display_total_qty }} {{ item.display_total_unit }}</td>
                             <td><input type="number" step="0.01" min="0" name="items[{{ loop.index0 }}][pack_size]" value="{{ item.pack_size if item.pack_size is not none else '' }}" class="fhq-input js-pack-size"></td>
                             <td><input type="text" name="items[{{ loop.index0 }}][pack_unit]" value="{{ item.pack_unit or '' }}" class="fhq-input js-pack-unit" placeholder="oz, lb, each"></td>
                             <td>

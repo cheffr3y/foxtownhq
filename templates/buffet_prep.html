@@ -100,7 +100,69 @@
                                 {% endif %}
                             </td>
                             <td>{{ row.ingredient_name }}</td>
-                            <td>{{ row.total_qty }} {{ row.unit }}</td>
+                            <td>{{ row.display_total_qty }} {{ row.display_total_unit }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+        {% endif %}
+
+        {% if prep_subrecipe_rows %}
+        <section class="fhq-card p-5">
+            <div class="flex items-center justify-between gap-3 mb-4">
+                <div>
+                    <h2 class="text-xl font-bold tracking-tight text-foxtown-text">Sub-Recipe Pulls</h2>
+                    <p class="text-sm text-foxtown-muted mt-1">Weighted menu options and nested batch components roll up here for prep production.</p>
+                </div>
+            </div>
+            <div style="overflow-x:auto;">
+                <table class="fhq-table prep-station-table">
+                    <thead>
+                        <tr>
+                            <th>Recipe</th>
+                            <th>Total Needed</th>
+                            <th>Yield</th>
+                            <th>Batches</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in prep_subrecipe_rows %}
+                        <tr>
+                            <td class="font-semibold text-foxtown-text">{{ row.recipe_name }}</td>
+                            <td>{{ row.display_required_qty }} {{ row.display_required_unit }}</td>
+                            <td>{{ row.yield_qty }} {{ row.yield_unit }}</td>
+                            <td><span class="prep-emphasis">{{ row.display_required_batches or '—' }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+        {% endif %}
+
+        {% if prep_ingredient_rows %}
+        <section class="fhq-card p-5">
+            <div class="flex items-center justify-between gap-3 mb-4">
+                <div>
+                    <h2 class="text-xl font-bold tracking-tight text-foxtown-text">Raw Ingredient Pulls</h2>
+                    <p class="text-sm text-foxtown-muted mt-1">This purchasing view includes direct buffet lines plus raw ingredients pulled from linked recipes.</p>
+                </div>
+            </div>
+            <div style="overflow-x:auto;">
+                <table class="fhq-table prep-station-table">
+                    <thead>
+                        <tr>
+                            <th>Ingredient</th>
+                            <th>Total Needed</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in prep_ingredient_rows %}
+                        <tr>
+                            <td class="font-semibold text-foxtown-text">{{ row.ingredient_name }}</td>
+                            <td>{{ row.display_total_qty }} {{ row.display_total_unit }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -153,7 +215,7 @@
                                 <td>{{ row.serving_size_qty }} {{ row.serving_size_unit }}</td>
                                 <td>{{ guest_total }}</td>
                                 <td><span class="prep-emphasis">{{ row.batches_needed }}</span></td>
-                                <td>{{ row.total_yield }} {{ row.yield_unit }}</td>
+                                <td>{{ row.display_total_yield_qty }} {{ row.display_total_yield_unit }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>

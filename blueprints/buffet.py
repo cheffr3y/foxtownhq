@@ -12,9 +12,14 @@ from flask_login import login_required
 from helpers.db_helpers import db_column_exists, db_table_exists
 from helpers.formatting import make_safe_filename
 from helpers.menu import clean_menu_text
-from helpers.recipes import build_component_tree, collect_ingredients_from_components
+from helpers.recipes import (
+    build_component_tree,
+    collect_direct_ingredients_for_prep,
+    collect_direct_subrecipes_for_prep,
+    collect_ingredients_from_components,
+)
 from helpers.shared import generate_id, handle_route_error, parse_float_field, to_float
-from helpers.units import convert_quantity_between_units, format_number, get_unit_system
+from helpers.units import convert_quantity_between_units, format_number, get_unit_system, smart_quantity
 from helpers.venues import get_active_venues
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
@@ -444,6 +449,8 @@ def build_buffet_prep_sheet(cur, event_id, unit_system='imperial'):
     grouped = defaultdict(list)
     no_recipe_lines = []
     direct_ingredient_lines = []
+    prep_subrecipe_totals = {}
+    prep_ingredient_totals = {}
     all_cards = []
 
     for line in lines:
@@ -455,17 +462,23 @@ def build_buffet_prep_sheet(cur, event_id, unit_system='imperial'):
         if direct_ingredient_id:
             serving_size_qty = to_float(line.get('serving_size_qty')) or 1
             total_qty = serving_size_qty * guest_total
+            unit = (line.get('direct_ingredient_unit') or line.get('serving_size_unit') or '').strip()
+            display_total = smart_quantity(total_qty, unit, unit_system)
             direct_line = {
                 'dish_name': line.get('dish_name') or 'Dish',
                 'station': line.get('station') or 'Other',
                 'ingredient_id': direct_ingredient_id,
                 'ingredient_name': line.get('direct_ingredient_name') or 'Ingredient',
                 'total_qty': total_qty,
-                'unit': (line.get('direct_ingredient_unit') or line.get('serving_size_unit') or '').strip(),
+                'unit': unit,
+                'display_total_qty': display_total.get('quantity'),
+                'display_total_unit': display_total.get('unit'),
             }
             for flag in DIETARY_FLAGS:
                 direct_line[flag] = bool(line.get(flag))
             direct_ingredient_lines.append(direct_line)
+            key = (direct_ingredient_id, unit)
+            prep_ingredient_totals[key] = prep_ingredient_totals.get(key, 0) + total_qty
             continue
 
         serving_qty = to_float(line.get('serving_size_qty')) or 1
@@ -473,7 +486,8 @@ def build_buffet_prep_sheet(cur, event_id, unit_system='imperial'):
         yield_unit = (line.get('yield_unit') or '').strip()
         total_needed_qty = serving_qty * guest_total
         total_needed_unit = serving_unit
-        recipe_yield = to_float(line.get('yield_qty')) or 1
+        recipe_yield_raw = to_float(line.get('yield_qty'))
+        recipe_yield = recipe_yield_raw or 1
         if serving_unit and yield_unit and serving_unit != yield_unit:
             converted = convert_quantity_between_units(total_needed_qty, serving_unit, yield_unit)
             if converted is not None:
@@ -481,6 +495,7 @@ def build_buffet_prep_sheet(cur, event_id, unit_system='imperial'):
                 total_needed_unit = yield_unit
         batches_needed = math.ceil(total_needed_qty / recipe_yield) if recipe_yield > 0 else 0
         total_yield = batches_needed * recipe_yield
+        display_total_yield = smart_quantity(total_yield, yield_unit, unit_system)
 
         card = {
             'dish_name': line.get('dish_name') or 'Dish',
@@ -495,6 +510,8 @@ def build_buffet_prep_sheet(cur, event_id, unit_system='imperial'):
             'total_needed_unit': total_needed_unit,
             'batches_needed': batches_needed,
             'total_yield': total_yield,
+            'display_total_yield_qty': display_total_yield.get('quantity'),
+            'display_total_yield_unit': display_total_yield.get('unit'),
             'assigned_to': '',
             'status': 'pending',
         }
@@ -503,10 +520,88 @@ def build_buffet_prep_sheet(cur, event_id, unit_system='imperial'):
         grouped[card['station']].append(card)
         all_cards.append(card)
 
+        if recipe_yield_raw and recipe_yield_raw > 0:
+            scale_ratio = (serving_qty * guest_total) / recipe_yield_raw
+            components, _, _ = build_component_tree(cur, recipe_id, scale_ratio, depth=0, path=set(), unit_system=unit_system, apply_q_factor=False)
+            collect_direct_subrecipes_for_prep(components, prep_subrecipe_totals)
+            collect_direct_ingredients_for_prep(components, prep_ingredient_totals)
+
     sorted_grouped = {}
     for station in sorted(grouped):
         sorted_grouped[station] = sorted(grouped[station], key=lambda row: (row.get('dish_name') or '').lower())
     direct_ingredient_lines.sort(key=lambda row: ((row.get('station') or '').lower(), (row.get('dish_name') or '').lower()))
+
+    prep_subrecipe_rows = []
+    if prep_subrecipe_totals:
+        recipe_ids = sorted({recipe_id for recipe_id, _unit in prep_subrecipe_totals.keys() if recipe_id})
+        recipe_map = {}
+        if recipe_ids:
+            cur.execute(
+                """
+                SELECT id, name, yield_qty, yield_unit
+                FROM recipes
+                WHERE id = ANY(%s)
+                """,
+                (recipe_ids,),
+            )
+            recipe_map = {row['id']: row for row in cur.fetchall()}
+
+        for (subrecipe_id, required_unit), required_qty in prep_subrecipe_totals.items():
+            recipe = recipe_map.get(subrecipe_id, {})
+            yield_qty = to_float(recipe.get('yield_qty'))
+            yield_unit = (recipe.get('yield_unit') or required_unit or '').strip()
+            required_qty_in_yield = required_qty
+            if required_unit and yield_unit and required_unit != yield_unit:
+                converted = convert_quantity_between_units(required_qty, required_unit, yield_unit)
+                if converted is not None:
+                    required_qty_in_yield = converted
+            required_batches = (required_qty_in_yield / yield_qty) if yield_qty > 0 else None
+            display_required = smart_quantity(required_qty_in_yield, yield_unit or required_unit, unit_system)
+            prep_subrecipe_rows.append(
+                {
+                    'recipe_id': subrecipe_id,
+                    'recipe_name': recipe.get('name') or 'Sub-recipe',
+                    'required_qty': required_qty_in_yield,
+                    'required_unit': yield_unit or required_unit,
+                    'required_batches': required_batches,
+                    'display_required_batches': format_number(required_batches) if required_batches is not None else '',
+                    'yield_qty': yield_qty,
+                    'yield_unit': yield_unit,
+                    'display_required_qty': display_required.get('quantity'),
+                    'display_required_unit': display_required.get('unit'),
+                }
+            )
+    prep_subrecipe_rows.sort(key=lambda row: (row.get('recipe_name') or '').lower())
+
+    prep_ingredient_rows = []
+    if prep_ingredient_totals:
+        ingredient_ids = sorted({ingredient_id for ingredient_id, _unit in prep_ingredient_totals.keys() if ingredient_id})
+        ingredient_map = {}
+        if ingredient_ids:
+            cur.execute(
+                """
+                SELECT id, name, unit, category
+                FROM ingredients
+                WHERE id = ANY(%s)
+                """,
+                (ingredient_ids,),
+            )
+            ingredient_map = {row['id']: row for row in cur.fetchall()}
+
+        for (ingredient_id, unit), total_qty in prep_ingredient_totals.items():
+            ingredient = ingredient_map.get(ingredient_id, {})
+            display_total = smart_quantity(total_qty, unit, unit_system)
+            prep_ingredient_rows.append(
+                {
+                    'ingredient_id': ingredient_id,
+                    'ingredient_name': ingredient.get('name') or 'Ingredient',
+                    'total_qty': total_qty,
+                    'unit': unit,
+                    'display_total_qty': display_total.get('quantity'),
+                    'display_total_unit': display_total.get('unit'),
+                }
+            )
+    prep_ingredient_rows.sort(key=lambda row: (row.get('ingredient_name') or '').lower())
 
     return {
         'stations': sorted_grouped,
@@ -514,6 +609,8 @@ def build_buffet_prep_sheet(cur, event_id, unit_system='imperial'):
         'total_cards': len(all_cards),
         'no_recipe_lines': no_recipe_lines,
         'direct_ingredient_lines': direct_ingredient_lines,
+        'prep_subrecipe_rows': prep_subrecipe_rows,
+        'prep_ingredient_rows': prep_ingredient_rows,
     }
 
 
@@ -610,12 +707,15 @@ def build_buffet_order_rollup(cur, event_id, unit_system='imperial'):
         pack_unit = override.get('pack_unit') or total_unit or ingredient.get('unit') or ''
         pack_type = override.get('pack_type') or 'oz'
         cases_needed = _cases_needed_for_item(total_qty, total_unit, pack_size, pack_unit, pack_type)
+        display_total = smart_quantity(total_qty, total_unit, unit_system)
         order_items.append(
             {
                 'ingredient_id': ingredient_id,
                 'ingredient_name': ingredient.get('name') or override.get('ingredient_name') or 'Unknown',
                 'total_qty': total_qty,
                 'total_unit': total_unit,
+                'display_total_qty': display_total.get('quantity'),
+                'display_total_unit': display_total.get('unit'),
                 'pack_size': pack_size,
                 'pack_unit': pack_unit,
                 'pack_type': pack_type,
@@ -1025,6 +1125,8 @@ def buffet_event_prep(event_id):
             stations=prep_data['stations'],
             no_recipe_lines=prep_data['no_recipe_lines'],
             direct_ingredient_lines=prep_data['direct_ingredient_lines'],
+            prep_subrecipe_rows=prep_data['prep_subrecipe_rows'],
+            prep_ingredient_rows=prep_data['prep_ingredient_rows'],
             total_cards=prep_data['total_cards'],
         )
 
@@ -1101,7 +1203,7 @@ def buffet_prep_pdf(event_id):
         return Paragraph(html_text(value, default), style)
 
     def fmt_qty(qty, unit=''):
-        qty_text = format_number(qty)
+        qty_text = qty.strip() if isinstance(qty, str) else format_number(qty)
         unit_text = (unit or '').strip()
         return f'{qty_text} {unit_text}'.strip()
 
@@ -1190,7 +1292,7 @@ def buffet_prep_pdf(event_id):
                     p(fmt_qty(card.get('serving_size_qty'), card.get('serving_size_unit'))),
                     p(format_number(prep_data['guest_total'])),
                     Paragraph(f"<b>{escape(format_number(card.get('batches_needed')))}</b>", strong_style),
-                    p(fmt_qty(card.get('total_yield'), card.get('yield_unit'))),
+                    p(fmt_qty(card.get('display_total_yield_qty'), card.get('display_total_yield_unit'))),
                     p(' ', default=' '),
                     p(' ', default=' '),
                 ]
@@ -1239,7 +1341,7 @@ def buffet_prep_pdf(event_id):
                     p(row.get('station') or 'Other'),
                     p(row.get('dish_name') or 'Dish'),
                     p(row.get('ingredient_name') or 'Ingredient'),
-                    p(fmt_qty(row.get('total_qty'), row.get('unit'))),
+                    p(fmt_qty(row.get('display_total_qty'), row.get('display_total_unit'))),
                 ]
             )
         direct_table = Table(direct_rows, colWidths=[1.5 * inch, 2.3 * inch, 2.2 * inch, 1.3 * inch], repeatRows=1)
@@ -1258,6 +1360,86 @@ def buffet_prep_pdf(event_id):
             )
         )
         story.append(direct_table)
+        has_previous_sections = True
+
+    if prep_data['prep_subrecipe_rows']:
+        if has_previous_sections:
+            story.append(PageBreak())
+        story.append(Paragraph('Sub-Recipe Pulls', section_title_style))
+        story.append(Paragraph(
+            'Weighted menu options and nested batch components roll up here for prep production.',
+            note_style,
+        ))
+        story.append(Spacer(1, 0.08 * inch))
+        subrecipe_rows = [[
+            Paragraph('Recipe', table_header_style),
+            Paragraph('Total Needed', table_header_style),
+            Paragraph('Yield', table_header_style),
+            Paragraph('Batches', table_header_style),
+        ]]
+        for row in prep_data['prep_subrecipe_rows']:
+            subrecipe_rows.append(
+                [
+                    p(row.get('recipe_name') or 'Sub-recipe'),
+                    p(fmt_qty(row.get('display_required_qty'), row.get('display_required_unit'))),
+                    p(fmt_qty(row.get('yield_qty'), row.get('yield_unit'))),
+                    p(row.get('display_required_batches') or '—'),
+                ]
+            )
+        subrecipe_table = Table(subrecipe_rows, colWidths=[3.0 * inch, 1.5 * inch, 1.3 * inch, 1.0 * inch], repeatRows=1)
+        subrecipe_table.setStyle(
+            TableStyle(
+                [
+                    ('BACKGROUND', (0, 0), (-1, 0), header_navy),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), white),
+                    ('ROWBACKGROUNDS', (0, 1), (-1, -1), [white, light_gray]),
+                    ('GRID', (0, 0), (-1, -1), 0.35, border_gray),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 5),
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 5),
+                    ('TOPPADDING', (0, 0), (-1, -1), 4),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+                ]
+            )
+        )
+        story.append(subrecipe_table)
+        has_previous_sections = True
+
+    if prep_data['prep_ingredient_rows']:
+        if has_previous_sections:
+            story.append(PageBreak())
+        story.append(Paragraph('Raw Ingredient Pulls', section_title_style))
+        story.append(Paragraph(
+            'This purchasing view includes direct buffet lines plus raw ingredients pulled from linked recipes.',
+            note_style,
+        ))
+        story.append(Spacer(1, 0.08 * inch))
+        ingredient_rows = [[
+            Paragraph('Ingredient', table_header_style),
+            Paragraph('Total Needed', table_header_style),
+        ]]
+        for row in prep_data['prep_ingredient_rows']:
+            ingredient_rows.append(
+                [
+                    p(row.get('ingredient_name') or 'Ingredient'),
+                    p(fmt_qty(row.get('display_total_qty'), row.get('display_total_unit'))),
+                ]
+            )
+        ingredient_table = Table(ingredient_rows, colWidths=[4.9 * inch, 2.4 * inch], repeatRows=1)
+        ingredient_table.setStyle(
+            TableStyle(
+                [
+                    ('BACKGROUND', (0, 0), (-1, 0), header_navy),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), white),
+                    ('ROWBACKGROUNDS', (0, 1), (-1, -1), [white, light_gray]),
+                    ('GRID', (0, 0), (-1, -1), 0.35, border_gray),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 5),
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 5),
+                    ('TOPPADDING', (0, 0), (-1, -1), 4),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+                ]
+            )
+        )
+        story.append(ingredient_table)
         has_previous_sections = True
 
     if prep_data['no_recipe_lines']:
@@ -1547,7 +1729,7 @@ def buffet_order_pdf(event_id):
             table_rows.append([
                 p(' ', default=' '),
                 p(item.get('ingredient_name')),
-                p(f"{format_number(item.get('total_qty'))} {item.get('total_unit')}".strip()),
+                p(f"{item.get('display_total_qty')} {item.get('display_total_unit')}".strip()),
                 p(pack_size_text),
                 p(item.get('pack_type') or 'oz'),
                 p(cases_needed),
