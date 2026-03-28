@@ -13,7 +13,7 @@
     }
     .prep-summary-bar {
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
         gap: 0.75rem;
     }
     .prep-summary-card {
@@ -64,6 +64,62 @@
         </section>
         {% endif %}
 
+        {% if station_costs %}
+        <section class="fhq-card p-5">
+            <div class="flex items-center justify-between gap-3 mb-4">
+                <div>
+                    <h2 class="text-xl font-bold tracking-tight text-foxtown-text">Theo by Station</h2>
+                    <p class="text-sm text-foxtown-muted mt-1">
+                        Buffet menu lines are rolled into station totals so you can see build averages quickly.
+                        {% if uncosted_linked_lines %}
+                        {{ uncosted_linked_lines }} linked line{{ '' if uncosted_linked_lines == 1 else 's' }} are missing enough cost data to be included.
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+            <div style="overflow-x:auto;">
+                <table class="fhq-table prep-station-table">
+                    <thead>
+                        <tr>
+                            <th>Station</th>
+                            <th>Linked Lines</th>
+                            <th>Recipe Lines</th>
+                            <th>Direct Lines</th>
+                            <th>Theo Spend</th>
+                            <th>Avg / Costed Line</th>
+                            <th>Avg / Guest</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in station_costs %}
+                        <tr>
+                            <td class="font-semibold text-foxtown-text">{{ row.station }}</td>
+                            <td>{{ row.linked_line_count }}</td>
+                            <td>{{ row.recipe_line_count }}</td>
+                            <td>{{ row.direct_line_count }}</td>
+                            <td>${{ "%.2f"|format(row.estimated_cost_total or 0) }}</td>
+                            <td>
+                                {% if row.avg_cost_per_line is not none %}
+                                ${{ "%.2f"|format(row.avg_cost_per_line) }}
+                                {% else %}
+                                —
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if row.avg_cost_per_guest is not none %}
+                                ${{ "%.2f"|format(row.avg_cost_per_guest) }}
+                                {% else %}
+                                —
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+        {% endif %}
+
         {% if direct_ingredient_lines %}
         <section class="fhq-card p-5">
             <div class="flex items-center justify-between gap-3 mb-4">
@@ -80,6 +136,7 @@
                             <th>Dish Name</th>
                             <th>Ingredient</th>
                             <th>Total Needed</th>
+                            <th>Theo Spend</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -101,6 +158,13 @@
                             </td>
                             <td>{{ row.ingredient_name }}</td>
                             <td>{{ row.display_total_qty }} {{ row.display_total_unit }}</td>
+                            <td>
+                                {% if row.estimated_cost_total is not none %}
+                                ${{ "%.2f"|format(row.estimated_cost_total) }}
+                                {% else %}
+                                —
+                                {% endif %}
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -114,7 +178,7 @@
             <div class="flex items-center justify-between gap-3 mb-4">
                 <div>
                     <h2 class="text-xl font-bold tracking-tight text-foxtown-text">Pulls by Station</h2>
-                    <p class="text-sm text-foxtown-muted mt-1">Sub-recipe and raw-ingredient pulls are broken out by buffet station for station-level prep.</p>
+                    <p class="text-sm text-foxtown-muted mt-1">Scaled recipes, sub-recipes, and raw-ingredient pulls are broken out by buffet station for station-level prep.</p>
                 </div>
             </div>
             <div class="space-y-4">
@@ -126,6 +190,43 @@
                         <div class="text-sm text-stone-600 mt-1">{{ group.dish_names|join(', ') }}</div>
                         {% endif %}
                     </div>
+                    {% if group.recipes %}
+                    <div style="overflow-x:auto;">
+                        <table class="fhq-table prep-station-table">
+                            <thead>
+                                <tr>
+                                    <th>Dish</th>
+                                    <th>Scaled Recipe</th>
+                                    <th>Total Needed</th>
+                                    <th>Yield</th>
+                                    <th>Batches</th>
+                                    <th>Theo Spend</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in group.recipes %}
+                                <tr>
+                                    <td class="font-semibold text-foxtown-text">{{ row.dish_name }}</td>
+                                    <td>{{ row.recipe_name }}</td>
+                                    <td>{{ row.display_required_qty }} {{ row.display_required_unit }}</td>
+                                    <td>{{ row.yield_qty }} {{ row.yield_unit }}</td>
+                                    <td><span class="prep-emphasis">{{ row.display_batches_needed }}</span></td>
+                                    <td>
+                                        {% if row.estimated_cost_total is not none %}
+                                        ${{ "%.2f"|format(row.estimated_cost_total) }}
+                                        {% else %}
+                                        —
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% endif %}
+                    {% if group.recipes and (group.subrecipes or group.ingredients) %}
+                    <div class="h-3"></div>
+                    {% endif %}
                     {% if group.subrecipes %}
                     <div style="overflow-x:auto;">
                         <table class="fhq-table prep-station-table">
@@ -185,7 +286,13 @@
                 <div class="flex items-center justify-between gap-3 mb-4">
                     <div>
                         <h2 class="text-xl font-bold tracking-tight text-foxtown-text">{{ station_name }}</h2>
-                        <p class="text-sm text-foxtown-muted mt-1">{{ station_rows|length }} recipe-linked item{{ '' if station_rows|length == 1 else 's' }}</p>
+                        <p class="text-sm text-foxtown-muted mt-1">
+                            {{ station_rows|length }} recipe-linked item{{ '' if station_rows|length == 1 else 's' }}
+                            {% set station_cost = station_cost_map.get(station_name) %}
+                            {% if station_cost %}
+                            · Theo ${{ "%.2f"|format(station_cost.estimated_cost_total or 0) }}
+                            {% endif %}
+                        </p>
                     </div>
                 </div>
                 <div style="overflow-x:auto;">
@@ -198,6 +305,7 @@
                                 <th>Guests</th>
                                 <th>Batches Needed</th>
                                 <th>Total Yield</th>
+                                <th>Theo Spend</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -224,6 +332,13 @@
                                 <td>{{ guest_total }}</td>
                                 <td><span class="prep-emphasis">{{ row.batches_needed }}</span></td>
                                 <td>{{ row.display_total_yield_qty }} {{ row.display_total_yield_unit }}</td>
+                                <td>
+                                    {% if row.estimated_cost_total is not none %}
+                                    ${{ "%.2f"|format(row.estimated_cost_total) }}
+                                    {% else %}
+                                    —
+                                    {% endif %}
+                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -243,12 +358,36 @@
                 <span class="value">{{ total_cards + (direct_ingredient_lines|length) + (no_recipe_lines|length) }}</span>
             </div>
             <div class="prep-summary-card">
-                <span class="fhq-section-head mb-0">Recipe-Linked Count</span>
-                <span class="value">{{ total_cards }}</span>
+                <span class="fhq-section-head mb-0">Linked Line Count</span>
+                <span class="value">{{ total_linked_lines }}</span>
             </div>
             <div class="prep-summary-card">
                 <span class="fhq-section-head mb-0">Total Guest Count</span>
                 <span class="value">{{ guest_total }}</span>
+            </div>
+            <div class="prep-summary-card">
+                <span class="fhq-section-head mb-0">Theo Spend</span>
+                <span class="value">${{ "%.2f"|format(total_estimated_cost or 0) }}</span>
+            </div>
+            <div class="prep-summary-card">
+                <span class="fhq-section-head mb-0">Avg Theo / Costed Line</span>
+                <span class="value">
+                    {% if avg_estimated_cost_per_linked_line is not none %}
+                    ${{ "%.2f"|format(avg_estimated_cost_per_linked_line) }}
+                    {% else %}
+                    —
+                    {% endif %}
+                </span>
+            </div>
+            <div class="prep-summary-card">
+                <span class="fhq-section-head mb-0">Avg Theo / Guest</span>
+                <span class="value">
+                    {% if avg_estimated_cost_per_guest is not none %}
+                    ${{ "%.2f"|format(avg_estimated_cost_per_guest) }}
+                    {% else %}
+                    —
+                    {% endif %}
+                </span>
             </div>
         </section>
     </div>

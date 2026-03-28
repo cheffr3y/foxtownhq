@@ -17,9 +17,10 @@ from helpers.recipes import (
     collect_direct_ingredients_for_prep,
     collect_direct_subrecipes_for_prep,
     collect_ingredients_from_components,
+    get_recipe_total_cost,
 )
 from helpers.shared import generate_id, handle_route_error, parse_float_field, to_float
-from helpers.units import convert_quantity_between_units, format_number, get_unit_system, smart_quantity
+from helpers.units import convert_cost_per_unit, convert_quantity_between_units, format_number, get_unit_system, smart_quantity
 from helpers.venues import get_active_venues
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
@@ -449,30 +450,80 @@ def build_buffet_prep_sheet(cur, event_id, unit_system='imperial'):
     grouped = defaultdict(list)
     no_recipe_lines = []
     direct_ingredient_lines = []
-    station_pull_specs = defaultdict(lambda: {'subrecipes': {}, 'ingredients': {}, 'dish_names': set()})
+    station_pull_specs = defaultdict(lambda: {'recipes': [], 'subrecipes': {}, 'ingredients': {}, 'dish_names': set()})
+    station_summary_map = defaultdict(
+        lambda: {
+            'station': 'Other',
+            'line_count': 0,
+            'linked_line_count': 0,
+            'recipe_line_count': 0,
+            'direct_line_count': 0,
+            'unlinked_line_count': 0,
+            'costed_line_count': 0,
+            'estimated_cost_total': 0.0,
+        }
+    )
     all_cards = []
+    recipe_total_cost_cache = {}
+    total_estimated_cost = 0.0
+    total_costed_lines = 0
+
+    direct_ingredient_ids = sorted({line.get('direct_ingredient_id') for line in lines if line.get('direct_ingredient_id')})
+    direct_ingredient_map = {}
+    if direct_ingredient_ids:
+        cur.execute(
+            """
+            SELECT id, name, unit, cost_per_unit
+            FROM ingredients
+            WHERE id = ANY(%s)
+            """,
+            (direct_ingredient_ids,),
+        )
+        direct_ingredient_map = {row['id']: row for row in cur.fetchall()}
 
     for line in lines:
+        station_name = line.get('station') or 'Other'
+        station_summary = station_summary_map[station_name]
+        station_summary['station'] = station_name
+        station_summary['line_count'] += 1
+
         recipe_id = line.get('recipe_id')
         direct_ingredient_id = line.get('direct_ingredient_id')
         if not recipe_id and not direct_ingredient_id:
             no_recipe_lines.append(line.get('dish_name') or 'Unnamed Dish')
+            station_summary['unlinked_line_count'] += 1
             continue
         if direct_ingredient_id:
+            station_summary['linked_line_count'] += 1
+            station_summary['direct_line_count'] += 1
             serving_size_qty = to_float(line.get('serving_size_qty')) or 1
             total_qty = serving_size_qty * guest_total
-            station_name = line.get('station') or 'Other'
             unit = (line.get('direct_ingredient_unit') or line.get('serving_size_unit') or '').strip()
             display_total = smart_quantity(total_qty, unit, unit_system)
+            ingredient = direct_ingredient_map.get(direct_ingredient_id, {})
+            estimated_cost_total = None
+            if ingredient.get('cost_per_unit') is not None:
+                converted_cost = convert_cost_per_unit(
+                    ingredient.get('cost_per_unit'),
+                    ingredient.get('unit'),
+                    unit or ingredient.get('unit'),
+                )
+                estimated_cost_total = total_qty * converted_cost
+                station_summary['estimated_cost_total'] += estimated_cost_total
+                station_summary['costed_line_count'] += 1
+                total_estimated_cost += estimated_cost_total
+                total_costed_lines += 1
             direct_line = {
                 'dish_name': line.get('dish_name') or 'Dish',
                 'station': station_name,
                 'ingredient_id': direct_ingredient_id,
-                'ingredient_name': line.get('direct_ingredient_name') or 'Ingredient',
+                'ingredient_name': line.get('direct_ingredient_name') or ingredient.get('name') or 'Ingredient',
                 'total_qty': total_qty,
                 'unit': unit,
                 'display_total_qty': display_total.get('quantity'),
                 'display_total_unit': display_total.get('unit'),
+                'estimated_cost_total': estimated_cost_total,
+                'estimated_cost_per_guest': (estimated_cost_total / guest_total) if estimated_cost_total is not None and guest_total > 0 else None,
             }
             for flag in DIETARY_FLAGS:
                 direct_line[flag] = bool(line.get(flag))
@@ -482,6 +533,8 @@ def build_buffet_prep_sheet(cur, event_id, unit_system='imperial'):
             station_pull_specs[station_name]['ingredients'][key] = station_pull_specs[station_name]['ingredients'].get(key, 0) + total_qty
             continue
 
+        station_summary['linked_line_count'] += 1
+        station_summary['recipe_line_count'] += 1
         serving_qty = to_float(line.get('serving_size_qty')) or 1
         serving_unit = (line.get('serving_size_unit') or '').strip()
         yield_unit = (line.get('yield_unit') or '').strip()
@@ -496,11 +549,22 @@ def build_buffet_prep_sheet(cur, event_id, unit_system='imperial'):
                 total_needed_unit = yield_unit
         batches_needed = math.ceil(total_needed_qty / recipe_yield) if recipe_yield > 0 else 0
         total_yield = batches_needed * recipe_yield
+        display_total_needed = smart_quantity(total_needed_qty, total_needed_unit, unit_system)
         display_total_yield = smart_quantity(total_yield, yield_unit, unit_system)
+        scale_ratio = (total_needed_qty / recipe_yield_raw) if recipe_yield_raw and recipe_yield_raw > 0 else None
+        estimated_cost_total = None
+        if scale_ratio is not None:
+            if recipe_id not in recipe_total_cost_cache:
+                recipe_total_cost_cache[recipe_id] = get_recipe_total_cost(cur, recipe_id, unit_system, apply_q_factor=True)
+            estimated_cost_total = recipe_total_cost_cache[recipe_id] * scale_ratio
+            station_summary['estimated_cost_total'] += estimated_cost_total
+            station_summary['costed_line_count'] += 1
+            total_estimated_cost += estimated_cost_total
+            total_costed_lines += 1
 
         card = {
             'dish_name': line.get('dish_name') or 'Dish',
-            'station': line.get('station') or 'Other',
+            'station': station_name,
             'recipe_id': recipe_id,
             'recipe_name': line.get('recipe_name') or 'Recipe',
             'yield_qty': recipe_yield,
@@ -509,10 +573,15 @@ def build_buffet_prep_sheet(cur, event_id, unit_system='imperial'):
             'serving_size_unit': serving_unit or yield_unit,
             'total_needed_qty': total_needed_qty,
             'total_needed_unit': total_needed_unit,
+            'display_total_needed_qty': display_total_needed.get('quantity'),
+            'display_total_needed_unit': display_total_needed.get('unit'),
             'batches_needed': batches_needed,
             'total_yield': total_yield,
             'display_total_yield_qty': display_total_yield.get('quantity'),
             'display_total_yield_unit': display_total_yield.get('unit'),
+            'scale_ratio': scale_ratio,
+            'estimated_cost_total': estimated_cost_total,
+            'estimated_cost_per_guest': (estimated_cost_total / guest_total) if estimated_cost_total is not None and guest_total > 0 else None,
             'assigned_to': '',
             'status': 'pending',
         }
@@ -520,9 +589,25 @@ def build_buffet_prep_sheet(cur, event_id, unit_system='imperial'):
             card[flag] = bool(line.get(flag))
         grouped[card['station']].append(card)
         all_cards.append(card)
+        station_pull_specs[station_name]['dish_names'].add(card['dish_name'])
+        station_pull_specs[station_name]['recipes'].append(
+            {
+                'dish_name': card['dish_name'],
+                'recipe_id': recipe_id,
+                'recipe_name': card['recipe_name'],
+                'required_qty': total_needed_qty,
+                'required_unit': total_needed_unit,
+                'display_required_qty': display_total_needed.get('quantity'),
+                'display_required_unit': display_total_needed.get('unit'),
+                'yield_qty': recipe_yield,
+                'yield_unit': yield_unit,
+                'batches_needed': batches_needed,
+                'display_batches_needed': format_number(batches_needed),
+                'estimated_cost_total': estimated_cost_total,
+            }
+        )
 
-        if recipe_yield_raw and recipe_yield_raw > 0:
-            scale_ratio = (serving_qty * guest_total) / recipe_yield_raw
+        if scale_ratio is not None:
             line_subrecipe_totals = {}
             line_ingredient_totals = {}
             components, _, _ = build_component_tree(cur, recipe_id, scale_ratio, depth=0, path=set(), unit_system=unit_system, apply_q_factor=False)
@@ -585,6 +670,10 @@ def build_buffet_prep_sheet(cur, event_id, unit_system='imperial'):
 
         for station_name in sorted(station_pull_specs):
             station_spec = station_pull_specs[station_name]
+            recipe_rows = sorted(
+                station_spec['recipes'],
+                key=lambda item: ((item.get('dish_name') or '').lower(), (item.get('recipe_name') or '').lower()),
+            )
             subrecipe_rows = []
             for (subrecipe_id, required_unit), required_qty in sorted(
                 station_spec['subrecipes'].items(),
@@ -633,15 +722,31 @@ def build_buffet_prep_sheet(cur, event_id, unit_system='imperial'):
                     }
                 )
 
-            if subrecipe_rows or ingredient_rows:
+            if recipe_rows or subrecipe_rows or ingredient_rows:
                 prep_station_groups.append(
                     {
                         'station': station_name,
                         'dish_names': sorted(station_spec['dish_names']),
+                        'recipes': recipe_rows,
                         'subrecipes': subrecipe_rows,
                         'ingredients': ingredient_rows,
                     }
                 )
+
+    station_costs = []
+    for station_name in sorted(station_summary_map):
+        summary = dict(station_summary_map[station_name])
+        linked_line_count = int(summary.get('linked_line_count') or 0)
+        if linked_line_count <= 0:
+            continue
+        costed_line_count = int(summary.get('costed_line_count') or 0)
+        estimated_cost_total = to_float(summary.get('estimated_cost_total'))
+        summary['avg_cost_per_line'] = (estimated_cost_total / costed_line_count) if costed_line_count > 0 else None
+        summary['avg_cost_per_guest'] = (estimated_cost_total / guest_total) if guest_total > 0 else None
+        station_costs.append(summary)
+
+    station_cost_map = {row['station']: row for row in station_costs}
+    total_linked_lines = len(all_cards) + len(direct_ingredient_lines)
 
     return {
         'stations': sorted_grouped,
@@ -650,6 +755,14 @@ def build_buffet_prep_sheet(cur, event_id, unit_system='imperial'):
         'no_recipe_lines': no_recipe_lines,
         'direct_ingredient_lines': direct_ingredient_lines,
         'prep_station_groups': prep_station_groups,
+        'station_costs': station_costs,
+        'station_cost_map': station_cost_map,
+        'total_linked_lines': total_linked_lines,
+        'total_costed_lines': total_costed_lines,
+        'uncosted_linked_lines': max(total_linked_lines - total_costed_lines, 0),
+        'total_estimated_cost': total_estimated_cost,
+        'avg_estimated_cost_per_linked_line': (total_estimated_cost / total_costed_lines) if total_costed_lines > 0 else None,
+        'avg_estimated_cost_per_guest': (total_estimated_cost / guest_total) if guest_total > 0 else None,
     }
 
 
@@ -1302,13 +1415,73 @@ def buffet_prep_pdf(event_id):
 
     story = [Spacer(1, 0.15 * inch)]
     station_names = list(prep_data['stations'].keys())
-    col_widths = [1.8 * inch, 1.5 * inch, 0.9 * inch, 0.5 * inch, 0.8 * inch, 0.9 * inch, 1.1 * inch, 0.3 * inch]
+    col_widths = [1.55 * inch, 1.3 * inch, 0.8 * inch, 0.45 * inch, 0.65 * inch, 0.8 * inch, 0.75 * inch, 0.9 * inch, 0.25 * inch]
+
+    if prep_data['station_costs']:
+        summary_note = 'Buffet menu lines are rolled into station totals here for build-average planning.'
+        if prep_data.get('uncosted_linked_lines'):
+            summary_note += f" {format_number(prep_data['uncosted_linked_lines'])} linked line(s) are missing enough cost data to be included."
+        story.append(Paragraph('Theo by Station', section_title_style))
+        story.append(Paragraph(
+            summary_note,
+            note_style,
+        ))
+        story.append(Spacer(1, 0.08 * inch))
+        summary_rows = [[
+            Paragraph('Station', table_header_style),
+            Paragraph('Linked Lines', table_header_style),
+            Paragraph('Recipe Lines', table_header_style),
+            Paragraph('Direct Lines', table_header_style),
+            Paragraph('Theo Spend', table_header_style),
+            Paragraph('Avg / Costed Line', table_header_style),
+            Paragraph('Avg / Guest', table_header_style),
+        ]]
+        for row in prep_data['station_costs']:
+            summary_rows.append(
+                [
+                    p(row.get('station') or 'Other'),
+                    p(format_number(row.get('linked_line_count'))),
+                    p(format_number(row.get('recipe_line_count'))),
+                    p(format_number(row.get('direct_line_count'))),
+                    p(f"${format_number(row.get('estimated_cost_total') or 0)}"),
+                    p(f"${format_number(row.get('avg_cost_per_line'))}" if row.get('avg_cost_per_line') is not None else '—'),
+                    p(f"${format_number(row.get('avg_cost_per_guest'))}" if row.get('avg_cost_per_guest') is not None else '—'),
+                ]
+            )
+        summary_table = Table(
+            summary_rows,
+            colWidths=[1.55 * inch, 0.8 * inch, 0.8 * inch, 0.8 * inch, 1.0 * inch, 1.0 * inch, 1.0 * inch],
+            repeatRows=1,
+        )
+        summary_table.setStyle(
+            TableStyle(
+                [
+                    ('BACKGROUND', (0, 0), (-1, 0), header_navy),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), white),
+                    ('ROWBACKGROUNDS', (0, 1), (-1, -1), [white, light_gray]),
+                    ('GRID', (0, 0), (-1, -1), 0.35, border_gray),
+                    ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 4),
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+                    ('TOPPADDING', (0, 0), (-1, -1), 4),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+                ]
+            )
+        )
+        story.append(summary_table)
 
     for station_index, station_name in enumerate(station_names):
-        if station_index > 0:
+        if station_index > 0 or (station_index == 0 and prep_data['station_costs']):
             story.append(PageBreak())
 
         story.append(Paragraph(escape(station_name), section_title_style))
+        station_cost = prep_data['station_cost_map'].get(station_name) or {}
+        if station_cost:
+            story.append(Paragraph(
+                f"Theo spend: ${format_number(station_cost.get('estimated_cost_total') or 0)}",
+                note_style,
+            ))
+            story.append(Spacer(1, 0.04 * inch))
         station_rows = [
             [
                 Paragraph('Dish Name', table_header_style),
@@ -1317,6 +1490,7 @@ def buffet_prep_pdf(event_id):
                 Paragraph('Guests', table_header_style),
                 Paragraph('Batches Needed', table_header_style),
                 Paragraph('Total Yield', table_header_style),
+                Paragraph('Theo Spend', table_header_style),
                 Paragraph('Assigned To', table_header_style),
                 Paragraph('&#10003;', table_header_style),
             ]
@@ -1331,6 +1505,7 @@ def buffet_prep_pdf(event_id):
                     p(format_number(prep_data['guest_total'])),
                     Paragraph(f"<b>{escape(format_number(card.get('batches_needed')))}</b>", strong_style),
                     p(fmt_qty(card.get('display_total_yield_qty'), card.get('display_total_yield_unit'))),
+                    p(f"${format_number(card.get('estimated_cost_total'))}" if card.get('estimated_cost_total') is not None else '—'),
                     p(' ', default=' '),
                     p(' ', default=' '),
                 ]
@@ -1349,14 +1524,14 @@ def buffet_prep_pdf(event_id):
                     ('RIGHTPADDING', (0, 0), (-1, -1), 4),
                     ('TOPPADDING', (0, 0), (-1, -1), 4),
                     ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-                    ('ALIGN', (3, 1), (5, -1), 'CENTER'),
-                    ('ALIGN', (7, 1), (7, -1), 'CENTER'),
+                    ('ALIGN', (3, 1), (6, -1), 'CENTER'),
+                    ('ALIGN', (8, 1), (8, -1), 'CENTER'),
                 ]
             )
         )
         story.append(station_table)
 
-    has_previous_sections = bool(station_names)
+    has_previous_sections = bool(station_names or prep_data['station_costs'])
 
     if prep_data['direct_ingredient_lines']:
         if has_previous_sections:
@@ -1372,6 +1547,7 @@ def buffet_prep_pdf(event_id):
             Paragraph('Dish Name', table_header_style),
             Paragraph('Ingredient', table_header_style),
             Paragraph('Total Needed', table_header_style),
+            Paragraph('Theo Spend', table_header_style),
         ]]
         for row in prep_data['direct_ingredient_lines']:
             direct_rows.append(
@@ -1380,9 +1556,10 @@ def buffet_prep_pdf(event_id):
                     p(row.get('dish_name') or 'Dish'),
                     p(row.get('ingredient_name') or 'Ingredient'),
                     p(fmt_qty(row.get('display_total_qty'), row.get('display_total_unit'))),
+                    p(f"${format_number(row.get('estimated_cost_total'))}" if row.get('estimated_cost_total') is not None else '—'),
                 ]
             )
-        direct_table = Table(direct_rows, colWidths=[1.5 * inch, 2.3 * inch, 2.2 * inch, 1.3 * inch], repeatRows=1)
+        direct_table = Table(direct_rows, colWidths=[1.2 * inch, 2.0 * inch, 2.0 * inch, 1.1 * inch, 1.0 * inch], repeatRows=1)
         direct_table.setStyle(
             TableStyle(
                 [
@@ -1405,7 +1582,7 @@ def buffet_prep_pdf(event_id):
             story.append(PageBreak())
         story.append(Paragraph('Pulls by Station', section_title_style))
         story.append(Paragraph(
-            'Sub-recipe and raw-ingredient pulls are broken out by buffet station here for station-level prep.',
+            'Scaled recipes, sub-recipes, and raw-ingredient pulls are broken out by buffet station here for station-level prep.',
             note_style,
         ))
         story.append(Spacer(1, 0.08 * inch))
@@ -1419,6 +1596,44 @@ def buffet_prep_pdf(event_id):
                     note_style,
                 ))
             story.append(Spacer(1, 0.04 * inch))
+
+            if station_group.get('recipes'):
+                recipe_rows = [[
+                    Paragraph('Dish', table_header_style),
+                    Paragraph('Scaled Recipe', table_header_style),
+                    Paragraph('Total Needed', table_header_style),
+                    Paragraph('Yield', table_header_style),
+                    Paragraph('Batches', table_header_style),
+                    Paragraph('Theo Spend', table_header_style),
+                ]]
+                for row in station_group['recipes']:
+                    recipe_rows.append(
+                        [
+                            p(row.get('dish_name') or 'Dish'),
+                            p(row.get('recipe_name') or 'Recipe'),
+                            p(fmt_qty(row.get('display_required_qty'), row.get('display_required_unit'))),
+                            p(fmt_qty(row.get('yield_qty'), row.get('yield_unit'))),
+                            p(row.get('display_batches_needed') or '—'),
+                            p(f"${format_number(row.get('estimated_cost_total'))}" if row.get('estimated_cost_total') is not None else '—'),
+                        ]
+                    )
+                recipe_table = Table(recipe_rows, colWidths=[1.8 * inch, 1.9 * inch, 1.1 * inch, 0.9 * inch, 0.7 * inch, 0.9 * inch], repeatRows=1)
+                recipe_table.setStyle(
+                    TableStyle(
+                        [
+                            ('BACKGROUND', (0, 0), (-1, 0), header_navy),
+                            ('TEXTCOLOR', (0, 0), (-1, 0), white),
+                            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [white, light_gray]),
+                            ('GRID', (0, 0), (-1, -1), 0.35, border_gray),
+                            ('LEFTPADDING', (0, 0), (-1, -1), 5),
+                            ('RIGHTPADDING', (0, 0), (-1, -1), 5),
+                            ('TOPPADDING', (0, 0), (-1, -1), 4),
+                            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+                        ]
+                    )
+                )
+                story.append(recipe_table)
+                story.append(Spacer(1, 0.06 * inch))
 
             if station_group.get('subrecipes'):
                 subrecipe_rows = [[
