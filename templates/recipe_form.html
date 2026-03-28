@@ -167,12 +167,12 @@
             <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-6">
                 <div class="flex items-center justify-between mb-4">
                     <div>
-                        <h2 class="text-xl font-display text-foxtown-ink">Sub-Recipes (Batch / RB)</h2>
-                        <p class="text-sm text-stone-500">Use batch recipes as components of plated items.</p>
+                        <h2 class="text-xl font-display text-foxtown-ink">Linked Recipes</h2>
+                        <p class="text-sm text-stone-500">Use plated or batch recipes as components inside another recipe.</p>
                     </div>
                     <button type="button" id="addSubRecipeRow"
                             class="text-foxtown-ember hover:text-orange-700 text-sm font-semibold">
-                        + Add Sub-Recipe
+                        + Add Linked Recipe
                     </button>
                 </div>
                 <div class="overflow-x-auto">
@@ -194,7 +194,7 @@
                                                value="{{ item.item_name }}"
                                                list="subRecipeOptions"
                                                class="subrecipe-autocomplete w-full border border-stone-300 rounded-xl px-3 py-2"
-                                               placeholder="Start typing batch recipe name...">
+                                               placeholder="Start typing recipe name...">
                                         <input type="hidden" name="sub_recipe_id[]" value="{{ item.item_id }}" class="subrecipe-id">
                                     </td>
                                     <td class="py-2 pr-4">
@@ -217,7 +217,7 @@
                                         <input type="text" name="sub_recipe_name[]"
                                                list="subRecipeOptions"
                                                class="subrecipe-autocomplete w-full border border-stone-300 rounded-xl px-3 py-2"
-                                               placeholder="Start typing batch recipe name...">
+                                               placeholder="Start typing recipe name...">
                                         <input type="hidden" name="sub_recipe_id[]" value="" class="subrecipe-id">
                                     </td>
                                     <td class="py-2 pr-4">
@@ -378,7 +378,7 @@
 <datalist id="subRecipeOptions">
     {% for rec in recipes %}
         <option value="{{ rec.name }}" data-id="{{ rec.id }}" data-unit="{{ rec.yield_unit or '' }}"
-                label="{{ rec.name }}{% if rec.recipe_type == 'batch' %} (RB){% elif rec.recipe_type is none %} (Unclassified){% endif %}"></option>
+                label="{{ recipe_picker_labels.get(rec.id, rec.name) }}"></option>
     {% endfor %}
 </datalist>
 
@@ -393,7 +393,7 @@
         <td class="py-2 pr-4">
             <input type="text" name="sub_recipe_name[]" list="subRecipeOptions"
                    class="subrecipe-autocomplete w-full border border-stone-300 rounded-xl px-3 py-2"
-                   placeholder="Start typing batch recipe name...">
+                   placeholder="Start typing recipe name...">
             <input type="hidden" name="sub_recipe_id[]" value="" class="subrecipe-id">
         </td>
         <td class="py-2 pr-4">

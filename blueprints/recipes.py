@@ -42,6 +42,18 @@ def _weighted_option_source_label(item_type, row):
     return f"{name} [{type_label}]{f' ({unit})' if unit else ''}"
 
 
+def _recipe_picker_label(row):
+    name = (row.get('name') or '').strip() or 'Recipe'
+    recipe_type = normalize_recipe_type(row.get('recipe_type'))
+    if recipe_type == 'menu':
+        suffix = 'RM'
+    elif recipe_type == 'batch':
+        suffix = 'RB'
+    else:
+        suffix = 'Recipe'
+    return f'{name} ({suffix})'
+
+
 def _prepare_weighted_option_sources(ingredients_list, weighted_recipes_list):
     sources = []
     label_map = {}
@@ -422,7 +434,6 @@ def recipe_new():
         cur.execute("""
             SELECT id, name, yield_qty, yield_unit, recipe_type
             FROM recipes
-            WHERE recipe_type = 'batch' OR recipe_type IS NULL
             ORDER BY name
         """)
         recipes_list = cur.fetchall()
@@ -449,6 +460,7 @@ def recipe_new():
         },
         ingredients=ingredients_list,
         recipes=recipes_list,
+        recipe_picker_labels={row['id']: _recipe_picker_label(row) for row in recipes_list},
         weighted_recipes=weighted_recipes_list,
         weighted_option_sources=weighted_option_sources,
         venues=venues,
@@ -675,7 +687,7 @@ def recipe_edit(recipe_id):
         cur.execute("""
             SELECT id, name, yield_qty, yield_unit, recipe_type
             FROM recipes
-            WHERE id != %s AND (recipe_type = 'batch' OR recipe_type IS NULL)
+            WHERE id != %s
             ORDER BY name
         """, (recipe_id,))
         recipes_list = cur.fetchall()
@@ -695,6 +707,7 @@ def recipe_edit(recipe_id):
         recipe=recipe,
         ingredients=ingredients_list,
         recipes=recipes_list,
+        recipe_picker_labels={row['id']: _recipe_picker_label(row) for row in recipes_list},
         weighted_recipes=weighted_recipes_list,
         weighted_option_sources=weighted_option_sources,
         venues=venues,
