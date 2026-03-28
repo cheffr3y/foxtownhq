@@ -186,6 +186,9 @@
                                         <button type="submit" class="row-action" onclick="event.stopPropagation();">Clone</button>
                                     </form>
                                     <a href="{{ url_for('recipe_edit', recipe_id=recipe.id) }}" class="row-action" onclick="event.stopPropagation();">Edit</a>
+                                    <form method="POST" action="{{ url_for('recipe_delete', recipe_id=recipe.id) }}" class="inline" onclick="event.stopPropagation();" onsubmit="event.stopPropagation(); return confirm('Delete ' + {{ recipe.name|tojson }} + '? This cannot be undone.');">
+                                        <button type="submit" class="row-action text-red-700" onclick="event.stopPropagation();">Delete</button>
+                                    </form>
                                 </div>
                             </td>
                         </tr>

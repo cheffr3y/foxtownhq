@@ -92,6 +92,9 @@
         {% call page_header(recipe.name) %}
         <button type="button" onclick="exportRecipePdf()" class="fhq-btn fhq-btn--outline">Export PDF</button>
         <form method="POST" action="{{ url_for('recipe_clone', recipe_id=recipe.id) }}"><button type="submit" class="fhq-btn fhq-btn--outline">Clone Recipe</button></form>
+        <form method="POST" action="{{ url_for('recipe_delete', recipe_id=recipe.id) }}" onsubmit="return confirm('Delete ' + {{ recipe.name|tojson }} + '? This cannot be undone.')">
+            <button type="submit" class="fhq-btn fhq-btn--outline !border-red-300 !text-red-700 hover:!bg-red-50">Delete Recipe</button>
+        </form>
         <a href="{{ url_for('recipe_edit', recipe_id=recipe.id) }}" class="fhq-btn fhq-btn--primary">Edit Recipe</a>
         {% endcall %}
         {{ tab_bar([

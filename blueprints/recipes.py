@@ -765,19 +765,23 @@ def recipe_delete(recipe_id):
         """, (recipe_id,))
         used_in_recipes = int((cur.fetchone() or {}).get('count') or 0)
 
-        cur.execute("""
-            SELECT COUNT(*) AS count
-            FROM menu_rollout_items
-            WHERE recipe_id = %s
-        """, (recipe_id,))
-        used_in_rollouts = int((cur.fetchone() or {}).get('count') or 0)
+        used_in_rollouts = 0
+        if db_table_exists(cur, 'public.menu_rollout_items'):
+            cur.execute("""
+                SELECT COUNT(*) AS count
+                FROM menu_rollout_items
+                WHERE recipe_id = %s
+            """, (recipe_id,))
+            used_in_rollouts = int((cur.fetchone() or {}).get('count') or 0)
 
-        cur.execute("""
-            SELECT COUNT(*) AS count
-            FROM recipe_weighted_options
-            WHERE item_type = 'recipe' AND item_id = %s
-        """, (recipe_id,))
-        used_in_weighted = int((cur.fetchone() or {}).get('count') or 0)
+        used_in_weighted = 0
+        if db_table_exists(cur, 'public.recipe_weighted_options'):
+            cur.execute("""
+                SELECT COUNT(*) AS count
+                FROM recipe_weighted_options
+                WHERE item_type = 'recipe' AND item_id = %s
+            """, (recipe_id,))
+            used_in_weighted = int((cur.fetchone() or {}).get('count') or 0)
 
         blockers = []
         if used_in_recipes:
