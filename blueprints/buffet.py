@@ -450,7 +450,7 @@ def build_buffet_prep_sheet(cur, event_id, unit_system='imperial'):
     no_recipe_lines = []
     direct_ingredient_lines = []
     prep_subrecipe_totals = {}
-    prep_ingredient_totals = {}
+    prep_ingredient_group_specs = []
     all_cards = []
 
     for line in lines:
@@ -477,8 +477,6 @@ def build_buffet_prep_sheet(cur, event_id, unit_system='imperial'):
             for flag in DIETARY_FLAGS:
                 direct_line[flag] = bool(line.get(flag))
             direct_ingredient_lines.append(direct_line)
-            key = (direct_ingredient_id, unit)
-            prep_ingredient_totals[key] = prep_ingredient_totals.get(key, 0) + total_qty
             continue
 
         serving_qty = to_float(line.get('serving_size_qty')) or 1
@@ -522,9 +520,19 @@ def build_buffet_prep_sheet(cur, event_id, unit_system='imperial'):
 
         if recipe_yield_raw and recipe_yield_raw > 0:
             scale_ratio = (serving_qty * guest_total) / recipe_yield_raw
+            line_ingredient_totals = {}
             components, _, _ = build_component_tree(cur, recipe_id, scale_ratio, depth=0, path=set(), unit_system=unit_system, apply_q_factor=False)
             collect_direct_subrecipes_for_prep(components, prep_subrecipe_totals)
-            collect_direct_ingredients_for_prep(components, prep_ingredient_totals)
+            collect_direct_ingredients_for_prep(components, line_ingredient_totals)
+            if line_ingredient_totals:
+                prep_ingredient_group_specs.append(
+                    {
+                        'dish_name': card['dish_name'],
+                        'station': card['station'],
+                        'flags': {flag: bool(line.get(flag)) for flag in DIETARY_FLAGS},
+                        'totals': line_ingredient_totals,
+                    }
+                )
 
     sorted_grouped = {}
     for station in sorted(grouped):
@@ -573,9 +581,16 @@ def build_buffet_prep_sheet(cur, event_id, unit_system='imperial'):
             )
     prep_subrecipe_rows.sort(key=lambda row: (row.get('recipe_name') or '').lower())
 
-    prep_ingredient_rows = []
-    if prep_ingredient_totals:
-        ingredient_ids = sorted({ingredient_id for ingredient_id, _unit in prep_ingredient_totals.keys() if ingredient_id})
+    prep_ingredient_groups = []
+    if prep_ingredient_group_specs:
+        ingredient_ids = sorted(
+            {
+                ingredient_id
+                for group in prep_ingredient_group_specs
+                for ingredient_id, _unit in group['totals'].keys()
+                if ingredient_id
+            }
+        )
         ingredient_map = {}
         if ingredient_ids:
             cur.execute(
@@ -588,20 +603,32 @@ def build_buffet_prep_sheet(cur, event_id, unit_system='imperial'):
             )
             ingredient_map = {row['id']: row for row in cur.fetchall()}
 
-        for (ingredient_id, unit), total_qty in prep_ingredient_totals.items():
-            ingredient = ingredient_map.get(ingredient_id, {})
-            display_total = smart_quantity(total_qty, unit, unit_system)
-            prep_ingredient_rows.append(
-                {
-                    'ingredient_id': ingredient_id,
-                    'ingredient_name': ingredient.get('name') or 'Ingredient',
-                    'total_qty': total_qty,
-                    'unit': unit,
-                    'display_total_qty': display_total.get('quantity'),
-                    'display_total_unit': display_total.get('unit'),
-                }
-            )
-    prep_ingredient_rows.sort(key=lambda row: (row.get('ingredient_name') or '').lower())
+        for group in prep_ingredient_group_specs:
+            ingredient_rows = []
+            for (ingredient_id, unit), total_qty in sorted(
+                group['totals'].items(),
+                key=lambda item: (ingredient_map.get(item[0][0], {}).get('name') or '').lower(),
+            ):
+                ingredient = ingredient_map.get(ingredient_id, {})
+                display_total = smart_quantity(total_qty, unit, unit_system)
+                ingredient_rows.append(
+                    {
+                        'ingredient_id': ingredient_id,
+                        'ingredient_name': ingredient.get('name') or 'Ingredient',
+                        'total_qty': total_qty,
+                        'unit': unit,
+                        'display_total_qty': display_total.get('quantity'),
+                        'display_total_unit': display_total.get('unit'),
+                    }
+                )
+            prep_group = {
+                'dish_name': group['dish_name'],
+                'station': group['station'],
+                'ingredients': ingredient_rows,
+            }
+            prep_group.update(group['flags'])
+            prep_ingredient_groups.append(prep_group)
+    prep_ingredient_groups.sort(key=lambda row: ((row.get('station') or '').lower(), (row.get('dish_name') or '').lower()))
 
     return {
         'stations': sorted_grouped,
@@ -610,7 +637,7 @@ def build_buffet_prep_sheet(cur, event_id, unit_system='imperial'):
         'no_recipe_lines': no_recipe_lines,
         'direct_ingredient_lines': direct_ingredient_lines,
         'prep_subrecipe_rows': prep_subrecipe_rows,
-        'prep_ingredient_rows': prep_ingredient_rows,
+        'prep_ingredient_groups': prep_ingredient_groups,
     }
 
 
@@ -1126,7 +1153,7 @@ def buffet_event_prep(event_id):
             no_recipe_lines=prep_data['no_recipe_lines'],
             direct_ingredient_lines=prep_data['direct_ingredient_lines'],
             prep_subrecipe_rows=prep_data['prep_subrecipe_rows'],
-            prep_ingredient_rows=prep_data['prep_ingredient_rows'],
+            prep_ingredient_groups=prep_data['prep_ingredient_groups'],
             total_cards=prep_data['total_cards'],
         )
 
@@ -1404,42 +1431,48 @@ def buffet_prep_pdf(event_id):
         story.append(subrecipe_table)
         has_previous_sections = True
 
-    if prep_data['prep_ingredient_rows']:
+    if prep_data['prep_ingredient_groups']:
         if has_previous_sections:
             story.append(PageBreak())
-        story.append(Paragraph('Raw Ingredient Pulls', section_title_style))
+        story.append(Paragraph('Raw Ingredient Pulls by Menu Item', section_title_style))
         story.append(Paragraph(
-            'This purchasing view includes direct buffet lines plus raw ingredients pulled from linked recipes.',
+            'Recipe-linked raw ingredients are broken out by buffet line here so cross-utilization stays allocated to the right menu item.',
             note_style,
         ))
         story.append(Spacer(1, 0.08 * inch))
-        ingredient_rows = [[
-            Paragraph('Ingredient', table_header_style),
-            Paragraph('Total Needed', table_header_style),
-        ]]
-        for row in prep_data['prep_ingredient_rows']:
-            ingredient_rows.append(
-                [
-                    p(row.get('ingredient_name') or 'Ingredient'),
-                    p(fmt_qty(row.get('display_total_qty'), row.get('display_total_unit'))),
-                ]
+        for group_index, group in enumerate(prep_data['prep_ingredient_groups']):
+            if group_index > 0:
+                story.append(Spacer(1, 0.12 * inch))
+            group_heading = f"{group.get('station') or 'Other'} - {group.get('dish_name') or 'Dish'}"
+            story.append(Paragraph(escape(group_heading), strong_style))
+            story.append(Spacer(1, 0.04 * inch))
+            ingredient_rows = [[
+                Paragraph('Ingredient', table_header_style),
+                Paragraph('Total Needed', table_header_style),
+            ]]
+            for row in group.get('ingredients') or []:
+                ingredient_rows.append(
+                    [
+                        p(row.get('ingredient_name') or 'Ingredient'),
+                        p(fmt_qty(row.get('display_total_qty'), row.get('display_total_unit'))),
+                    ]
+                )
+            ingredient_table = Table(ingredient_rows, colWidths=[4.9 * inch, 2.4 * inch], repeatRows=1)
+            ingredient_table.setStyle(
+                TableStyle(
+                    [
+                        ('BACKGROUND', (0, 0), (-1, 0), header_navy),
+                        ('TEXTCOLOR', (0, 0), (-1, 0), white),
+                        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [white, light_gray]),
+                        ('GRID', (0, 0), (-1, -1), 0.35, border_gray),
+                        ('LEFTPADDING', (0, 0), (-1, -1), 5),
+                        ('RIGHTPADDING', (0, 0), (-1, -1), 5),
+                        ('TOPPADDING', (0, 0), (-1, -1), 4),
+                        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+                    ]
+                )
             )
-        ingredient_table = Table(ingredient_rows, colWidths=[4.9 * inch, 2.4 * inch], repeatRows=1)
-        ingredient_table.setStyle(
-            TableStyle(
-                [
-                    ('BACKGROUND', (0, 0), (-1, 0), header_navy),
-                    ('TEXTCOLOR', (0, 0), (-1, 0), white),
-                    ('ROWBACKGROUNDS', (0, 1), (-1, -1), [white, light_gray]),
-                    ('GRID', (0, 0), (-1, -1), 0.35, border_gray),
-                    ('LEFTPADDING', (0, 0), (-1, -1), 5),
-                    ('RIGHTPADDING', (0, 0), (-1, -1), 5),
-                    ('TOPPADDING', (0, 0), (-1, -1), 4),
-                    ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-                ]
-            )
-        )
-        story.append(ingredient_table)
+            story.append(ingredient_table)
         has_previous_sections = True
 
     if prep_data['no_recipe_lines']:
