@@ -342,11 +342,194 @@
         letter-spacing: 0.08em;
         color: #566166;
     }
+    .bf-detail-stack {
+        display: grid;
+        gap: 1rem;
+    }
+    .bf-detail-sheet {
+        border: 1px solid #a9b4b9;
+        background: #f8fafc;
+    }
+    .bf-detail-head {
+        padding: 1rem 1.05rem 0.95rem;
+        border-bottom: 2px solid #2a3439;
+        background: #ffffff;
+    }
+    .bf-detail-kicker {
+        font-size: 0.6rem;
+        font-weight: 900;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: #566166;
+    }
+    .bf-detail-title {
+        margin-top: 0.35rem;
+        font-size: clamp(1.7rem, 4vw, 2.8rem);
+        line-height: 0.94;
+        font-weight: 900;
+        letter-spacing: -0.06em;
+        text-transform: uppercase;
+        color: #111827;
+    }
+    .bf-detail-source {
+        margin-top: 0.42rem;
+        font-size: 0.7rem;
+        font-weight: 800;
+        line-height: 1.5;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #566166;
+    }
+    .bf-detail-meta {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.08rem;
+        background: #2a3439;
+    }
+    .bf-detail-meta-card {
+        padding: 0.85rem 0.9rem;
+        background: #ffffff;
+    }
+    .bf-detail-meta-label {
+        display: block;
+        margin-bottom: 0.22rem;
+        font-size: 0.56rem;
+        font-weight: 900;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: #566166;
+    }
+    .bf-detail-meta-value {
+        display: block;
+        font-size: 1rem;
+        line-height: 1.15;
+        font-weight: 900;
+        letter-spacing: -0.03em;
+        text-transform: uppercase;
+        color: #111827;
+    }
+    .bf-detail-body {
+        display: grid;
+        gap: 1rem;
+        padding: 1rem 1.05rem 1.1rem;
+    }
+    .bf-detail-panels {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+    }
+    .bf-panel {
+        padding: 0.9rem 0.95rem;
+        background: #e1e9ee;
+        border-bottom: 3px solid #2a3439;
+    }
+    .bf-panel--alert {
+        border-bottom-color: #c00815;
+    }
+    .bf-panel-title {
+        margin-bottom: 0.55rem;
+        font-size: 0.76rem;
+        font-weight: 900;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #111827;
+    }
+    .bf-panel-list {
+        display: grid;
+        gap: 0.55rem;
+    }
+    .bf-panel-item {
+        font-size: 0.72rem;
+        line-height: 1.45;
+        color: #2a3439;
+    }
+    .bf-panel-item strong {
+        display: inline-block;
+        margin-right: 0.35rem;
+        color: #c00815;
+    }
+    .bf-handling-grid {
+        display: grid;
+        gap: 0.45rem;
+    }
+    .bf-handling-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding-bottom: 0.35rem;
+        border-bottom: 1px solid #c7d5dd;
+        font-size: 0.72rem;
+        line-height: 1.4;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #2a3439;
+    }
+    .bf-handling-row:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+    .bf-handling-row span:first-child {
+        font-weight: 900;
+        color: #566166;
+    }
+    .bf-handling-row span:last-child {
+        text-align: right;
+        font-weight: 800;
+        color: #111827;
+    }
+    .bf-timeline {
+        border: 1px solid #a9b4b9;
+        background: #ffffff;
+    }
+    .bf-timeline-head {
+        padding: 0.75rem 0.9rem;
+        border-bottom: 1px solid #a9b4b9;
+        font-size: 0.74rem;
+        font-weight: 900;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: #111827;
+    }
+    .bf-timeline-list {
+        display: grid;
+    }
+    .bf-timeline-row {
+        display: grid;
+        grid-template-columns: 2rem minmax(0, 1fr);
+        gap: 0.75rem;
+        align-items: start;
+        padding: 0.7rem 0.9rem;
+        border-top: 1px solid #d9e4ea;
+    }
+    .bf-timeline-row:first-child {
+        border-top: none;
+    }
+    .bf-timeline-num {
+        width: 1.6rem;
+        height: 1.6rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: #2a3439;
+        color: #ffffff;
+        font-size: 0.62rem;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+    }
+    .bf-timeline-copy {
+        font-size: 0.74rem;
+        line-height: 1.55;
+        color: #2a3439;
+    }
     @media (max-width: 960px) {
         .bf-hero {
             grid-template-columns: 1fr;
         }
         .bf-stat-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .bf-detail-meta,
+        .bf-detail-panels {
             grid-template-columns: repeat(2, minmax(0, 1fr));
         }
     }
@@ -359,7 +542,9 @@
             padding: 1.1rem;
         }
         .bf-stat-grid,
-        .bf-signoff {
+        .bf-signoff,
+        .bf-detail-meta,
+        .bf-detail-panels {
             grid-template-columns: 1fr;
         }
     }
@@ -396,6 +581,39 @@
 {% endblock %}
 
 {% block content %}
+{% macro render_component_rows(components, depth=0) -%}
+    {% if components %}
+        {% for component in components %}
+            {% if component.type == 'option_group' %}
+                {{ render_component_rows(component.children or [], depth) }}
+            {% else %}
+                {% set component_name = component.name or component.item_name or component.recipe_name or 'Component' %}
+                {% set component_qty = component.display_quantity %}
+                {% if component_qty in (None, '') %}
+                    {% set component_qty = component.quantity %}
+                {% endif %}
+                {% if component_qty in (None, '') %}
+                    {% set component_qty = component.scaled_quantity_display %}
+                {% endif %}
+                {% set component_unit = component.display_unit or component.unit or '' %}
+                <tr>
+                    <td><span class="bf-check"></span></td>
+                    <td>
+                        <div class="bf-cell-title" {% if depth > 0 %}style="padding-left: {{ 0.8 + (depth * 0.8) }}rem;"{% endif %}>{{ component_name }}</div>
+                        <div class="bf-cell-meta">
+                            {% if component.type == 'recipe' %}Sub-recipe{% else %}{{ component.category or 'Ingredient' }}{% endif %}
+                        </div>
+                    </td>
+                    <td>{{ component_qty if component_qty not in (None, '') else '—' }}</td>
+                    <td>{{ component_unit or '—' }}</td>
+                </tr>
+                {% if component.children %}
+                    {{ render_component_rows(component.children, depth + 1) }}
+                {% endif %}
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+{%- endmacro %}
 {% set buffet_ref = 'FHQ-BF-' ~ (event.id or 'EVENT')|upper %}
 <div class="bf-shell">
     <div class="bf-toolbar no-print">
@@ -571,6 +789,132 @@
                                     {% endfor %}
                                 </tbody>
                             </table>
+                        </div>
+                    </section>
+                    {% endif %}
+
+                    {% if group.detail_sheets %}
+                    <section>
+                        <div class="bf-section-title">Scaled Recipe Sheets</div>
+                        <div class="bf-detail-stack">
+                            {% for sheet in group.detail_sheets %}
+                            <article class="bf-detail-sheet">
+                                <div class="bf-detail-head">
+                                    <div class="bf-detail-kicker">{{ sheet.sheet_type }}</div>
+                                    <div class="bf-detail-title">{{ sheet.recipe_name }}</div>
+                                    <div class="bf-detail-source">
+                                        {% if sheet.source_dishes %}
+                                        Built for {{ sheet.source_dishes|join(', ') }}
+                                        {% else %}
+                                        Station {{ group.station }}
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="bf-detail-meta">
+                                    <div class="bf-detail-meta-card">
+                                        <span class="bf-detail-meta-label">Required Output</span>
+                                        <span class="bf-detail-meta-value">{{ sheet.display_required_qty }} {{ sheet.display_required_unit }}</span>
+                                    </div>
+                                    <div class="bf-detail-meta-card">
+                                        <span class="bf-detail-meta-label">Base Yield</span>
+                                        <span class="bf-detail-meta-value">{{ sheet.yield_qty or '—' }} {{ sheet.yield_unit or '' }}</span>
+                                    </div>
+                                    <div class="bf-detail-meta-card">
+                                        <span class="bf-detail-meta-label">Scaled Run</span>
+                                        <span class="bf-detail-meta-value">{% if sheet.display_scale_ratio %}{{ sheet.display_scale_ratio }}x{% else %}—{% endif %}</span>
+                                    </div>
+                                    <div class="bf-detail-meta-card">
+                                        <span class="bf-detail-meta-label">Coverage</span>
+                                        <span class="bf-detail-meta-value">{{ sheet.source_dishes|length or 1 }} item{% if (sheet.source_dishes|length or 1) != 1 %}s{% endif %}</span>
+                                    </div>
+                                </div>
+                                <div class="bf-detail-body">
+                                    <div class="bf-table-wrap">
+                                        <table class="bf-table">
+                                            <thead>
+                                                <tr>
+                                                    <th style="width:5%">✓</th>
+                                                    <th>Ingredient / Sub-Recipe</th>
+                                                    <th>Total Needed</th>
+                                                    <th>Unit</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% if sheet.components %}
+                                                    {{ render_component_rows(sheet.components) }}
+                                                {% else %}
+                                                    <tr>
+                                                        <td><span class="bf-check"></span></td>
+                                                        <td><div class="bf-cell-title">No scaled components logged.</div></td>
+                                                        <td>—</td>
+                                                        <td>—</td>
+                                                    </tr>
+                                                {% endif %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    <div class="bf-detail-panels">
+                                        <section class="bf-panel bf-panel--alert">
+                                            <div class="bf-panel-title">Critical Yield Alerts</div>
+                                            <div class="bf-panel-list">
+                                                {% if sheet.critical_steps %}
+                                                    {% for step in sheet.critical_steps %}
+                                                    <div class="bf-panel-item"><strong>{{ '%02d'|format(loop.index) }}.</strong>{{ step }}</div>
+                                                    {% endfor %}
+                                                {% else %}
+                                                    <div class="bf-panel-item">No critical control notes are logged for this recipe yet.</div>
+                                                {% endif %}
+                                            </div>
+                                        </section>
+                                        <section class="bf-panel">
+                                            <div class="bf-panel-title">Prep And Handling</div>
+                                            <div class="bf-handling-grid">
+                                                <div class="bf-handling-row">
+                                                    <span>Prep Time</span>
+                                                    <span>{% if sheet.prep_time_minutes is not none %}{{ sheet.prep_time_minutes }} MIN{% else %}Not logged{% endif %}</span>
+                                                </div>
+                                                <div class="bf-handling-row">
+                                                    <span>Shelf Life</span>
+                                                    <span>{% if sheet.shelf_life_days is not none %}{{ sheet.shelf_life_days }} DAYS{% else %}Not logged{% endif %}</span>
+                                                </div>
+                                                <div class="bf-handling-row">
+                                                    <span>Station</span>
+                                                    <span>{{ sheet.station_label or group.station }}</span>
+                                                </div>
+                                                <div class="bf-handling-row">
+                                                    <span>Equipment</span>
+                                                    <span>{{ sheet.equipment or 'Not specified' }}</span>
+                                                </div>
+                                                <div class="bf-handling-row">
+                                                    <span>Storage</span>
+                                                    <span>{{ sheet.storage_lines|join(' / ') if sheet.storage_lines else 'Not logged' }}</span>
+                                                </div>
+                                            </div>
+                                        </section>
+                                    </div>
+
+                                    <section class="bf-timeline">
+                                        <div class="bf-timeline-head">Production Timeline</div>
+                                        <div class="bf-timeline-list">
+                                            {% if sheet.instruction_steps %}
+                                                {% for step in sheet.instruction_steps %}
+                                                <div class="bf-timeline-row">
+                                                    <div class="bf-timeline-num">{{ '%02d'|format(loop.index) }}</div>
+                                                    <div class="bf-timeline-copy">{{ step }}</div>
+                                                </div>
+                                                {% endfor %}
+                                            {% else %}
+                                                <div class="bf-timeline-row">
+                                                    <div class="bf-timeline-num">--</div>
+                                                    <div class="bf-timeline-copy">No production method is logged for this recipe yet.</div>
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    </section>
+                                </div>
+                            </article>
+                            {% endfor %}
                         </div>
                     </section>
                     {% endif %}

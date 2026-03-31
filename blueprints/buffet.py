@@ -10,7 +10,7 @@ from db import get_cursor, get_db
 from flask import Blueprint, Response, flash, redirect, render_template, request, url_for
 from flask_login import login_required
 from helpers.db_helpers import db_column_exists, db_table_exists
-from helpers.formatting import make_safe_filename
+from helpers.formatting import flatten_components_for_pdf, make_safe_filename, split_instruction_steps
 from helpers.menu import clean_menu_text
 from helpers.recipes import (
     build_component_tree,
@@ -449,7 +449,16 @@ def build_buffet_prep_sheet(cur, event_id, unit_system='imperial'):
     grouped = defaultdict(list)
     no_recipe_lines = []
     direct_ingredient_lines = []
-    station_pull_specs = defaultdict(lambda: {'recipes': [], 'subrecipes': {}, 'ingredients': {}, 'dish_names': set()})
+    station_pull_specs = defaultdict(
+        lambda: {
+            'recipes': [],
+            'subrecipes': {},
+            'ingredients': {},
+            'dish_names': set(),
+            'recipe_sources': defaultdict(set),
+            'subrecipe_sources': defaultdict(set),
+        }
+    )
     station_summary_map = defaultdict(
         lambda: {
             'station': 'Other',
@@ -602,9 +611,12 @@ def build_buffet_prep_sheet(cur, event_id, unit_system='imperial'):
                 'yield_unit': yield_unit,
                 'batches_needed': batches_needed,
                 'display_batches_needed': format_number(batches_needed),
+                'scale_ratio': scale_ratio,
                 'estimated_cost_total': estimated_cost_total,
             }
         )
+        if recipe_id:
+            station_pull_specs[station_name]['recipe_sources'][recipe_id].add(card['dish_name'])
 
         if scale_ratio is not None:
             line_subrecipe_totals = {}
@@ -619,6 +631,8 @@ def build_buffet_prep_sheet(cur, event_id, unit_system='imperial'):
                 station_pull_specs[station_name]['dish_names'].add(card['dish_name'])
                 for key, qty in line_subrecipe_totals.items():
                     station_pull_specs[station_name]['subrecipes'][key] = station_pull_specs[station_name]['subrecipes'].get(key, 0) + qty
+                    if key[0]:
+                        station_pull_specs[station_name]['subrecipe_sources'][key[0]].add(card['dish_name'])
                 for key, qty in line_ingredient_totals.items():
                     station_pull_specs[station_name]['ingredients'][key] = station_pull_specs[station_name]['ingredients'].get(key, 0) + qty
 
@@ -636,12 +650,31 @@ def build_buffet_prep_sheet(cur, event_id, unit_system='imperial'):
                 for recipe_id, _unit in station['subrecipes'].keys()
                 if recipe_id
             }
+            | {
+                row.get('recipe_id')
+                for station in station_pull_specs.values()
+                for row in station['recipes']
+                if row.get('recipe_id')
+            }
         )
         recipe_map = {}
         if recipe_ids:
             cur.execute(
                 """
-                SELECT id, name, yield_qty, yield_unit
+                SELECT
+                    id,
+                    name,
+                    category,
+                    yield_qty,
+                    yield_unit,
+                    instructions,
+                    equipment,
+                    station,
+                    critical_steps,
+                    storage_instructions,
+                    shelf_life_days,
+                    prep_time_minutes,
+                    recipe_type
                 FROM recipes
                 WHERE id = ANY(%s)
                 """,
@@ -723,6 +756,96 @@ def build_buffet_prep_sheet(cur, event_id, unit_system='imperial'):
                     }
                 )
 
+            detail_sheets = []
+            for row in recipe_rows:
+                recipe_id = row.get('recipe_id')
+                scale_ratio = to_float(row.get('scale_ratio'))
+                recipe_meta = recipe_map.get(recipe_id, {})
+                components = []
+                if recipe_id and scale_ratio > 0:
+                    components, _, _ = build_component_tree(
+                        cur,
+                        recipe_id,
+                        scale_ratio,
+                        0,
+                        set(),
+                        unit_system,
+                        apply_q_factor=False,
+                    )
+                detail_sheets.append(
+                    {
+                        'recipe_id': recipe_id,
+                        'recipe_name': row.get('recipe_name') or recipe_meta.get('name') or 'Recipe',
+                        'sheet_type': 'Linked Buffet Recipe',
+                        'sheet_type_key': 'linked',
+                        'source_dishes': sorted(station_spec['recipe_sources'].get(recipe_id, set()) or [row.get('dish_name') or 'Dish']),
+                        'display_required_qty': row.get('display_required_qty'),
+                        'display_required_unit': row.get('display_required_unit'),
+                        'yield_qty': recipe_meta.get('yield_qty') if recipe_meta.get('yield_qty') is not None else row.get('yield_qty'),
+                        'yield_unit': recipe_meta.get('yield_unit') or row.get('yield_unit'),
+                        'display_scale_ratio': format_number(scale_ratio) if scale_ratio > 0 else '',
+                        'components': components,
+                        'flat_components': flatten_components_for_pdf(components),
+                        'instruction_steps': split_instruction_steps(recipe_meta.get('instructions')),
+                        'critical_steps': split_instruction_steps(recipe_meta.get('critical_steps')),
+                        'storage_lines': split_instruction_steps(recipe_meta.get('storage_instructions')),
+                        'prep_time_minutes': recipe_meta.get('prep_time_minutes'),
+                        'shelf_life_days': recipe_meta.get('shelf_life_days'),
+                        'station_label': recipe_meta.get('station') or station_name,
+                        'equipment': recipe_meta.get('equipment'),
+                        'category': recipe_meta.get('category'),
+                        'recipe_type': recipe_meta.get('recipe_type'),
+                    }
+                )
+
+            for row in subrecipe_rows:
+                recipe_id = row.get('recipe_id')
+                scale_ratio = to_float(row.get('required_batches'))
+                recipe_meta = recipe_map.get(recipe_id, {})
+                components = []
+                if recipe_id and scale_ratio > 0:
+                    components, _, _ = build_component_tree(
+                        cur,
+                        recipe_id,
+                        scale_ratio,
+                        0,
+                        set(),
+                        unit_system,
+                        apply_q_factor=False,
+                    )
+                detail_sheets.append(
+                    {
+                        'recipe_id': recipe_id,
+                        'recipe_name': row.get('recipe_name') or recipe_meta.get('name') or 'Sub-recipe',
+                        'sheet_type': 'Sub-Recipe Dependency',
+                        'sheet_type_key': 'subrecipe',
+                        'source_dishes': sorted(station_spec['subrecipe_sources'].get(recipe_id, set())),
+                        'display_required_qty': row.get('display_required_qty'),
+                        'display_required_unit': row.get('display_required_unit'),
+                        'yield_qty': recipe_meta.get('yield_qty') if recipe_meta.get('yield_qty') is not None else row.get('yield_qty'),
+                        'yield_unit': recipe_meta.get('yield_unit') or row.get('yield_unit'),
+                        'display_scale_ratio': row.get('display_required_batches') or (format_number(scale_ratio) if scale_ratio > 0 else ''),
+                        'components': components,
+                        'flat_components': flatten_components_for_pdf(components),
+                        'instruction_steps': split_instruction_steps(recipe_meta.get('instructions')),
+                        'critical_steps': split_instruction_steps(recipe_meta.get('critical_steps')),
+                        'storage_lines': split_instruction_steps(recipe_meta.get('storage_instructions')),
+                        'prep_time_minutes': recipe_meta.get('prep_time_minutes'),
+                        'shelf_life_days': recipe_meta.get('shelf_life_days'),
+                        'station_label': recipe_meta.get('station') or station_name,
+                        'equipment': recipe_meta.get('equipment'),
+                        'category': recipe_meta.get('category'),
+                        'recipe_type': recipe_meta.get('recipe_type'),
+                    }
+                )
+
+            detail_sheets.sort(
+                key=lambda item: (
+                    0 if item.get('sheet_type_key') == 'linked' else 1,
+                    (item.get('recipe_name') or '').lower(),
+                )
+            )
+
             if recipe_rows or subrecipe_rows or ingredient_rows:
                 prep_station_groups.append(
                     {
@@ -731,6 +854,7 @@ def build_buffet_prep_sheet(cur, event_id, unit_system='imperial'):
                         'recipes': recipe_rows,
                         'subrecipes': subrecipe_rows,
                         'ingredients': ingredient_rows,
+                        'detail_sheets': detail_sheets,
                     }
                 )
 
@@ -1706,7 +1830,117 @@ def buffet_prep_pdf(event_id):
                     )
                 )
                 story.append(ingredient_table)
-        has_previous_sections = True
+
+            if station_group.get('detail_sheets'):
+                story.append(Spacer(1, 0.06 * inch))
+                story.append(Paragraph('Scaled Recipe Sheets', strong_style))
+                story.append(Spacer(1, 0.04 * inch))
+                for detail_index, sheet in enumerate(station_group['detail_sheets']):
+                    if detail_index > 0:
+                        story.append(Spacer(1, 0.1 * inch))
+                    story.append(Paragraph(escape(sheet.get('recipe_name') or 'Recipe'), strong_style))
+                    meta_bits = [
+                        sheet.get('sheet_type') or 'Recipe',
+                        f"Required: {fmt_qty(sheet.get('display_required_qty'), sheet.get('display_required_unit'))}",
+                        f"Yield: {fmt_qty(sheet.get('yield_qty'), sheet.get('yield_unit'))}",
+                    ]
+                    if sheet.get('display_scale_ratio'):
+                        meta_bits.append(f"Scale: {sheet.get('display_scale_ratio')}x")
+                    story.append(Paragraph(escape(' / '.join(meta_bits)), note_style))
+                    if sheet.get('source_dishes'):
+                        story.append(Paragraph(
+                            escape(f"Built for: {', '.join(sheet['source_dishes'])}"),
+                            note_style,
+                        ))
+                    story.append(Spacer(1, 0.03 * inch))
+
+                    component_rows = [[
+                        Paragraph('Ingredient / Sub-Recipe', table_header_style),
+                        Paragraph('Qty', table_header_style),
+                        Paragraph('Unit', table_header_style),
+                        Paragraph('Notes', table_header_style),
+                    ]]
+                    flat_components = sheet.get('flat_components') or []
+                    if flat_components:
+                        for component in flat_components:
+                            component_rows.append(
+                                [
+                                    p(component.get('name') or 'Component'),
+                                    p(component.get('qty') or '—'),
+                                    p(component.get('unit') or '—'),
+                                    p(component.get('notes') or '—'),
+                                ]
+                            )
+                    else:
+                        component_rows.append([p('No scaled components logged.'), p('—'), p('—'), p('—')])
+                    component_table = Table(
+                        component_rows,
+                        colWidths=[3.55 * inch, 1.0 * inch, 0.85 * inch, 1.6 * inch],
+                        repeatRows=1,
+                    )
+                    component_table.setStyle(
+                        TableStyle(
+                            [
+                                ('BACKGROUND', (0, 0), (-1, 0), header_navy),
+                                ('TEXTCOLOR', (0, 0), (-1, 0), white),
+                                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [white, light_gray]),
+                                ('GRID', (0, 0), (-1, -1), 0.35, border_gray),
+                                ('LEFTPADDING', (0, 0), (-1, -1), 4),
+                                ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+                                ('TOPPADDING', (0, 0), (-1, -1), 4),
+                                ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+                                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                            ]
+                        )
+                    )
+                    story.append(component_table)
+                    story.append(Spacer(1, 0.04 * inch))
+
+                    critical_steps = sheet.get('critical_steps') or []
+                    if critical_steps:
+                        critical_body = '<b>Critical Yield Alerts</b><br/>' + '<br/>'.join(
+                            escape(f"{idx + 1:02d}. {step}") for idx, step in enumerate(critical_steps)
+                        )
+                    else:
+                        critical_body = '<b>Critical Yield Alerts</b><br/>None logged.'
+                    storage_line = ' / '.join(sheet.get('storage_lines') or []) or 'Not logged'
+                    handling_lines = [
+                        f"Prep Time: {sheet.get('prep_time_minutes')} min" if sheet.get('prep_time_minutes') is not None else 'Prep Time: Not logged',
+                        f"Shelf Life: {sheet.get('shelf_life_days')} days" if sheet.get('shelf_life_days') is not None else 'Shelf Life: Not logged',
+                        f"Station: {sheet.get('station_label') or station_group.get('station') or 'Other'}",
+                        f"Equipment: {sheet.get('equipment') or 'Not specified'}",
+                        f"Storage: {storage_line}",
+                    ]
+                    handling_body = '<b>Prep And Handling</b><br/>' + '<br/>'.join(escape(line) for line in handling_lines)
+                    detail_notes_table = Table(
+                        [[
+                            Paragraph(critical_body, base_style),
+                            Paragraph(handling_body, base_style),
+                        ]],
+                        colWidths=[3.5 * inch, 3.5 * inch],
+                    )
+                    detail_notes_table.setStyle(
+                        TableStyle(
+                            [
+                                ('BACKGROUND', (0, 0), (-1, -1), light_gray),
+                                ('BOX', (0, 0), (-1, -1), 0.35, border_gray),
+                                ('INNERGRID', (0, 0), (-1, -1), 0.35, border_gray),
+                                ('LEFTPADDING', (0, 0), (-1, -1), 6),
+                                ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+                                ('TOPPADDING', (0, 0), (-1, -1), 6),
+                                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+                                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                            ]
+                        )
+                    )
+                    story.append(detail_notes_table)
+
+                    if sheet.get('instruction_steps'):
+                        story.append(Spacer(1, 0.04 * inch))
+                        story.append(Paragraph('Production Timeline', strong_style))
+                        for step_number, step in enumerate(sheet['instruction_steps'], start=1):
+                            story.append(Paragraph(escape(f"{step_number:02d}. {step}"), base_style))
+                has_previous_sections = True
 
     if prep_data['no_recipe_lines']:
         if has_previous_sections:
