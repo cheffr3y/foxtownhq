@@ -43,8 +43,45 @@ def ensure_banquet_menu_item_base_yield_columns(cur):
     """)
     return True
 
+
+def ensure_recipe_metadata_columns(cur):
+    """Backfill optional recipe metadata fields used by richer recipe sheets."""
+    if not db_table_exists(cur, 'public.recipes'):
+        return False
+
+    cur.execute("""
+        ALTER TABLE recipes
+        ADD COLUMN IF NOT EXISTS source_venue TEXT
+    """)
+    cur.execute("""
+        ALTER TABLE recipes
+        ADD COLUMN IF NOT EXISTS equipment TEXT
+    """)
+    cur.execute("""
+        ALTER TABLE recipes
+        ADD COLUMN IF NOT EXISTS station TEXT
+    """)
+    cur.execute("""
+        ALTER TABLE recipes
+        ADD COLUMN IF NOT EXISTS critical_steps TEXT
+    """)
+    cur.execute("""
+        ALTER TABLE recipes
+        ADD COLUMN IF NOT EXISTS storage_instructions TEXT
+    """)
+    cur.execute("""
+        ALTER TABLE recipes
+        ADD COLUMN IF NOT EXISTS shelf_life_days INTEGER
+    """)
+    cur.execute("""
+        ALTER TABLE recipes
+        ADD COLUMN IF NOT EXISTS prep_time_minutes INTEGER
+    """)
+    return True
+
 __all__ = [
     'db_table_exists',
     'db_column_exists',
     'ensure_banquet_menu_item_base_yield_columns',
+    'ensure_recipe_metadata_columns',
 ]

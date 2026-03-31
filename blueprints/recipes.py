@@ -2,8 +2,8 @@ from config import RECIPE_Q_FACTOR_PERCENT
 from db import get_cursor, get_db
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import login_required
-from helpers.db_helpers import db_table_exists
-from helpers.formatting import flatten_components_for_pdf
+from helpers.db_helpers import db_table_exists, ensure_recipe_metadata_columns
+from helpers.formatting import flatten_components_for_pdf, split_instruction_steps
 from helpers.recipes import (
     build_component_tree,
     clone_recipe,
@@ -19,6 +19,21 @@ from helpers.units import get_unit_system, normalize_unit, smart_quantity
 from helpers.venues import get_active_venues, get_recipe_venue_ids, parse_recipe_venue_ids
 
 bp = Blueprint('recipes', __name__)
+
+
+def _parse_optional_int(value, label, errors):
+    raw = (value or '').strip()
+    if not raw:
+        return None
+    try:
+        parsed = int(raw)
+    except (TypeError, ValueError):
+        errors.append(f'{label} must be a whole number.')
+        return None
+    if parsed < 0:
+        errors.append(f'{label} must be zero or greater.')
+        return None
+    return parsed
 
 
 def escape_like(value):
@@ -257,6 +272,8 @@ def recipe_new():
     option_items_input = []
     selected_venue_ids = []
     with get_cursor() as cur:
+        ensure_recipe_metadata_columns(cur)
+        conn.commit()
         if request.method == 'POST':
             errors = []
             name = (request.form.get('name') or '').strip()
@@ -266,7 +283,14 @@ def recipe_new():
             yield_unit = normalize_unit(yield_unit) or yield_unit
             instructions = (request.form.get('instructions') or '').strip()
             menu_descriptor = (request.form.get('menu_descriptor') or '').strip()
+            source_venue = (request.form.get('source_venue') or '').strip()
+            equipment = (request.form.get('equipment') or '').strip()
+            station = (request.form.get('station') or '').strip()
+            critical_steps = (request.form.get('critical_steps') or '').strip()
+            storage_instructions = (request.form.get('storage_instructions') or '').strip()
             recipe_type = infer_recipe_type(name, request.form.get('recipe_type'))
+            prep_time_minutes = _parse_optional_int(request.form.get('prep_time_minutes'), 'Prep time', errors)
+            shelf_life_days = _parse_optional_int(request.form.get('shelf_life_days'), 'Shelf life', errors)
             if recipe_type == 'menu':
                 yield_qty = '1'
                 yield_unit = 'serving'
@@ -339,8 +363,24 @@ def recipe_new():
                 recipe_id = generate_id('rec_')
                 try:
                     cur.execute("""
-                        INSERT INTO recipes (id, name, category, yield_qty, yield_unit, instructions, recipe_type, menu_descriptor)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                        INSERT INTO recipes (
+                            id,
+                            name,
+                            category,
+                            yield_qty,
+                            yield_unit,
+                            instructions,
+                            source_venue,
+                            equipment,
+                            station,
+                            critical_steps,
+                            storage_instructions,
+                            shelf_life_days,
+                            prep_time_minutes,
+                            recipe_type,
+                            menu_descriptor
+                        )
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """, (
                         recipe_id,
                         name,
@@ -348,6 +388,13 @@ def recipe_new():
                         yield_qty or None,
                         yield_unit or None,
                         instructions or None,
+                        source_venue or None,
+                        equipment or None,
+                        station or None,
+                        critical_steps or None,
+                        storage_instructions or None,
+                        shelf_life_days,
+                        prep_time_minutes,
                         recipe_type,
                         menu_descriptor or None
                     ))
@@ -456,7 +503,14 @@ def recipe_new():
             'yield_unit': (request.form.get('yield_unit') if request.method == 'POST' else '') or '',
             'instructions': (request.form.get('instructions') if request.method == 'POST' else '') or '',
             'recipe_type': (request.form.get('recipe_type') if request.method == 'POST' else '') or '',
-            'menu_descriptor': (request.form.get('menu_descriptor') if request.method == 'POST' else '') or ''
+            'menu_descriptor': (request.form.get('menu_descriptor') if request.method == 'POST' else '') or '',
+            'source_venue': (request.form.get('source_venue') if request.method == 'POST' else '') or '',
+            'equipment': (request.form.get('equipment') if request.method == 'POST' else '') or '',
+            'station': (request.form.get('station') if request.method == 'POST' else '') or '',
+            'critical_steps': (request.form.get('critical_steps') if request.method == 'POST' else '') or '',
+            'storage_instructions': (request.form.get('storage_instructions') if request.method == 'POST' else '') or '',
+            'prep_time_minutes': (request.form.get('prep_time_minutes') if request.method == 'POST' else '') or '',
+            'shelf_life_days': (request.form.get('shelf_life_days') if request.method == 'POST' else '') or ''
         },
         ingredients=ingredients_list,
         recipes=recipes_list,
@@ -475,6 +529,8 @@ def recipe_new():
 def recipe_edit(recipe_id):
     conn = get_db()
     with get_cursor() as cur:
+        ensure_recipe_metadata_columns(cur)
+        conn.commit()
         recipe = get_recipe_by_id(cur, recipe_id)
         if not recipe:
             flash('Recipe not found', 'error')
@@ -491,7 +547,14 @@ def recipe_edit(recipe_id):
             yield_unit = normalize_unit(yield_unit) or yield_unit
             instructions = (request.form.get('instructions') or '').strip()
             menu_descriptor = (request.form.get('menu_descriptor') or '').strip()
+            source_venue = (request.form.get('source_venue') or '').strip()
+            equipment = (request.form.get('equipment') or '').strip()
+            station = (request.form.get('station') or '').strip()
+            critical_steps = (request.form.get('critical_steps') or '').strip()
+            storage_instructions = (request.form.get('storage_instructions') or '').strip()
             recipe_type = infer_recipe_type(name, request.form.get('recipe_type'))
+            prep_time_minutes = _parse_optional_int(request.form.get('prep_time_minutes'), 'Prep time', errors)
+            shelf_life_days = _parse_optional_int(request.form.get('shelf_life_days'), 'Shelf life', errors)
             if recipe_type == 'menu':
                 yield_qty = '1'
                 yield_unit = 'serving'
@@ -504,7 +567,14 @@ def recipe_edit(recipe_id):
                 'yield_unit': yield_unit,
                 'instructions': instructions,
                 'recipe_type': recipe_type,
-                'menu_descriptor': menu_descriptor
+                'menu_descriptor': menu_descriptor,
+                'source_venue': source_venue,
+                'equipment': equipment,
+                'station': station,
+                'critical_steps': critical_steps,
+                'storage_instructions': storage_instructions,
+                'prep_time_minutes': prep_time_minutes,
+                'shelf_life_days': shelf_life_days,
             })
 
             if not name:
@@ -551,6 +621,13 @@ def recipe_edit(recipe_id):
                             yield_qty = %s,
                             yield_unit = %s,
                             instructions = %s,
+                            source_venue = %s,
+                            equipment = %s,
+                            station = %s,
+                            critical_steps = %s,
+                            storage_instructions = %s,
+                            shelf_life_days = %s,
+                            prep_time_minutes = %s,
                             recipe_type = %s,
                             menu_descriptor = %s
                         WHERE id = %s
@@ -560,6 +637,13 @@ def recipe_edit(recipe_id):
                         yield_qty or None,
                         yield_unit or None,
                         instructions or None,
+                        source_venue or None,
+                        equipment or None,
+                        station or None,
+                        critical_steps or None,
+                        storage_instructions or None,
+                        shelf_life_days,
+                        prep_time_minutes,
                         recipe_type,
                         menu_descriptor or None,
                         recipe_id
@@ -728,6 +812,8 @@ def recipe_generator():
 def recipe_clone(recipe_id):
     conn = get_db()
     with get_cursor() as cur:
+        ensure_recipe_metadata_columns(cur)
+        conn.commit()
         source_recipe = get_recipe_by_id(cur, recipe_id)
         if not source_recipe:
             flash('Recipe not found', 'error')
@@ -811,7 +897,10 @@ def recipe_delete(recipe_id):
 @login_required
 def recipe_detail(recipe_id):
     unit_system = get_unit_system()
+    conn = get_db()
     with get_cursor() as cur:
+        ensure_recipe_metadata_columns(cur)
+        conn.commit()
         # Get recipe details
         recipe = get_recipe_by_id(cur, recipe_id)
 
@@ -842,14 +931,23 @@ def recipe_detail(recipe_id):
             base_total_cost = total_cost
         yield_qty_float = to_float(recipe.get('yield_qty'))
         cost_per_yield = None
-        if total_cost and yield_qty_float > 0:
+        if total_cost is not None and yield_qty_float > 0:
             cost_per_yield = total_cost / yield_qty_float
 
         yield_display = smart_quantity(recipe.get('yield_qty'), recipe.get('yield_unit'), unit_system)
+        instruction_steps = split_instruction_steps(recipe.get('instructions'))
+        critical_steps_list = split_instruction_steps(recipe.get('critical_steps'))
+        storage_lines = split_instruction_steps(recipe.get('storage_instructions'))
         pdf_data = {
+            'id': recipe.get('id') or '',
             'name': recipe.get('name') or '',
             'venue': recipe.get('source_venue') or '',
             'equipment': recipe.get('equipment') or '',
+            'station': recipe.get('station') or '',
+            'critical_steps': recipe.get('critical_steps') or '',
+            'storage_instructions': recipe.get('storage_instructions') or '',
+            'shelf_life_days': recipe.get('shelf_life_days'),
+            'prep_time_minutes': recipe.get('prep_time_minutes'),
             'yield': f"{yield_display.get('quantity')} {yield_display.get('unit')}".strip(),
             'ingredients': flatten_components_for_pdf(components),
             'instructions': recipe.get('instructions') or ''
@@ -866,7 +964,10 @@ def recipe_detail(recipe_id):
         base_total_cost=base_total_cost,
         q_factor_percent=RECIPE_Q_FACTOR_PERCENT,
         q_factor_amount=q_factor_amount,
-        recipe_pdf=pdf_data
+        recipe_pdf=pdf_data,
+        instruction_steps=instruction_steps,
+        critical_steps_list=critical_steps_list,
+        storage_lines=storage_lines,
     )
 
 

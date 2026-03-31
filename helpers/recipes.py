@@ -64,7 +64,25 @@ RECIPE_CATEGORIES = [
 
 def get_recipe_by_id(cur, recipe_id):
     cur.execute(
-        "SELECT id, name, category, yield_qty, yield_unit, instructions, source_venue, equipment, recipe_type, menu_descriptor FROM recipes WHERE id = %s",
+        """
+        SELECT id,
+               name,
+               category,
+               yield_qty,
+               yield_unit,
+               instructions,
+               source_venue,
+               equipment,
+               station,
+               critical_steps,
+               storage_instructions,
+               shelf_life_days,
+               prep_time_minutes,
+               recipe_type,
+               menu_descriptor
+        FROM recipes
+        WHERE id = %s
+        """,
         (recipe_id,)
     )
     return cur.fetchone()
@@ -94,8 +112,24 @@ def clone_recipe(cur, source_recipe_id):
     clone_id = generate_id('rec_')
 
     cur.execute("""
-        INSERT INTO recipes (id, name, category, yield_qty, yield_unit, instructions, recipe_type, menu_descriptor)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        INSERT INTO recipes (
+            id,
+            name,
+            category,
+            yield_qty,
+            yield_unit,
+            instructions,
+            source_venue,
+            equipment,
+            station,
+            critical_steps,
+            storage_instructions,
+            shelf_life_days,
+            prep_time_minutes,
+            recipe_type,
+            menu_descriptor
+        )
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """, (
         clone_id,
         clone_name,
@@ -103,6 +137,13 @@ def clone_recipe(cur, source_recipe_id):
         source_recipe.get('yield_qty'),
         source_recipe.get('yield_unit'),
         source_recipe.get('instructions'),
+        source_recipe.get('source_venue'),
+        source_recipe.get('equipment'),
+        source_recipe.get('station'),
+        source_recipe.get('critical_steps'),
+        source_recipe.get('storage_instructions'),
+        source_recipe.get('shelf_life_days'),
+        source_recipe.get('prep_time_minutes'),
         source_recipe.get('recipe_type'),
         source_recipe.get('menu_descriptor')
     ))

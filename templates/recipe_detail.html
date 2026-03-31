@@ -1,240 +1,761 @@
 {% extends "base.html" %}
-{% from "base.html" import page_header, tab_bar %}
 
 {% block title %}{{ recipe.name }} - Foxtown HQ{% endblock %}
 
 {% block content %}
-{% macro render_components(items, level=0) %}
-<div class="space-y-3 {% if level > 0 %}ml-4 border-l border-stone-200 pl-4{% endif %}">
+{% set yield_display = smart_quantity(recipe.yield_qty, recipe.yield_unit) %}
+{% if recipe.recipe_type == 'menu' %}
+{% set recipe_kind = 'RM Plated' %}
+{% elif recipe.recipe_type == 'batch' %}
+{% set recipe_kind = 'RB Batch' %}
+{% else %}
+{% set recipe_kind = 'Recipe' %}
+{% endif %}
+{% set descriptor_copy = recipe.menu_descriptor or 'Operational recipe sheet with live component costing and sub-recipe rollups.' %}
+
+{% macro render_component_rows(items, depth=0) -%}
     {% for item in items %}
-    <div class="border-l-4 {% if item.type == 'recipe' %}border-foxtown-ember{% elif item.type == 'option_group' %}border-amber-500{% else %}border-foxtown-slate{% endif %} pl-3 py-2">
-        <div class="flex items-start justify-between gap-3">
-            <div class="flex-1">
-                <div class="font-semibold text-foxtown-ink">{{ item.item_name }}</div>
-                <div class="text-sm text-stone-600">
-                    {% if item.type == 'option_group' %}
-                    Weighted average group
-                    {% if item.group_weight_total is not none %}
-                    <span class="text-xs text-stone-400">({{ "%.2f"|format(item.group_weight_total) }}%)</span>
-                    {% endif %}
-                    {% else %}
-                    {{ item.display_quantity }} {{ item.display_unit or item.unit or '' }}
-                    {% if item.display_converted %}
-                    <span class="text-xs text-stone-400">({{ item.scaled_quantity_display }} {{ item.unit or '' }})</span>
-                    {% endif %}
-                    {% if item.type == 'recipe' and item.sub_recipe %}
-                    {% set sub_yield = smart_quantity(item.sub_recipe.yield_qty, item.sub_recipe.yield_unit) %}
-                    <span class="text-xs text-stone-400"> | Yield: {{ sub_yield.quantity }} {{ sub_yield.unit }}</span>
-                    {% endif %}
-                    {% endif %}
+        {% if item.type == 'ingredient' %}
+            {% set item_label = 'Ingredient' %}
+            {% set item_badge = 'ING' %}
+            {% set unit_cost = ('$' ~ ('%.2f'|format(item.display_cost_per_unit)) ~ ' / ' ~ (item.display_unit or item.unit or 'unit')) if item.display_cost_per_unit is not none else 'N/A' %}
+            {% set extension_cost = '$' ~ ('%.2f'|format(item.cost_total)) if item.cost_total is not none else 'N/A' %}
+            {% set subline = item.category or 'Raw ingredient' %}
+        {% elif item.type == 'recipe' %}
+            {% set item_label = 'Sub-Recipe' %}
+            {% set item_badge = 'SUB' %}
+            {% set unit_cost = ('$' ~ ('%.2f'|format(item.sub_cost_per_unit)) ~ ' / ' ~ item.sub_cost_unit) if item.sub_cost_per_unit is not none and item.sub_cost_unit else 'Linked build' %}
+            {% set extension_cost = '$' ~ ('%.2f'|format(item.sub_total_cost)) if item.sub_total_cost is not none else 'N/A' %}
+            {% if item.sub_recipe %}
+                {% set sub_yield = smart_quantity(item.sub_recipe.yield_qty, item.sub_recipe.yield_unit) %}
+                {% set subline = 'Yield ' ~ sub_yield.quantity ~ ' ' ~ sub_yield.unit %}
+            {% else %}
+                {% set subline = 'No child recipe detail recorded' %}
+            {% endif %}
+        {% else %}
+            {% set item_label = 'Choice Group' %}
+            {% set item_badge = 'WG' %}
+            {% set unit_cost = 'Weighted mix' %}
+            {% set extension_cost = '$' ~ ('%.2f'|format(item.cost_total or 0)) %}
+            {% if item.group_weight_total is not none %}
+                {% set subline = ('%.2f'|format(item.group_weight_total)) ~ '% combined weight' %}
+            {% else %}
+                {% set subline = 'Weighted option group' %}
+            {% endif %}
+        {% endif %}
+<tr class="rm-ledger-row {% if item.type == 'recipe' %}rm-ledger-row--recipe{% elif item.type == 'option_group' %}rm-ledger-row--group{% endif %}">
+    <td class="rm-ledger-cell rm-ledger-cell--name" style="padding-left: calc(1rem + {{ depth }} * 1.2rem);">
+        <div class="rm-ledger-namewrap">
+            <span class="rm-ledger-badge rm-ledger-badge--{{ item.type or 'ingredient' }}">{{ item_badge }}</span>
+            <div>
+                <div class="rm-ledger-title">{{ item.item_name }}</div>
+                <div class="rm-ledger-subline">{{ item_label }} · {{ subline }}</div>
+            </div>
+        </div>
+    </td>
+    <td class="rm-ledger-cell rm-ledger-cell--qty">
+        {{ item.display_quantity }} {{ item.display_unit or item.unit or '' }}
+        {% if item.display_converted %}
+        <div class="rm-ledger-subline">{{ item.scaled_quantity_display }} {{ item.unit or '' }}</div>
+        {% endif %}
+    </td>
+    <td class="rm-ledger-cell rm-ledger-cell--unitcost">{{ unit_cost }}</td>
+    <td class="rm-ledger-cell rm-ledger-cell--extension">{{ extension_cost }}</td>
+</tr>
+        {% if item.children %}
+            {{ render_component_rows(item.children, depth + 1) }}
+        {% elif item.type == 'recipe' %}
+<tr class="rm-ledger-note-row">
+    <td class="rm-ledger-note" colspan="4" style="padding-left: calc(3.6rem + {{ depth }} * 1.2rem);">No nested ingredient rows are linked under this sub-recipe yet.</td>
+</tr>
+        {% endif %}
+    {% endfor %}
+{%- endmacro %}
+
+<div class="rm-shell">
+    <div class="rm-toolbar no-print">
+        <div class="rm-toolbar-copy">
+            <div class="rm-toolbar-kicker">Recipe Master</div>
+            <div class="rm-toolbar-title">{{ recipe.name }}</div>
+        </div>
+        <div class="rm-toolbar-actions">
+            <a href="{{ url_for('recipes') }}" class="rm-btn rm-btn--ghost">All Recipes</a>
+            <button type="button" onclick="exportRecipePdf()" class="rm-btn rm-btn--ghost">Export PDF</button>
+            <form method="POST" action="{{ url_for('recipe_clone', recipe_id=recipe.id) }}"><button type="submit" class="rm-btn rm-btn--ghost">Clone</button></form>
+            <form method="POST" action="{{ url_for('recipe_delete', recipe_id=recipe.id) }}" onsubmit="return confirm('Delete ' + {{ recipe.name|tojson }} + '? This cannot be undone.')">
+                <button type="submit" class="rm-btn rm-btn--danger">Delete</button>
+            </form>
+            <a href="{{ url_for('recipe_edit', recipe_id=recipe.id) }}" class="rm-btn rm-btn--primary">Edit Recipe</a>
+        </div>
+    </div>
+
+    <div class="rm-sheet">
+        <section class="rm-hero">
+            <div class="rm-hero-copy">
+                <div class="rm-hero-meta">
+                    <span>Recipe ID: {{ recipe.id|upper }}</span>
+                    <span class="rm-dot"></span>
+                    <span>Station: {{ (recipe.station or 'General')|upper }}</span>
                 </div>
-                {% if item.type == 'recipe' %}
-                <div class="mt-1 flex flex-wrap gap-2 items-center">
-                    <span class="inline-block px-2 py-0.5 text-xs font-semibold rounded bg-foxtown-ember text-white">
-                        Sub-Recipe
-                    </span>
-                    {% if item.sub_cost_per_unit and item.sub_cost_unit %}
-                    <span class="text-xs text-stone-500">
-                        Cost per {{ item.sub_cost_unit }}: ${{ "%.4f"|format(item.sub_cost_per_unit) }}
-                    </span>
-                    {% endif %}
+                <h1 class="rm-name">{{ recipe.name }}</h1>
+                <p class="rm-description">{{ descriptor_copy }}</p>
+            </div>
+            <div class="rm-hero-card">
+                <div class="rm-hero-card-kicker">Kitchen Ops</div>
+                <div class="rm-hero-card-value">{{ recipe_kind }}</div>
+                <div class="rm-hero-card-grid">
+                    <div>
+                        <span class="rm-mini-label">Category</span>
+                        <span class="rm-mini-value">{{ recipe.category or 'Uncategorized' }}</span>
+                    </div>
+                    <div>
+                        <span class="rm-mini-label">Venues</span>
+                        <span class="rm-mini-value">{{ recipe_venues|length or 'All' }}</span>
+                    </div>
+                    <div>
+                        <span class="rm-mini-label">Source</span>
+                        <span class="rm-mini-value">{{ recipe.source_venue or 'System' }}</span>
+                    </div>
+                    <div>
+                        <span class="rm-mini-label">Equipment</span>
+                        <span class="rm-mini-value">{{ recipe.equipment or 'TBD' }}</span>
+                    </div>
                 </div>
-                {% elif item.type == 'option_group' %}
-                <div class="mt-1 flex flex-wrap gap-2 items-center">
-                    <span class="inline-block px-2 py-0.5 text-xs font-semibold rounded bg-amber-500 text-white">
-                        Choice Group
-                    </span>
-                    <span class="text-xs text-stone-500">
-                        Weighted choices by expected mix
-                    </span>
+            </div>
+        </section>
+
+        <section class="rm-stat-grid">
+            <div class="rm-stat-card">
+                <div class="rm-stat-label">Yield</div>
+                <div class="rm-stat-value">{{ yield_display.quantity }} {{ yield_display.unit }}</div>
+            </div>
+            <div class="rm-stat-card">
+                <div class="rm-stat-label">Estimated Total Cost</div>
+                <div class="rm-stat-value">{% if total_cost is not none %}${{ "%.2f"|format(total_cost) }}{% else %}N/A{% endif %}</div>
+            </div>
+            <div class="rm-stat-card rm-stat-card--accent">
+                <div class="rm-stat-label">Cost Per {{ yield_display.unit or 'Unit' }}</div>
+                <div class="rm-stat-value">{% if cost_per_yield is not none %}${{ "%.2f"|format(cost_per_yield) }}{% else %}N/A{% endif %}</div>
+            </div>
+            <div class="rm-stat-card">
+                <div class="rm-stat-label">Component Rows</div>
+                <div class="rm-stat-value">{{ component_count }}</div>
+            </div>
+        </section>
+
+        <section class="rm-ledger">
+            <div class="rm-ledger-header">
+                <div class="rm-ledger-heading">Ingredient / Sub-Recipe</div>
+                <div class="rm-ledger-heading rm-ledger-heading--right">Qty / Unit</div>
+                <div class="rm-ledger-heading rm-ledger-heading--right">Unit Cost</div>
+                <div class="rm-ledger-heading rm-ledger-heading--right">Extension</div>
+            </div>
+            {% if components %}
+            <table class="rm-ledger-table">
+                <tbody>
+                    {{ render_component_rows(components) }}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="rm-empty">No ingredients or linked sub-recipes have been added yet.</div>
+            {% endif %}
+            <div class="rm-ledger-total">
+                <span>Total Rollup</span>
+                <span>{% if total_cost is not none %}${{ "%.2f"|format(total_cost) }}{% else %}N/A{% endif %}</span>
+            </div>
+            {% if base_total_cost is not none and q_factor_amount is not none and q_factor_percent %}
+            <div class="rm-ledger-footnote">Subtotal: ${{ "%.2f"|format(base_total_cost) }} · Q Factor ({{ q_factor_percent|round(2) }}%): ${{ "%.2f"|format(q_factor_amount) }}</div>
+            {% endif %}
+        </section>
+
+        <section class="rm-panel-grid">
+            <div class="rm-panel rm-panel--alert">
+                <div class="rm-panel-title">Critical Yield Alerts</div>
+                {% if critical_steps_list %}
+                <div class="rm-panel-list">
+                    {% for step in critical_steps_list[:4] %}
+                    <div class="rm-panel-item">
+                        <span class="rm-panel-index">{{ '%02d'|format(loop.index) }}.</span>
+                        <div class="rm-panel-copy">{{ step }}</div>
+                    </div>
+                    {% endfor %}
                 </div>
                 {% else %}
-                <div class="text-xs text-stone-500 mt-1">{{ item.category }}</div>
+                <div class="rm-panel-empty">No critical steps are logged yet. Add them on the recipe edit form to surface food-safety and hold-point alerts here.</div>
                 {% endif %}
             </div>
-            <div class="text-right">
-                {% if item.type == 'ingredient' and item.cost_per_unit %}
-                <div class="text-sm font-semibold text-stone-700">
-                    ${{ "%.2f"|format(item.cost_total) }}
+            <div class="rm-panel rm-panel--ops">
+                <div class="rm-panel-title">Prep And Handling</div>
+                <div class="rm-operational-rows">
+                    <div class="rm-operational-row">
+                        <span>Prep Time</span>
+                        <span>{% if recipe.prep_time_minutes is not none %}{{ recipe.prep_time_minutes }} MIN{% else %}Not logged{% endif %}</span>
+                    </div>
+                    <div class="rm-operational-row">
+                        <span>Shelf Life</span>
+                        <span>{% if recipe.shelf_life_days is not none %}{{ recipe.shelf_life_days }} DAYS{% else %}Not logged{% endif %}</span>
+                    </div>
+                    <div class="rm-operational-row">
+                        <span>Station</span>
+                        <span>{{ recipe.station or 'General' }}</span>
+                    </div>
+                    <div class="rm-operational-row">
+                        <span>Equipment</span>
+                        <span>{{ recipe.equipment or 'Not specified' }}</span>
+                    </div>
                 </div>
-                <div class="text-xs text-stone-500">
-                    ${{ "%.2f"|format(item.display_cost_per_unit) }} / {{ item.display_unit or item.unit or 'unit' }}
+                {% if storage_lines %}
+                <div class="rm-storage-block">
+                    <div class="rm-storage-title">Storage Instructions</div>
+                    <ul class="rm-storage-list">
+                        {% for line in storage_lines %}
+                        <li>{{ line }}</li>
+                        {% endfor %}
+                    </ul>
                 </div>
-                {% elif item.type == 'recipe' and item.sub_total_cost is not none %}
-                <div class="text-sm font-semibold text-stone-700">
-                    ${{ "%.2f"|format(item.sub_total_cost) }}
+                {% endif %}
+                {% if recipe_venues %}
+                <div class="rm-storage-block">
+                    <div class="rm-storage-title">Assigned Venues</div>
+                    <div class="rm-venue-chips">
+                        {% for venue in recipe_venues %}
+                        <span class="rm-venue-chip">{{ venue.name }}</span>
+                        {% endfor %}
+                    </div>
                 </div>
-                <div class="text-xs text-stone-500">Sub-recipe cost</div>
-                {% elif item.type == 'option_group' %}
-                <div class="text-sm font-semibold text-stone-700">
-                    ${{ "%.2f"|format(item.cost_total or 0) }}
-                </div>
-                <div class="text-xs text-stone-500">Weighted group cost</div>
                 {% endif %}
             </div>
-        </div>
+        </section>
 
-        {% if item.children %}
-        <div class="mt-3">
-            <div class="text-xs uppercase tracking-wide text-stone-400 mb-2">Includes</div>
-            {{ render_components(item.children, level + 1) }}
-        </div>
-        {% elif item.type == 'recipe' %}
-        <div class="text-xs text-stone-400 mt-2">No ingredients listed for this sub-recipe</div>
+        {% if instruction_steps %}
+        <section class="rm-timeline">
+            <div class="rm-section-title">Production Timeline</div>
+            <div class="rm-timeline-rows">
+                {% for step in instruction_steps %}
+                <div class="rm-timeline-row">
+                    <div class="rm-timeline-index">{{ '%02d'|format(loop.index) }}</div>
+                    <div class="rm-timeline-copy">{{ step }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        {% elif recipe.instructions %}
+        <section class="rm-timeline">
+            <div class="rm-section-title">Instructions</div>
+            <div class="rm-freeform-copy">{{ recipe.instructions }}</div>
+        </section>
         {% endif %}
     </div>
-    {% endfor %}
 </div>
-{% endmacro %}
 
-<div class="min-h-screen">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
-        {% call page_header(recipe.name) %}
-        <button type="button" onclick="exportRecipePdf()" class="fhq-btn fhq-btn--outline">Export PDF</button>
-        <form method="POST" action="{{ url_for('recipe_clone', recipe_id=recipe.id) }}"><button type="submit" class="fhq-btn fhq-btn--outline">Clone Recipe</button></form>
-        <form method="POST" action="{{ url_for('recipe_delete', recipe_id=recipe.id) }}" onsubmit="return confirm('Delete ' + {{ recipe.name|tojson }} + '? This cannot be undone.')">
-            <button type="submit" class="fhq-btn fhq-btn--outline !border-red-300 !text-red-700 hover:!bg-red-50">Delete Recipe</button>
-        </form>
-        <a href="{{ url_for('recipe_edit', recipe_id=recipe.id) }}" class="fhq-btn fhq-btn--primary">Edit Recipe</a>
-        {% endcall %}
-        {{ tab_bar([
-            {'id': 'all', 'label': 'All Recipes', 'url': url_for('recipes')},
-            {'id': 'generator', 'label': 'Generator', 'url': url_for('recipe_generator')},
-        ], 'all') }}
-    </div>
+<style>
+.rm-shell {
+    min-height: calc(100vh - 4rem);
+    padding: 1.5rem 1rem 3rem;
+    background:
+        linear-gradient(180deg, #edf2f4 0%, #f7f9fb 24%, #edf2f4 100%);
+    color: #2a3439;
+}
+.rm-toolbar {
+    max-width: 72rem;
+    margin: 0 auto 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+.rm-toolbar-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+.rm-toolbar-kicker {
+    font-size: 0.64rem;
+    font-weight: 900;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #566166;
+}
+.rm-toolbar-title {
+    font-size: 1.65rem;
+    font-weight: 900;
+    letter-spacing: -0.05em;
+    text-transform: uppercase;
+}
+.rm-toolbar-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+}
+.rm-toolbar-actions form {
+    margin: 0;
+}
+.rm-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.7rem;
+    padding: 0.7rem 1rem;
+    border: 1px solid #717c82;
+    background: #ffffff;
+    color: #2a3439;
+    font-size: 0.72rem;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    text-decoration: none;
+}
+.rm-btn--primary {
+    background: #2a3439;
+    color: #f7f9fb;
+    border-color: #2a3439;
+}
+.rm-btn--danger {
+    border-color: #c00815;
+    color: #c00815;
+}
+.rm-sheet {
+    max-width: 72rem;
+    margin: 0 auto;
+    padding: 2rem;
+    background: #ffffff;
+    border: 3px solid #2a3439;
+}
+.rm-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(18rem, 0.8fr);
+    gap: 1.5rem;
+    align-items: start;
+    margin-bottom: 1.75rem;
+}
+.rm-hero-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    flex-wrap: wrap;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #566166;
+}
+.rm-dot {
+    width: 0.3rem;
+    height: 0.3rem;
+    background: #a9b4b9;
+}
+.rm-name {
+    margin: 0.55rem 0 0.7rem;
+    font-size: clamp(2.9rem, 8vw, 5rem);
+    line-height: 0.92;
+    font-weight: 900;
+    letter-spacing: -0.09em;
+    text-transform: uppercase;
+}
+.rm-description {
+    max-width: 44rem;
+    margin: 0;
+    font-size: 0.95rem;
+    line-height: 1.65;
+    color: #566166;
+}
+.rm-hero-card {
+    padding: 1.15rem;
+    border-bottom: 4px solid #2a3439;
+    background: #e1e9ee;
+}
+.rm-hero-card-kicker {
+    margin-bottom: 0.3rem;
+    font-size: 0.68rem;
+    font-weight: 900;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #566166;
+}
+.rm-hero-card-value {
+    margin-bottom: 1rem;
+    font-size: 2rem;
+    line-height: 1;
+    font-weight: 900;
+    letter-spacing: -0.05em;
+    text-transform: uppercase;
+}
+.rm-hero-card-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem 0.9rem;
+}
+.rm-mini-label {
+    display: block;
+    margin-bottom: 0.18rem;
+    font-size: 0.58rem;
+    font-weight: 900;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #566166;
+}
+.rm-mini-value {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 800;
+    line-height: 1.35;
+}
+.rm-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.1rem;
+    margin-bottom: 1.75rem;
+    background: #2a3439;
+}
+.rm-stat-card {
+    padding: 1.25rem 1.15rem;
+    background: #ffffff;
+    border-bottom: 3px solid #2a3439;
+}
+.rm-stat-card--accent {
+    border-bottom-color: #565e74;
+}
+.rm-stat-label {
+    margin-bottom: 0.4rem;
+    font-size: 0.58rem;
+    font-weight: 900;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #566166;
+}
+.rm-stat-value {
+    font-size: 2.1rem;
+    line-height: 1;
+    font-weight: 900;
+    letter-spacing: -0.06em;
+}
+.rm-ledger {
+    margin-bottom: 1.75rem;
+    border: 1px solid #a9b4b9;
+}
+.rm-ledger-header,
+.rm-ledger-total {
+    display: grid;
+    grid-template-columns: minmax(0, 1.8fr) minmax(10rem, 0.6fr) minmax(10rem, 0.6fr) minmax(10rem, 0.6fr);
+}
+.rm-ledger-header {
+    background: #d9e4ea;
+    border-bottom: 2px solid #2a3439;
+}
+.rm-ledger-heading {
+    padding: 0.85rem 0.95rem;
+    font-size: 0.58rem;
+    font-weight: 900;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+}
+.rm-ledger-heading--right {
+    text-align: right;
+}
+.rm-ledger-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.rm-ledger-row {
+    border-bottom: 1px solid #a9b4b9;
+}
+.rm-ledger-row--recipe {
+    background: #edf2f4;
+}
+.rm-ledger-row--group {
+    background: #f3f6f8;
+}
+.rm-ledger-cell {
+    padding: 0.9rem 0.95rem;
+    vertical-align: top;
+    font-size: 0.82rem;
+    border-left: 1px solid #a9b4b9;
+}
+.rm-ledger-cell:first-child {
+    border-left: none;
+}
+.rm-ledger-cell--qty,
+.rm-ledger-cell--unitcost,
+.rm-ledger-cell--extension {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+.rm-ledger-namewrap {
+    display: flex;
+    gap: 0.7rem;
+    align-items: flex-start;
+}
+.rm-ledger-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.35rem;
+    min-height: 1.6rem;
+    padding: 0 0.45rem;
+    background: #2a3439;
+    color: #f7f9fb;
+    font-size: 0.55rem;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+.rm-ledger-badge--recipe {
+    background: #565e74;
+}
+.rm-ledger-badge--option_group {
+    background: #717c82;
+}
+.rm-ledger-title {
+    font-size: 0.9rem;
+    font-weight: 900;
+    line-height: 1.3;
+    text-transform: uppercase;
+}
+.rm-ledger-subline,
+.rm-ledger-note {
+    margin-top: 0.2rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1.45;
+    text-transform: uppercase;
+    color: #566166;
+}
+.rm-ledger-note-row {
+    background: #fafbfd;
+    border-bottom: 1px solid #a9b4b9;
+}
+.rm-ledger-note {
+    padding: 0.2rem 0.95rem 0.85rem;
+}
+.rm-empty {
+    padding: 1rem;
+    font-size: 0.85rem;
+    color: #566166;
+}
+.rm-ledger-total {
+    background: #2a3439;
+    color: #f7f9fb;
+}
+.rm-ledger-total span {
+    grid-column: span 2;
+    padding: 0.95rem;
+    font-size: 0.82rem;
+    font-weight: 900;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+.rm-ledger-total span:last-child {
+    grid-column: 4;
+    text-align: right;
+    font-size: 1.35rem;
+    letter-spacing: -0.03em;
+}
+.rm-ledger-footnote {
+    padding: 0.75rem 0.95rem 0.9rem;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #566166;
+    background: #f7f9fb;
+}
+.rm-panel-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.95fr);
+    gap: 1rem;
+    margin-bottom: 1.75rem;
+}
+.rm-panel {
+    padding: 1.4rem 1.45rem;
+    border-bottom: 4px solid #2a3439;
+}
+.rm-panel--alert {
+    background: #e1e9ee;
+    border-bottom-color: #c00815;
+}
+.rm-panel--ops {
+    background: #d9e4ea;
+}
+.rm-panel-title,
+.rm-section-title {
+    margin-bottom: 1rem;
+    font-size: 1.05rem;
+    font-weight: 900;
+    letter-spacing: -0.03em;
+    text-transform: uppercase;
+}
+.rm-panel-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.95rem;
+}
+.rm-panel-item {
+    display: flex;
+    gap: 0.8rem;
+    align-items: flex-start;
+}
+.rm-panel-index {
+    flex-shrink: 0;
+    font-size: 0.82rem;
+    font-weight: 900;
+    color: #c00815;
+}
+.rm-panel-copy,
+.rm-panel-empty {
+    font-size: 0.74rem;
+    line-height: 1.55;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: #465468;
+}
+.rm-operational-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+.rm-operational-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.65rem 0;
+    border-bottom: 1px solid #a9b4b9;
+    font-size: 0.76rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+.rm-storage-block {
+    margin-top: 1rem;
+}
+.rm-storage-title {
+    margin-bottom: 0.55rem;
+    font-size: 0.68rem;
+    font-weight: 900;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #566166;
+}
+.rm-storage-list {
+    margin: 0;
+    padding-left: 1rem;
+    font-size: 0.74rem;
+    font-weight: 800;
+    line-height: 1.55;
+    text-transform: uppercase;
+    color: #465468;
+}
+.rm-storage-list li + li {
+    margin-top: 0.3rem;
+}
+.rm-venue-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+}
+.rm-venue-chip {
+    display: inline-flex;
+    padding: 0.35rem 0.5rem;
+    border: 1px solid #717c82;
+    font-size: 0.62rem;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+.rm-timeline {
+    padding: 1.25rem 1.3rem 1.45rem;
+    border: 1px solid #a9b4b9;
+    background: #ffffff;
+}
+.rm-timeline-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+}
+.rm-timeline-row {
+    display: flex;
+    gap: 0.8rem;
+    align-items: flex-start;
+}
+.rm-timeline-index {
+    width: 2rem;
+    height: 2rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #2a3439;
+    color: #f7f9fb;
+    font-size: 0.72rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+}
+.rm-timeline-copy,
+.rm-freeform-copy {
+    flex: 1;
+    padding-bottom: 0.8rem;
+    border-bottom: 2px solid #2a3439;
+    font-size: 0.85rem;
+    line-height: 1.7;
+    color: #2a3439;
+    white-space: pre-line;
+}
+.rm-timeline-row:last-child .rm-timeline-copy {
+    padding-bottom: 0;
+}
+@media (max-width: 960px) {
+    .rm-sheet,
+    .rm-toolbar {
+        max-width: none;
+    }
+    .rm-hero,
+    .rm-panel-grid {
+        grid-template-columns: 1fr;
+    }
+    .rm-stat-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+@media (max-width: 700px) {
+    .rm-shell {
+        padding-left: 0.65rem;
+        padding-right: 0.65rem;
+    }
+    .rm-sheet {
+        padding: 1.15rem;
+    }
+    .rm-stat-grid {
+        grid-template-columns: 1fr;
+    }
+    .rm-ledger-header,
+    .rm-ledger-total {
+        grid-template-columns: minmax(0, 1.6fr) repeat(3, minmax(6rem, 0.6fr));
+    }
+}
+@media print {
+    .rm-shell {
+        background: #ffffff !important;
+        padding: 0 !important;
+    }
+    .rm-sheet {
+        max-width: none !important;
+        margin: 0 !important;
+        border-width: 2pt !important;
+        box-shadow: none !important;
+    }
+    .rm-stat-card,
+    .rm-ledger-header,
+    .rm-ledger-total,
+    .rm-panel,
+    .rm-timeline-index,
+    .rm-ledger-row--recipe,
+    .rm-ledger-row--group {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+}
+</style>
 
-    <!-- Main Content -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            
-            <!-- Left Column: Recipe Info & Instructions -->
-            <div class="lg:col-span-2 space-y-6">
-                
-                <!-- Recipe Details Card -->
-                <div class="bg-white border border-stone-200 rounded-2xl shadow-soft p-6">
-                    <div class="flex items-center justify-between mb-4">
-                        <h2 class="text-xl font-display text-foxtown-ink">Recipe Details</h2>
-                        <div class="flex items-center gap-2">
-                            <span class="inline-block px-3 py-1 text-sm font-semibold rounded bg-stone-100 text-stone-700">
-                                {{ recipe.category or 'Uncategorized' }}
-                            </span>
-                            {% if recipe.recipe_type == 'menu' %}
-                                <span class="inline-block px-3 py-1 text-sm font-semibold rounded bg-foxtown-ember text-white">RM Plated</span>
-                            {% elif recipe.recipe_type == 'batch' %}
-                                <span class="inline-block px-3 py-1 text-sm font-semibold rounded bg-slate-200 text-slate-700">RB Batch</span>
-                            {% endif %}
-                        </div>
-                    </div>
-                    
-                    <div class="grid grid-cols-2 gap-4 mb-6">
-                        <div class="bg-stone-50 border border-stone-200 rounded-xl p-4">
-                            <div class="text-sm text-stone-600 mb-1">Yield</div>
-                            {% set yield_display = smart_quantity(recipe.yield_qty, recipe.yield_unit) %}
-                            <div class="text-2xl font-semibold text-foxtown-ink">
-                                {{ yield_display.quantity }} <span class="text-lg font-normal">{{ yield_display.unit }}</span>
-                            </div>
-                        </div>
-                        <div class="bg-stone-50 border border-stone-200 rounded-xl p-4">
-                            <div class="text-sm text-stone-600 mb-1">Components</div>
-                            <div class="text-2xl font-semibold text-foxtown-ink">{{ component_count }}</div>
-                        </div>
-                    </div>
-
-                    {% if recipe.menu_descriptor or recipe.source_venue or recipe.equipment or recipe_venues %}
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {% if recipe.menu_descriptor %}
-                        <div class="bg-stone-50 border border-stone-200 rounded-xl p-4">
-                            <div class="text-sm text-stone-600 mb-1">Menu Descriptor</div>
-                            <div class="text-base font-semibold text-foxtown-ink">{{ recipe.menu_descriptor }}</div>
-                        </div>
-                        {% endif %}
-                        {% if recipe.source_venue %}
-                        <div class="bg-stone-50 border border-stone-200 rounded-xl p-4">
-                            <div class="text-sm text-stone-600 mb-1">Source Venue</div>
-                            <div class="text-base font-semibold text-foxtown-ink">{{ recipe.source_venue }}</div>
-                        </div>
-                        {% endif %}
-                        {% if recipe.equipment %}
-                        <div class="bg-stone-50 border border-stone-200 rounded-xl p-4">
-                            <div class="text-sm text-stone-600 mb-1">Equipment</div>
-                            <div class="text-base font-semibold text-foxtown-ink">{{ recipe.equipment }}</div>
-                        </div>
-                        {% endif %}
-                        {% if recipe_venues %}
-                        <div class="bg-stone-50 border border-stone-200 rounded-xl p-4 md:col-span-2">
-                            <div class="text-sm text-stone-600 mb-1">Assigned Venues</div>
-                            <div class="flex flex-wrap gap-2">
-                                {% for venue in recipe_venues %}
-                                <span class="inline-block px-2 py-1 text-xs font-semibold rounded bg-slate-200 text-slate-700">{{ venue.name }}</span>
-                                {% endfor %}
-                            </div>
-                        </div>
-                        {% endif %}
-                    </div>
-                    {% endif %}
-
-                    {% if total_cost and total_cost > 0 %}
-                    <div class="bg-stone-50 border border-stone-200 rounded-xl p-4">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <div class="text-sm text-stone-600 mb-1">Estimated Total Cost</div>
-                                <div class="text-2xl font-semibold text-foxtown-ink">${{ "%.2f"|format(total_cost) }}</div>
-                            </div>
-                            {% if cost_per_yield is not none %}
-                            <div class="text-right">
-                                <div class="text-sm text-stone-600 mb-1">Cost Per {{ yield_display.unit or 'unit' }}</div>
-                                <div class="text-lg font-semibold text-foxtown-ink">
-                                    ${{ "%.2f"|format(cost_per_yield) }}
-                                </div>
-                            </div>
-                            {% endif %}
-                        </div>
-                        {% if base_total_cost is not none and q_factor_amount is not none and q_factor_percent %}
-                        <div class="mt-2 text-xs text-stone-600">
-                            Subtotal: ${{ "%.2f"|format(base_total_cost) }} · Q Factor ({{ q_factor_percent|round(2) }}%): ${{ "%.2f"|format(q_factor_amount) }}
-                        </div>
-                        {% endif %}
-                        <div class="text-xs text-stone-500 mt-2">
-                            Costs reflect current ingredient pricing and any scaled sub-recipes.
-                        </div>
-                    </div>
-                    {% endif %}
-                </div>
-
-                <!-- Instructions Card -->
-                {% if recipe.instructions %}
-                <div class="bg-white border border-stone-200 rounded-2xl shadow-soft p-6">
-                    <h2 class="text-xl font-display text-foxtown-ink mb-4">Instructions</h2>
-                    <div class="prose max-w-none text-stone-700 whitespace-pre-line">{{ recipe.instructions }}</div>
-                </div>
-                {% endif %}
-
-            </div>
-
-            <!-- Right Column: Ingredients -->
-            <div class="lg:col-span-1">
-                <div class="bg-white border border-stone-200 rounded-2xl shadow-soft p-6 sticky top-6">
-                    <h2 class="text-xl font-display text-foxtown-ink mb-4">Ingredients & Components</h2>
-                    
-                    {% if components %}
-                    {{ render_components(components) }}
-                    {% else %}
-                    <div class="text-center py-8 text-gray-500">
-                        <svg class="w-16 h-16 mx-auto text-gray-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
-                        </svg>
-                        <p>No ingredients added yet</p>
-                    </div>
-                    {% endif %}
-
-                </div>
-            </div>
-
-        </div>
-
-    </div>
-</div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
 const recipePdfData = {{ recipe_pdf | tojson }};
@@ -261,17 +782,17 @@ function exportRecipePdf() {
 
     function drawBrandHeader(isContinuation = false) {
         doc.setFontSize(9);
-        doc.setTextColor(0, 82, 255);
+        doc.setTextColor(42, 52, 57);
         doc.setFont(undefined, 'bold');
         doc.text(
-            isContinuation ? 'FOXTOWN HOSPITALITY GROUP · CONTINUED' : 'FOXTOWN HOSPITALITY GROUP',
+            isContinuation ? 'RECIPE MASTER · CONTINUED' : 'RECIPE MASTER',
             pageWidth / 2,
             yPos,
             { align: 'center' }
         );
         yPos += 12;
 
-        doc.setDrawColor(0, 82, 255);
+        doc.setDrawColor(42, 52, 57);
         doc.setLineWidth(2);
         doc.line(margin, yPos, pageWidth - margin, yPos);
         yPos += 18;
@@ -282,7 +803,7 @@ function exportRecipePdf() {
         doc.setFontSize(11);
         doc.setFont(undefined, 'bold');
         doc.setTextColor(255, 255, 255);
-        doc.setFillColor(0, 82, 255);
+        doc.setFillColor(42, 52, 57);
         doc.rect(margin, yPos - 10, contentWidth, 14, 'F');
         doc.text(title, margin + 5, yPos);
         yPos += 16;
@@ -312,42 +833,36 @@ function exportRecipePdf() {
 
     drawBrandHeader(false);
 
-    doc.setFontSize(18);
+    doc.setFontSize(9);
+    doc.setTextColor(86, 97, 102);
+    doc.setFont(undefined, 'bold');
+    doc.text(`Recipe ID: ${recipePdfData.id ? recipePdfData.id.toUpperCase() : 'RECIPE'}${recipePdfData.station ? ` · STATION: ${recipePdfData.station.toUpperCase()}` : ''}`, margin, yPos);
+    yPos += 16;
+
+    doc.setFontSize(22);
     doc.setTextColor(0, 0, 0);
     doc.setFont(undefined, 'bold');
     const recipeNameLines = doc.splitTextToSize(recipePdfData.name || 'Recipe Name', contentWidth - 180);
     doc.text(recipeNameLines, margin, yPos);
+    yPos += (recipeNameLines.length * 20) + 10;
 
-    if (recipePdfData.venue) {
-        doc.setFontSize(10);
-        doc.setTextColor(0, 82, 255);
-        doc.setFont(undefined, 'bold');
-        doc.text('VENUE:', pageWidth - margin - 160, yPos);
-        doc.setFont(undefined, 'normal');
-        doc.setTextColor(0, 0, 0);
-        const venueText = doc.splitTextToSize(recipePdfData.venue, 120);
-        doc.text(venueText, pageWidth - margin - 110, yPos);
-    }
-    yPos += (recipeNameLines.length * 16) + 6;
-
-    ensureSpace(24, () => drawBrandHeader(true));
     doc.setFontSize(9);
+    doc.setTextColor(42, 52, 57);
     doc.setFont(undefined, 'bold');
-    doc.setTextColor(0, 82, 255);
     doc.text('Yield:', margin, yPos);
     doc.setFont(undefined, 'normal');
-    doc.setTextColor(0, 0, 0);
-    doc.text(recipePdfData.yield || 'N/A', margin + 40, yPos);
+    doc.text(recipePdfData.yield || 'N/A', margin + 36, yPos);
 
     doc.setFont(undefined, 'bold');
-    doc.setTextColor(0, 82, 255);
     doc.text('Equipment:', margin + 170, yPos);
     doc.setFont(undefined, 'normal');
-    doc.setTextColor(0, 0, 0);
-    const equipText = recipePdfData.equipment || 'N/A';
-    const equipmentLines = doc.splitTextToSize(equipText, pageWidth - (margin + 245) - margin);
-    doc.text(equipmentLines, margin + 245, yPos);
-    yPos += Math.max(18, equipmentLines.length * 11 + 6);
+    doc.text(recipePdfData.equipment || 'N/A', margin + 235, yPos);
+
+    doc.setFont(undefined, 'bold');
+    doc.text('Venue:', margin + 430, yPos);
+    doc.setFont(undefined, 'normal');
+    doc.text(recipePdfData.venue || 'N/A', margin + 475, yPos);
+    yPos += 22;
 
     const ingredients = recipePdfData.ingredients || [];
     if (ingredients.length) {
@@ -357,15 +872,15 @@ function exportRecipePdf() {
         const headers = ['Ingredient', 'Qty', 'UOM', 'Notes'];
 
         function drawIngredientHeader() {
-            drawSectionBanner('INGREDIENTS');
+            drawSectionBanner('COMPOSITION LEDGER');
             ensureSpace(22, () => {
                 drawBrandHeader(true);
-                drawSectionBanner('INGREDIENTS');
+                drawSectionBanner('COMPOSITION LEDGER');
             });
             doc.setFontSize(8);
-            doc.setFillColor(0, 82, 255);
+            doc.setFillColor(217, 228, 234);
             doc.rect(margin, yPos, totalTableWidth, 18, 'F');
-            doc.setTextColor(255, 255, 255);
+            doc.setTextColor(42, 52, 57);
             doc.setFont(undefined, 'bold');
             headers.forEach((header, i) => doc.text(header, colX[i] + 3, yPos + 12));
             yPos += 22;
@@ -405,14 +920,47 @@ function exportRecipePdf() {
         yPos += 8;
     }
 
+    const criticalSteps = parseInstructionSteps(recipePdfData.critical_steps);
+    if (criticalSteps.length) {
+        drawSectionBanner('CRITICAL STEPS');
+        criticalSteps.forEach((stepText, index) => {
+            const label = `${index + 1}.`;
+            const wrapped = doc.splitTextToSize(stepText, contentWidth - 24);
+            const blockHeight = Math.max(14, wrapped.length * 12 + 2);
+            ensureSpace(blockHeight + 2, () => {
+                drawBrandHeader(true);
+                drawSectionBanner('CRITICAL STEPS');
+            });
+            doc.setFont(undefined, 'bold');
+            doc.setTextColor(192, 8, 21);
+            doc.text(label, margin, yPos);
+            doc.setFont(undefined, 'normal');
+            doc.setTextColor(50, 50, 50);
+            doc.text(wrapped, margin + 18, yPos);
+            yPos += blockHeight;
+        });
+    }
+
+    const storageLines = parseInstructionSteps(recipePdfData.storage_instructions);
+    if (storageLines.length) {
+        drawSectionBanner('STORAGE');
+        storageLines.forEach((lineText) => {
+            const wrapped = doc.splitTextToSize(`• ${lineText}`, contentWidth - 12);
+            const blockHeight = Math.max(12, wrapped.length * 11 + 2);
+            ensureSpace(blockHeight + 2, () => {
+                drawBrandHeader(true);
+                drawSectionBanner('STORAGE');
+            });
+            doc.setTextColor(50, 50, 50);
+            doc.text(wrapped, margin, yPos);
+            yPos += blockHeight;
+        });
+    }
+
     if (recipePdfData.instructions) {
         const steps = parseInstructionSteps(recipePdfData.instructions);
         if (steps.length) {
-            function drawInstructionsHeader() {
-                drawSectionBanner('INSTRUCTIONS');
-            }
-
-            drawInstructionsHeader();
+            drawSectionBanner('INSTRUCTIONS');
             doc.setFontSize(10);
             doc.setTextColor(50, 50, 50);
             doc.setFont(undefined, 'normal');
@@ -423,7 +971,7 @@ function exportRecipePdf() {
                 const blockHeight = Math.max(14, wrapped.length * 12 + 2);
                 ensureSpace(blockHeight + 2, () => {
                     drawBrandHeader(true);
-                    drawInstructionsHeader();
+                    drawSectionBanner('INSTRUCTIONS');
                     doc.setFontSize(10);
                     doc.setTextColor(50, 50, 50);
                     doc.setFont(undefined, 'normal');
