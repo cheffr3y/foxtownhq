@@ -1,8 +1,8 @@
 {% macro page_header(title, subtitle=None, icon=None) %}
-<div class="flex justify-between items-start mb-5 gap-4">
+<div class="flex justify-between items-start mb-6 gap-4">
     <div class="flex items-center gap-3 min-w-0">
         {% if icon %}
-        <div class="w-8 h-8 rounded-lg bg-foxtown-border flex items-center justify-center text-foxtown-muted">
+        <div class="w-9 h-9 border border-foxtown-border flex items-center justify-center text-foxtown-text bg-foxtown-panel">
             {% if icon == 'dashboard' %}
             <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12l9-9 9 9M5 10v10a1 1 0 001 1h3a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1h3a1 1 0 001-1V10"/></svg>
             {% elif icon == 'banquets' %}
@@ -19,9 +19,10 @@
         </div>
         {% endif %}
         <div class="min-w-0">
-            <h1 class="text-xl font-bold tracking-tight text-foxtown-text truncate">{{ title }}</h1>
+            <div class="fhq-section-head mb-1">Foxtown HQ</div>
+            <h1 class="text-[1.6rem] font-black tracking-[-0.05em] text-foxtown-text truncate">{{ title }}</h1>
             {% if subtitle %}
-            <p class="text-sm text-foxtown-muted mt-0.5 truncate">{{ subtitle }}</p>
+            <p class="text-sm text-foxtown-muted mt-1 truncate">{{ subtitle }}</p>
             {% endif %}
         </div>
     </div>
@@ -47,7 +48,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Foxtown HQ{% endblock %}</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -55,16 +56,18 @@
                 extend: {
                     colors: {
                         foxtown: {
-                            bg: '#F7F6F4',
+                            bg: '#F7F9FB',
                             surface: '#FFFFFF',
-                            border: '#ECEAE6',
-                            borderHover: '#C8C2BB',
-                            text: '#1B1918',
-                            muted: '#8A8580',
-                            subtle: '#A09A94',
-                            ember: '#C0612B',
-                            emberLight: '#D4722B',
-                            dark: '#1B1918'
+                            panel: '#F0F4F7',
+                            panelStrong: '#D9E4EA',
+                            border: '#A9B4B9',
+                            borderHover: '#717C82',
+                            text: '#2A3439',
+                            muted: '#566166',
+                            subtle: '#717C82',
+                            ember: '#565E74',
+                            emberLight: '#4A5268',
+                            dark: '#0B0F10'
                         }
                     },
                     fontFamily: {
@@ -79,154 +82,423 @@
     <style>
         :root {
             color-scheme: light;
-            --void: #F7F6F4;
-            --surface: #FFFFFF;
-            --fg: #1B1918;
-            --muted: #8A8580;
-            --border: #ECEAE6;
-            --ember: #C0612B;
+            --bg: #f7f9fb;
+            --surface: #ffffff;
+            --surface-low: #f0f4f7;
+            --surface-high: #e8eff3;
+            --surface-top: #d9e4ea;
+            --surface-dim: #cfdce3;
+            --fg: #2a3439;
+            --muted: #566166;
+            --outline: #717c82;
+            --outline-ghost: rgba(169, 180, 185, 0.35);
+            --primary: #565e74;
+            --primary-dim: #4a5268;
+            --primary-soft: #dae2fd;
+            --danger: #c00815;
+            --danger-soft: #fff1f1;
+            --success: #36593d;
+            --success-soft: #eef5ef;
         }
         html, body { min-height: 100%; }
         body {
-            background: #F7F6F4;
-            color: #1B1918;
+            margin: 0;
+            background:
+                linear-gradient(180deg, rgba(217, 228, 234, 0.45), rgba(217, 228, 234, 0) 11rem),
+                var(--bg);
+            color: var(--fg);
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
             -webkit-font-smoothing: antialiased;
         }
-        .fhq-btn {
-            min-height: 40px;
-            border-radius: 8px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.45rem;
-            padding: 0.55rem 0.95rem;
-            font-size: 0.88rem;
-            font-weight: 600;
-            border: 1px solid transparent;
-            transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+        a {
+            color: inherit;
         }
         .fhq-btn:focus-visible,
         .fhq-input:focus-visible,
         .fhq-input-legacy:focus-visible,
         button:focus-visible,
         a:focus-visible {
-            outline: none;
-            box-shadow: 0 0 0 2px rgba(192, 97, 43, 0.2);
+            outline: 2px solid var(--primary);
+            outline-offset: 2px;
+            box-shadow: none;
         }
-        .fhq-btn--primary { background: #1B1918; color: #fff; }
-        .fhq-btn--primary:hover { background: #2A2725; }
-        .fhq-btn--outline { border: 1px solid #DDD8D3; color: #1B1918; background: #fff; }
-        .fhq-btn--outline:hover { border-color: #C8C2BB; background: #FCFBFA; }
-        .fhq-btn--ghost { color: #8A8580; background: transparent; }
-        .fhq-btn--ghost:hover { color: #1B1918; background: #F1EFEC; }
+        .fhq-btn {
+            min-height: 42px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.45rem;
+            padding: 0.65rem 0.95rem;
+            font-size: 0.72rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            border: 1px solid transparent;
+            border-radius: 0;
+            transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+        }
+        .fhq-btn:hover { transform: translateY(-1px); }
+        .fhq-btn--primary {
+            background: linear-gradient(180deg, var(--primary), var(--primary-dim));
+            color: #f7f7ff;
+            border-color: var(--primary);
+            border-bottom-width: 2px;
+        }
+        .fhq-btn--primary:hover {
+            background: linear-gradient(180deg, var(--primary-dim), #3e4659);
+        }
+        .fhq-btn--outline {
+            background: var(--surface-high);
+            color: var(--fg);
+            border-color: var(--outline-ghost);
+            border-bottom-color: var(--outline);
+        }
+        .fhq-btn--outline:hover {
+            background: var(--surface-top);
+            border-color: var(--outline);
+        }
+        .fhq-btn--ghost {
+            background: transparent;
+            color: var(--primary);
+            border-color: transparent;
+        }
+        .fhq-btn--ghost:hover {
+            background: var(--surface-low);
+            color: var(--primary-dim);
+        }
         .fhq-input, .fhq-input-legacy {
             width: 100%;
-            border: 1px solid #ECEAE6;
-            border-radius: 8px;
-            background: #fff;
-            color: #1B1918;
-            padding: 0.68rem 0.85rem;
             min-height: 42px;
+            padding: 0.7rem 0.15rem 0.45rem;
+            border: none;
+            border-bottom: 1px solid var(--outline);
+            border-radius: 0;
+            background: var(--surface);
+            color: var(--fg);
         }
-        .fhq-input::placeholder, .fhq-input-legacy::placeholder { color: #A09A94; }
+        .fhq-input::placeholder, .fhq-input-legacy::placeholder { color: var(--muted); opacity: 0.8; }
         .fhq-input:focus, .fhq-input-legacy:focus, input:focus, select:focus, textarea:focus {
             outline: none;
-            border-color: #C8C2BB;
-            box-shadow: 0 0 0 3px rgba(192, 97, 43, 0.12);
+            border-color: var(--primary);
+            border-bottom-width: 2px;
+            box-shadow: none;
         }
-        .fhq-card { background: #fff; border: 1px solid #ECEAE6; border-radius: 8px; }
-        .fhq-card:hover { border-color: #C8C2BB; }
+        select.fhq-input {
+            padding-right: 1.5rem;
+            background-image:
+                linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+                linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+            background-position:
+                calc(100% - 14px) calc(1em + 2px),
+                calc(100% - 9px) calc(1em + 2px);
+            background-size: 5px 5px, 5px 5px;
+            background-repeat: no-repeat;
+            appearance: none;
+        }
+        textarea.fhq-input {
+            padding-left: 0.15rem;
+            padding-right: 0.15rem;
+        }
+        .fhq-card {
+            background: var(--surface);
+            border: 1px solid var(--outline-ghost);
+            border-radius: 0;
+        }
         .fhq-section-head {
-            font-size: 12px;
-            font-weight: 600;
-            color: #8A8580;
+            font-size: 0.67rem;
+            font-weight: 800;
+            color: var(--muted);
             text-transform: uppercase;
-            letter-spacing: 0.04em;
-            margin-bottom: 10px;
+            letter-spacing: 0.12em;
+            margin-bottom: 0.75rem;
         }
         .fhq-pill {
-            font-size: 11px;
-            font-weight: 600;
-            padding: 4px 10px;
-            border-radius: 99px;
-            line-height: 1;
-            text-transform: capitalize;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            font-size: 0.67rem;
+            font-weight: 800;
+            padding: 0.28rem 0.55rem;
+            border: 1px solid transparent;
+            border-radius: 0;
+            line-height: 1.1;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
         }
-        .fhq-pill--confirmed { background: #EEFBEF; color: #2B7A30; border: 1px solid #C2E8C4; }
-        .fhq-pill--tentative, .fhq-pill--pending { background: #FFF8EE; color: #A0590A; border: 1px solid #F0D9A0; }
-        .fhq-pill--in-progress { background: #EEF3FF; color: #2656A8; border: 1px solid #A8C4F0; }
-        .fhq-table { width: 100%; border-collapse: collapse; }
+        .fhq-pill--confirmed {
+            background: var(--success-soft);
+            color: var(--success);
+            border-color: rgba(54, 89, 61, 0.25);
+        }
+        .fhq-pill--tentative,
+        .fhq-pill--pending {
+            background: var(--primary-soft);
+            color: var(--primary-dim);
+            border-color: rgba(86, 94, 116, 0.2);
+        }
+        .fhq-pill--in-progress {
+            background: var(--surface-top);
+            color: var(--primary-dim);
+            border-color: rgba(86, 94, 116, 0.18);
+        }
+        .fhq-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
         .fhq-table th {
             text-align: left;
-            padding: 8px 14px;
-            font-size: 11px;
-            font-weight: 600;
-            color: #A09A94;
+            padding: 0.55rem 0.9rem;
+            font-size: 0.67rem;
+            font-weight: 800;
+            color: var(--muted);
             text-transform: uppercase;
-            letter-spacing: 0.04em;
-            border-bottom: 1px solid #ECEAE6;
+            letter-spacing: 0.12em;
+            background: var(--surface-top);
         }
         .fhq-table td {
-            padding: 10px 14px;
-            font-size: 13px;
-            border-bottom: 1px solid #F3F1EE;
+            padding: 0.55rem 0.9rem;
+            font-size: 0.84rem;
+            border-bottom: 1px solid rgba(169, 180, 185, 0.12);
         }
-        .fhq-table tbody tr:hover { background: #FCFBFA; }
-        .fhq-table tbody tr:last-child td { border-bottom: none; }
+        .fhq-table tbody tr:nth-child(even) td {
+            background: var(--surface-low);
+        }
+        .fhq-table tbody tr:hover td {
+            background: var(--surface-high);
+        }
+        .fhq-table tbody tr:last-child td {
+            border-bottom: none;
+        }
         .fhq-tabs {
             display: flex;
-            gap: 1px;
-            border-bottom: 1px solid #ECEAE6;
-            margin-bottom: 20px;
+            gap: 0.2rem;
+            margin-bottom: 1.25rem;
             overflow-x: auto;
         }
         .fhq-tab {
-            padding: 8px 14px 10px;
+            padding: 0.65rem 0.85rem;
             border: none;
             border-bottom: 2px solid transparent;
-            background: none;
+            background: var(--surface-low);
             cursor: pointer;
-            font-size: 13px;
-            font-weight: 400;
-            color: #8A8580;
-            font-family: inherit;
+            font-size: 0.7rem;
+            font-weight: 800;
+            color: var(--muted);
             white-space: nowrap;
-            margin-bottom: -1px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
         }
-        .fhq-tab--active { font-weight: 600; color: #1B1918; border-bottom-color: #C0612B; }
+        .fhq-tab--active {
+            background: var(--surface-top);
+            color: var(--fg);
+            border-bottom-color: var(--primary);
+        }
         .fhq-alert {
             display: inline-flex;
             align-items: center;
-            gap: 8px;
-            padding: 8px 14px;
-            border-radius: 8px;
-            font-size: 13px;
-            font-weight: 500;
+            gap: 0.5rem;
+            padding: 0.65rem 0.85rem;
+            border: 1px solid transparent;
+            border-radius: 0;
+            font-size: 0.8rem;
+            font-weight: 600;
         }
-        .fhq-alert--amber { background: #FFFCF0; border: 1px solid #EDD89F; color: #7D5107; }
-        .fhq-alert--red { background: #FFF7F5; border: 1px solid #F0BFAF; color: #8B2020; }
-
+        .fhq-alert--amber {
+            background: var(--primary-soft);
+            border-color: rgba(86, 94, 116, 0.2);
+            color: var(--primary-dim);
+        }
+        .fhq-alert--red {
+            background: var(--danger-soft);
+            border-color: rgba(192, 8, 21, 0.18);
+            color: var(--danger);
+        }
+        .fhq-topbar {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            background: rgba(247, 249, 251, 0.94);
+            backdrop-filter: blur(12px);
+            border-bottom: 2px solid var(--surface-top);
+        }
+        .fhq-topbar-inner {
+            max-width: 96rem;
+            margin: 0 auto;
+            padding: 0.75rem 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+        }
+        .fhq-brand {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.8rem;
+            text-decoration: none;
+            color: var(--fg);
+            min-width: 0;
+        }
+        .fhq-brand-mark {
+            width: 2rem;
+            height: 2rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(180deg, var(--primary), var(--primary-dim));
+            color: #f7f7ff;
+            font-size: 0.92rem;
+            font-weight: 900;
+            letter-spacing: 0.08em;
+            border-bottom: 2px solid var(--primary-dim);
+            flex-shrink: 0;
+        }
+        .fhq-brand-title {
+            font-size: 0.86rem;
+            font-weight: 900;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            line-height: 1;
+        }
+        .fhq-brand-subtitle {
+            font-size: 0.63rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: var(--muted);
+            margin-top: 0.18rem;
+        }
         .top-nav-link {
             display: inline-flex;
             align-items: center;
-            gap: 7px;
-            height: 32px;
-            padding: 0 10px;
-            border-radius: 7px;
-            font-size: 12px;
-            font-weight: 500;
-            color: rgba(255,255,255,0.4);
+            gap: 0.45rem;
+            min-height: 36px;
+            padding: 0 0.72rem;
+            font-size: 0.67rem;
+            font-weight: 800;
+            color: var(--muted);
             text-decoration: none;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            border-bottom: 2px solid transparent;
         }
-        .top-nav-link:hover { color: #fff; background: rgba(255,255,255,0.08); }
-        .top-nav-link.active { color: #fff; background: rgba(255,255,255,0.1); }
-        .fhq-content-shell > .max-w-\[96rem\].mx-auto.px-4.sm\:px-6.lg\:px-8 {
-            max-width: none;
-            margin-left: 0;
-            margin-right: 0;
-            padding-left: 0;
-            padding-right: 0;
+        .top-nav-link:hover {
+            color: var(--fg);
+            background: var(--surface-low);
+        }
+        .top-nav-link.active {
+            color: var(--fg);
+            background: var(--surface-high);
+            border-bottom-color: var(--primary);
+        }
+        .fhq-search-trigger {
+            min-height: 36px;
+            padding: 0 0.72rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.55rem;
+            background: var(--surface);
+            border: 1px solid var(--outline-ghost);
+            color: var(--muted);
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            cursor: pointer;
+        }
+        .fhq-search-trigger:hover {
+            color: var(--fg);
+            border-color: var(--outline);
+            background: var(--surface-low);
+        }
+        .fhq-search-trigger kbd {
+            padding: 0.15rem 0.3rem;
+            border: 1px solid var(--outline-ghost);
+            background: var(--surface-low);
+            color: var(--fg);
+            font-size: 0.62rem;
+            line-height: 1;
+            font-family: inherit;
+        }
+        .fhq-avatar {
+            width: 2rem;
+            height: 2rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--surface);
+            color: var(--fg);
+            border: 1px solid var(--outline-ghost);
+            font-size: 0.72rem;
+            font-weight: 900;
+            cursor: pointer;
+        }
+        .fhq-dropdown {
+            position: absolute;
+            right: 0;
+            top: 2.35rem;
+            min-width: 9rem;
+            background: var(--surface);
+            border: 1px solid var(--outline-ghost);
+            overflow: hidden;
+            z-index: 60;
+        }
+        .fhq-dropdown a {
+            display: block;
+            padding: 0.7rem 0.9rem;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--fg);
+            text-decoration: none;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+        .fhq-dropdown a:hover {
+            background: var(--surface-low);
+        }
+        .fhq-frame {
+            max-width: 96rem;
+            margin: 0 auto;
+            padding: 1.5rem 1rem 2.5rem;
+        }
+        .fhq-flash {
+            border: 1px solid transparent;
+            padding: 0.8rem 0.95rem;
+            font-size: 0.8rem;
+            font-weight: 700;
+        }
+        .fhq-flash--success {
+            background: var(--success-soft);
+            color: var(--success);
+            border-color: rgba(54, 89, 61, 0.25);
+        }
+        .fhq-flash--error {
+            background: var(--danger-soft);
+            color: var(--danger);
+            border-color: rgba(192, 8, 21, 0.18);
+        }
+        .fhq-flash--info {
+            background: var(--primary-soft);
+            color: var(--primary-dim);
+            border-color: rgba(86, 94, 116, 0.2);
+        }
+        @media (max-width: 1023px) {
+            .fhq-topbar-inner {
+                padding-top: 0.7rem;
+                padding-bottom: 0.7rem;
+            }
+            .fhq-brand-subtitle,
+            .top-nav-link span {
+                display: none;
+            }
+        }
+        @media (max-width: 767px) {
+            .fhq-frame {
+                padding: 1rem 0.9rem 2rem;
+            }
+            .fhq-search-trigger span,
+            .fhq-search-trigger kbd {
+                display: none;
+            }
         }
     </style>
     {% block extra_head %}{% endblock %}
@@ -234,7 +506,7 @@
 <body class="min-h-screen font-body antialiased">
     {% set endpoint = request.endpoint or '' %}
     {% set is_print = 'print' in endpoint %}
-    {% set show_global_nav = not is_print %}
+    {% set show_global_nav = current_user.is_authenticated and not is_print %}
     {% set active_nav = 'banquets' if request.endpoint and 'banquet' in request.endpoint else
                         'buffet' if request.endpoint and 'buffet' in request.endpoint else
                         'commissary' if request.endpoint and 'commissar' in request.endpoint else
@@ -244,50 +516,38 @@
                         'home' %}
 
     {% if show_global_nav %}
-    <nav style="height:48px; background:#1B1918; display:flex; align-items:center; padding:0 16px; position:sticky; top:0; z-index:50; border-bottom:1px solid rgba(255,255,255,0.08);">
-        <div class="w-full flex items-center justify-between gap-4">
+    <nav class="fhq-topbar">
+        <div class="fhq-topbar-inner">
             <div class="flex items-center gap-4 min-w-0">
-                <a href="{{ url_for('dashboard') }}" class="flex items-center gap-2.5 text-white no-underline shrink-0">
-                    <div style="width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,#D4722B,#B85A1F);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:14px;">F</div>
-                    <span style="font-size:13.5px;font-weight:700;">Foxtown HQ</span>
+                <a href="{{ url_for('dashboard') }}" class="fhq-brand shrink-0">
+                    <div class="fhq-brand-mark">F</div>
+                    <div class="min-w-0">
+                        <div class="fhq-brand-title">Foxtown HQ</div>
+                        <div class="fhq-brand-subtitle">Kitchen Back Office</div>
+                    </div>
                 </a>
                 <div class="hidden lg:flex items-center gap-1 min-w-0 overflow-x-auto">
-                    <a href="{{ url_for('dashboard') }}" class="top-nav-link {% if active_nav == 'home' %}active{% endif %}"><svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12l9-9 9 9M5 10v10a1 1 0 001 1h3a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1h3a1 1 0 001-1V10"/></svg><span>Dashboard</span></a>
-                    <a href="{{ url_for('banquet_planner') }}" class="top-nav-link {% if active_nav == 'banquets' %}active{% endif %}"><svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg><span>Banquets</span></a>
-                    <a href="{{ url_for('buffet_planner') }}" class="top-nav-link {% if active_nav == 'buffet' %}active{% endif %}">
-                        <svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                            <path d="M3 6h18M3 12h18M8 18h8M5 3h14a1 1 0 011 1v1H4V4a1 1 0 011-1z"/>
-                        </svg>
-                        <span>Buffets</span>
-                    </a>
-                    <a href="{{ url_for('commissary_planner') }}" class="top-nav-link {% if active_nav == 'commissary' %}active{% endif %}"><svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16zM3.27 6.96L12 12.01l8.73-5.05M12 22.08V12"/></svg><span>Commissary</span></a>
-                    <a href="{{ url_for('recipes') }}" class="top-nav-link {% if active_nav == 'recipes' %}active{% endif %}"><svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19.5A2.5 2.5 0 016.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg><span>Recipes</span></a>
-                    <a href="{{ url_for('ingredients') }}" class="top-nav-link {% if active_nav == 'ingredients' %}active{% endif %}"><svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg><span>Ingredients</span></a>
-                    <a href="{{ url_for('menu_rollouts') }}" class="top-nav-link {% if active_nav == 'menus' %}active{% endif %}"><svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2M9 14h6M9 18h6M9 10h.01"/></svg><span>Menus</span></a>
+                    <a href="{{ url_for('dashboard') }}" class="top-nav-link {% if active_nav == 'home' %}active{% endif %}"><svg class="w-[16px] h-[16px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12l9-9 9 9M5 10v10a1 1 0 001 1h3a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1h3a1 1 0 001-1V10"/></svg><span>Dashboard</span></a>
+                    <a href="{{ url_for('banquet_planner') }}" class="top-nav-link {% if active_nav == 'banquets' %}active{% endif %}"><svg class="w-[16px] h-[16px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg><span>Banquets</span></a>
+                    <a href="{{ url_for('buffet_planner') }}" class="top-nav-link {% if active_nav == 'buffet' %}active{% endif %}"><svg class="w-[16px] h-[16px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18M3 12h18M8 18h8M5 3h14a1 1 0 011 1v1H4V4a1 1 0 011-1z"/></svg><span>Buffets</span></a>
+                    <a href="{{ url_for('commissary_planner') }}" class="top-nav-link {% if active_nav == 'commissary' %}active{% endif %}"><svg class="w-[16px] h-[16px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16zM3.27 6.96L12 12.01l8.73-5.05M12 22.08V12"/></svg><span>Commissary</span></a>
+                    <a href="{{ url_for('recipes') }}" class="top-nav-link {% if active_nav == 'recipes' %}active{% endif %}"><svg class="w-[16px] h-[16px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19.5A2.5 2.5 0 016.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg><span>Recipes</span></a>
+                    <a href="{{ url_for('ingredients') }}" class="top-nav-link {% if active_nav == 'ingredients' %}active{% endif %}"><svg class="w-[16px] h-[16px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg><span>Ingredients</span></a>
+                    <a href="{{ url_for('menu_rollouts') }}" class="top-nav-link {% if active_nav == 'menus' %}active{% endif %}"><svg class="w-[16px] h-[16px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2M9 14h6M9 18h6M9 10h.01"/></svg><span>Menus</span></a>
                 </div>
             </div>
             <div class="flex items-center gap-2 shrink-0">
-                <button
-                    id="globalSearchTrigger"
-                    type="button"
-                    aria-label="Open search"
-                    style="height:30px;border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:0 9px;display:flex;align-items:center;gap:8px;color:rgba(255,255,255,0.68);font-size:12px;background:transparent;cursor:pointer;"
-                >
+                <button id="globalSearchTrigger" type="button" aria-label="Open search" class="fhq-search-trigger">
                     <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
                     <span>Search</span>
-                    <span style="font-size:10px;line-height:1;padding:3px 5px;border-radius:5px;background:rgba(255,255,255,0.14);color:rgba(255,255,255,0.85);">⌘K</span>
+                    <kbd>⌘K</kbd>
                 </button>
                 <div class="relative" id="userMenu">
-                    <button type="button" onclick="document.getElementById('userDropdown').classList.toggle('hidden')"
-                        style="width:28px;height:28px;border-radius:999px;background:#2B2826;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;border:none;cursor:pointer;">
+                    <button type="button" class="fhq-avatar" onclick="document.getElementById('userDropdown').classList.toggle('hidden')">
                         {{ (current_user.username[:1] if current_user and current_user.username else 'U')|upper }}
                     </button>
-                    <div id="userDropdown" class="hidden"
-                        style="position:absolute;right:0;top:36px;min-width:140px;background:#fff;border:1px solid #ECEAE6;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.08);overflow:hidden;z-index:60;">
-                        <a href="{{ url_for('logout') }}"
-                            style="display:block;padding:8px 14px;font-size:13px;font-weight:500;color:#1B1918;text-decoration:none;">
-                            Sign Out
-                        </a>
+                    <div id="userDropdown" class="hidden fhq-dropdown">
+                        <a href="{{ url_for('logout') }}">Sign Out</a>
                     </div>
                 </div>
             </div>
@@ -296,11 +556,11 @@
     {% endif %}
 
     {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-        <div class="max-w-[96rem] mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+        {% if messages and show_global_nav %}
+        <div class="fhq-frame" style="padding-bottom:0;">
             <div class="space-y-2">
                 {% for category, message in messages %}
-                    <div class="rounded-lg px-4 py-3 text-sm font-medium border {% if category == 'success' %}bg-[#EEFBEF] text-[#2B7A30] border-[#C2E8C4]{% elif category == 'error' %}bg-[#FFF7F5] text-[#8B2020] border-[#F0BFAF]{% else %}bg-[#EEF3FF] text-[#2656A8] border-[#A8C4F0]{% endif %}">
+                    <div class="fhq-flash {% if category == 'success' %}fhq-flash--success{% elif category == 'error' %}fhq-flash--error{% else %}fhq-flash--info{% endif %}">
                         {{ message }}
                     </div>
                 {% endfor %}
@@ -309,7 +569,7 @@
         {% endif %}
     {% endwith %}
 
-    {% if show_global_nav %}<div class="max-w-[96rem] mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-10 fhq-content-shell">{% endif %}
+    {% if show_global_nav %}<div class="fhq-frame">{% endif %}
     {% block content %}{% endblock %}
     {% if show_global_nav %}</div>{% endif %}
     <script>
