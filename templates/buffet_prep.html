@@ -1,395 +1,639 @@
 {% extends "base.html" %}
-{% from "base.html" import page_header %}
 
 {% block title %}Buffet Prep Sheet - Foxtown HQ{% endblock %}
 
 {% block extra_head %}
 <style>
-    .prep-station-table { min-width: 760px; }
-    .prep-emphasis {
-        font-size: 1rem;
-        font-weight: 800;
-        color: #1B1918;
+    .bf-shell {
+        padding: 1.5rem 1rem 3rem;
+        background: linear-gradient(180deg, #edf2f4 0%, #f7f9fb 24%, #edf2f4 100%);
+        min-height: calc(100vh - 4rem);
+        color: #2a3439;
     }
-    .prep-summary-bar {
+    .bf-toolbar {
+        max-width: 72rem;
+        margin: 0 auto 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+    .bf-toolbar-copy {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-        gap: 0.75rem;
+        gap: 0.18rem;
     }
-    .prep-summary-card {
-        border: 1px solid #ECEAE6;
-        border-radius: 12px;
-        background: #FCFBFA;
-        padding: 1rem;
+    .bf-toolbar-kicker {
+        font-size: 0.64rem;
+        font-weight: 900;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: #566166;
     }
-    .prep-summary-card .value {
-        display: block;
-        margin-top: 0.35rem;
+    .bf-toolbar-title {
+        font-size: 1.7rem;
+        font-weight: 900;
+        letter-spacing: -0.05em;
+        text-transform: uppercase;
+        color: #2a3439;
+    }
+    .bf-toolbar-sub {
+        font-size: 0.82rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #566166;
+    }
+    .bf-toolbar-actions {
+        display: flex;
+        gap: 0.55rem;
+        flex-wrap: wrap;
+    }
+    .bf-sheet {
+        max-width: 72rem;
+        margin: 0 auto;
+        background: #ffffff;
+        border: 3px solid #2a3439;
+        padding: 2rem;
+    }
+    .bf-hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.45fr) minmax(18rem, 0.8fr);
+        gap: 1.5rem;
+        align-items: start;
+        margin-bottom: 1.6rem;
+    }
+    .bf-hero-meta {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        flex-wrap: wrap;
+        font-size: 0.72rem;
+        font-weight: 900;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #566166;
+    }
+    .bf-dot {
+        width: 0.25rem;
+        height: 0.25rem;
+        background: #94a3b8;
+    }
+    .bf-name {
+        margin: 0.55rem 0 0.65rem;
+        font-size: clamp(2.6rem, 7vw, 4.75rem);
+        line-height: 0.92;
+        font-weight: 900;
+        letter-spacing: -0.09em;
+        text-transform: uppercase;
+        color: #111827;
+    }
+    .bf-description {
+        margin: 0;
+        max-width: 44rem;
+        font-size: 0.92rem;
+        line-height: 1.65;
+        color: #566166;
+    }
+    .bf-hero-card {
+        padding: 1.15rem;
+        background: #e1e9ee;
+        border-bottom: 4px solid #2a3439;
+    }
+    .bf-hero-kicker {
+        margin-bottom: 0.3rem;
+        font-size: 0.66rem;
+        font-weight: 900;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: #566166;
+    }
+    .bf-hero-value {
+        margin-bottom: 0.9rem;
         font-size: 1.85rem;
         line-height: 1;
-        font-weight: 800;
-        color: #1B1918;
+        font-weight: 900;
+        letter-spacing: -0.04em;
+        text-transform: uppercase;
+        color: #111827;
     }
-    .warning-badge {
-        display: inline-flex;
-        align-items: center;
-        border-radius: 999px;
-        background: #FFF8EE;
-        border: 1px solid #F0D9A0;
-        color: #A0590A;
-        padding: 0.2rem 0.55rem;
-        font-size: 0.72rem;
-        font-weight: 700;
+    .bf-hero-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.9rem 0.85rem;
+    }
+    .bf-mini-label {
+        display: block;
+        margin-bottom: 0.18rem;
+        font-size: 0.58rem;
+        font-weight: 900;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: #566166;
+    }
+    .bf-mini-value {
+        display: block;
+        font-size: 0.88rem;
+        font-weight: 800;
+        line-height: 1.35;
+        color: #111827;
+    }
+    .bf-stat-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.1rem;
+        margin-bottom: 1.6rem;
+        background: #2a3439;
+    }
+    .bf-stat-card {
+        padding: 1.15rem;
+        background: #ffffff;
+        border-bottom: 3px solid #2a3439;
+    }
+    .bf-stat-label {
+        margin-bottom: 0.35rem;
+        font-size: 0.58rem;
+        font-weight: 900;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: #566166;
+    }
+    .bf-stat-value {
+        font-size: 2rem;
+        line-height: 1;
+        font-weight: 900;
+        letter-spacing: -0.06em;
+        color: #111827;
+        text-transform: uppercase;
+    }
+    .bf-alert {
+        margin-bottom: 1.4rem;
+        padding: 1rem 1.05rem;
+        border-left: 4px solid #c00815;
+        background: #fef2f2;
+        color: #7f1d1d;
+    }
+    .bf-alert-title {
+        font-size: 0.66rem;
+        font-weight: 900;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+    }
+    .bf-alert-copy {
+        margin-top: 0.45rem;
+        font-size: 0.78rem;
+        line-height: 1.55;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+    }
+    .bf-station-stack {
+        display: grid;
+        gap: 1.5rem;
+    }
+    .bf-station {
+        border: 1px solid #a9b4b9;
+        background: #ffffff;
+    }
+    .bf-station-head {
+        padding: 1rem 1.05rem;
+        background: #d9e4ea;
+        border-bottom: 2px solid #2a3439;
+    }
+    .bf-station-kicker {
+        font-size: 0.62rem;
+        font-weight: 900;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: #566166;
+    }
+    .bf-station-name {
+        margin-top: 0.22rem;
+        font-size: 1.35rem;
+        font-weight: 900;
+        letter-spacing: -0.04em;
+        text-transform: uppercase;
+        color: #111827;
+    }
+    .bf-station-dishes {
+        margin-top: 0.35rem;
+        font-size: 0.73rem;
+        font-weight: 800;
+        line-height: 1.5;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #566166;
+    }
+    .bf-station-sections {
+        display: grid;
+        gap: 1rem;
+        padding: 1rem 1.05rem 1.15rem;
+    }
+    .bf-section-title {
+        margin-bottom: 0.55rem;
+        font-size: 0.82rem;
+        font-weight: 900;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: #111827;
+    }
+    .bf-table-wrap {
+        overflow-x: auto;
+    }
+    .bf-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .bf-table thead {
+        background: #edf2f4;
+        border-bottom: 1px solid #a9b4b9;
+    }
+    .bf-table th {
+        padding: 0.7rem 0.8rem;
+        text-align: left;
+        font-size: 0.58rem;
+        font-weight: 900;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: #566166;
+        white-space: nowrap;
+    }
+    .bf-table td {
+        padding: 0.82rem 0.8rem;
+        border-bottom: 1px solid #d9e4ea;
+        vertical-align: top;
+        font-size: 0.82rem;
+        color: #2a3439;
+    }
+    .bf-table tbody tr:nth-child(even) td {
+        background: #f8fafc;
+    }
+    .bf-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+    .bf-cell-title {
+        font-size: 0.84rem;
+        font-weight: 900;
+        letter-spacing: -0.02em;
+        text-transform: uppercase;
+        color: #111827;
+    }
+    .bf-cell-meta {
+        margin-top: 0.2rem;
+        font-size: 0.66rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #566166;
+        line-height: 1.45;
+    }
+    .bf-batch {
+        font-size: 1rem;
+        font-weight: 900;
+        letter-spacing: -0.04em;
+        color: #111827;
+    }
+    .bf-check {
+        width: 0.95rem;
+        height: 0.95rem;
+        display: inline-block;
+        border: 1px solid #717c82;
+        background: #ffffff;
+    }
+    .bf-signoff {
+        margin-top: 1.5rem;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+    }
+    .bf-signoff-block {
+        border: 1px solid #a9b4b9;
+        padding: 0.9rem 1rem;
+        background: #f8fafc;
+    }
+    .bf-signoff-title {
+        font-size: 0.62rem;
+        font-weight: 900;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: #566166;
+    }
+    .bf-signoff-line {
+        margin-top: 1.6rem;
+        border-bottom: 2px solid #2a3439;
+    }
+    .bf-signoff-meta {
+        margin-top: 0.45rem;
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+        font-size: 0.68rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #566166;
+    }
+    .bf-empty {
+        padding: 1rem;
+        border: 1px solid #a9b4b9;
+        background: #ffffff;
+        font-size: 0.78rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #566166;
+    }
+    @media (max-width: 960px) {
+        .bf-hero {
+            grid-template-columns: 1fr;
+        }
+        .bf-stat-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+    @media (max-width: 720px) {
+        .bf-shell {
+            padding-left: 0.7rem;
+            padding-right: 0.7rem;
+        }
+        .bf-sheet {
+            padding: 1.1rem;
+        }
+        .bf-stat-grid,
+        .bf-signoff {
+            grid-template-columns: 1fr;
+        }
+    }
+    @media print {
+        .fhq-topbar,
+        .bf-toolbar,
+        .no-print {
+            display: none !important;
+        }
+        .fhq-frame {
+            padding: 0 !important;
+        }
+        body {
+            background: #ffffff !important;
+        }
+        .bf-shell {
+            padding: 0 !important;
+            background: #ffffff !important;
+        }
+        .bf-sheet {
+            max-width: none !important;
+            margin: 0 !important;
+            border-width: 2pt !important;
+            box-shadow: none !important;
+        }
+        .bf-stat-card,
+        .bf-alert,
+        .bf-station-head {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="min-h-screen">
-    <div class="max-w-[96rem] mx-auto px-4 sm:px-6 lg:px-8 pt-6">
-        {% call page_header('Buffet Prep Sheet', event.name ~ ' · ' ~ event.event_date ~ ' · ' ~ guest_total ~ ' guests') %}
-        <a href="{{ url_for('buffet_prep_pdf', event_id=event.id) }}" class="fhq-btn fhq-btn--primary">Download PDF</a>
-        <a href="{{ url_for('buffet_event_order', event_id=event.id) }}" class="fhq-btn fhq-btn--outline">Order Calculator</a>
-        <a href="{{ url_for('buffet_event_edit', event_id=event.id) }}" class="fhq-btn fhq-btn--outline">&larr; Back to Event</a>
-        {% endcall %}
+{% set buffet_ref = 'FHQ-BF-' ~ (event.id or 'EVENT')|upper %}
+<div class="bf-shell">
+    <div class="bf-toolbar no-print">
+        <div class="bf-toolbar-copy">
+            <div class="bf-toolbar-kicker">Buffet / Special Event Prep</div>
+            <div class="bf-toolbar-title">{{ event.name }}</div>
+            <div class="bf-toolbar-sub">{{ event.event_date }} / {{ guest_total }} guests / {{ prep_station_groups|length or stations|length }} station{% if (prep_station_groups|length or stations|length) != 1 %}s{% endif %}</div>
+        </div>
+        <div class="bf-toolbar-actions">
+            <button type="button" onclick="window.print()" class="fhq-btn fhq-btn--primary">Print / Save PDF</button>
+            <a href="{{ url_for('buffet.buffet_prep_pdf', event_id=event.id) }}" class="fhq-btn fhq-btn--outline">Download PDF</a>
+            <a href="{{ url_for('buffet.buffet_event_order', event_id=event.id) }}" class="fhq-btn fhq-btn--outline">Order Calculator</a>
+            <a href="{{ url_for('buffet.buffet_event_edit', event_id=event.id) }}" class="fhq-btn fhq-btn--ghost">Back To Event</a>
+        </div>
     </div>
 
-    <div class="max-w-[96rem] mx-auto px-4 sm:px-6 lg:px-8 pb-10 space-y-6">
-        {% if no_recipe_lines %}
-        <section class="fhq-alert fhq-alert--amber w-full" style="display:flex;">
+    <div class="bf-sheet">
+        <section class="bf-hero">
             <div>
-                <strong>The following items have neither a recipe nor a direct ingredient linked and will not appear in the prep sheet:</strong>
-                {{ no_recipe_lines|join(', ') }}
+                <div class="bf-hero-meta">
+                    <span>Recipe ID: {{ buffet_ref }}</span>
+                    <span class="bf-dot"></span>
+                    <span>Event Date: {{ event.event_date }}</span>
+                    <span class="bf-dot"></span>
+                    <span>Type: Buffet Prep</span>
+                </div>
+                <h1 class="bf-name">{{ event.name }}</h1>
+                <p class="bf-description">Operator-facing prep sheet with scaled recipe pulls, sub-recipe dependencies, and raw ingredient totals by station. Costing is intentionally removed from this print view so line teams only see what needs to be built and pulled.</p>
             </div>
-        </section>
-        {% endif %}
-
-        {% if station_costs %}
-        <section class="fhq-card p-5">
-            <div class="flex items-center justify-between gap-3 mb-4">
-                <div>
-                    <h2 class="text-xl font-bold tracking-tight text-foxtown-text">Theo by Station</h2>
-                    <p class="text-sm text-foxtown-muted mt-1">
-                        Buffet menu lines are rolled into station totals so you can see build averages quickly.
-                        {% if uncosted_linked_lines %}
-                        {{ uncosted_linked_lines }} linked line{{ '' if uncosted_linked_lines == 1 else 's' }} are missing enough cost data to be included.
-                        {% endif %}
-                    </p>
+            <div class="bf-hero-card">
+                <div class="bf-hero-kicker">Kitchen Ops</div>
+                <div class="bf-hero-value">Special Event</div>
+                <div class="bf-hero-grid">
+                    <div>
+                        <span class="bf-mini-label">Guests</span>
+                        <span class="bf-mini-value">{{ guest_total }}</span>
+                    </div>
+                    <div>
+                        <span class="bf-mini-label">Stations</span>
+                        <span class="bf-mini-value">{{ prep_station_groups|length or stations|length }}</span>
+                    </div>
+                    <div>
+                        <span class="bf-mini-label">Linked Lines</span>
+                        <span class="bf-mini-value">{{ total_linked_lines }}</span>
+                    </div>
+                    <div>
+                        <span class="bf-mini-label">Direct Pulls</span>
+                        <span class="bf-mini-value">{{ direct_ingredient_lines|length }}</span>
+                    </div>
                 </div>
             </div>
-            <div style="overflow-x:auto;">
-                <table class="fhq-table prep-station-table">
-                    <thead>
-                        <tr>
-                            <th>Station</th>
-                            <th>Linked Lines</th>
-                            <th>Recipe Lines</th>
-                            <th>Direct Lines</th>
-                            <th>Theo Spend</th>
-                            <th>Avg / Costed Line</th>
-                            <th>Avg / Guest</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for row in station_costs %}
-                        <tr>
-                            <td class="font-semibold text-foxtown-text">{{ row.station }}</td>
-                            <td>{{ row.linked_line_count }}</td>
-                            <td>{{ row.recipe_line_count }}</td>
-                            <td>{{ row.direct_line_count }}</td>
-                            <td>${{ "%.2f"|format(row.estimated_cost_total or 0) }}</td>
-                            <td>
-                                {% if row.avg_cost_per_line is not none %}
-                                ${{ "%.2f"|format(row.avg_cost_per_line) }}
-                                {% else %}
-                                —
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if row.avg_cost_per_guest is not none %}
-                                ${{ "%.2f"|format(row.avg_cost_per_guest) }}
-                                {% else %}
-                                —
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+        </section>
+
+        <section class="bf-stat-grid">
+            <div class="bf-stat-card">
+                <div class="bf-stat-label">Guest Count</div>
+                <div class="bf-stat-value">{{ guest_total }}</div>
+            </div>
+            <div class="bf-stat-card">
+                <div class="bf-stat-label">Station Sheets</div>
+                <div class="bf-stat-value">{{ prep_station_groups|length or stations|length }}</div>
+            </div>
+            <div class="bf-stat-card">
+                <div class="bf-stat-label">Scaled Items</div>
+                <div class="bf-stat-value">{{ total_linked_lines }}</div>
+            </div>
+            <div class="bf-stat-card">
+                <div class="bf-stat-label">Missing Links</div>
+                <div class="bf-stat-value">{{ no_recipe_lines|length }}</div>
             </div>
         </section>
-        {% endif %}
 
-        {% if direct_ingredient_lines %}
-        <section class="fhq-card p-5">
-            <div class="flex items-center justify-between gap-3 mb-4">
-                <div>
-                    <h2 class="text-xl font-bold tracking-tight text-foxtown-text">Direct Ingredient Lines</h2>
-                    <p class="text-sm text-foxtown-muted mt-1">{{ direct_ingredient_lines|length }} line{{ '' if direct_ingredient_lines|length == 1 else 's' }} scale directly from serving size x guest count.</p>
-                </div>
-            </div>
-            <div style="overflow-x:auto;">
-                <table class="fhq-table prep-station-table">
-                    <thead>
-                        <tr>
-                            <th>Station</th>
-                            <th>Dish Name</th>
-                            <th>Ingredient</th>
-                            <th>Total Needed</th>
-                            <th>Theo Spend</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for row in direct_ingredient_lines %}
-                        <tr>
-                            <td>{{ row.station }}</td>
-                            <td class="font-semibold text-foxtown-text">
-                                {{ row.dish_name }}
-                                {% set has_flags = row.is_gf or row.is_v or row.is_vg or row.is_df or row.is_nf %}
-                                {% if has_flags %}
-                                <div class="flex flex-wrap gap-1 mt-1">
-                                    {% if row.is_gf %}<span class="text-xs font-bold px-1.5 py-0.5 rounded border bg-green-100 text-green-800 border-green-200">GF</span>{% endif %}
-                                    {% if row.is_v %}<span class="text-xs font-bold px-1.5 py-0.5 rounded border bg-lime-100 text-lime-800 border-lime-200">V</span>{% endif %}
-                                    {% if row.is_vg %}<span class="text-xs font-bold px-1.5 py-0.5 rounded border bg-emerald-100 text-emerald-800 border-emerald-200">VG</span>{% endif %}
-                                    {% if row.is_df %}<span class="text-xs font-bold px-1.5 py-0.5 rounded border bg-blue-100 text-blue-800 border-blue-200">DF</span>{% endif %}
-                                    {% if row.is_nf %}<span class="text-xs font-bold px-1.5 py-0.5 rounded border bg-yellow-100 text-yellow-800 border-yellow-200">NF</span>{% endif %}
-                                </div>
-                                {% endif %}
-                            </td>
-                            <td>{{ row.ingredient_name }}</td>
-                            <td>{{ row.display_total_qty }} {{ row.display_total_unit }}</td>
-                            <td>
-                                {% if row.estimated_cost_total is not none %}
-                                ${{ "%.2f"|format(row.estimated_cost_total) }}
-                                {% else %}
-                                —
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+        {% if no_recipe_lines %}
+        <section class="bf-alert">
+            <div class="bf-alert-title">Critical Coverage Alert</div>
+            <div class="bf-alert-copy">These menu lines do not have a recipe or direct ingredient linked and will not appear in the scaled prep calculations: {{ no_recipe_lines|join(', ') }}</div>
         </section>
         {% endif %}
 
         {% if prep_station_groups %}
-        <section class="fhq-card p-5">
-            <div class="flex items-center justify-between gap-3 mb-4">
-                <div>
-                    <h2 class="text-xl font-bold tracking-tight text-foxtown-text">Pulls by Station</h2>
-                    <p class="text-sm text-foxtown-muted mt-1">Scaled recipes, sub-recipes, and raw-ingredient pulls are broken out by buffet station for station-level prep.</p>
+        <section class="bf-station-stack">
+            {% for group in prep_station_groups %}
+            <article class="bf-station">
+                <div class="bf-station-head">
+                    <div class="bf-station-kicker">Station {{ '%02d'|format(loop.index) }}</div>
+                    <div class="bf-station-name">{{ group.station }}</div>
+                    {% if group.dish_names %}
+                    <div class="bf-station-dishes">{{ group.dish_names|join(', ') }}</div>
+                    {% endif %}
                 </div>
-            </div>
-            <div class="space-y-4">
-                {% for group in prep_station_groups %}
-                <div class="border border-stone-200 rounded-xl p-4 bg-stone-50/60">
-                    <div class="mb-3">
-                        <div class="text-sm uppercase tracking-[0.18em] text-stone-500 font-semibold">{{ group.station }}</div>
-                        {% if group.dish_names %}
-                        <div class="text-sm text-stone-600 mt-1">{{ group.dish_names|join(', ') }}</div>
-                        {% endif %}
-                    </div>
+
+                <div class="bf-station-sections">
                     {% if group.recipes %}
-                    <div style="overflow-x:auto;">
-                        <table class="fhq-table prep-station-table">
-                            <thead>
-                                <tr>
-                                    <th>Dish</th>
-                                    <th>Scaled Recipe</th>
-                                    <th>Total Needed</th>
-                                    <th>Yield</th>
-                                    <th>Batches</th>
-                                    <th>Theo Spend</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for row in group.recipes %}
-                                <tr>
-                                    <td class="font-semibold text-foxtown-text">{{ row.dish_name }}</td>
-                                    <td>{{ row.recipe_name }}</td>
-                                    <td>{{ row.display_required_qty }} {{ row.display_required_unit }}</td>
-                                    <td>{{ row.yield_qty }} {{ row.yield_unit }}</td>
-                                    <td><span class="prep-emphasis">{{ row.display_batches_needed }}</span></td>
-                                    <td>
-                                        {% if row.estimated_cost_total is not none %}
-                                        ${{ "%.2f"|format(row.estimated_cost_total) }}
-                                        {% else %}
-                                        —
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
+                    <section>
+                        <div class="bf-section-title">Scaled Recipe Pulls</div>
+                        <div class="bf-table-wrap">
+                            <table class="bf-table">
+                                <thead>
+                                    <tr>
+                                        <th>Dish</th>
+                                        <th>Recipe</th>
+                                        <th>Total Needed</th>
+                                        <th>Yield</th>
+                                        <th>Batches</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for row in group.recipes %}
+                                    <tr>
+                                        <td>
+                                            <div class="bf-cell-title">{{ row.dish_name }}</div>
+                                            <div class="bf-cell-meta">{{ guest_total }} guest run</div>
+                                        </td>
+                                        <td>{{ row.recipe_name }}</td>
+                                        <td>{{ row.display_required_qty }} {{ row.display_required_unit }}</td>
+                                        <td>{{ row.yield_qty }} {{ row.yield_unit }}</td>
+                                        <td><span class="bf-batch">{{ row.display_batches_needed }}</span></td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
                     {% endif %}
-                    {% if group.recipes and (group.subrecipes or group.ingredients) %}
-                    <div class="h-3"></div>
-                    {% endif %}
+
                     {% if group.subrecipes %}
-                    <div style="overflow-x:auto;">
-                        <table class="fhq-table prep-station-table">
-                            <thead>
-                                <tr>
-                                    <th>Sub-Recipe</th>
-                                    <th>Total Needed</th>
-                                    <th>Yield</th>
-                                    <th>Batches</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for row in group.subrecipes %}
-                                <tr>
-                                    <td class="font-semibold text-foxtown-text">{{ row.recipe_name }}</td>
-                                    <td>{{ row.display_required_qty }} {{ row.display_required_unit }}</td>
-                                    <td>{{ row.yield_qty }} {{ row.yield_unit }}</td>
-                                    <td><span class="prep-emphasis">{{ row.display_required_batches or '—' }}</span></td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
+                    <section>
+                        <div class="bf-section-title">Sub-Recipe Dependencies</div>
+                        <div class="bf-table-wrap">
+                            <table class="bf-table">
+                                <thead>
+                                    <tr>
+                                        <th>Sub-Recipe</th>
+                                        <th>Total Needed</th>
+                                        <th>Yield</th>
+                                        <th>Batches</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for row in group.subrecipes %}
+                                    <tr>
+                                        <td><div class="bf-cell-title">{{ row.recipe_name }}</div></td>
+                                        <td>{{ row.display_required_qty }} {{ row.display_required_unit }}</td>
+                                        <td>{{ row.yield_qty }} {{ row.yield_unit }}</td>
+                                        <td><span class="bf-batch">{{ row.display_required_batches or '—' }}</span></td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
                     {% endif %}
-                    {% if group.subrecipes and group.ingredients %}
-                    <div class="h-3"></div>
-                    {% endif %}
+
                     {% if group.ingredients %}
-                    <div style="overflow-x:auto;">
-                        <table class="fhq-table prep-station-table">
-                            <thead>
-                                <tr>
-                                    <th>Ingredient</th>
-                                    <th>Total Needed</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for row in group.ingredients %}
-                                <tr>
-                                    <td class="font-semibold text-foxtown-text">{{ row.ingredient_name }}</td>
-                                    <td>{{ row.display_total_qty }} {{ row.display_total_unit }}</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
+                    <section>
+                        <div class="bf-section-title">Ingredient Checklist</div>
+                        <div class="bf-table-wrap">
+                            <table class="bf-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width:5%">✓</th>
+                                        <th>Ingredient</th>
+                                        <th>Total Needed</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for row in group.ingredients %}
+                                    <tr>
+                                        <td><span class="bf-check"></span></td>
+                                        <td><div class="bf-cell-title">{{ row.ingredient_name }}</div></td>
+                                        <td>{{ row.display_total_qty }} {{ row.display_total_unit }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
                     {% endif %}
                 </div>
-                {% endfor %}
-            </div>
+            </article>
+            {% endfor %}
         </section>
+        {% else %}
+        <div class="bf-empty">No scaled station prep groups are available for this event yet.</div>
         {% endif %}
 
-        {% if stations %}
-            {% for station_name, station_rows in stations.items() %}
-            <section class="fhq-card p-5">
-                <div class="flex items-center justify-between gap-3 mb-4">
-                    <div>
-                        <h2 class="text-xl font-bold tracking-tight text-foxtown-text">{{ station_name }}</h2>
-                        <p class="text-sm text-foxtown-muted mt-1">
-                            {{ station_rows|length }} recipe-linked item{{ '' if station_rows|length == 1 else 's' }}
-                            {% set station_cost = station_cost_map.get(station_name) %}
-                            {% if station_cost %}
-                            · Theo ${{ "%.2f"|format(station_cost.estimated_cost_total or 0) }}
-                            {% endif %}
-                        </p>
-                    </div>
-                </div>
-                <div style="overflow-x:auto;">
-                    <table class="fhq-table prep-station-table">
+        {% if direct_ingredient_lines %}
+        <section class="bf-station" style="margin-top: 1.5rem;">
+            <div class="bf-station-head">
+                <div class="bf-station-kicker">Line-Level Detail</div>
+                <div class="bf-station-name">Direct Ingredient Pulls</div>
+                <div class="bf-station-dishes">These items scale directly from serving size x guest count.</div>
+            </div>
+            <div class="bf-station-sections">
+                <div class="bf-table-wrap">
+                    <table class="bf-table">
                         <thead>
                             <tr>
-                                <th>Dish Name</th>
-                                <th>Recipe Linked</th>
-                                <th>Serving Size</th>
-                                <th>Guests</th>
-                                <th>Batches Needed</th>
-                                <th>Total Yield</th>
-                                <th>Theo Spend</th>
+                                <th>Station</th>
+                                <th>Dish</th>
+                                <th>Ingredient</th>
+                                <th>Total Needed</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for row in station_rows %}
+                            {% for row in direct_ingredient_lines %}
                             <tr>
-                                <td class="font-semibold text-foxtown-text">
-                                    {{ row.dish_name }}
-                                    {% set has_flags = row.is_gf or row.is_v or row.is_vg or row.is_df or row.is_nf %}
-                                    {% if has_flags %}
-                                    <div class="flex flex-wrap gap-1 mt-1">
-                                        {% if row.is_gf %}<span class="text-xs font-bold px-1.5 py-0.5 rounded border bg-green-100 text-green-800 border-green-200">GF</span>{% endif %}
-                                        {% if row.is_v %}<span class="text-xs font-bold px-1.5 py-0.5 rounded border bg-lime-100 text-lime-800 border-lime-200">V</span>{% endif %}
-                                        {% if row.is_vg %}<span class="text-xs font-bold px-1.5 py-0.5 rounded border bg-emerald-100 text-emerald-800 border-emerald-200">VG</span>{% endif %}
-                                        {% if row.is_df %}<span class="text-xs font-bold px-1.5 py-0.5 rounded border bg-blue-100 text-blue-800 border-blue-200">DF</span>{% endif %}
-                                        {% if row.is_nf %}<span class="text-xs font-bold px-1.5 py-0.5 rounded border bg-yellow-100 text-yellow-800 border-yellow-200">NF</span>{% endif %}
-                                    </div>
-                                    {% endif %}
-                                    {% if not row.recipe_id %}
-                                    <span class="warning-badge">No Recipe</span>
-                                    {% endif %}
-                                </td>
-                                <td>{{ row.recipe_name or 'No Recipe Linked' }}</td>
-                                <td>{{ row.serving_size_qty }} {{ row.serving_size_unit }}</td>
-                                <td>{{ guest_total }}</td>
-                                <td><span class="prep-emphasis">{{ row.batches_needed }}</span></td>
-                                <td>{{ row.display_total_yield_qty }} {{ row.display_total_yield_unit }}</td>
-                                <td>
-                                    {% if row.estimated_cost_total is not none %}
-                                    ${{ "%.2f"|format(row.estimated_cost_total) }}
-                                    {% else %}
-                                    —
-                                    {% endif %}
-                                </td>
+                                <td>{{ row.station }}</td>
+                                <td><div class="bf-cell-title">{{ row.dish_name }}</div></td>
+                                <td>{{ row.ingredient_name }}</td>
+                                <td>{{ row.display_total_qty }} {{ row.display_total_unit }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
-            </section>
-            {% endfor %}
-        {% else %}
-        <section class="fhq-card p-6">
-            <p class="text-sm text-foxtown-muted">No recipe-linked menu lines are available for this event yet.</p>
+            </div>
         </section>
         {% endif %}
 
-        <section class="prep-summary-bar">
-            <div class="prep-summary-card">
-                <span class="fhq-section-head mb-0">Total Dish Count</span>
-                <span class="value">{{ total_cards + (direct_ingredient_lines|length) + (no_recipe_lines|length) }}</span>
+        <footer class="bf-signoff">
+            <div class="bf-signoff-block">
+                <div class="bf-signoff-title">Prep Lead Sign-Off</div>
+                <div class="bf-signoff-line"></div>
+                <div class="bf-signoff-meta">
+                    <span>Name</span>
+                    <span>Time: ______</span>
+                </div>
             </div>
-            <div class="prep-summary-card">
-                <span class="fhq-section-head mb-0">Linked Line Count</span>
-                <span class="value">{{ total_linked_lines }}</span>
+            <div class="bf-signoff-block">
+                <div class="bf-signoff-title">Chef Verification</div>
+                <div class="bf-signoff-line"></div>
+                <div class="bf-signoff-meta">
+                    <span>Name</span>
+                    <span>Time: ______</span>
+                </div>
             </div>
-            <div class="prep-summary-card">
-                <span class="fhq-section-head mb-0">Total Guest Count</span>
-                <span class="value">{{ guest_total }}</span>
-            </div>
-            <div class="prep-summary-card">
-                <span class="fhq-section-head mb-0">Theo Spend</span>
-                <span class="value">${{ "%.2f"|format(total_estimated_cost or 0) }}</span>
-            </div>
-            <div class="prep-summary-card">
-                <span class="fhq-section-head mb-0">Avg Theo / Costed Line</span>
-                <span class="value">
-                    {% if avg_estimated_cost_per_linked_line is not none %}
-                    ${{ "%.2f"|format(avg_estimated_cost_per_linked_line) }}
-                    {% else %}
-                    —
-                    {% endif %}
-                </span>
-            </div>
-            <div class="prep-summary-card">
-                <span class="fhq-section-head mb-0">Avg Theo / Guest</span>
-                <span class="value">
-                    {% if avg_estimated_cost_per_guest is not none %}
-                    ${{ "%.2f"|format(avg_estimated_cost_per_guest) }}
-                    {% else %}
-                    —
-                    {% endif %}
-                </span>
-            </div>
-        </section>
+        </footer>
     </div>
 </div>
 {% endblock %}
