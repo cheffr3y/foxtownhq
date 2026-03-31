@@ -11,6 +11,7 @@
 {% elif selected_units == 'hybrid' %}
 {% set unit_label = 'Grams + qt/gal/fl oz' %}
 {% endif %}
+{% set manifest_window = selected_day if selected_day else start_date ~ ' to ' ~ end_date %}
 {% macro render_component_steps(components, depth=0) -%}
     {% if components %}
     <div class="pkt-steps" style="gap: 0.2rem;">
@@ -135,73 +136,140 @@
             'components': order_line.components or [],
             'instruction_steps': order_line.instruction_steps or [],
         }] %}
-    {% endfor %}
+{% endfor %}
 {% endfor %}
 {% set packet_checklist_lines = checklist_ns.rows|sort(attribute='item_name')|sort(attribute='outlet') %}
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6" id="printRoot">
-    <div class="print:hidden screen-only flex justify-between items-center gap-3 flex-wrap">
+{% set commissary_ref = 'FHQ-CM-' ~ (selected_day if selected_day else week_start)|replace('-', '') %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 pkt-doc-shell" id="printRoot">
+    <div class="no-print pkt-screen-toolbar">
         <div>
-            <h1 class="text-3xl font-display text-foxtown-ink">Commissary Production Packet</h1>
-            <p class="text-stone-600">
-                {{ (selected_outlet or 'All Outlets') }} ·
-                {% if selected_day %}
-                Day {{ selected_day }}
-                {% else %}
-                {{ start_date }} to {{ end_date }}
-                {% endif %}
-                · {{ unit_label }} · Generated {{ generated_at }}
+            <div class="pkt-screen-kicker">Commissary Packet</div>
+            <h1 class="pkt-screen-title">Production Dispatch Packet</h1>
+            <p class="pkt-screen-subtitle">
+                {{ (selected_outlet or 'All Outlets') }} · {{ manifest_window }} · {{ unit_label }} · Generated {{ generated_at }}
             </p>
         </div>
-        <div class="flex items-center gap-2 flex-wrap justify-end">
+        <div class="pkt-screen-actions">
             <a
                 href="{{ url_for('commissary_packet_print', outlet=selected_outlet, week_start=week_start, day=selected_day, include_shopping=include_shopping, units='auto') }}"
-                class="px-3 py-2 rounded-xl border {% if selected_units == 'auto' %}border-foxtown-ember text-foxtown-ember bg-orange-50{% else %}border-stone-300 text-stone-700 hover:bg-stone-50{% endif %} font-semibold text-sm"
+                class="pkt-toolbar-btn {% if selected_units == 'auto' %}pkt-toolbar-btn--active{% endif %}"
             >
                 Auto
             </a>
             <a
                 href="{{ url_for('commissary_packet_print', outlet=selected_outlet, week_start=week_start, day=selected_day, include_shopping=include_shopping, units='imperial') }}"
-                class="px-3 py-2 rounded-xl border {% if selected_units == 'imperial' %}border-foxtown-ember text-foxtown-ember bg-orange-50{% else %}border-stone-300 text-stone-700 hover:bg-stone-50{% endif %} font-semibold text-sm"
+                class="pkt-toolbar-btn {% if selected_units == 'imperial' %}pkt-toolbar-btn--active{% endif %}"
             >
                 Imperial
             </a>
             <a
                 href="{{ url_for('commissary_packet_print', outlet=selected_outlet, week_start=week_start, day=selected_day, include_shopping=include_shopping, units='metric') }}"
-                class="px-3 py-2 rounded-xl border {% if selected_units == 'metric' %}border-foxtown-ember text-foxtown-ember bg-orange-50{% else %}border-stone-300 text-stone-700 hover:bg-stone-50{% endif %} font-semibold text-sm"
+                class="pkt-toolbar-btn {% if selected_units == 'metric' %}pkt-toolbar-btn--active{% endif %}"
             >
                 Metric
             </a>
             <a
                 href="{{ url_for('commissary_packet_print', outlet=selected_outlet, week_start=week_start, day=selected_day, include_shopping=include_shopping, units='hybrid') }}"
-                class="px-3 py-2 rounded-xl border {% if selected_units == 'hybrid' %}border-foxtown-ember text-foxtown-ember bg-orange-50{% else %}border-stone-300 text-stone-700 hover:bg-stone-50{% endif %} font-semibold text-sm"
+                class="pkt-toolbar-btn {% if selected_units == 'hybrid' %}pkt-toolbar-btn--active{% endif %}"
             >
                 Grams + qt/gal
             </a>
             <a
                 href="{{ url_for('commissary_packet_print', outlet=selected_outlet, week_start=week_start, day=selected_day, include_shopping=(0 if include_shopping else 1), units=selected_units) }}"
-                class="px-4 py-2 rounded-xl border border-stone-300 text-stone-700 hover:bg-stone-50 font-semibold"
+                class="pkt-toolbar-btn"
             >
                 {% if include_shopping %}Hide Shopping{% else %}Include Shopping{% endif %}
             </a>
             <a
                 href="{{ url_for('commissary_packet_pdf', outlet=selected_outlet, week_start=week_start, day=selected_day, include_shopping=include_shopping, units=selected_units) }}"
-                class="bg-stone-800 hover:bg-stone-900 text-white px-4 py-2 rounded-xl font-semibold"
+                class="pkt-toolbar-btn pkt-toolbar-btn--primary"
             >
                 Download PDF
             </a>
-            <button onclick="window.print()" class="bg-foxtown-ember hover:bg-orange-700 text-white px-4 py-2 rounded-xl font-semibold">Print / Save PDF</button>
+            <button onclick="window.print()" class="pkt-toolbar-btn pkt-toolbar-btn--primary">Print / Save PDF</button>
         </div>
+    </div>
+    <div class="pkt-doc-sheet">
+        <header class="pkt-doc-header break-inside-avoid">
+            <div>
+                <div class="pkt-doc-kicker">Kitchen Operations / Logistics Division</div>
+                <h1 class="pkt-doc-title">COMMISSARY_MANIFEST</h1>
+                <div class="pkt-doc-ref">Ref ID: {{ commissary_ref }}</div>
+            </div>
+            <button onclick="window.print()" class="no-print pkt-toolbar-btn pkt-toolbar-btn--primary">Print Manifest</button>
+        </header>
+        <div class="pkt-doc-meta-grid break-inside-avoid">
+            <div class="pkt-doc-meta">
+                <span class="pkt-doc-meta-label">Date Window</span>
+                <span class="pkt-doc-meta-value">{{ manifest_window }}</span>
+            </div>
+            <div class="pkt-doc-meta">
+                <span class="pkt-doc-meta-label">Outlet Scope</span>
+                <span class="pkt-doc-meta-value">{{ selected_outlet or 'All Outlets' }}</span>
+            </div>
+            <div class="pkt-doc-meta">
+                <span class="pkt-doc-meta-label">Units</span>
+                <span class="pkt-doc-meta-value">{{ unit_label }}</span>
+            </div>
+            <div class="pkt-doc-meta">
+                <span class="pkt-doc-meta-label">Orders</span>
+                <span class="pkt-doc-meta-value">{{ datasets.orders|length }}</span>
+            </div>
+            <div class="pkt-doc-meta">
+                <span class="pkt-doc-meta-label">Manifest Lines</span>
+                <span class="pkt-doc-meta-value">{{ packet_checklist_lines|length }}</span>
+            </div>
+            <div class="pkt-doc-meta">
+                <span class="pkt-doc-meta-label">Shopping</span>
+                <span class="pkt-doc-meta-value">{{ 'Included' if include_shopping else 'Hidden' }}</span>
+            </div>
+        </div>
+
+    <div class="pkt-section break-inside-avoid">
+        <div class="pkt-section-header">
+            <h2>Dispatch Manifest</h2>
+            <span class="pkt-date-range">{{ manifest_window }}</span>
+        </div>
+        {% if packet_checklist_lines %}
+        <div class="overflow-x-auto">
+            <table class="pkt-table pkt-table-manifest">
+                <thead>
+                    <tr>
+                        <th style="width:8%">Loaded</th>
+                        <th>Item Name</th>
+                        <th class="text-right" style="width:14%">Quantity</th>
+                        <th style="width:20%">Destination</th>
+                        <th style="width:24%">Dispatch Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for line in packet_checklist_lines %}
+                    <tr class="pkt-manifest-row">
+                        <td class="text-center"><span class="pkt-checkbox"></span></td>
+                        <td>
+                            <div class="pkt-bold">{{ line.item_name }}</div>
+                            {% if line.recipe_name and line.recipe_name != line.item_name %}
+                            <div class="pkt-muted">Recipe: {{ line.recipe_name }}</div>
+                            {% endif %}
+                        </td>
+                        <td class="text-right pkt-mono pkt-qty pkt-qty-strong">{{ line.quantity }} {{ line.quantity_unit }}</td>
+                        <td>{{ line.outlet }}</td>
+                        <td>{{ line.notes or '—' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="pkt-empty-note">No production lines found for this date window.</div>
+        {% endif %}
     </div>
 
     <div class="pkt-section break-inside-avoid">
         <div class="pkt-section-header">
-            <h2>Daily Production Checklist</h2>
+            <h2>Production Accountability</h2>
             <span class="pkt-date-range">
-                {% if selected_day %}
-                {{ selected_day }}
-                {% else %}
-                {{ start_date }} - {{ end_date }}
-                {% endif %}
+                {{ manifest_window }}
             </span>
         </div>
         {% if packet_checklist_lines %}
@@ -394,7 +462,30 @@
         {% endif %}
     </div>
     {% endif %}
-
+    <footer class="pkt-doc-footer break-inside-avoid">
+        <div class="pkt-doc-signatures">
+            <div class="pkt-signature-block">
+                <div class="pkt-signature-line"></div>
+                <div class="pkt-signature-meta">
+                    <span>Dispatch Signature</span>
+                    <span>Time Out: _______</span>
+                </div>
+            </div>
+            <div class="pkt-signature-block">
+                <div class="pkt-signature-line"></div>
+                <div class="pkt-signature-meta">
+                    <span>Receiver Signature</span>
+                    <span>Time In: _______</span>
+                </div>
+            </div>
+        </div>
+        <div class="pkt-doc-meta-strip">
+            <span>{{ commissary_ref }}</span>
+            <span>{{ generated_at }}</span>
+            <span>{{ packet_checklist_lines|length }} lines · {{ 'Shopping included' if include_shopping else 'Shopping hidden' }}</span>
+        </div>
+    </footer>
+    </div>
 </div>
 
 <style>
@@ -759,6 +850,328 @@
     .break-inside-avoid {
         page-break-inside: avoid;
         break-inside: avoid;
+    }
+}
+</style>
+<style>
+#printRoot.pkt-doc-shell {
+    color: #2a3439;
+}
+.pkt-doc-shell .pkt-doc-sheet {
+    background: #ffffff;
+    border: 1px solid #a9b4b9;
+    box-shadow: 0 1px 0 rgba(169, 180, 185, 0.7);
+}
+.pkt-screen-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+.pkt-screen-kicker,
+.pkt-doc-kicker {
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #566166;
+}
+.pkt-screen-title {
+    margin: 0.25rem 0 0.15rem;
+    font-size: 2rem;
+    line-height: 1;
+    font-weight: 900;
+    letter-spacing: -0.05em;
+    text-transform: uppercase;
+    color: #2a3439;
+}
+.pkt-screen-subtitle {
+    margin: 0;
+    color: #566166;
+    font-size: 0.9rem;
+}
+.pkt-screen-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.55rem;
+}
+.pkt-toolbar-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.6rem;
+    padding: 0.7rem 1rem;
+    border: 1px solid #717c82;
+    background: #ffffff;
+    color: #2a3439;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    text-decoration: none;
+}
+.pkt-toolbar-btn:hover {
+    background: #f0f4f7;
+}
+.pkt-toolbar-btn--active {
+    background: #d9e4ea;
+    border-color: #566166;
+}
+.pkt-toolbar-btn--primary {
+    background: #2a3439;
+    border-color: #2a3439;
+    color: #f7f9fb;
+}
+.pkt-toolbar-btn--primary:hover {
+    background: #566166;
+    border-color: #566166;
+}
+.pkt-doc-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 2rem 2rem 1.4rem;
+    border-bottom: 4px solid #2a3439;
+}
+.pkt-doc-title {
+    margin: 0.3rem 0 0.15rem;
+    font-size: 2.35rem;
+    line-height: 1;
+    font-weight: 900;
+    letter-spacing: -0.06em;
+    text-transform: uppercase;
+    color: #2a3439;
+}
+.pkt-doc-ref {
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #566166;
+}
+.pkt-doc-meta-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem 1.25rem;
+    padding: 1rem 2rem 1.6rem;
+    background: #f0f4f7;
+    border-bottom: 1px solid #a9b4b9;
+}
+.pkt-doc-meta {
+    border-bottom: 1px solid #717c82;
+    padding-bottom: 0.45rem;
+}
+.pkt-doc-meta-label {
+    display: block;
+    margin-bottom: 0.2rem;
+    font-size: 0.64rem;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #566166;
+}
+.pkt-doc-meta-value {
+    display: block;
+    font-size: 1rem;
+    font-weight: 800;
+    color: #2a3439;
+}
+.pkt-section {
+    margin: 0 2rem 1.15rem;
+    background: #ffffff;
+    border: 1px solid #a9b4b9;
+    border-radius: 0;
+    padding: 1.2rem 1.25rem;
+}
+.pkt-section-header {
+    margin-bottom: 0.8rem;
+    padding-bottom: 0.65rem;
+    border-bottom: 2px solid #2a3439;
+}
+.pkt-section-header h2 {
+    font-size: 0.98rem;
+    font-weight: 900;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #2a3439;
+}
+.pkt-date-range,
+.pkt-muted,
+.pkt-label,
+.pkt-label-inline,
+.pkt-doc-meta-strip {
+    color: #566166;
+}
+.pkt-label,
+.pkt-label-inline,
+.pkt-doc-meta-strip,
+.pkt-vendor-label,
+.pkt-table thead th {
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+.pkt-table {
+    border: 1px solid #2a3439;
+}
+.pkt-table thead th {
+    background: #2a3439;
+    color: #f7f9fb;
+    border: 1px solid rgba(247, 249, 251, 0.2);
+    padding: 0.6rem 0.65rem;
+}
+.pkt-table tbody td {
+    border: 1px solid #a9b4b9;
+    color: #2a3439;
+    padding: 0.5rem 0.65rem;
+}
+.pkt-table-manifest tbody td,
+.pkt-table-accountability tbody td {
+    vertical-align: top;
+}
+.pkt-account-row td,
+.pkt-manifest-row td {
+    background: #ffffff;
+}
+.pkt-alt-row:nth-child(odd) td {
+    background: #f7f9fb;
+}
+.pkt-order-card,
+.pkt-line-sheet,
+.pkt-recipe-card,
+.pkt-line-meta,
+.pkt-line-note-copy {
+    border-radius: 0;
+    border-color: #a9b4b9;
+}
+.pkt-order-card,
+.pkt-line-sheet {
+    background: #ffffff;
+}
+.pkt-order-header,
+.pkt-line-sheet-header {
+    border-bottom-color: #2a3439;
+}
+.pkt-recipe-card {
+    border-left: 4px solid #717c82;
+    background: #f7f9fb;
+}
+.pkt-card-body {
+    padding: 0.7rem 0.9rem;
+}
+.pkt-method-section {
+    border-top-color: #a9b4b9;
+}
+.pkt-step-num {
+    width: 1.45rem;
+    height: 1.45rem;
+    border-radius: 0;
+    background: #d9e4ea;
+    color: #2a3439;
+    border: 1px solid #717c82;
+}
+.pkt-checkbox,
+.pkt-write-line,
+.pkt-write-box {
+    border-color: #2a3439;
+    border-radius: 0;
+}
+.pkt-vendor-label {
+    display: inline-block;
+    background: #d9e4ea;
+    color: #2a3439;
+    padding: 0.35rem 0.65rem;
+    border: 1px solid #717c82;
+}
+.pkt-doc-footer {
+    padding: 1.2rem 2rem 1.6rem;
+    border-top: 1px solid #a9b4b9;
+}
+.pkt-doc-signatures {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem 1.5rem;
+    margin-bottom: 1rem;
+}
+.pkt-signature-block {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+}
+.pkt-signature-line {
+    height: 3rem;
+    border-bottom: 1px solid #2a3439;
+}
+.pkt-signature-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #566166;
+}
+.pkt-doc-meta-strip {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid #a9b4b9;
+    font-size: 0.68rem;
+}
+@media (max-width: 960px) {
+    .pkt-doc-meta-grid,
+    .pkt-doc-signatures {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+@media (max-width: 700px) {
+    .pkt-doc-header,
+    .pkt-screen-toolbar,
+    .pkt-doc-meta-strip,
+    .pkt-signature-meta {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .pkt-doc-meta-grid,
+    .pkt-doc-signatures {
+        grid-template-columns: 1fr;
+    }
+}
+@media print {
+    #printRoot.pkt-doc-shell {
+        padding: 0 !important;
+        margin: 0 !important;
+        max-width: none !important;
+    }
+    .pkt-doc-shell .pkt-doc-sheet {
+        border: none !important;
+        box-shadow: none !important;
+    }
+    .pkt-doc-header,
+    .pkt-doc-meta-grid,
+    .pkt-doc-footer,
+    .pkt-section {
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+    .pkt-toolbar-btn,
+    .pkt-toolbar-btn--primary,
+    .pkt-toolbar-btn--active {
+        border-color: #000 !important;
+        background: #fff !important;
+        color: #000 !important;
+    }
+    .pkt-doc-meta-grid,
+    .pkt-step-num,
+    .pkt-vendor-label,
+    .pkt-recipe-card {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
     }
 }
 </style>

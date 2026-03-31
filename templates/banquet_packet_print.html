@@ -6,6 +6,11 @@
 {% set simple_raw = (request.args.get('simple') or '').strip().lower() %}
 {% set simplified_view = simple_raw in ('1', 'true', 'yes', 'on') %}
 {% set print_lite = print_lite|default(false) %}
+{% set banquet_meta = namespace(guest_total=0) %}
+{% for event in datasets.events %}
+    {% set banquet_meta.guest_total = banquet_meta.guest_total + (event.guests|int) %}
+{% endfor %}
+{% set banquet_ref = 'FHQ-BQ-' ~ start_date|replace('-', '') ~ '-' ~ end_date|replace('-', '') %}
 {% macro render_sub_card(card, depth=1) -%}
 <div class="pkt-sub-prep-card" style="margin-left: {{ depth * 1.1 }}rem;">
     <div class="pkt-sub-prep-header">
@@ -55,49 +60,84 @@
     {% endfor %}
 </div>
 {%- endmacro %}
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6" id="printRoot">
-    {# ── Screen-only toolbar ── #}
-    <div class="print:hidden screen-only flex justify-between items-center">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 pkt-doc-shell" id="printRoot">
+    <div class="no-print pkt-screen-toolbar">
         <div>
-            <h1 class="text-3xl font-display text-foxtown-ink">Banquet Planning Packet</h1>
-            <p class="text-stone-600">{{ venue_name }} · {{ start_date }} to {{ end_date }} · Generated {{ generated_at }}</p>
+            <div class="pkt-screen-kicker">Banquet Packet</div>
+            <h1 class="pkt-screen-title">Operational Print Packet</h1>
+            <p class="pkt-screen-subtitle">{{ venue_name }} · {{ start_date }} to {{ end_date }} · Generated {{ generated_at }}</p>
         </div>
-        <div class="flex items-center gap-2 flex-wrap justify-end">
+        <div class="pkt-screen-actions">
             <a
                 href="{{ url_for('banquet_packet_print', venue=selected_venue, start_date=start_date, end_date=end_date, include_shopping=include_shopping, include_beo=include_beo, simple=(0 if simplified_view else 1), print_lite=(1 if print_lite else 0)) }}"
-                class="px-4 py-2 rounded-xl border border-stone-300 text-stone-700 hover:bg-stone-50 font-semibold"
+                class="pkt-toolbar-btn"
             >
                 {% if simplified_view %}Full View{% else %}Simplified View{% endif %}
             </a>
             <a
                 href="{{ url_for('banquet_packet_print', venue=selected_venue, start_date=start_date, end_date=end_date, include_shopping=include_shopping, include_beo=(0 if include_beo else 1), simple=(1 if simplified_view else 0), print_lite=(1 if print_lite else 0)) }}"
-                class="px-4 py-2 rounded-xl border border-stone-300 text-stone-700 hover:bg-stone-50 font-semibold"
+                class="pkt-toolbar-btn"
             >
                 {% if include_beo %}Hide BEO{% else %}Include BEO{% endif %}
             </a>
             <a
                 href="{{ url_for('banquet_packet_print', venue=selected_venue, start_date=start_date, end_date=end_date, include_shopping=include_shopping, include_beo=include_beo, simple=(1 if simplified_view else 0), print_lite=(0 if print_lite else 1)) }}"
-                class="px-4 py-2 rounded-xl border border-stone-300 text-stone-700 hover:bg-stone-50 font-semibold"
+                class="pkt-toolbar-btn"
             >
                 {% if print_lite %}Disable Print Lite{% else %}Enable Print Lite{% endif %}
             </a>
             {% if not print_lite %}
             <a
                 href="{{ url_for('banquet_packet_print', venue=selected_venue, start_date=start_date, end_date=end_date, include_shopping=(0 if include_shopping else 1), include_beo=include_beo, simple=(1 if simplified_view else 0), print_lite=(1 if print_lite else 0)) }}"
-                class="px-4 py-2 rounded-xl border border-stone-300 text-stone-700 hover:bg-stone-50 font-semibold"
+                class="pkt-toolbar-btn"
             >
                 {% if include_shopping %}Hide Shopping{% else %}Include Shopping{% endif %}
             </a>
             {% endif %}
             <a
                 href="{{ url_for('banquet_packet_pdf', venue=selected_venue, start_date=start_date, end_date=end_date, include_shopping=include_shopping, include_beo=include_beo, simple=(1 if simplified_view else 0), print_lite=(1 if print_lite else 0)) }}"
-                class="bg-stone-800 hover:bg-stone-900 text-white px-4 py-2 rounded-xl font-semibold"
+                class="pkt-toolbar-btn pkt-toolbar-btn--primary"
             >
                 Download PDF
             </a>
-            <button onclick="window.print()" class="bg-foxtown-ember hover:bg-orange-700 text-white px-4 py-2 rounded-xl font-semibold">Print / Save PDF</button>
+            <button onclick="window.print()" class="pkt-toolbar-btn pkt-toolbar-btn--primary">Print / Save PDF</button>
         </div>
     </div>
+    <div class="pkt-doc-sheet">
+        <header class="pkt-doc-header break-inside-avoid">
+            <div>
+                <div class="pkt-doc-kicker">Kitchen Operations / Banquet Division</div>
+                <h1 class="pkt-doc-title">BANQUET_PREP_PROTOCOL</h1>
+                <div class="pkt-doc-ref">Ref ID: {{ banquet_ref }}</div>
+            </div>
+            <button onclick="window.print()" class="no-print pkt-toolbar-btn pkt-toolbar-btn--primary">Print Sheet</button>
+        </header>
+        <div class="pkt-doc-meta-grid break-inside-avoid">
+            <div class="pkt-doc-meta">
+                <span class="pkt-doc-meta-label">Venue</span>
+                <span class="pkt-doc-meta-value">{{ venue_name }}</span>
+            </div>
+            <div class="pkt-doc-meta">
+                <span class="pkt-doc-meta-label">Window</span>
+                <span class="pkt-doc-meta-value">{{ start_date }} to {{ end_date }}</span>
+            </div>
+            <div class="pkt-doc-meta">
+                <span class="pkt-doc-meta-label">Events</span>
+                <span class="pkt-doc-meta-value">{{ datasets.events|length }}</span>
+            </div>
+            <div class="pkt-doc-meta">
+                <span class="pkt-doc-meta-label">Projected Covers</span>
+                <span class="pkt-doc-meta-value">{{ banquet_meta.guest_total or '—' }}</span>
+            </div>
+            <div class="pkt-doc-meta">
+                <span class="pkt-doc-meta-label">Packet Mode</span>
+                <span class="pkt-doc-meta-value">{{ 'Print Lite' if print_lite else 'Full Packet' }}</span>
+            </div>
+            <div class="pkt-doc-meta">
+                <span class="pkt-doc-meta-label">BEO Source</span>
+                <span class="pkt-doc-meta-value">{{ 'Included' if include_beo else 'Hidden' }}</span>
+            </div>
+        </div>
     {% if print_lite %}
     <div class="pkt-section screen-only">
         <p class="pkt-subtitle">Print Lite is on. Shopping, prep cards, direct pulls, and daily prep sections are excluded to reduce spooler load.</p>
@@ -468,6 +508,31 @@
         {% endfor %}
     </div>
     {% endif %}
+
+    <footer class="pkt-doc-footer break-inside-avoid">
+        <div class="pkt-doc-signatures">
+            <div class="pkt-signature-block">
+                <div class="pkt-signature-line"></div>
+                <div class="pkt-signature-meta">
+                    <span>Prep Lead Signature</span>
+                    <span>Time: _______</span>
+                </div>
+            </div>
+            <div class="pkt-signature-block">
+                <div class="pkt-signature-line"></div>
+                <div class="pkt-signature-meta">
+                    <span>Chef Sign-Off</span>
+                    <span>Time: _______</span>
+                </div>
+            </div>
+        </div>
+        <div class="pkt-doc-meta-strip">
+            <span>{{ banquet_ref }}</span>
+            <span>{{ generated_at }}</span>
+            <span>{{ 'BEO included' if include_beo else 'BEO hidden' }} · {{ 'Shopping included' if include_shopping and not print_lite else 'Shopping hidden' }}</span>
+        </div>
+    </footer>
+    </div>
 </div>
 
 {# ═══════════════════════════════════════════════════════ #}
@@ -971,6 +1036,365 @@
     @page {
         margin: 0.5in;
         size: letter;
+    }
+}
+</style>
+<style>
+#printRoot.pkt-doc-shell {
+    color: #2a3439;
+}
+.pkt-doc-shell .pkt-doc-sheet {
+    background: #ffffff;
+    border: 1px solid #a9b4b9;
+    box-shadow: 0 1px 0 rgba(169, 180, 185, 0.7);
+}
+.pkt-screen-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+.pkt-screen-kicker,
+.pkt-doc-kicker {
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #566166;
+}
+.pkt-screen-title {
+    margin: 0.25rem 0 0.15rem;
+    font-size: 2rem;
+    line-height: 1;
+    font-weight: 900;
+    letter-spacing: -0.05em;
+    text-transform: uppercase;
+    color: #2a3439;
+}
+.pkt-screen-subtitle {
+    margin: 0;
+    color: #566166;
+    font-size: 0.9rem;
+}
+.pkt-screen-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.55rem;
+}
+.pkt-toolbar-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.6rem;
+    padding: 0.7rem 1rem;
+    border: 1px solid #717c82;
+    background: #ffffff;
+    color: #2a3439;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    text-decoration: none;
+}
+.pkt-toolbar-btn:hover {
+    background: #f0f4f7;
+}
+.pkt-toolbar-btn--primary {
+    background: #2a3439;
+    border-color: #2a3439;
+    color: #f7f9fb;
+}
+.pkt-toolbar-btn--primary:hover {
+    background: #566166;
+    border-color: #566166;
+}
+.pkt-doc-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 2rem 2rem 1.4rem;
+    border-bottom: 4px solid #2a3439;
+}
+.pkt-doc-title {
+    margin: 0.3rem 0 0.15rem;
+    font-size: 2.35rem;
+    line-height: 1;
+    font-weight: 900;
+    letter-spacing: -0.06em;
+    text-transform: uppercase;
+    color: #2a3439;
+}
+.pkt-doc-ref {
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #566166;
+}
+.pkt-doc-meta-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem 1.25rem;
+    padding: 1rem 2rem 1.6rem;
+    background: #f0f4f7;
+    border-bottom: 1px solid #a9b4b9;
+}
+.pkt-doc-meta {
+    border-bottom: 1px solid #717c82;
+    padding-bottom: 0.45rem;
+}
+.pkt-doc-meta-label {
+    display: block;
+    margin-bottom: 0.2rem;
+    font-size: 0.64rem;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #566166;
+}
+.pkt-doc-meta-value {
+    display: block;
+    font-size: 1rem;
+    font-weight: 800;
+    color: #2a3439;
+}
+.pkt-section {
+    margin: 0 2rem 1.15rem;
+    background: #ffffff;
+    border: 1px solid #a9b4b9;
+    border-radius: 0;
+    padding: 1.2rem 1.25rem;
+}
+.pkt-section-header {
+    margin-bottom: 0.8rem;
+    padding-bottom: 0.65rem;
+    border-bottom: 2px solid #2a3439;
+}
+.pkt-section-header h2 {
+    font-size: 0.98rem;
+    font-weight: 900;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #2a3439;
+}
+.pkt-date-range,
+.pkt-subtitle,
+.pkt-muted,
+.pkt-card-meta,
+.pkt-label,
+.pkt-label-inline,
+.pkt-sub-prep-label {
+    color: #566166;
+}
+.pkt-label,
+.pkt-label-inline,
+.pkt-sub-prep-label,
+.pkt-vendor-label,
+.pkt-doc-meta-strip,
+.pkt-table thead th {
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+.pkt-table {
+    border: 1px solid #2a3439;
+}
+.pkt-table thead th {
+    background: #2a3439;
+    color: #f7f9fb;
+    border-bottom: 1px solid #2a3439;
+    padding: 0.55rem 0.6rem;
+}
+.pkt-table tbody td {
+    border-bottom: 1px solid #a9b4b9;
+    color: #2a3439;
+    padding: 0.45rem 0.6rem;
+}
+.pkt-alt-row:nth-child(odd) td,
+.pkt-day-event-header,
+.pkt-sub-section,
+.pkt-card-meta,
+.pkt-beo-notes,
+.pkt-beo-alert,
+.pkt-pull-card,
+.pkt-day-block {
+    background: #f7f9fb;
+}
+.pkt-prep-card,
+.pkt-pull-card,
+.pkt-beo-card,
+.pkt-day-event {
+    border-radius: 0;
+    border-color: #a9b4b9;
+}
+.pkt-prep-card {
+    margin: 0 2rem 1rem;
+    border: 1px solid #2a3439;
+}
+.pkt-card-header {
+    padding: 0.95rem 1.1rem;
+    background: #d9e4ea;
+    color: #2a3439;
+    border-bottom: 2px solid #2a3439;
+}
+.pkt-card-title h3,
+.pkt-yield-number,
+.pkt-beo-title,
+.pkt-day-header {
+    color: #2a3439;
+}
+.pkt-yield-unit,
+.pkt-card-meta span,
+.pkt-beo-service {
+    color: #455367;
+}
+.pkt-step-num {
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 0;
+    background: #d9e4ea;
+    color: #2a3439;
+    border: 1px solid #717c82;
+}
+.pkt-checkbox,
+.pkt-write-line,
+.pkt-write-box,
+.pkt-beo-guests,
+.pkt-beo-file-ref,
+.pkt-guests,
+.pkt-mod-tag {
+    border-radius: 0;
+}
+.pkt-checkbox {
+    border-color: #2a3439;
+}
+.pkt-vendor-label {
+    background: #d9e4ea;
+    color: #2a3439;
+    padding: 0.35rem 0.65rem;
+    border: 1px solid #717c82;
+}
+.pkt-beo-alert {
+    border-color: #717c82;
+    color: #2a3439;
+}
+.pkt-beo-guests,
+.pkt-guests {
+    background: #d9e4ea;
+    border: 1px solid #717c82;
+    color: #2a3439;
+}
+.pkt-mod-tag {
+    background: #f0f4f7;
+    border: 1px solid #a9b4b9;
+    color: #2a3439;
+}
+.pkt-day-header {
+    font-size: 1.15rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+.pkt-doc-footer {
+    padding: 1.2rem 2rem 1.6rem;
+    border-top: 1px solid #a9b4b9;
+}
+.pkt-doc-signatures {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem 1.5rem;
+    margin-bottom: 1rem;
+}
+.pkt-signature-block {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+}
+.pkt-signature-line {
+    height: 3rem;
+    border-bottom: 1px solid #2a3439;
+}
+.pkt-signature-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #566166;
+}
+.pkt-doc-meta-strip {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid #a9b4b9;
+    font-size: 0.68rem;
+    color: #566166;
+}
+@media (max-width: 960px) {
+    .pkt-doc-meta-grid,
+    .pkt-doc-signatures {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+@media (max-width: 700px) {
+    .pkt-doc-header,
+    .pkt-screen-toolbar,
+    .pkt-doc-meta-strip,
+    .pkt-signature-meta {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .pkt-doc-meta-grid,
+    .pkt-doc-signatures {
+        grid-template-columns: 1fr;
+    }
+}
+@media print {
+    #printRoot.pkt-doc-shell {
+        padding: 0 !important;
+        margin: 0 !important;
+        max-width: none !important;
+    }
+    .pkt-doc-shell .pkt-doc-sheet {
+        border: none !important;
+        box-shadow: none !important;
+    }
+    .pkt-doc-header,
+    .pkt-doc-meta-grid,
+    .pkt-doc-footer,
+    .pkt-section,
+    .pkt-prep-card {
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+    .pkt-toolbar-btn,
+    .pkt-toolbar-btn--primary {
+        border-color: #000 !important;
+        background: #fff !important;
+        color: #000 !important;
+    }
+    .pkt-doc-meta-grid,
+    .pkt-alt-row:nth-child(odd) td,
+    .pkt-day-event-header,
+    .pkt-sub-section,
+    .pkt-card-meta,
+    .pkt-beo-notes,
+    .pkt-beo-alert,
+    .pkt-pull-card,
+    .pkt-day-block,
+    .pkt-card-header,
+    .pkt-beo-guests,
+    .pkt-guests,
+    .pkt-vendor-label,
+    .pkt-mod-tag,
+    .pkt-step-num {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
     }
 }
 </style>
