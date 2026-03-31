@@ -16,6 +16,7 @@ from config import PRICE_REFRESH_DAYS
 from db import get_cursor, init_app as init_db_app
 from helpers.auth import get_admin_config
 from helpers.banquet import (
+    auto_complete_past_banquet_events,
     build_banquet_datasets,
     resolve_banquet_venue,
 )

@@ -5,34 +5,49 @@
     <title>{{ rollout.name or 'Menu Rollout' }} - Print</title>
     <style>
         * { box-sizing: border-box; }
+        :root {
+            color-scheme: light;
+            --bg: #f7f9fb;
+            --surface: #ffffff;
+            --surface-low: #f0f4f7;
+            --surface-top: #d9e4ea;
+            --fg: #2a3439;
+            --muted: #566166;
+            --outline-ghost: rgba(169, 180, 185, 0.35);
+            --primary: #565e74;
+        }
         body {
             font-family: "Inter", Arial, sans-serif;
-            color: #111827;
+            color: var(--fg);
+            background: var(--bg);
             margin: 24px;
         }
         h1 {
-            font-family: "Fraunces", Georgia, serif;
             margin: 0 0 6px 0;
             font-size: 24px;
+            font-weight: 900;
+            letter-spacing: -0.05em;
+            text-transform: uppercase;
         }
         h2 {
-            font-family: "Fraunces", Georgia, serif;
+            font-weight: 900;
+            letter-spacing: -0.04em;
+            text-transform: uppercase;
         }
         .meta {
             font-size: 12px;
-            color: #6b7280;
+            color: var(--muted);
             margin-bottom: 16px;
         }
         .section-title {
             margin-top: 24px;
-            font-size: 14px;
-            font-weight: 700;
-            color: #1D4ED8;
-            background: #EFF6FF;
+            font-size: 12px;
+            font-weight: 800;
+            color: var(--fg);
+            background: var(--surface-top);
             padding: 6px 10px;
-            padding-left: 8px;
-            border-left: 4px solid #ea580c;
-            border-radius: 6px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
         }
         table {
             width: 100%;
@@ -41,17 +56,20 @@
             font-size: 12px;
         }
         th, td {
-            border: 1px solid #e5e7eb;
+            border: 1px solid var(--outline-ghost);
             padding: 6px 8px;
             text-align: left;
         }
         th {
-            background: #f3f4f6;
-            font-weight: 600;
-            color: #374151;
+            background: var(--surface-top);
+            font-weight: 800;
+            color: var(--muted);
+            font-size: 11px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
         }
         .muted {
-            color: #6b7280;
+            color: var(--muted);
             font-size: 11px;
         }
         .print-page-number {
@@ -69,7 +87,7 @@
                 bottom: 0.12in;
                 right: 0.05in;
                 font-size: 10px;
-                color: #6b7280;
+                color: var(--muted);
             }
             .print-page-number::after {
                 content: "Page " counter(page);
@@ -79,7 +97,7 @@
 </head>
 <body>
     <div class="no-print" style="margin-bottom: 12px;">
-        <button onclick="window.print()">Print / Save PDF</button>
+        <button onclick="window.print()" style="border:1px solid rgba(169,180,185,0.35);background:#e8eff3;color:#2a3439;padding:10px 14px;font:700 12px Inter, Arial, sans-serif;letter-spacing:.08em;text-transform:uppercase;">Print / Save PDF</button>
     </div>
 
     <h1>{{ rollout.name or 'Menu Rollout' }}</h1>

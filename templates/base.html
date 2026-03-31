@@ -63,10 +63,13 @@
                             border: '#A9B4B9',
                             borderHover: '#717C82',
                             text: '#2A3439',
+                            ink: '#2A3439',
                             muted: '#566166',
                             subtle: '#717C82',
                             ember: '#565E74',
                             emberLight: '#4A5268',
+                            glow: '#565E74',
+                            black: '#0B0F10',
                             dark: '#0B0F10'
                         }
                     },
@@ -74,6 +77,11 @@
                         sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
                         body: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
                         display: ['Inter', 'system-ui', '-apple-system', 'sans-serif']
+                    },
+                    boxShadow: {
+                        soft: 'none',
+                        lift: 'none',
+                        board: 'none'
                     }
                 }
             }
@@ -460,6 +468,114 @@
             margin: 0 auto;
             padding: 1.5rem 1rem 2.5rem;
         }
+        body.fhq-app-mode :is(.rounded, .rounded-sm, .rounded-md, .rounded-lg, .rounded-xl, .rounded-2xl, .rounded-3xl, .rounded-full) {
+            border-radius: 0 !important;
+        }
+        body.fhq-app-mode :is(.shadow-sm, .shadow, .shadow-md, .shadow-lg, .shadow-xl, .shadow-2xl, .shadow-soft, .shadow-lift) {
+            box-shadow: none !important;
+        }
+        body.fhq-app-mode .text-foxtown-ink,
+        body.fhq-app-mode .text-foxtown-text {
+            color: var(--fg) !important;
+        }
+        body.fhq-app-mode .text-foxtown-muted {
+            color: var(--muted) !important;
+        }
+        body.fhq-app-mode .text-foxtown-ember,
+        body.fhq-app-mode .roll-open,
+        body.fhq-app-mode .db-panel-link {
+            color: var(--primary) !important;
+        }
+        body.fhq-app-mode .hover\:text-orange-700:hover,
+        body.fhq-app-mode .hover\:text-foxtown-ember:hover,
+        body.fhq-app-mode .roll-open:hover {
+            color: var(--primary-dim) !important;
+        }
+        body.fhq-app-mode .bg-white {
+            background: var(--surface) !important;
+        }
+        body.fhq-app-mode .bg-stone-50,
+        body.fhq-app-mode .bg-stone-50\/60,
+        body.fhq-app-mode .bg-stone-100,
+        body.fhq-app-mode .bg-orange-50,
+        body.fhq-app-mode .bg-amber-50 {
+            background: var(--surface-low) !important;
+        }
+        body.fhq-app-mode .bg-stone-200,
+        body.fhq-app-mode .bg-stone-300 {
+            background: var(--surface-top) !important;
+        }
+        body.fhq-app-mode .border-stone-200,
+        body.fhq-app-mode .border-stone-300,
+        body.fhq-app-mode .border-white\/8,
+        body.fhq-app-mode .border-white\/10,
+        body.fhq-app-mode .border-white\/12 {
+            border-color: var(--outline-ghost) !important;
+        }
+        body.fhq-app-mode .border-dashed {
+            border-color: rgba(169, 180, 185, 0.55) !important;
+        }
+        body.fhq-app-mode .text-stone-500,
+        body.fhq-app-mode .text-stone-600,
+        body.fhq-app-mode .text-stone-700,
+        body.fhq-app-mode .text-stone-800,
+        body.fhq-app-mode .text-white\/40,
+        body.fhq-app-mode .text-white\/42,
+        body.fhq-app-mode .text-white\/45,
+        body.fhq-app-mode .text-white\/48,
+        body.fhq-app-mode .text-white\/52,
+        body.fhq-app-mode .text-white\/55,
+        body.fhq-app-mode .text-white\/70 {
+            color: var(--muted) !important;
+        }
+        body.fhq-app-mode .text-white,
+        body.fhq-app-mode .text-stone-900 {
+            color: var(--fg) !important;
+        }
+        body.fhq-app-mode .bg-foxtown-ember,
+        body.fhq-app-mode .bg-stone-800,
+        body.fhq-app-mode .bg-stone-900 {
+            background: linear-gradient(180deg, var(--primary), var(--primary-dim)) !important;
+            color: #f7f7ff !important;
+            border-color: var(--primary) !important;
+            border-bottom-width: 2px !important;
+        }
+        body.fhq-app-mode .hover\:bg-orange-700:hover,
+        body.fhq-app-mode .hover\:bg-stone-900:hover,
+        body.fhq-app-mode .hover\:bg-stone-300:hover {
+            background: linear-gradient(180deg, var(--primary-dim), #3e4659) !important;
+        }
+        body.fhq-app-mode :is(a, button, summary).border-stone-300,
+        body.fhq-app-mode :is(a, button).bg-stone-200,
+        body.fhq-app-mode :is(a, button).bg-white {
+            border-color: var(--outline-ghost) !important;
+        }
+        body.fhq-app-mode :is(input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="range"]), select, textarea) {
+            border-radius: 0 !important;
+            box-shadow: none !important;
+        }
+        body.fhq-app-mode :is(input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="range"]), select, textarea):not(.fhq-input):not(.fhq-input-legacy) {
+            background: var(--surface) !important;
+            color: var(--fg) !important;
+            border: 1px solid var(--outline-ghost) !important;
+            border-bottom: 1px solid var(--outline) !important;
+        }
+        body.fhq-app-mode :is(input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="range"]), select, textarea):focus {
+            outline: none !important;
+            border-color: var(--primary) !important;
+            border-bottom-width: 2px !important;
+            box-shadow: none !important;
+        }
+        body.fhq-app-mode :is(input, select, textarea)[readonly] {
+            background: var(--surface-low) !important;
+            color: var(--muted) !important;
+        }
+        body.fhq-app-mode .inline-flex.items-center.rounded-full,
+        body.fhq-app-mode .status-pill,
+        body.fhq-app-mode .warning-ribbon,
+        body.fhq-app-mode .menu-chip {
+            border-radius: 0 !important;
+        }
         .fhq-flash {
             border: 1px solid transparent;
             padding: 0.8rem 0.95rem;
@@ -503,23 +619,30 @@
     </style>
     {% block extra_head %}{% endblock %}
 </head>
-<body class="min-h-screen font-body antialiased">
-    {% set endpoint = request.endpoint or '' %}
-    {% set is_print = 'print' in endpoint %}
-    {% set show_global_nav = current_user.is_authenticated and not is_print %}
-    {% set active_nav = 'banquets' if request.endpoint and 'banquet' in request.endpoint else
-                        'buffet' if request.endpoint and 'buffet' in request.endpoint else
-                        'commissary' if request.endpoint and 'commissar' in request.endpoint else
-                        'recipes' if request.endpoint and 'recipe' in request.endpoint else
-                        'ingredients' if request.endpoint and 'ingredient' in request.endpoint else
-                        'menus' if request.endpoint and ('menu_rollout' in request.endpoint or 'menu_costing' in request.endpoint) else
-                        'home' %}
-
+{% set endpoint = request.endpoint or '' %}
+{% set is_print = 'print' in endpoint %}
+{% set user_is_authenticated = current_user is defined and current_user.is_authenticated %}
+{% set show_global_nav = user_is_authenticated and not is_print %}
+{% set nav_dashboard_url = url_for('dashboard') %}
+{% set nav_banquet_url = url_for('banquet.banquet_planner') %}
+{% set nav_buffet_url = url_for('buffet.buffet_planner') %}
+{% set nav_commissary_url = url_for('commissary.commissary_planner') %}
+{% set nav_recipes_url = url_for('recipes.recipes') %}
+{% set nav_ingredients_url = url_for('ingredients.ingredients') %}
+{% set nav_menus_url = url_for('menu.menu_rollouts') %}
+{% set active_nav = 'banquets' if request.endpoint and 'banquet' in request.endpoint else
+                    'buffet' if request.endpoint and 'buffet' in request.endpoint else
+                    'commissary' if request.endpoint and 'commissar' in request.endpoint else
+                    'recipes' if request.endpoint and 'recipe' in request.endpoint else
+                    'ingredients' if request.endpoint and 'ingredient' in request.endpoint else
+                    'menus' if request.endpoint and ('menu_rollout' in request.endpoint or 'menu_costing' in request.endpoint) else
+                    'home' %}
+<body class="min-h-screen font-body antialiased {% if is_print %}fhq-print-mode{% else %}fhq-app-mode{% endif %}">
     {% if show_global_nav %}
     <nav class="fhq-topbar">
         <div class="fhq-topbar-inner">
             <div class="flex items-center gap-4 min-w-0">
-                <a href="{{ url_for('dashboard') }}" class="fhq-brand shrink-0">
+                <a href="{{ nav_dashboard_url }}" class="fhq-brand shrink-0">
                     <div class="fhq-brand-mark">F</div>
                     <div class="min-w-0">
                         <div class="fhq-brand-title">Foxtown HQ</div>
@@ -527,13 +650,13 @@
                     </div>
                 </a>
                 <div class="hidden lg:flex items-center gap-1 min-w-0 overflow-x-auto">
-                    <a href="{{ url_for('dashboard') }}" class="top-nav-link {% if active_nav == 'home' %}active{% endif %}"><svg class="w-[16px] h-[16px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12l9-9 9 9M5 10v10a1 1 0 001 1h3a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1h3a1 1 0 001-1V10"/></svg><span>Dashboard</span></a>
-                    <a href="{{ url_for('banquet_planner') }}" class="top-nav-link {% if active_nav == 'banquets' %}active{% endif %}"><svg class="w-[16px] h-[16px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg><span>Banquets</span></a>
-                    <a href="{{ url_for('buffet_planner') }}" class="top-nav-link {% if active_nav == 'buffet' %}active{% endif %}"><svg class="w-[16px] h-[16px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18M3 12h18M8 18h8M5 3h14a1 1 0 011 1v1H4V4a1 1 0 011-1z"/></svg><span>Buffets</span></a>
-                    <a href="{{ url_for('commissary_planner') }}" class="top-nav-link {% if active_nav == 'commissary' %}active{% endif %}"><svg class="w-[16px] h-[16px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16zM3.27 6.96L12 12.01l8.73-5.05M12 22.08V12"/></svg><span>Commissary</span></a>
-                    <a href="{{ url_for('recipes') }}" class="top-nav-link {% if active_nav == 'recipes' %}active{% endif %}"><svg class="w-[16px] h-[16px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19.5A2.5 2.5 0 016.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg><span>Recipes</span></a>
-                    <a href="{{ url_for('ingredients') }}" class="top-nav-link {% if active_nav == 'ingredients' %}active{% endif %}"><svg class="w-[16px] h-[16px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg><span>Ingredients</span></a>
-                    <a href="{{ url_for('menu_rollouts') }}" class="top-nav-link {% if active_nav == 'menus' %}active{% endif %}"><svg class="w-[16px] h-[16px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2M9 14h6M9 18h6M9 10h.01"/></svg><span>Menus</span></a>
+                    <a href="{{ nav_dashboard_url }}" class="top-nav-link {% if active_nav == 'home' %}active{% endif %}"><svg class="w-[16px] h-[16px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12l9-9 9 9M5 10v10a1 1 0 001 1h3a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1h3a1 1 0 001-1V10"/></svg><span>Dashboard</span></a>
+                    <a href="{{ nav_banquet_url }}" class="top-nav-link {% if active_nav == 'banquets' %}active{% endif %}"><svg class="w-[16px] h-[16px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg><span>Banquets</span></a>
+                    <a href="{{ nav_buffet_url }}" class="top-nav-link {% if active_nav == 'buffet' %}active{% endif %}"><svg class="w-[16px] h-[16px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18M3 12h18M8 18h8M5 3h14a1 1 0 011 1v1H4V4a1 1 0 011-1z"/></svg><span>Buffets</span></a>
+                    <a href="{{ nav_commissary_url }}" class="top-nav-link {% if active_nav == 'commissary' %}active{% endif %}"><svg class="w-[16px] h-[16px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16zM3.27 6.96L12 12.01l8.73-5.05M12 22.08V12"/></svg><span>Commissary</span></a>
+                    <a href="{{ nav_recipes_url }}" class="top-nav-link {% if active_nav == 'recipes' %}active{% endif %}"><svg class="w-[16px] h-[16px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19.5A2.5 2.5 0 016.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg><span>Recipes</span></a>
+                    <a href="{{ nav_ingredients_url }}" class="top-nav-link {% if active_nav == 'ingredients' %}active{% endif %}"><svg class="w-[16px] h-[16px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg><span>Ingredients</span></a>
+                    <a href="{{ nav_menus_url }}" class="top-nav-link {% if active_nav == 'menus' %}active{% endif %}"><svg class="w-[16px] h-[16px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2M9 14h6M9 18h6M9 10h.01"/></svg><span>Menus</span></a>
                 </div>
             </div>
             <div class="flex items-center gap-2 shrink-0">
