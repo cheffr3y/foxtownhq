@@ -14,7 +14,6 @@ from helpers.formatting import make_safe_filename
 from helpers.menu import clean_menu_text
 from helpers.recipes import (
     build_component_tree,
-    collect_direct_ingredients_for_prep,
     collect_direct_subrecipes_for_prep,
     collect_ingredients_from_components,
     get_recipe_total_cost,
@@ -612,7 +611,9 @@ def build_buffet_prep_sheet(cur, event_id, unit_system='imperial'):
             line_ingredient_totals = {}
             components, _, _ = build_component_tree(cur, recipe_id, scale_ratio, depth=0, path=set(), unit_system=unit_system, apply_q_factor=False)
             collect_direct_subrecipes_for_prep(components, line_subrecipe_totals)
-            collect_direct_ingredients_for_prep(components, line_ingredient_totals)
+            # Buffet station checklists should include raw ingredients from nested
+            # sub-recipes, not just the top-level recipe leaves.
+            collect_ingredients_from_components(components, line_ingredient_totals)
             if line_subrecipe_totals or line_ingredient_totals:
                 station_name = card['station']
                 station_pull_specs[station_name]['dish_names'].add(card['dish_name'])
