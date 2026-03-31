@@ -3,427 +3,837 @@
 {% block title %}Dashboard - Foxtown HQ{% endblock %}
 
 {% block extra_head %}
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
 <style>
-    .dashboard-shell {
-        display: grid;
-        gap: 1rem;
-        padding-bottom: 2rem;
+    .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 500, 'GRAD' 0, 'opsz' 24;
+        font-size: 1.1rem;
+        line-height: 1;
+        vertical-align: middle;
     }
-    .db-hero {
-        background: var(--surface-low);
-        border: 1px solid var(--outline-ghost);
-        display: grid;
-        gap: 1rem;
-        padding: 1.1rem;
+    body.fhq-app-mode {
+        background: #cfdce3;
     }
-    .db-hero-head {
+    body.fhq-app-mode .fhq-topbar {
+        background: #020617;
+        border-bottom: 1px solid #1e293b;
+        backdrop-filter: none;
+    }
+    body.fhq-app-mode .fhq-topbar-inner {
+        max-width: none;
+        padding: 0.75rem 1.5rem;
+    }
+    body.fhq-app-mode .fhq-brand {
+        color: #f8fafc;
+    }
+    body.fhq-app-mode .fhq-brand-mark {
+        width: 1.75rem;
+        height: 1.75rem;
+        background: transparent;
+        border: 1px solid #334155;
+        border-bottom-width: 1px;
+        color: #f8fafc;
+        font-size: 0.78rem;
+    }
+    body.fhq-app-mode .fhq-brand-title {
+        color: #ffffff;
+        letter-spacing: -0.04em;
+    }
+    body.fhq-app-mode .fhq-brand-subtitle {
+        color: #64748b;
+    }
+    body.fhq-app-mode .top-nav-link {
+        color: #64748b;
+        min-height: 38px;
+        border-bottom-width: 2px;
+    }
+    body.fhq-app-mode .top-nav-link:hover {
+        color: #cbd5e1;
+        background: #0f172a;
+    }
+    body.fhq-app-mode .top-nav-link.active {
+        color: #ffffff;
+        background: transparent;
+        border-bottom-color: #ffffff;
+    }
+    body.fhq-app-mode .fhq-search-trigger {
+        min-height: 38px;
+        background: #0f172a;
+        border-color: #1e293b;
+        color: #e2e8f0;
+    }
+    body.fhq-app-mode .fhq-search-trigger:hover {
+        background: #111827;
+        border-color: #334155;
+        color: #ffffff;
+    }
+    body.fhq-app-mode .fhq-search-trigger kbd {
+        border-color: #334155;
+        background: #020617;
+        color: #94a3b8;
+    }
+    body.fhq-app-mode .fhq-avatar {
+        background: #0f172a;
+        border-color: #1e293b;
+        color: #ffffff;
+    }
+    body.fhq-app-mode .fhq-dropdown {
+        background: #0f172a;
+        border-color: #1e293b;
+    }
+    body.fhq-app-mode .fhq-dropdown a {
+        color: #e2e8f0;
+    }
+    body.fhq-app-mode .fhq-dropdown a:hover {
+        background: #1e293b;
+    }
+    body.fhq-app-mode .fhq-frame {
+        max-width: none;
+        padding: 0;
+    }
+    body.fhq-app-mode .fhq-frame > .space-y-2 {
+        padding: 1rem 1.5rem 0;
+    }
+    .dashboard-command {
+        display: grid;
+        grid-template-columns: 16rem minmax(0, 1fr);
+        min-height: calc(100vh - 4.0625rem);
+        background: #cfdce3;
+    }
+    .db-sidebar {
         display: flex;
-        justify-content: space-between;
-        gap: 1rem;
-        align-items: flex-start;
-        flex-wrap: wrap;
+        flex-direction: column;
+        background: #020617;
+        color: #e2e8f0;
+        border-right: 1px solid #1e293b;
+        min-width: 0;
     }
-    .db-kicker {
-        font-size: 0.67rem;
+    .db-sidebar-head {
+        padding: 1.5rem;
+        border-bottom: 1px solid #1e293b;
+    }
+    .db-sidebar-kicker {
+        font-size: 0.62rem;
         font-weight: 800;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: #64748b;
+    }
+    .db-sidebar-title {
+        margin-top: 0.4rem;
+        font-size: 1.25rem;
+        font-weight: 900;
+        letter-spacing: -0.05em;
+        text-transform: uppercase;
+        color: #ffffff;
+    }
+    .db-sidebar-version {
+        margin-top: 0.3rem;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #475569;
+    }
+    .db-sidebar-nav {
+        display: grid;
+        gap: 0.15rem;
+        padding: 1rem 0;
+    }
+    .db-sidebar-link {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 0.9rem 1rem;
+        color: #94a3b8;
+        text-decoration: none;
+        border-left: 2px solid transparent;
+        transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    }
+    .db-sidebar-link:hover {
+        background: #0f172a;
+        color: #f8fafc;
+    }
+    .db-sidebar-link--active {
+        background: #f8fafc;
+        color: #020617;
+        border-left-color: #f8fafc;
+    }
+    .db-sidebar-link-main {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        min-width: 0;
+    }
+    .db-sidebar-label {
+        display: block;
+        font-size: 0.73rem;
+        font-weight: 900;
         letter-spacing: 0.14em;
         text-transform: uppercase;
-        color: var(--muted);
+        white-space: nowrap;
     }
-    .db-title {
-        font-size: clamp(1.8rem, 3vw, 2.5rem);
-        font-weight: 900;
-        letter-spacing: -0.06em;
-        line-height: 0.95;
-        color: var(--fg);
+    .db-sidebar-sub {
+        display: block;
+        margin-top: 0.22rem;
+        font-size: 0.62rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
         text-transform: uppercase;
-        margin-top: 0.35rem;
+        color: currentColor;
+        opacity: 0.72;
+        white-space: nowrap;
     }
-    .db-subtitle {
-        margin-top: 0.5rem;
-        font-size: 0.92rem;
-        color: var(--muted);
-        max-width: 52rem;
+    .db-sidebar-count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 2.25rem;
+        min-height: 1.65rem;
+        padding: 0 0.45rem;
+        font-size: 0.62rem;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        background: rgba(148, 163, 184, 0.12);
     }
-    .db-hero-actions {
-        display: flex;
+    .db-sidebar-link--active .db-sidebar-count {
+        background: rgba(2, 6, 23, 0.08);
+    }
+    .db-sidebar-foot {
+        margin-top: auto;
+        display: grid;
+        gap: 0.35rem;
+        padding: 1rem;
+        border-top: 1px solid #1e293b;
+        background: rgba(15, 23, 42, 0.7);
+    }
+    .db-sidebar-mini {
+        display: inline-flex;
+        align-items: center;
         gap: 0.55rem;
-        flex-wrap: wrap;
+        color: #94a3b8;
+        text-decoration: none;
+        font-size: 0.67rem;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
     }
-    .db-ribbon {
+    .db-sidebar-mini:hover {
+        color: #f8fafc;
+    }
+    .db-main {
+        min-width: 0;
+        background: #cfdce3;
+    }
+    .db-status-rail {
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 1px;
-        background: var(--outline-ghost);
+        background: #94a3b8;
+        border-bottom: 1px solid #94a3b8;
     }
-    .db-ribbon-item {
-        background: var(--surface);
-        padding: 0.85rem 0.95rem;
-        min-width: 0;
-    }
-    .db-ribbon-label {
-        font-size: 0.64rem;
-        font-weight: 800;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-        color: var(--muted);
-    }
-    .db-ribbon-value {
-        margin-top: 0.35rem;
-        font-size: 1.18rem;
-        font-weight: 900;
-        letter-spacing: -0.04em;
-        color: var(--fg);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-    .db-ribbon-detail {
-        margin-top: 0.2rem;
-        font-size: 0.76rem;
-        color: var(--muted);
-    }
-    .db-layout {
-        display: grid;
+    .db-status-card {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
         gap: 1rem;
-        grid-template-columns: minmax(0, 1.7fr) minmax(280px, 0.9fr);
+        min-height: 8.3rem;
+        padding: 1.3rem 1.4rem;
+        background: #ffffff;
+    }
+    .db-status-card--dark {
+        background: #020617;
+        color: #ffffff;
+    }
+    .db-status-label {
+        font-size: 0.64rem;
+        font-weight: 900;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: #566166;
+    }
+    .db-status-card--dark .db-status-label {
+        color: #64748b;
+    }
+    .db-status-value {
+        margin-top: 0.4rem;
+        font-size: clamp(1.15rem, 2.1vw, 1.7rem);
+        font-weight: 900;
+        letter-spacing: -0.06em;
+        line-height: 0.95;
+        text-transform: uppercase;
+        color: #1e293b;
+    }
+    .db-status-card--dark .db-status-value {
+        color: #ffffff;
+    }
+    .db-status-detail {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-size: 0.75rem;
+        font-weight: 800;
+        color: #565e74;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+    }
+    .db-status-card--dark .db-status-detail {
+        color: #94a3b8;
+    }
+    .db-status-detail--good {
+        color: #047857;
+    }
+    .db-status-card--dark .db-status-detail--good {
+        color: #34d399;
+    }
+    .db-status-detail--warn {
+        color: #b45309;
+    }
+    .db-status-detail--bad {
+        color: #c00815;
+    }
+    .db-main-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.95fr) minmax(20rem, 0.95fr);
+        gap: 1.5rem;
+        padding: 1.5rem;
         align-items: start;
     }
-    .db-main,
-    .db-side,
     .db-stack {
         display: grid;
-        gap: 1rem;
+        gap: 1.5rem;
     }
     .db-panel {
-        background: var(--surface);
-        border: 1px solid var(--outline-ghost);
+        border: 1px solid #94a3b8;
+        background: #ffffff;
+        min-width: 0;
     }
     .db-panel-head {
         display: flex;
+        align-items: center;
         justify-content: space-between;
-        gap: 0.8rem;
-        align-items: flex-end;
-        flex-wrap: wrap;
-        padding: 1rem 1rem 0.9rem;
-        background: var(--surface-top);
-        border-bottom: 1px solid rgba(169, 180, 185, 0.2);
+        gap: 1rem;
+        padding: 0.9rem 1rem;
+        background: #020617;
+        border-bottom: 1px solid #1e293b;
     }
-    .db-panel-title {
-        margin-top: 0.15rem;
-        font-size: 1.1rem;
-        font-weight: 900;
-        letter-spacing: -0.04em;
-        text-transform: uppercase;
-    }
-    .db-panel-link {
-        font-size: 0.72rem;
-        font-weight: 800;
-        color: var(--primary);
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        text-decoration: none;
-    }
-    .db-panel-link:hover {
-        color: var(--primary-dim);
-    }
-    .db-ledger {
-        display: grid;
-        gap: 1px;
-        background: rgba(169, 180, 185, 0.16);
-    }
-    .db-ledger-head,
-    .db-ledger-row {
-        display: grid;
-        grid-template-columns: 148px minmax(0, 1.5fr) minmax(150px, 0.9fr) 108px 140px;
-        gap: 0;
-    }
-    .db-ledger-head {
-        background: var(--surface-top);
-        font-size: 0.64rem;
-        font-weight: 800;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-        color: var(--muted);
-    }
-    .db-ledger-head div,
-    .db-ledger-row > div {
-        padding: 0.78rem 0.9rem;
+    .db-panel-head-copy {
         min-width: 0;
     }
-    .db-ledger-row {
-        background: var(--surface);
-        align-items: center;
-    }
-    .db-ledger-row:nth-child(even) {
-        background: var(--surface-low);
-    }
-    .db-ledger-date {
-        font-size: 0.84rem;
+    .db-panel-kicker {
+        font-size: 0.62rem;
         font-weight: 800;
+        letter-spacing: 0.16em;
         text-transform: uppercase;
-        letter-spacing: 0.04em;
+        color: #64748b;
     }
-    .db-ledger-time {
-        margin-top: 0.18rem;
-        font-size: 0.73rem;
-        color: var(--muted);
+    .db-panel-title {
+        margin-top: 0.2rem;
+        font-size: 0.84rem;
+        font-weight: 900;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: #ffffff;
     }
-    .db-ledger-name {
-        font-size: 0.96rem;
+    .db-panel-link {
+        color: #94a3b8;
+        font-size: 0.64rem;
+        font-weight: 900;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        text-decoration: none;
+        white-space: nowrap;
+    }
+    .db-panel-link:hover {
+        color: #ffffff;
+    }
+    .db-ledger-wrap {
+        overflow-x: auto;
+    }
+    .db-ledger-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .db-ledger-table thead {
+        background: #d9e4ea;
+        border-bottom: 1px solid #94a3b8;
+    }
+    .db-ledger-table th {
+        padding: 0.7rem 0.95rem;
+        text-align: left;
+        font-size: 0.63rem;
+        font-weight: 900;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: #566166;
+        white-space: nowrap;
+    }
+    .db-ledger-table td {
+        padding: 0.95rem;
+        border-bottom: 1px solid #e2e8f0;
+        vertical-align: top;
+    }
+    .db-ledger-table tbody tr:nth-child(even) td {
+        background: #f8fafc;
+    }
+    .db-ledger-table tbody tr:hover td {
+        background: #eff6ff;
+    }
+    .db-row-event {
+        min-width: 14rem;
+    }
+    .db-event-name {
+        display: block;
+        font-size: 0.92rem;
         font-weight: 900;
         letter-spacing: -0.03em;
-        line-height: 1.1;
         text-transform: uppercase;
+        line-height: 1.1;
+        text-decoration: none;
+        color: #1e293b;
     }
-    .db-ledger-meta {
-        margin-top: 0.28rem;
-        font-size: 0.77rem;
-        color: var(--muted);
+    .db-event-name:hover {
+        color: #334155;
     }
-    .db-prep {
+    .db-event-meta,
+    .db-venue-meta,
+    .db-cover-meta {
+        margin-top: 0.3rem;
+        font-size: 0.7rem;
+        font-weight: 800;
+        line-height: 1.45;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+    }
+    .db-row-links {
+        display: flex;
+        gap: 0.8rem;
+        flex-wrap: wrap;
+        margin-top: 0.55rem;
+    }
+    .db-row-link {
+        font-size: 0.68rem;
+        font-weight: 900;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        text-decoration: none;
+        color: #565e74;
+    }
+    .db-row-link:hover {
+        color: #1e293b;
+    }
+    .db-cover-value {
+        font-size: 1rem;
+        font-weight: 900;
+        letter-spacing: -0.04em;
+        color: #0f172a;
+    }
+    .db-prep-box {
         display: grid;
-        gap: 0.28rem;
+        gap: 0.35rem;
+        min-width: 10rem;
     }
     .db-prep-head {
         display: flex;
         justify-content: space-between;
         gap: 0.5rem;
-        align-items: baseline;
-        font-size: 0.67rem;
-        font-weight: 800;
-        letter-spacing: 0.1em;
+        font-size: 0.66rem;
+        font-weight: 900;
+        letter-spacing: 0.12em;
         text-transform: uppercase;
-        color: var(--muted);
-    }
-    .db-prep-value {
-        color: var(--fg);
+        color: #566166;
     }
     .db-prep-track {
-        height: 0.55rem;
-        background: var(--surface-dim);
+        height: 0.5rem;
+        background: #e2e8f0;
         overflow: hidden;
     }
     .db-prep-fill {
         display: block;
         height: 100%;
-        background: var(--primary);
+        background: #64748b;
     }
-    .db-prep-fill--green { background: var(--success); }
-    .db-prep-fill--amber { background: var(--primary); }
-    .db-prep-fill--red { background: var(--danger); }
-    .db-status {
+    .db-prep-fill--green {
+        background: #059669;
+    }
+    .db-prep-fill--amber {
+        background: #d97706;
+    }
+    .db-prep-fill--red {
+        background: #dc2626;
+    }
+    .db-state {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        min-height: 1.9rem;
-        padding: 0.3rem 0.55rem;
-        border: 1px solid transparent;
-        font-size: 0.66rem;
+        min-height: 1.8rem;
+        padding: 0.25rem 0.55rem;
+        font-size: 0.63rem;
         font-weight: 900;
-        letter-spacing: 0.08em;
+        letter-spacing: 0.12em;
         text-transform: uppercase;
-        text-align: center;
+        white-space: nowrap;
     }
-    .db-status--emerald {
-        background: var(--success-soft);
-        border-color: rgba(54, 89, 61, 0.25);
-        color: var(--success);
+    .db-state--emerald {
+        background: #d1fae5;
+        color: #047857;
     }
-    .db-status--amber {
-        background: var(--primary-soft);
-        border-color: rgba(86, 94, 116, 0.2);
-        color: var(--primary-dim);
+    .db-state--amber {
+        background: #fef3c7;
+        color: #b45309;
     }
-    .db-status--rose {
-        background: var(--danger-soft);
-        border-color: rgba(192, 8, 21, 0.18);
-        color: var(--danger);
+    .db-state--rose {
+        background: #fee2e2;
+        color: #b91c1c;
     }
-    .db-status--default {
-        background: var(--surface-low);
-        border-color: var(--outline-ghost);
-        color: var(--muted);
+    .db-state--default {
+        background: #e2e8f0;
+        color: #475569;
     }
-    .db-row-actions {
-        display: flex;
-        gap: 0.45rem;
-        justify-content: flex-end;
-        flex-wrap: wrap;
-    }
-    .db-row-actions .fhq-btn {
-        min-height: 34px;
-        padding: 0.45rem 0.6rem;
-        font-size: 0.62rem;
-    }
-    .db-demand-list,
-    .db-tool-list,
-    .db-health-list,
-    .db-mini-list {
+    .db-demand-list {
         display: grid;
-        gap: 1px;
-        background: rgba(169, 180, 185, 0.16);
-    }
-    .db-demand-item,
-    .db-tool-link,
-    .db-health-item,
-    .db-mini-item {
-        background: var(--surface);
-        padding: 0.82rem 0.92rem;
-        min-width: 0;
-    }
-    .db-demand-item:nth-child(even),
-    .db-tool-link:nth-child(even),
-    .db-health-item:nth-child(even),
-    .db-mini-item:nth-child(even) {
-        background: var(--surface-low);
     }
     .db-demand-item {
         display: flex;
-        justify-content: space-between;
-        gap: 0.75rem;
         align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1rem;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    .db-demand-item:last-child {
+        border-bottom: none;
+    }
+    .db-demand-item:hover {
+        background: #f8fafc;
+    }
+    .db-demand-main {
+        display: flex;
+        gap: 0.85rem;
+        min-width: 0;
+    }
+    .db-demand-icon {
+        width: 2.5rem;
+        min-width: 2.5rem;
+        height: 2.5rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: #f1f5f9;
+        color: #334155;
     }
     .db-demand-name {
+        display: block;
         font-size: 0.88rem;
         font-weight: 900;
-        letter-spacing: -0.02em;
+        letter-spacing: -0.03em;
         text-transform: uppercase;
         text-decoration: none;
+        color: #0f172a;
     }
     .db-demand-name:hover {
-        color: var(--primary);
+        color: #475569;
     }
     .db-demand-meta {
-        margin-top: 0.3rem;
-        font-size: 0.76rem;
-        color: var(--muted);
+        margin-top: 0.28rem;
+        font-size: 0.67rem;
+        font-weight: 800;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        line-height: 1.5;
     }
-    .db-demand-amt {
+    .db-demand-side {
+        display: grid;
+        gap: 0.45rem;
+        justify-items: end;
         flex-shrink: 0;
-        font-size: 0.68rem;
+        text-align: right;
+    }
+    .db-demand-batch {
+        display: inline-flex;
+        padding: 0.28rem 0.45rem;
+        background: #dbeafe;
+        color: #1d4ed8;
+        font-size: 0.62rem;
+        font-weight: 900;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+    }
+    .db-demand-amount {
+        font-size: 0.74rem;
         font-weight: 900;
         letter-spacing: 0.08em;
         text-transform: uppercase;
-        padding: 0.3rem 0.55rem;
-        background: var(--primary-soft);
-        color: var(--primary-dim);
-        border: 1px solid rgba(86, 94, 116, 0.2);
+        color: #334155;
     }
-    .db-tool-link,
-    .db-health-item {
+    .db-tool-grid {
+        display: grid;
+        gap: 0.55rem;
+        padding: 1rem;
+        background: #ffffff;
+    }
+    .db-tool-link {
         display: flex;
+        align-items: center;
         gap: 0.75rem;
+        padding: 0.85rem 0.9rem;
         text-decoration: none;
-        align-items: flex-start;
-        color: inherit;
+        border: 1px solid #cbd5e1;
+        background: #f8fafc;
+        color: #0f172a;
+        transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
     }
-    .db-tool-link:hover,
-    .db-health-item:hover {
-        background: var(--surface-high);
+    .db-tool-link:hover {
+        background: #e2e8f0;
+        border-color: #94a3b8;
+    }
+    .db-tool-link--primary {
+        background: #020617;
+        border-color: #020617;
+        color: #ffffff;
+    }
+    .db-tool-link--primary:hover {
+        background: #0f172a;
+        border-color: #0f172a;
     }
     .db-tool-icon {
-        width: 2.1rem;
-        min-width: 2.1rem;
-        height: 2.1rem;
+        width: 2.2rem;
+        min-width: 2.2rem;
+        height: 2.2rem;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        background: var(--surface-top);
-        color: var(--fg);
-        font-weight: 900;
+        background: rgba(15, 23, 42, 0.06);
     }
-    .db-health-count {
-        min-width: 3.25rem;
-        padding: 0 0.45rem;
-        height: 2.1rem;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 900;
-        white-space: nowrap;
+    .db-tool-link--primary .db-tool-icon {
+        background: rgba(255, 255, 255, 0.08);
     }
-    .db-tool-title,
-    .db-health-label,
-    .db-mini-title {
-        font-size: 0.82rem;
+    .db-tool-title {
+        font-size: 0.68rem;
         font-weight: 900;
-        letter-spacing: -0.02em;
+        letter-spacing: 0.16em;
         text-transform: uppercase;
     }
-    .db-tool-sub,
-    .db-health-detail,
-    .db-mini-meta {
-        margin-top: 0.25rem;
-        font-size: 0.75rem;
-        color: var(--muted);
+    .db-tool-sub {
+        margin-top: 0.22rem;
+        font-size: 0.67rem;
+        font-weight: 700;
+        color: inherit;
+        opacity: 0.72;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
     }
-    .db-health-count {
-        font-size: 0.68rem;
-        letter-spacing: 0.06em;
-    }
-    .db-health-count--emerald {
-        background: var(--success-soft);
-        color: var(--success);
-    }
-    .db-health-count--amber {
-        background: var(--primary-soft);
-        color: var(--primary-dim);
-    }
-    .db-health-count--rose {
-        background: var(--danger-soft);
-        color: var(--danger);
-    }
-    .db-mini-item {
+    .db-health-list {
         display: grid;
-        gap: 0.2rem;
+        gap: 1px;
+        background: #cbd5e1;
     }
-    .db-mini-link {
+    .db-health-item {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1rem;
+        background: #ffffff;
         text-decoration: none;
         color: inherit;
     }
-    .db-mini-link:hover .db-mini-title {
-        color: var(--primary);
+    .db-health-item:hover {
+        background: #f8fafc;
+    }
+    .db-health-copy {
+        min-width: 0;
+    }
+    .db-health-label {
+        font-size: 0.7rem;
+        font-weight: 900;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: #0f172a;
+    }
+    .db-health-detail {
+        margin-top: 0.28rem;
+        font-size: 0.69rem;
+        font-weight: 700;
+        color: #64748b;
+        line-height: 1.45;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+    }
+    .db-health-count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 3.3rem;
+        min-height: 2rem;
+        padding: 0 0.55rem;
+        font-size: 0.68rem;
+        font-weight: 900;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+    .db-health-count--emerald {
+        background: #d1fae5;
+        color: #047857;
+    }
+    .db-health-count--amber {
+        background: #fef3c7;
+        color: #b45309;
+    }
+    .db-health-count--rose {
+        background: #fee2e2;
+        color: #b91c1c;
+    }
+    .db-recipe-panels {
+        display: grid;
+        gap: 1rem;
+        padding: 1rem;
+        background: #ffffff;
+    }
+    .db-subpanel-head {
+        margin-bottom: 0.55rem;
+        font-size: 0.62rem;
+        font-weight: 900;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: #64748b;
+    }
+    .db-recipe-list {
+        display: grid;
+        gap: 1px;
+        background: #cbd5e1;
+    }
+    .db-recipe-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 0.9rem 0.95rem;
+        background: #ffffff;
+        text-decoration: none;
+        color: inherit;
+    }
+    .db-recipe-item:hover {
+        background: #f8fafc;
+    }
+    .db-recipe-name {
+        font-size: 0.76rem;
+        font-weight: 900;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: #0f172a;
+    }
+    .db-recipe-meta {
+        margin-top: 0.22rem;
+        font-size: 0.66rem;
+        font-weight: 700;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+    }
+    .db-recipe-badge {
+        flex-shrink: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 3rem;
+        min-height: 1.8rem;
+        padding: 0 0.45rem;
+        font-size: 0.62rem;
+        font-weight: 900;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        background: #e2e8f0;
+        color: #334155;
     }
     .db-empty {
         padding: 1rem;
-        background: var(--surface);
-        color: var(--muted);
-        font-size: 0.8rem;
+        background: #ffffff;
+        font-size: 0.78rem;
+        font-weight: 700;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
     }
-    @media (max-width: 1180px) {
-        .db-layout {
-            grid-template-columns: minmax(0, 1fr);
+    @media (max-width: 1200px) {
+        .db-main-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+    @media (max-width: 1080px) {
+        .dashboard-command {
+            grid-template-columns: 1fr;
+        }
+        .db-sidebar {
+            border-right: none;
+            border-bottom: 1px solid #1e293b;
+        }
+        .db-sidebar-nav {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0;
         }
     }
     @media (max-width: 900px) {
-        .db-ribbon {
+        .db-status-rail {
             grid-template-columns: repeat(2, minmax(0, 1fr));
         }
-        .db-ledger-head {
+        .db-main-grid {
+            padding: 1rem;
+        }
+        .db-ledger-wrap {
+            overflow: visible;
+        }
+        .db-ledger-table,
+        .db-ledger-table thead,
+        .db-ledger-table tbody,
+        .db-ledger-table tr,
+        .db-ledger-table th,
+        .db-ledger-table td {
+            display: block;
+            width: 100%;
+        }
+        .db-ledger-table thead {
             display: none;
         }
-        .db-ledger-row {
-            grid-template-columns: minmax(0, 1fr);
+        .db-ledger-table tbody tr {
+            border-bottom: 1px solid #cbd5e1;
         }
-        .db-row-actions {
-            justify-content: flex-start;
+        .db-ledger-table td {
+            padding-top: 0.7rem;
+            padding-bottom: 0.7rem;
         }
     }
-    @media (max-width: 640px) {
-        .db-hero,
-        .db-panel-head,
-        .db-ledger-row > div,
-        .db-ribbon-item,
-        .db-demand-item,
-        .db-tool-link,
-        .db-health-item,
-        .db-mini-item {
-            padding-left: 0.82rem;
-            padding-right: 0.82rem;
+    @media (max-width: 720px) {
+        body.fhq-app-mode .fhq-topbar-inner {
+            padding-left: 1rem;
+            padding-right: 1rem;
         }
-        .db-ribbon {
-            grid-template-columns: minmax(0, 1fr);
+        .db-sidebar-head,
+        .db-sidebar-foot,
+        .db-main-grid,
+        .db-tool-grid,
+        .db-recipe-panels {
+            padding-left: 1rem;
+            padding-right: 1rem;
+        }
+        .db-status-rail,
+        .db-sidebar-nav {
+            grid-template-columns: 1fr;
+        }
+        .db-demand-item,
+        .db-health-item,
+        .db-recipe-item {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .db-demand-side {
+            justify-items: start;
+            text-align: left;
         }
     }
 </style>
@@ -435,295 +845,425 @@
 {% set all_events = today_events + upcoming_events %}
 {% set sorted_events = all_events | selectattr('event_date') | sort(attribute='event_date') %}
 {% set next_event = sorted_events[0] if sorted_events|length else none %}
-{% set ns = namespace(low_prep=None) %}
+{% set ns = namespace(low_prep=None, alert_count=0) %}
 {% for event in sorted_events %}
     {% if ns.low_prep is none and (event.prep_completion or 0) < 50 %}
         {% set ns.low_prep = event %}
     {% endif %}
 {% endfor %}
+{% for item in system_health_items %}
+    {% if item.tone != 'emerald' or item.label != 'System Health' %}
+        {% set ns.alert_count = ns.alert_count + 1 %}
+    {% endif %}
+{% endfor %}
+{% set health_primary = system_health_items[0] if system_health_items else none %}
 
-<div class="dashboard-shell">
-    <section class="db-hero">
-        <div class="db-hero-head">
-            <div>
-                <div class="db-kicker">Foxtown HQ / Tactical Precision</div>
-                <h1 class="db-title">Production Command</h1>
-                <p class="db-subtitle">A print-first operations board for banquet execution, commissary load, and ingredient risk across the next seven days.</p>
-            </div>
-            <div class="db-hero-actions">
-                <a href="{{ url_for('banquet_prep_daily', start_date=today.isoformat(), end_date=week_end.isoformat()) }}" class="fhq-btn fhq-btn--primary">Generate Prep List</a>
-                <a href="{{ url_for('commissary_planner', week_start=today.isoformat()) }}" class="fhq-btn fhq-btn--outline">Open Commissary Planner</a>
-            </div>
+<div class="dashboard-command">
+    <aside class="db-sidebar">
+        <div class="db-sidebar-head">
+            <div class="db-sidebar-kicker">Command Bar</div>
+            <div class="db-sidebar-title">Executive Board</div>
+            <div class="db-sidebar-version">Stitch-aligned / live ops shell</div>
         </div>
 
-        <div class="db-ribbon">
-            <div class="db-ribbon-item">
-                <div class="db-ribbon-label">Today</div>
-                <div class="db-ribbon-value">{{ today.strftime('%A, %B %-d') }}</div>
-                <div class="db-ribbon-detail">{{ all_events|length }} active events in the current production window</div>
-            </div>
-            <div class="db-ribbon-item">
-                <div class="db-ribbon-label">Next Event</div>
-                <div class="db-ribbon-value">{{ next_event.name if next_event else 'No events queued' }}</div>
-                <div class="db-ribbon-detail">
+        <nav class="db-sidebar-nav">
+            <a href="{{ url_for('dashboard') }}" class="db-sidebar-link db-sidebar-link--active">
+                <span class="db-sidebar-link-main">
+                    <span class="material-symbols-outlined">space_dashboard</span>
+                    <span>
+                        <span class="db-sidebar-label">Dashboard</span>
+                        <span class="db-sidebar-sub">Command overview</span>
+                    </span>
+                </span>
+                <span class="db-sidebar-count">{{ all_events|length }}</span>
+            </a>
+            <a href="{{ url_for('ingredients.ingredients') }}" class="db-sidebar-link">
+                <span class="db-sidebar-link-main">
+                    <span class="material-symbols-outlined">inventory_2</span>
+                    <span>
+                        <span class="db-sidebar-label">Ingredients</span>
+                        <span class="db-sidebar-sub">Inventory file</span>
+                    </span>
+                </span>
+                <span class="db-sidebar-count">{{ ingredient_count }}</span>
+            </a>
+            <a href="{{ url_for('recipes.recipes') }}" class="db-sidebar-link">
+                <span class="db-sidebar-link-main">
+                    <span class="material-symbols-outlined">receipt_long</span>
+                    <span>
+                        <span class="db-sidebar-label">Recipes</span>
+                        <span class="db-sidebar-sub">Master sheets</span>
+                    </span>
+                </span>
+                <span class="db-sidebar-count">{{ recipe_count }}</span>
+            </a>
+            <a href="{{ url_for('banquet.banquet_planner') }}" class="db-sidebar-link">
+                <span class="db-sidebar-link-main">
+                    <span class="material-symbols-outlined">event_seat</span>
+                    <span>
+                        <span class="db-sidebar-label">Banquets</span>
+                        <span class="db-sidebar-sub">{{ banquet_venue_name }}</span>
+                    </span>
+                </span>
+                <span class="db-sidebar-count">{{ all_events|length }}</span>
+            </a>
+            <a href="{{ url_for('commissary.commissary_planner', week_start=today.isoformat()) }}" class="db-sidebar-link">
+                <span class="db-sidebar-link-main">
+                    <span class="material-symbols-outlined">conveyor_belt</span>
+                    <span>
+                        <span class="db-sidebar-label">Commissary</span>
+                        <span class="db-sidebar-sub">Demand pulse</span>
+                    </span>
+                </span>
+                <span class="db-sidebar-count">{{ production_pulse_total_subrecipes }}</span>
+            </a>
+            <a href="{{ url_for('menu.menu_rollouts') }}" class="db-sidebar-link">
+                <span class="db-sidebar-link-main">
+                    <span class="material-symbols-outlined">restaurant_menu</span>
+                    <span>
+                        <span class="db-sidebar-label">Menus</span>
+                        <span class="db-sidebar-sub">Rollout queue</span>
+                    </span>
+                </span>
+                <span class="db-sidebar-count">{{ recent_rollout_count }}</span>
+            </a>
+            <a href="{{ url_for('production_board') }}" class="db-sidebar-link">
+                <span class="db-sidebar-link-main">
+                    <span class="material-symbols-outlined">developer_board</span>
+                    <span>
+                        <span class="db-sidebar-label">Production Board</span>
+                        <span class="db-sidebar-sub">Live assignments</span>
+                    </span>
+                </span>
+                <span class="db-sidebar-count">{{ production_board_active_tasks }}</span>
+            </a>
+            <a href="{{ url_for('menu.menu_costing') }}" class="db-sidebar-link">
+                <span class="db-sidebar-link-main">
+                    <span class="material-symbols-outlined">calculate</span>
+                    <span>
+                        <span class="db-sidebar-label">Costing</span>
+                        <span class="db-sidebar-sub">Margin checks</span>
+                    </span>
+                </span>
+                <span class="db-sidebar-count">{{ stale_badge_count }}</span>
+            </a>
+        </nav>
+
+        <div class="db-sidebar-foot">
+            <a href="{{ url_for('search') }}" class="db-sidebar-mini"><span class="material-symbols-outlined">search</span> Search Index</a>
+            <a href="{{ url_for('production_board') }}" class="db-sidebar-mini"><span class="material-symbols-outlined">terminal</span> Live Board</a>
+        </div>
+    </aside>
+
+    <main class="db-main">
+        <section class="db-status-rail">
+            <article class="db-status-card">
+                <div>
+                    <div class="db-status-label">Production Window</div>
+                    <div class="db-status-value">{{ today.strftime('%b %-d') }} - {{ week_end.strftime('%b %-d') }}</div>
+                </div>
+                <div class="db-status-detail">
+                    <span class="material-symbols-outlined">calendar_today</span>
+                    {{ all_events|length }} active event{% if all_events|length != 1 %}s{% endif %}
+                </div>
+            </article>
+
+            <article class="db-status-card">
+                <div>
+                    <div class="db-status-label">Upcoming Mission</div>
+                    <div class="db-status-value">{{ next_event.name if next_event else 'No Event Queued' }}</div>
+                </div>
+                <div class="db-status-detail {% if ns.low_prep %}db-status-detail--warn{% endif %}">
+                    <span class="material-symbols-outlined">{% if next_event %}timer{% else %}event_busy{% endif %}</span>
                     {% if next_event %}
-                        {{ next_event.event_date.strftime('%a, %b %-d') }}{% if next_event.service_timing %} · {{ next_event.service_timing }}{% endif %}
+                        {{ next_event.event_date.strftime('%a, %b %-d') }}{% if next_event.service_timing %} / {{ next_event.service_timing }}{% endif %}
                     {% else %}
-                        Nothing scheduled in the next 7 days.
+                        Nothing scheduled in the next 7 days
                     {% endif %}
                 </div>
+            </article>
+
+            <article class="db-status-card">
+                <div>
+                    <div class="db-status-label">Load Status</div>
+                    <div class="db-status-value">{{ production_pulse_total_batches }} Batches</div>
+                </div>
+                <div class="db-status-detail">
+                    <span class="material-symbols-outlined">package_2</span>
+                    {{ production_pulse_total_amount or 'No volume queued' }}{% if production_pulse_event_count %} / {{ production_pulse_event_count }} event{% if production_pulse_event_count != 1 %}s{% endif %}{% endif %}
+                </div>
+            </article>
+
+            <article class="db-status-card db-status-card--dark">
+                <div>
+                    <div class="db-status-label">System Health</div>
+                    <div class="db-status-value">
+                        {% if ns.alert_count %}
+                            Watch
+                        {% else %}
+                            All Clear
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="db-status-detail {% if ns.alert_count == 0 %}db-status-detail--good{% elif ns.alert_count > 1 %}db-status-detail--bad{% else %}db-status-detail--warn{% endif %}">
+                    <span class="material-symbols-outlined">
+                        {% if ns.alert_count %}warning{% else %}check_circle{% endif %}
+                    </span>
+                    {% if ns.alert_count %}
+                        {{ ns.alert_count }} command alert{% if ns.alert_count != 1 %}s{% endif %}{% if production_board_live %} / {{ production_board_active_tasks }} live task{% if production_board_active_tasks != 1 %}s{% endif %}{% endif %}
+                    {% else %}
+                        {{ production_board_active_tasks }} live task{% if production_board_active_tasks != 1 %}s{% endif %} in production
+                    {% endif %}
+                </div>
+            </article>
+        </section>
+
+        <div class="db-main-grid">
+            <div class="db-stack">
+                <section class="db-panel">
+                    <div class="db-panel-head">
+                        <div class="db-panel-head-copy">
+                            <div class="db-panel-kicker">Live Feed Enabled</div>
+                            <div class="db-panel-title">Banquet Production Ledger</div>
+                        </div>
+                        <a href="{{ url_for('banquet.banquet_planner') }}" class="db-panel-link">Open Full Planner</a>
+                    </div>
+
+                    {% if sorted_events %}
+                    <div class="db-ledger-wrap">
+                        <table class="db-ledger-table">
+                            <thead>
+                                <tr>
+                                    <th>Event Name</th>
+                                    <th>Venue</th>
+                                    <th>Covers</th>
+                                    <th>Prep Status</th>
+                                    <th>Readiness</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for event in sorted_events %}
+                                {% set prep_pct = event.prep_completion or 0 %}
+                                {% set tone = prep_tone(prep_pct) %}
+                                <tr>
+                                    <td class="db-row-event">
+                                        <a href="{{ url_for('banquet_event_edit', event_id=event.id) }}" class="db-event-name">{{ event.name }}</a>
+                                        <div class="db-event-meta">
+                                            {{ event.event_date.strftime('%a, %b %-d') if event.event_date else 'Date pending' }}{% if event.service_timing %} / {{ event.service_timing }}{% endif %}
+                                        </div>
+                                        <div class="db-row-links">
+                                            {% if event.is_confirmed and event.event_date %}
+                                            <a href="{{ url_for('banquet_prep_daily', start_date=event.event_date.isoformat(), end_date=event.event_date.isoformat()) }}" class="db-row-link">Daily Prep</a>
+                                            {% endif %}
+                                            <a href="{{ url_for('banquet_event_edit', event_id=event.id) }}" class="db-row-link">Open Event</a>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="db-venue-meta">{{ event.venue_name or banquet_venue_name }}</div>
+                                        <div class="db-venue-meta">{{ event.status }}</div>
+                                    </td>
+                                    <td>
+                                        <div class="db-cover-value">{{ event.guests or 0 }}</div>
+                                        <div class="db-cover-meta">Projected covers</div>
+                                    </td>
+                                    <td>
+                                        <div class="db-prep-box">
+                                            <div class="db-prep-head">
+                                                <span>Prep status</span>
+                                                <span>{{ prep_pct }}%</span>
+                                            </div>
+                                            <div class="db-prep-track">
+                                                <span class="db-prep-fill db-prep-fill--{{ tone }}" style="width: {{ prep_pct }}%"></span>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="db-state db-state--{{ event.status_tone or 'default' }}">{{ event.status }}</span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="db-empty">No events in the next 7 days. <a href="{{ url_for('banquet_event_new') }}" class="db-panel-link">Create event</a></div>
+                    {% endif %}
+                </section>
+
+                <section class="db-panel">
+                    <div class="db-panel-head">
+                        <div class="db-panel-head-copy">
+                            <div class="db-panel-kicker">Next 48h</div>
+                            <div class="db-panel-title">Commissary Demand Ledger</div>
+                        </div>
+                        <a href="{{ url_for('commissary.commissary_planner', week_start=today.isoformat()) }}" class="db-panel-link">Open Planner</a>
+                    </div>
+
+                    {% if production_pulse_items %}
+                    <div class="db-demand-list">
+                        {% for item in production_pulse_items %}
+                        <div class="db-demand-item">
+                            <div class="db-demand-main">
+                                <div class="db-demand-icon">
+                                    <span class="material-symbols-outlined">{% if item.required_batches >= 5 %}local_shipping{% else %}inventory{% endif %}</span>
+                                </div>
+                                <div class="min-w-0">
+                                    {% if item.recipe_id %}
+                                    <a href="{{ url_for('recipes.recipe_detail', recipe_id=item.recipe_id) }}" class="db-demand-name">{{ item.recipe_name }}</a>
+                                    {% else %}
+                                    <div class="db-demand-name">{{ item.recipe_name }}</div>
+                                    {% endif %}
+                                    <div class="db-demand-meta">
+                                        {{ item.required_amount_label or 'Amount pending' }}
+                                        {% if item.used_in_preps %}
+                                            / used in {{ item.used_in_preps[:2] | join(', ') }}{% if item.used_in_preps|length > 2 %} +{{ item.used_in_preps|length - 2 }}{% endif %}
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="db-demand-side">
+                                <span class="db-demand-batch">{{ item.required_batches }} batch{% if item.required_batches != 1 %}es{% endif %}</span>
+                                <div class="db-demand-amount">{{ item.used_in_preps|length }} prep source{% if item.used_in_preps|length != 1 %}s{% endif %}</div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="db-empty">No commissary demand in the next 48 hours.</div>
+                    {% endif %}
+                </section>
             </div>
-            <div class="db-ribbon-item">
-                <div class="db-ribbon-label">48h Commissary Load</div>
-                <div class="db-ribbon-value">{{ production_pulse_total_batches }} batches</div>
-                <div class="db-ribbon-detail">{{ production_pulse_total_amount or 'No demand queued' }}</div>
-            </div>
-            <div class="db-ribbon-item">
-                <div class="db-ribbon-label">Attention</div>
-                <div class="db-ribbon-value">
-                    {% if ns.low_prep %}
-                        {{ ns.low_prep.prep_completion }}% prep
-                    {% elif stale_badge_count %}
-                        {{ stale_badge_count }} stale prices
-                    {% elif production_board_live %}
-                        {{ production_board_active_tasks }} live tasks
-                    {% else %}
-                        All clear
-                    {% endif %}
-                </div>
-                <div class="db-ribbon-detail">
-                    {% if ns.low_prep %}
-                        {{ ns.low_prep.name }}
-                    {% elif stale_badge_count %}
-                        Ingredient pricing needs refresh.
-                    {% elif production_board_live %}
-                        Production board is active now.
-                    {% else %}
-                        No urgent gaps in current coverage.
-                    {% endif %}
-                </div>
+
+            <div class="db-stack">
+                <section class="db-panel">
+                    <div class="db-panel-head">
+                        <div class="db-panel-head-copy">
+                            <div class="db-panel-kicker">Tactical Toolkit</div>
+                            <div class="db-panel-title">Fast Access</div>
+                        </div>
+                    </div>
+                    <div class="db-tool-grid">
+                        <a href="{{ url_for('menu.menu_costing') }}" class="db-tool-link">
+                            <span class="db-tool-icon"><span class="material-symbols-outlined">calculate</span></span>
+                            <span>
+                                <span class="db-tool-title">Menu Costing</span>
+                                <span class="db-tool-sub">{% if stale_badge_count %}{{ stale_badge_count }} items need refresh{% else %}Pricing is current{% endif %}</span>
+                            </span>
+                        </a>
+                        <a href="{{ url_for('ingredients.ingredients', needs_update='1' if stale_badge_count else '') }}" class="db-tool-link">
+                            <span class="db-tool-icon"><span class="material-symbols-outlined">database</span></span>
+                            <span>
+                                <span class="db-tool-title">Ingredient DB</span>
+                                <span class="db-tool-sub">{{ ingredient_count }} ingredients on file</span>
+                            </span>
+                        </a>
+                        <a href="{{ url_for('banquet.banquet_planner') }}" class="db-tool-link">
+                            <span class="db-tool-icon"><span class="material-symbols-outlined">calendar_month</span></span>
+                            <span>
+                                <span class="db-tool-title">Banquet Planner</span>
+                                <span class="db-tool-sub">{{ all_events|length }} events in window</span>
+                            </span>
+                        </a>
+                        <a href="{{ url_for('banquet.banquet_prep_daily', start_date=today.isoformat(), end_date=week_end.isoformat()) }}" class="db-tool-link">
+                            <span class="db-tool-icon"><span class="material-symbols-outlined">checklist</span></span>
+                            <span>
+                                <span class="db-tool-title">Daily Prep</span>
+                                <span class="db-tool-sub">Generate the active 7-day prep run</span>
+                            </span>
+                        </a>
+                        <a href="{{ url_for('commissary.commissary_planner', week_start=today.isoformat()) }}" class="db-tool-link">
+                            <span class="db-tool-icon"><span class="material-symbols-outlined">factory</span></span>
+                            <span>
+                                <span class="db-tool-title">Commissary Planner</span>
+                                <span class="db-tool-sub">Orders, transfers, sign-off</span>
+                            </span>
+                        </a>
+                        <a href="{{ url_for('production_board') }}" class="db-tool-link db-tool-link--primary">
+                            <span class="db-tool-icon"><span class="material-symbols-outlined">developer_board</span></span>
+                            <span>
+                                <span class="db-tool-title">Production Board</span>
+                                <span class="db-tool-sub">{{ production_board_active_tasks }} active task{% if production_board_active_tasks != 1 %}s{% endif %}{% if production_board_live %} / live now{% endif %}</span>
+                            </span>
+                        </a>
+                        <a href="{{ url_for('menu.menu_rollouts') }}" class="db-tool-link">
+                            <span class="db-tool-icon"><span class="material-symbols-outlined">restaurant_menu</span></span>
+                            <span>
+                                <span class="db-tool-title">Menu Rollouts</span>
+                                <span class="db-tool-sub">{{ recent_rollout_count }} created in the last 30 days</span>
+                            </span>
+                        </a>
+                    </div>
+                </section>
+
+                <section class="db-panel">
+                    <div class="db-panel-head">
+                        <div class="db-panel-head-copy">
+                            <div class="db-panel-kicker">Risk Watch</div>
+                            <div class="db-panel-title">Command Alerts</div>
+                        </div>
+                    </div>
+                    <div class="db-health-list">
+                        {% for item in system_health_items %}
+                        <a href="{{ item.href }}" class="db-health-item">
+                            <div class="db-health-copy">
+                                <div class="db-health-label">{{ item.label }}</div>
+                                <div class="db-health-detail">{{ item.detail }}</div>
+                            </div>
+                            <span class="db-health-count db-health-count--{{ item.tone }}">{{ item.count_text }}</span>
+                        </a>
+                        {% endfor %}
+                    </div>
+                </section>
+
+                <section class="db-panel">
+                    <div class="db-panel-head">
+                        <div class="db-panel-head-copy">
+                            <div class="db-panel-kicker">Recipe Traffic</div>
+                            <div class="db-panel-title">Pinned And Recent</div>
+                        </div>
+                    </div>
+                    <div class="db-recipe-panels">
+                        <div>
+                            <div class="db-subpanel-head">Pinned Recipes</div>
+                            {% if pinned_recipes %}
+                            <div class="db-recipe-list">
+                                {% for recipe in pinned_recipes %}
+                                <a href="{{ url_for('recipes.recipe_detail', recipe_id=recipe.id) }}" class="db-recipe-item">
+                                    <span>
+                                        <span class="db-recipe-name">{{ recipe.name }}</span>
+                                        <span class="db-recipe-meta">{{ recipe.hit_count }} banquet placement{% if recipe.hit_count != 1 %}s{% endif %}</span>
+                                    </span>
+                                    <span class="db-recipe-badge">{{ recipe.hit_count }}</span>
+                                </a>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <div class="db-empty">No frequently used recipes yet.</div>
+                            {% endif %}
+                        </div>
+
+                        <div>
+                            <div class="db-subpanel-head">Recent Recipes</div>
+                            {% if recent_recipes %}
+                            <div class="db-recipe-list">
+                                {% for recipe in recent_recipes %}
+                                <a href="{{ url_for('recipes.recipe_detail', recipe_id=recipe.id) }}" class="db-recipe-item">
+                                    <span>
+                                        <span class="db-recipe-name">{{ recipe.name }}</span>
+                                        <span class="db-recipe-meta">{{ recipe.recipe_type|title }}{% if recipe.category %} / {{ recipe.category }}{% endif %}</span>
+                                    </span>
+                                    <span class="db-recipe-badge">{{ recipe.recipe_type[:2]|upper if recipe.recipe_type else 'RC' }}</span>
+                                </a>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <div class="db-empty">No recent recipes to show.</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </section>
             </div>
         </div>
-    </section>
-
-    <div class="db-layout">
-        <main class="db-main">
-            <section class="db-panel">
-                <div class="db-panel-head">
-                    <div>
-                        <div class="fhq-section-head mb-0">Event Timeline · {{ today.strftime('%b %-d') }} - {{ week_end.strftime('%b %-d') }}</div>
-                        <div class="db-panel-title">Banquet Production Ledger</div>
-                    </div>
-                    <a href="{{ url_for('banquet_planner') }}" class="db-panel-link">Open Full Planner</a>
-                </div>
-
-                {% if all_events %}
-                <div class="db-ledger">
-                    <div class="db-ledger-head">
-                        <div>Service</div>
-                        <div>Event</div>
-                        <div>Prep Status</div>
-                        <div>State</div>
-                        <div class="text-right">Actions</div>
-                    </div>
-                    {% for event in all_events %}
-                    {% set prep_pct = event.prep_completion or 0 %}
-                    {% set tone = prep_tone(prep_pct) %}
-                    <article class="db-ledger-row">
-                        <div>
-                            <div class="db-ledger-date">{{ event.event_date.strftime('%a, %b %-d') if event.event_date else 'TBD' }}</div>
-                            <div class="db-ledger-time">{{ event.service_timing or 'Service time pending' }}</div>
-                        </div>
-                        <div>
-                            <div class="db-ledger-name">{{ event.name }}</div>
-                            <div class="db-ledger-meta">{{ event.venue_name or banquet_venue_name }} · {{ event.guests or 0 }} guests</div>
-                        </div>
-                        <div>
-                            <div class="db-prep">
-                                <div class="db-prep-head">
-                                    <span>Prep</span>
-                                    <span class="db-prep-value">{{ prep_pct }}%</span>
-                                </div>
-                                <div class="db-prep-track">
-                                    <span class="db-prep-fill db-prep-fill--{{ tone }}" style="width:{{ prep_pct }}%"></span>
-                                </div>
-                            </div>
-                        </div>
-                        <div>
-                            <span class="db-status db-status--{{ event.status_tone or 'default' }}">{{ event.status }}</span>
-                        </div>
-                        <div>
-                            <div class="db-row-actions">
-                                {% if event.is_confirmed and event.event_date %}
-                                <a href="{{ url_for('banquet_prep_daily', start_date=event.event_date.isoformat(), end_date=event.event_date.isoformat()) }}" class="fhq-btn fhq-btn--primary">Prep</a>
-                                {% endif %}
-                                <a href="{{ url_for('banquet_event_edit', event_id=event.id) }}" class="fhq-btn fhq-btn--outline">Open</a>
-                            </div>
-                        </div>
-                    </article>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <div class="db-empty">No events in the next 7 days. <a href="{{ url_for('banquet_event_new') }}" class="db-panel-link">Create Event</a></div>
-                {% endif %}
-            </section>
-
-            <section class="db-panel">
-                <div class="db-panel-head">
-                    <div>
-                        <div class="fhq-section-head mb-0">Next 48h</div>
-                        <div class="db-panel-title">Commissary Demand Ledger</div>
-                    </div>
-                    <a href="{{ url_for('commissary_planner', week_start=today.isoformat()) }}" class="db-panel-link">Open Planner</a>
-                </div>
-
-                {% if production_pulse_items %}
-                <div class="db-demand-list">
-                    {% for item in production_pulse_items %}
-                    <div class="db-demand-item">
-                        <div class="min-w-0">
-                            {% if item.recipe_id %}
-                            <a href="{{ url_for('recipe_detail', recipe_id=item.recipe_id) }}" class="db-demand-name">{{ item.recipe_name }}</a>
-                            {% else %}
-                            <div class="db-demand-name">{{ item.recipe_name }}</div>
-                            {% endif %}
-                            <div class="db-demand-meta">
-                                {{ item.required_batches }} batches
-                                {% if item.used_in_preps %}
-                                    · used in {{ item.used_in_preps[:2] | join(', ') }}{% if item.used_in_preps|length > 2 %} +{{ item.used_in_preps|length - 2 }}{% endif %}
-                                {% endif %}
-                            </div>
-                        </div>
-                        <div class="db-demand-amt">{{ item.required_amount_label }}</div>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <div class="db-empty">No commissary demand in the next 48 hours.</div>
-                {% endif %}
-            </section>
-        </main>
-
-        <aside class="db-side">
-            <section class="db-panel">
-                <div class="db-panel-head">
-                    <div>
-                        <div class="fhq-section-head mb-0">Operations Toolkit</div>
-                        <div class="db-panel-title">Fast Access</div>
-                    </div>
-                </div>
-                <div class="db-tool-list">
-                    <a href="{{ url_for('menu_costing') }}" class="db-tool-link">
-                        <span class="db-tool-icon">$</span>
-                        <div>
-                            <div class="db-tool-title">Menu Costing</div>
-                            <div class="db-tool-sub">{% if stale_badge_count %}{{ stale_badge_count }} items need refresh{% else %}Pricing is current{% endif %}</div>
-                        </div>
-                    </a>
-                    <a href="{{ url_for('ingredients', needs_update='1' if stale_badge_count else '') }}" class="db-tool-link">
-                        <span class="db-tool-icon">I</span>
-                        <div>
-                            <div class="db-tool-title">Ingredients</div>
-                            <div class="db-tool-sub">{% if stale_badge_count %}{{ stale_badge_count }} stale prices{% else %}{{ ingredient_count }} ingredients on file{% endif %}</div>
-                        </div>
-                    </a>
-                    <a href="{{ url_for('banquet_planner') }}" class="db-tool-link">
-                        <span class="db-tool-icon">B</span>
-                        <div>
-                            <div class="db-tool-title">Banquet Planner</div>
-                            <div class="db-tool-sub">{{ all_events|length }} events in current window</div>
-                        </div>
-                    </a>
-                    <a href="{{ url_for('commissary_planner') }}" class="db-tool-link">
-                        <span class="db-tool-icon">C</span>
-                        <div>
-                            <div class="db-tool-title">Commissary Planner</div>
-                            <div class="db-tool-sub">Orders, transfers, and sign-off</div>
-                        </div>
-                    </a>
-                    <a href="{{ url_for('production_board') }}" class="db-tool-link">
-                        <span class="db-tool-icon">P</span>
-                        <div>
-                            <div class="db-tool-title">Production Board</div>
-                            <div class="db-tool-sub">{{ production_board_active_tasks }} active tasks{% if production_board_live %} · live now{% endif %}</div>
-                        </div>
-                    </a>
-                    <a href="{{ url_for('menu_rollouts') }}" class="db-tool-link">
-                        <span class="db-tool-icon">M</span>
-                        <div>
-                            <div class="db-tool-title">Menu Rollouts</div>
-                            <div class="db-tool-sub">{{ recent_rollout_count }} created in the last 30 days</div>
-                        </div>
-                    </a>
-                </div>
-            </section>
-
-            <section class="db-panel">
-                <div class="db-panel-head">
-                    <div>
-                        <div class="fhq-section-head mb-0">System Health</div>
-                        <div class="db-panel-title">Risk Watch</div>
-                    </div>
-                </div>
-                <div class="db-health-list">
-                    {% for item in system_health_items %}
-                    <a href="{{ item.href }}" class="db-health-item">
-                        <span class="db-health-count db-health-count--{{ item.tone }}">{{ item.count_text }}</span>
-                        <div>
-                            <div class="db-health-label">{{ item.label }}</div>
-                            <div class="db-health-detail">{{ item.detail }}</div>
-                        </div>
-                    </a>
-                    {% endfor %}
-                </div>
-            </section>
-
-            <section class="db-panel">
-                <div class="db-panel-head">
-                    <div>
-                        <div class="fhq-section-head mb-0">Recipe Traffic</div>
-                        <div class="db-panel-title">Pinned And Recent</div>
-                    </div>
-                </div>
-                <div class="db-stack">
-                    <div>
-                        <div class="fhq-section-head px-4 pt-4 mb-0">Pinned</div>
-                        {% if pinned_recipes %}
-                        <div class="db-mini-list">
-                            {% for recipe in pinned_recipes %}
-                            <div class="db-mini-item">
-                                <a href="{{ url_for('recipe_detail', recipe_id=recipe.id) }}" class="db-mini-link">
-                                    <div class="db-mini-title">{{ recipe.name }}</div>
-                                    <div class="db-mini-meta">{{ recipe.hit_count }} banquet placements</div>
-                                </a>
-                            </div>
-                            {% endfor %}
-                        </div>
-                        {% else %}
-                        <div class="db-empty">No frequently used recipes yet.</div>
-                        {% endif %}
-                    </div>
-
-                    <div>
-                        <div class="fhq-section-head px-4 pt-4 mb-0">Recent</div>
-                        {% if recent_recipes %}
-                        <div class="db-mini-list">
-                            {% for recipe in recent_recipes %}
-                            <div class="db-mini-item">
-                                <a href="{{ url_for('recipe_detail', recipe_id=recipe.id) }}" class="db-mini-link">
-                                    <div class="db-mini-title">{{ recipe.name }}</div>
-                                    <div class="db-mini-meta">{{ recipe.recipe_type|title }}{% if recipe.category %} · {{ recipe.category }}{% endif %}</div>
-                                </a>
-                            </div>
-                            {% endfor %}
-                        </div>
-                        {% else %}
-                        <div class="db-empty">No recent recipes to show.</div>
-                        {% endif %}
-                    </div>
-                </div>
-            </section>
-        </aside>
-    </div>
+    </main>
 </div>
 {% endblock %}
