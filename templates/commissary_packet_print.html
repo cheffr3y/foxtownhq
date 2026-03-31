@@ -462,6 +462,50 @@
         {% endif %}
     </div>
     {% endif %}
+    <div class="pkt-panel-grid break-inside-avoid">
+        <div class="pkt-panel pkt-panel--alerts">
+            <div class="pkt-panel-title">Critical Dispatch Alerts</div>
+            <div class="pkt-panel-list">
+                {% set alert_ns = namespace(count=0) %}
+                {% for line in packet_checklist_lines %}
+                    {% if line.notes and alert_ns.count < 4 %}
+                        {% set alert_ns.count = alert_ns.count + 1 %}
+                        <div class="pkt-panel-item">
+                            <span class="pkt-panel-index">{{ '%02d'|format(alert_ns.count) }}.</span>
+                            <div>
+                                <div class="pkt-panel-item-title">{{ line.item_name }}</div>
+                                <div class="pkt-panel-copy">{{ line.notes }}</div>
+                            </div>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+                {% if alert_ns.count == 0 %}
+                <div class="pkt-panel-item pkt-panel-item--empty">
+                    <div class="pkt-panel-copy">No explicit line alerts were captured for this window. Use the accountability table for live dispatch notes and chef sign-off.</div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        <div class="pkt-panel pkt-panel--summary">
+            <div class="pkt-panel-title">Load Summary</div>
+            <div class="pkt-panel-summary-list">
+                {% for outlet_group in packet_checklist_lines|groupby('outlet') %}
+                <div class="pkt-panel-summary-row">
+                    <span>{{ outlet_group.grouper or 'Unassigned Outlet' }}</span>
+                    <span>{{ outlet_group.list|length }} lines</span>
+                </div>
+                {% endfor %}
+                <div class="pkt-panel-summary-total">
+                    <span>Total Orders</span>
+                    <span>{{ datasets.orders|length }}</span>
+                </div>
+                <div class="pkt-panel-summary-total">
+                    <span>Total Manifest Lines</span>
+                    <span>{{ packet_checklist_lines|length }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
     <footer class="pkt-doc-footer break-inside-avoid">
         <div class="pkt-doc-signatures">
             <div class="pkt-signature-block">
@@ -1169,6 +1213,231 @@
     .pkt-doc-meta-grid,
     .pkt-step-num,
     .pkt-vendor-label,
+    .pkt-recipe-card {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+}
+</style>
+<style>
+.pkt-doc-shell {
+    background: linear-gradient(180deg, #edf2f4 0%, #f7f9fb 28%, #edf2f4 100%);
+}
+.pkt-doc-shell .pkt-doc-sheet {
+    max-width: 70rem;
+    margin: 0 auto;
+    border: 3px solid #2a3439;
+    box-shadow: none;
+}
+.pkt-doc-header {
+    padding: 2.15rem 2rem 1.75rem;
+}
+.pkt-doc-title {
+    font-size: clamp(2.5rem, 5vw, 4rem);
+    letter-spacing: -0.08em;
+}
+.pkt-doc-meta-grid {
+    gap: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    background: #ffffff;
+    border-bottom: 2px solid #2a3439;
+}
+.pkt-doc-meta {
+    min-height: 6rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 1rem 1.15rem;
+    border-bottom: none;
+    border-right: 2px solid #2a3439;
+}
+.pkt-doc-meta:nth-child(3n) {
+    border-right: none;
+}
+.pkt-doc-meta-label {
+    margin-bottom: 0.35rem;
+}
+.pkt-doc-meta-value {
+    font-size: 1.45rem;
+    line-height: 1;
+    letter-spacing: -0.04em;
+}
+.pkt-section {
+    background: #ffffff;
+}
+.pkt-section-header h2 {
+    font-size: 1.05rem;
+}
+.pkt-table {
+    border-width: 2px;
+}
+.pkt-table thead th {
+    background: #d9e4ea;
+    color: #2a3439;
+    border-color: #2a3439;
+    border-width: 0 0 2px 2px;
+}
+.pkt-table thead th:first-child {
+    border-left-width: 0;
+}
+.pkt-table tbody td {
+    border-color: #2a3439;
+    border-width: 0 0 2px 2px;
+}
+.pkt-table tbody td:first-child {
+    border-left-width: 0;
+}
+.pkt-table tbody tr:last-child td {
+    border-bottom-width: 0;
+}
+.pkt-table-manifest thead th,
+.pkt-table-accountability thead th {
+    font-size: 0.58rem;
+    letter-spacing: 0.16em;
+}
+.pkt-table-manifest tbody td,
+.pkt-table-accountability tbody td {
+    padding-top: 0.7rem;
+    padding-bottom: 0.7rem;
+}
+.pkt-checkbox {
+    width: 1.15rem;
+    height: 1.15rem;
+    border-width: 2px;
+}
+.pkt-order-card,
+.pkt-line-sheet {
+    border-width: 2px;
+}
+.pkt-recipe-card {
+    border-left-width: 4px;
+    background: #edf2f4;
+}
+.pkt-step-num {
+    background: #2a3439;
+    color: #f7f9fb;
+    border: none;
+}
+.pkt-panel-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr);
+    gap: 1.1rem;
+    margin: 0 2rem 1.2rem;
+}
+.pkt-panel {
+    padding: 1.35rem 1.4rem;
+    border-bottom: 4px solid #2a3439;
+}
+.pkt-panel--alerts {
+    background: #e1e9ee;
+    border-bottom-color: #c00815;
+}
+.pkt-panel--summary {
+    background: #d9e4ea;
+}
+.pkt-panel-title {
+    margin-bottom: 1rem;
+    font-size: 1.05rem;
+    font-weight: 900;
+    letter-spacing: -0.03em;
+    text-transform: uppercase;
+    color: #2a3439;
+}
+.pkt-panel-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.95rem;
+}
+.pkt-panel-item {
+    display: flex;
+    gap: 0.8rem;
+    align-items: flex-start;
+}
+.pkt-panel-index {
+    flex-shrink: 0;
+    font-size: 0.82rem;
+    font-weight: 900;
+    color: #c00815;
+}
+.pkt-panel-item-title {
+    margin-bottom: 0.15rem;
+    font-size: 0.74rem;
+    font-weight: 900;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #2a3439;
+}
+.pkt-panel-copy {
+    font-size: 0.72rem;
+    font-weight: 700;
+    line-height: 1.55;
+    text-transform: uppercase;
+    color: #465468;
+}
+.pkt-panel-summary-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+.pkt-panel-summary-row,
+.pkt-panel-summary-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.7rem 0;
+    border-bottom: 1px solid #a9b4b9;
+    font-size: 0.8rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #2a3439;
+}
+.pkt-panel-summary-total {
+    font-size: 0.78rem;
+    font-weight: 900;
+}
+.pkt-doc-footer {
+    border-top-width: 2px;
+    border-top-color: #2a3439;
+}
+@media (max-width: 920px) {
+    .pkt-doc-shell .pkt-doc-sheet {
+        max-width: none;
+    }
+    .pkt-doc-meta-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .pkt-doc-meta:nth-child(3n) {
+        border-right: 2px solid #2a3439;
+    }
+    .pkt-doc-meta:nth-child(2n) {
+        border-right: none;
+    }
+    .pkt-panel-grid {
+        grid-template-columns: 1fr;
+    }
+}
+@media (max-width: 640px) {
+    .pkt-doc-meta-grid {
+        grid-template-columns: 1fr;
+    }
+    .pkt-doc-meta {
+        border-right: none;
+    }
+}
+@media print {
+    .pkt-doc-shell {
+        background: #ffffff !important;
+    }
+    .pkt-doc-shell .pkt-doc-sheet {
+        max-width: none !important;
+        border-width: 2pt !important;
+    }
+    .pkt-doc-meta,
+    .pkt-table thead th,
+    .pkt-panel,
     .pkt-recipe-card {
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;

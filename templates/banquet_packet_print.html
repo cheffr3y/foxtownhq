@@ -324,28 +324,41 @@
 
         {% for group in prep_groups %}
         {% set prep = group.root %}
+        {% set prep_ref = banquet_ref ~ '-' ~ ('%02d'|format(loop.index)) %}
         <div class="pkt-prep-card break-before-page">
-            {# ── Card header bar ── #}
             <div class="pkt-card-header">
-                <div class="pkt-card-title">
+                <div class="pkt-card-hero">
+                    <div class="pkt-card-badge">Production Guide / Sub-Recipe</div>
                     <h3>{{ prep.recipe_name }}</h3>
+                    <div class="pkt-card-reference">Batch ID: {{ prep_ref }}</div>
                 </div>
-                <div class="pkt-card-yield">
-                    <div class="pkt-yield-number">{{ prep.display_required.quantity }}</div>
-                    <div class="pkt-yield-unit">{{ prep.display_required.unit }}</div>
+                <div class="pkt-card-codebox" aria-hidden="true">
+                    <div class="pkt-card-code"></div>
+                    <div class="pkt-card-code-caption">Scan / Log Batch</div>
+                </div>
+            </div>
+            <div class="pkt-card-stat-grid">
+                <div class="pkt-card-stat">
+                    <span class="pkt-card-stat-label">Total Yield</span>
+                    <span class="pkt-card-stat-value">{{ prep.display_required.quantity }} {{ prep.display_required.unit }}</span>
+                </div>
+                <div class="pkt-card-stat">
+                    <span class="pkt-card-stat-label">Applications</span>
+                    <span class="pkt-card-stat-value">{{ prep.used_in_menu_items|length }}</span>
+                </div>
+                <div class="pkt-card-stat">
+                    <span class="pkt-card-stat-label">Steps</span>
+                    <span class="pkt-card-stat-value">{{ prep.instruction_steps|length or '—' }}</span>
+                </div>
+                <div class="pkt-card-stat">
+                    <span class="pkt-card-stat-label">Dependencies</span>
+                    <span class="pkt-card-stat-value">{{ (prep.subrecipe_rows|length) + (group.sub_cards|length) }}</span>
                 </div>
             </div>
 
-            {# ── Meta line ── #}
-            <div class="pkt-card-meta">
-                <span>BEO Line: {{ group.main_label }}</span>
-                <span>Used in: {{ prep.used_in_menu_items|join(' · ') }}</span>
-            </div>
-
-            {# ── Ingredients table ── #}
             {% if prep.ingredient_rows %}
             <div class="pkt-card-body">
-                <div class="pkt-label">Ingredients</div>
+                <div class="pkt-label pkt-label--section">1. Ingredients Checklist</div>
                 <table class="pkt-table pkt-table-ingredients">
                     <thead>
                         <tr>
@@ -373,10 +386,9 @@
             </div>
             {% endif %}
 
-            {# ── Sub-recipe pulls ── #}
             {% if prep.subrecipe_rows %}
             <div class="pkt-card-body pkt-sub-section">
-                <div class="pkt-label">Sub-Recipe Pulls</div>
+                <div class="pkt-label pkt-label--section">2. Sub-Recipe Pulls</div>
                 <table class="pkt-table pkt-table-ingredients">
                     <thead>
                         <tr>
@@ -405,10 +417,9 @@
             </div>
             {% endif %}
 
-            {# ── Method steps ── #}
             {% if prep.instruction_steps %}
             <div class="pkt-card-body pkt-method-section">
-                <div class="pkt-label">Method</div>
+                <div class="pkt-label pkt-label--section">3. Prep Timeline</div>
                 <div class="pkt-steps">
                     {% for step in prep.instruction_steps %}
                     <div class="pkt-step">
@@ -422,12 +433,33 @@
 
             {% if group.sub_cards %}
             <div class="pkt-card-body pkt-sub-section">
-                <div class="pkt-label">Dependency Build Order</div>
+                <div class="pkt-label pkt-label--section">4. Dependency Build Order</div>
                 {% for sub_card in group.sub_cards %}
                     {{ render_sub_card(sub_card, 1) }}
                 {% endfor %}
             </div>
             {% endif %}
+            <div class="pkt-card-foot-grid">
+                <div class="pkt-card-foot-block">
+                    <div class="pkt-card-foot-title">Service Applications</div>
+                    <ul class="pkt-card-foot-list">
+                        {% for menu_item in prep.used_in_menu_items[:4] %}
+                        <li>{{ menu_item }}</li>
+                        {% endfor %}
+                        {% if not prep.used_in_menu_items %}
+                        <li>Direct banquet support item</li>
+                        {% endif %}
+                    </ul>
+                </div>
+                <div class="pkt-card-foot-block">
+                    <div class="pkt-card-foot-title">Execution Notes</div>
+                    <ul class="pkt-card-foot-list">
+                        <li>BEO line: {{ group.main_label }}</li>
+                        <li>Raw ingredients: {{ prep.ingredient_rows|length }}</li>
+                        <li>Nested sub-recipes: {{ group.sub_cards|length }}</li>
+                    </ul>
+                </div>
+            </div>
         </div>
         {% endfor %}
 
@@ -1393,6 +1425,293 @@
     .pkt-vendor-label,
     .pkt-mod-tag,
     .pkt-step-num {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+}
+</style>
+<style>
+.pkt-doc-shell {
+    background: linear-gradient(180deg, #edf2f4 0%, #f7f9fb 28%, #edf2f4 100%);
+}
+.pkt-doc-shell .pkt-doc-sheet {
+    max-width: 56rem;
+    margin: 0 auto;
+    border: 3px solid #2a3439;
+    box-shadow: none;
+}
+.pkt-doc-header {
+    padding: 2.15rem 2rem 1.75rem;
+}
+.pkt-doc-title {
+    font-size: clamp(2.5rem, 5vw, 4rem);
+    letter-spacing: -0.08em;
+}
+.pkt-doc-meta-grid {
+    gap: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    background: #ffffff;
+    border-bottom: 2px solid #2a3439;
+}
+.pkt-doc-meta {
+    min-height: 6.25rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 1rem 1.15rem;
+    border-bottom: none;
+    border-right: 2px solid #2a3439;
+}
+.pkt-doc-meta:nth-child(3n) {
+    border-right: none;
+}
+.pkt-doc-meta-label {
+    margin-bottom: 0.35rem;
+}
+.pkt-doc-meta-value {
+    font-size: 1.5rem;
+    line-height: 1;
+    letter-spacing: -0.04em;
+}
+.pkt-section,
+.pkt-prep-card {
+    background: #ffffff;
+}
+.pkt-prep-card {
+    max-width: 28rem;
+    margin: 0 auto 1.5rem;
+    border: 3px solid #2a3439;
+    break-inside: avoid;
+    page-break-inside: avoid;
+}
+.pkt-card-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 5.75rem;
+    gap: 1.25rem;
+    align-items: start;
+    padding: 1.45rem 1.55rem 1.2rem;
+    background: #ffffff;
+}
+.pkt-card-hero h3 {
+    margin: 0.5rem 0 0.3rem;
+    font-size: clamp(2.2rem, 5vw, 3.2rem);
+    line-height: 0.95;
+    font-weight: 900;
+    letter-spacing: -0.08em;
+    text-transform: uppercase;
+    color: #2a3439;
+}
+.pkt-card-badge {
+    display: inline-flex;
+    padding: 0.32rem 0.55rem;
+    background: #2a3439;
+    color: #f7f9fb;
+    font-size: 0.56rem;
+    font-weight: 900;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+}
+.pkt-card-reference {
+    font-size: 0.73rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #566166;
+}
+.pkt-card-codebox {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.45rem;
+}
+.pkt-card-code {
+    width: 4.85rem;
+    height: 4.85rem;
+    border: 2px solid #2a3439;
+    background:
+        linear-gradient(90deg, rgba(42, 52, 57, 0.92) 12.5%, transparent 12.5%, transparent 25%, rgba(42, 52, 57, 0.92) 25%, rgba(42, 52, 57, 0.92) 37.5%, transparent 37.5%, transparent 50%, rgba(42, 52, 57, 0.92) 50%, rgba(42, 52, 57, 0.92) 62.5%, transparent 62.5%, transparent 75%, rgba(42, 52, 57, 0.92) 75%, rgba(42, 52, 57, 0.92) 87.5%, transparent 87.5%),
+        linear-gradient(rgba(42, 52, 57, 0.92) 12.5%, transparent 12.5%, transparent 25%, rgba(42, 52, 57, 0.92) 25%, rgba(42, 52, 57, 0.92) 37.5%, transparent 37.5%, transparent 50%, rgba(42, 52, 57, 0.92) 50%, rgba(42, 52, 57, 0.92) 62.5%, transparent 62.5%, transparent 75%, rgba(42, 52, 57, 0.92) 75%, rgba(42, 52, 57, 0.92) 87.5%, transparent 87.5%);
+    background-size: 0.55rem 0.55rem;
+}
+.pkt-card-code-caption {
+    font-size: 0.48rem;
+    font-weight: 900;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #566166;
+    text-align: center;
+}
+.pkt-card-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    border-top: 3px solid #2a3439;
+    border-bottom: 3px solid #2a3439;
+}
+.pkt-card-stat {
+    min-height: 5.5rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.85rem 0.65rem;
+    text-align: center;
+    border-right: 2px solid #2a3439;
+}
+.pkt-card-stat:last-child {
+    border-right: none;
+}
+.pkt-card-stat-label {
+    font-size: 0.54rem;
+    font-weight: 900;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #566166;
+}
+.pkt-card-stat-value {
+    font-size: 1.6rem;
+    line-height: 1;
+    font-weight: 900;
+    letter-spacing: -0.06em;
+    color: #2a3439;
+}
+.pkt-card-body {
+    padding: 1rem 1.45rem 1.05rem;
+}
+.pkt-label--section {
+    display: inline-block;
+    margin-bottom: 0.7rem;
+    padding-bottom: 0.25rem;
+    font-size: 1rem;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+    border-bottom: 2px solid #2a3439;
+    color: #2a3439;
+}
+.pkt-table {
+    border-width: 2px;
+}
+.pkt-table thead th {
+    background: #d9e4ea;
+    color: #2a3439;
+    border-left: 2px solid #2a3439;
+    border-bottom: 2px solid #2a3439;
+}
+.pkt-table thead th:first-child {
+    border-left: none;
+}
+.pkt-table tbody td {
+    border-bottom: 2px solid #2a3439;
+    border-left: 2px solid #2a3439;
+}
+.pkt-table tbody td:first-child {
+    border-left: none;
+}
+.pkt-table tbody tr:last-child td {
+    border-bottom: none;
+}
+.pkt-alt-row:nth-child(odd) td {
+    background: #edf2f4;
+}
+.pkt-steps {
+    gap: 0.85rem;
+}
+.pkt-step {
+    gap: 0.8rem;
+    align-items: flex-start;
+}
+.pkt-step-num {
+    width: 2rem;
+    height: 2rem;
+    background: #2a3439;
+    color: #f7f9fb;
+    border: none;
+    font-size: 0.78rem;
+}
+.pkt-step-text {
+    padding-bottom: 0.8rem;
+    border-bottom: 2px solid #2a3439;
+}
+.pkt-sub-section {
+    background: #ffffff;
+}
+.pkt-sub-prep-card {
+    margin-top: 0.9rem;
+    padding: 0.85rem 0 0 0.85rem;
+    border-left-width: 2px;
+}
+.pkt-card-foot-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.9rem;
+    padding: 0 1.45rem 1.3rem;
+}
+.pkt-card-foot-block {
+    border: 3px solid #2a3439;
+    padding: 0.95rem 1rem;
+}
+.pkt-card-foot-title {
+    margin-bottom: 0.6rem;
+    font-size: 0.82rem;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #2a3439;
+}
+.pkt-card-foot-list {
+    margin: 0;
+    padding-left: 1rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1.55;
+    color: #2a3439;
+}
+.pkt-card-foot-list li + li {
+    margin-top: 0.35rem;
+}
+@media (max-width: 820px) {
+    .pkt-doc-shell .pkt-doc-sheet {
+        max-width: none;
+    }
+    .pkt-doc-meta-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .pkt-doc-meta:nth-child(3n) {
+        border-right: 2px solid #2a3439;
+    }
+    .pkt-doc-meta:nth-child(2n) {
+        border-right: none;
+    }
+    .pkt-prep-card {
+        max-width: none;
+        margin-left: 0.75rem;
+        margin-right: 0.75rem;
+    }
+}
+@media (max-width: 640px) {
+    .pkt-card-header,
+    .pkt-card-stat-grid,
+    .pkt-card-foot-grid {
+        grid-template-columns: 1fr;
+    }
+    .pkt-card-stat,
+    .pkt-doc-meta {
+        border-right: none;
+    }
+}
+@media print {
+    .pkt-doc-shell {
+        background: #ffffff !important;
+    }
+    .pkt-doc-shell .pkt-doc-sheet {
+        max-width: none !important;
+        border-width: 2pt !important;
+    }
+    .pkt-doc-meta,
+    .pkt-card-stat,
+    .pkt-table thead th,
+    .pkt-alt-row:nth-child(odd) td {
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
     }
