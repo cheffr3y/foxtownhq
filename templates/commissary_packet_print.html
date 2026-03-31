@@ -121,6 +121,226 @@
     </tr>
     {% endif %}
 {%- endmacro %}
+{% macro render_master_component_rows(items, depth=0) -%}
+    {% for item in items %}
+        {% set component_name = item.item_name or item.name or item.recipe_name or 'Component' %}
+        {% set component_qty = item.display_quantity %}
+        {% if component_qty in (None, '') %}
+            {% set component_qty = item.scaled_quantity_display if item.scaled_quantity_display not in (None, '') else item.scaled_quantity %}
+        {% endif %}
+        {% set component_unit = item.display_unit or item.unit or '' %}
+        {% if item.type == 'ingredient' %}
+            {% set component_badge = 'ING' %}
+            {% set component_label = 'Ingredient' %}
+            {% set component_note = item.category or 'Raw ingredient' %}
+        {% elif item.type == 'recipe' %}
+            {% set component_badge = 'SUB' %}
+            {% set component_label = 'Sub-Recipe' %}
+            {% if item.sub_recipe %}
+                {% set component_note = 'Yield ' ~ (item.sub_recipe.yield_qty or '—') ~ ' ' ~ (item.sub_recipe.yield_unit or '') %}
+            {% else %}
+                {% set component_note = 'Linked build' %}
+            {% endif %}
+        {% else %}
+            {% set component_badge = 'WG' %}
+            {% set component_label = 'Option Group' %}
+            {% if item.group_weight_total is not none %}
+                {% set component_note = ('%.2f'|format(item.group_weight_total)) ~ '% weighted mix' %}
+            {% else %}
+                {% set component_note = 'Weighted selection group' %}
+            {% endif %}
+        {% endif %}
+        <tr class="cmr-ledger-row {% if item.type == 'recipe' %}cmr-ledger-row--recipe{% elif item.type == 'option_group' %}cmr-ledger-row--group{% endif %}">
+            <td class="cmr-ledger-cell cmr-ledger-cell--name" style="padding-left: calc(1rem + {{ depth }} * 1.1rem);">
+                <div class="cmr-ledger-namewrap">
+                    <span class="cmr-ledger-badge cmr-ledger-badge--{{ item.type or 'ingredient' }}">{{ component_badge }}</span>
+                    <div>
+                        <div class="cmr-ledger-title">{{ component_name }}</div>
+                        <div class="cmr-ledger-subline">{{ component_label }} · {{ component_note }}</div>
+                    </div>
+                </div>
+            </td>
+            <td class="cmr-ledger-cell cmr-ledger-cell--qty">
+                {{ component_qty if component_qty not in (None, '') else '—' }} {{ component_unit }}
+                {% if item.display_converted %}
+                <div class="cmr-ledger-subline">{{ item.scaled_quantity_display }} {{ item.unit or '' }}</div>
+                {% endif %}
+            </td>
+            <td class="cmr-ledger-cell cmr-ledger-cell--note">
+                {% if item.type == 'ingredient' %}
+                    {{ item.category or 'Ready for pull' }}
+                {% elif item.type == 'recipe' %}
+                    {{ 'Nested ingredients linked below' if item.children else 'No nested ingredient rows linked yet' }}
+                {% else %}
+                    {{ 'Blend according to weighted selection' }}
+                {% endif %}
+            </td>
+        </tr>
+        {% if item.children %}
+            {{ render_master_component_rows(item.children, depth + 1) }}
+        {% endif %}
+    {% endfor %}
+{%- endmacro %}
+{% macro render_commissary_master_sheet(prep, sheet_ref) -%}
+<article class="cmr-sheet break-before-page">
+    <section class="cmr-hero">
+        <div class="cmr-hero-copy">
+            <div class="cmr-hero-meta">
+                <span>Recipe ID: {{ prep.recipe_id|upper }}</span>
+                <span class="cmr-dot"></span>
+                <span>Station: {{ (prep.station or 'General')|upper }}</span>
+            </div>
+            <h2 class="cmr-name">{{ prep.recipe_name }}</h2>
+            <p class="cmr-description">{{ prep.menu_descriptor or 'Scaled commissary production master generated from active order demand.' }}</p>
+        </div>
+        <div class="cmr-hero-card">
+            <div class="cmr-hero-card-kicker">Kitchen Ops</div>
+            <div class="cmr-hero-card-value">Commissary Batch</div>
+            <div class="cmr-hero-card-grid">
+                <div>
+                    <span class="cmr-mini-label">Category</span>
+                    <span class="cmr-mini-value">{{ prep.category or 'Uncategorized' }}</span>
+                </div>
+                <div>
+                    <span class="cmr-mini-label">Orders</span>
+                    <span class="cmr-mini-value">{{ prep.used_in_orders|length or 'All' }}</span>
+                </div>
+                <div>
+                    <span class="cmr-mini-label">Source</span>
+                    <span class="cmr-mini-value">{{ prep.source_venue or selected_outlet or 'Commissary' }}</span>
+                </div>
+                <div>
+                    <span class="cmr-mini-label">Equipment</span>
+                    <span class="cmr-mini-value">{{ prep.equipment or 'TBD' }}</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="cmr-stat-grid">
+        <div class="cmr-stat-card">
+            <div class="cmr-stat-label">Required Output</div>
+            <div class="cmr-stat-value">{{ prep.display_required.quantity }} {{ prep.display_required.unit }}</div>
+        </div>
+        <div class="cmr-stat-card">
+            <div class="cmr-stat-label">Base Yield</div>
+            <div class="cmr-stat-value">{{ prep.display_yield.quantity }} {{ prep.display_yield.unit }}</div>
+        </div>
+        <div class="cmr-stat-card cmr-stat-card--accent">
+            <div class="cmr-stat-label">Scaled Run</div>
+            <div class="cmr-stat-value">{{ '%.2f'|format(prep.required_batches) }}x</div>
+        </div>
+        <div class="cmr-stat-card">
+            <div class="cmr-stat-label">Component Rows</div>
+            <div class="cmr-stat-value">{{ prep.component_count }}</div>
+        </div>
+    </section>
+
+    <section class="cmr-ledger">
+        <div class="cmr-ledger-header">
+            <div class="cmr-ledger-heading">Ingredient / Sub-Recipe</div>
+            <div class="cmr-ledger-heading cmr-ledger-heading--right">Qty / Unit</div>
+            <div class="cmr-ledger-heading">Build Note</div>
+        </div>
+        {% if prep.components %}
+        <table class="cmr-ledger-table">
+            <tbody>
+                {{ render_master_component_rows(prep.components) }}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="cmr-empty">No ingredients or linked sub-recipes have been added yet.</div>
+        {% endif %}
+        <div class="cmr-ledger-total">
+            <span>Total Rollup</span>
+            <span>{{ prep.display_required.quantity }} {{ prep.display_required.unit }}</span>
+        </div>
+        <div class="cmr-ledger-footnote">Packet sheet {{ sheet_ref }} · Costing intentionally hidden in line-team print view.</div>
+    </section>
+
+    <section class="cmr-panel-grid">
+        <div class="cmr-panel cmr-panel--alert">
+            <div class="cmr-panel-title">Critical Yield Alerts</div>
+            {% if prep.critical_steps %}
+            <div class="cmr-panel-list">
+                {% for step in prep.critical_steps %}
+                <div class="cmr-panel-item">
+                    <span class="cmr-panel-index">{{ '%02d'|format(loop.index) }}.</span>
+                    <div class="cmr-panel-copy">{{ step }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="cmr-panel-empty">No critical steps are logged yet. Add them on the recipe form to surface hold points and food-safety controls here.</div>
+            {% endif %}
+        </div>
+        <div class="cmr-panel cmr-panel--ops">
+            <div class="cmr-panel-title">Prep And Handling</div>
+            <div class="cmr-operational-rows">
+                <div class="cmr-operational-row">
+                    <span>Prep Time</span>
+                    <span>{% if prep.prep_time_minutes is not none %}{{ prep.prep_time_minutes }} MIN{% else %}Not logged{% endif %}</span>
+                </div>
+                <div class="cmr-operational-row">
+                    <span>Shelf Life</span>
+                    <span>{% if prep.shelf_life_days is not none %}{{ prep.shelf_life_days }} DAYS{% else %}Not logged{% endif %}</span>
+                </div>
+                <div class="cmr-operational-row">
+                    <span>Station</span>
+                    <span>{{ prep.station or 'General' }}</span>
+                </div>
+                <div class="cmr-operational-row">
+                    <span>Equipment</span>
+                    <span>{{ prep.equipment or 'Not specified' }}</span>
+                </div>
+                <div class="cmr-operational-row">
+                    <span>Assigned Cooks</span>
+                    <span>{{ prep.assigned_cooks|join(', ') if prep.assigned_cooks else 'Open assignment' }}</span>
+                </div>
+            </div>
+            {% if prep.storage_lines %}
+            <div class="cmr-storage-block">
+                <div class="cmr-storage-title">Storage Instructions</div>
+                <ul class="cmr-storage-list">
+                    {% for line in prep.storage_lines %}
+                    <li>{{ line }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+            {% if prep.used_in_order_labels %}
+            <div class="cmr-storage-block">
+                <div class="cmr-storage-title">Order Targets</div>
+                <div class="cmr-chip-set">
+                    {% for label in prep.used_in_order_labels[:6] %}
+                    <span class="cmr-chip">{{ label }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </section>
+
+    {% if prep.instruction_steps %}
+    <section class="cmr-timeline">
+        <div class="cmr-section-title">Production Timeline</div>
+        <div class="cmr-timeline-rows">
+            {% for step in prep.instruction_steps %}
+            <div class="cmr-timeline-row">
+                <div class="cmr-timeline-index">{{ '%02d'|format(loop.index) }}</div>
+                <div class="cmr-timeline-copy">{{ step }}</div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% elif prep.instructions %}
+    <section class="cmr-timeline">
+        <div class="cmr-section-title">Instructions</div>
+        <div class="cmr-freeform-copy">{{ prep.instructions }}</div>
+    </section>
+    {% endif %}
+</article>
+{%- endmacro %}
 {% set checklist_ns = namespace(rows=[]) %}
 {% for order in datasets.orders %}
     {% for order_line in order.lines %}
@@ -530,6 +750,21 @@
         </div>
     </footer>
     </div>
+
+    {% if datasets.weekly_prep %}
+    <div class="pkt-recipe-master-stack">
+        <div class="pkt-section pkt-section--attachments break-before-page no-print">
+            <div class="pkt-section-header">
+                <h2>Scaled Recipe Master Attachments</h2>
+                <span class="pkt-date-range">{{ datasets.weekly_prep|length }} sheets</span>
+            </div>
+            <div class="pkt-empty-note">These sheets project the recipe database master format into commissary prep based on the total ordered output for the selected window.</div>
+        </div>
+        {% for prep in datasets.weekly_prep %}
+            {{ render_commissary_master_sheet(prep, commissary_ref ~ '-PREP-' ~ '%02d'|format(loop.index)) }}
+        {% endfor %}
+    </div>
+    {% endif %}
 </div>
 
 <style>
@@ -1167,9 +1402,410 @@
     border-top: 1px solid #a9b4b9;
     font-size: 0.68rem;
 }
+.pkt-recipe-master-stack {
+    margin-top: 1.5rem;
+}
+.pkt-section--attachments {
+    margin-bottom: 1.5rem;
+}
+.cmr-sheet {
+    max-width: 72rem;
+    margin: 0 auto 1.5rem;
+    padding: 2rem;
+    background: #ffffff;
+    border: 3px solid #2a3439;
+}
+.cmr-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(18rem, 0.8fr);
+    gap: 1.5rem;
+    align-items: start;
+    margin-bottom: 1.75rem;
+}
+.cmr-hero-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    flex-wrap: wrap;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #566166;
+}
+.cmr-dot {
+    width: 0.3rem;
+    height: 0.3rem;
+    background: #a9b4b9;
+}
+.cmr-name {
+    margin: 0.55rem 0 0.7rem;
+    font-size: clamp(2.9rem, 8vw, 5rem);
+    line-height: 0.92;
+    font-weight: 900;
+    letter-spacing: -0.09em;
+    text-transform: uppercase;
+    color: #111827;
+}
+.cmr-description {
+    max-width: 44rem;
+    margin: 0;
+    font-size: 0.95rem;
+    line-height: 1.65;
+    color: #566166;
+}
+.cmr-hero-card {
+    padding: 1.15rem;
+    border-bottom: 4px solid #2a3439;
+    background: #e1e9ee;
+}
+.cmr-hero-card-kicker {
+    margin-bottom: 0.3rem;
+    font-size: 0.68rem;
+    font-weight: 900;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #566166;
+}
+.cmr-hero-card-value {
+    margin-bottom: 1rem;
+    font-size: 2rem;
+    line-height: 1;
+    font-weight: 900;
+    letter-spacing: -0.05em;
+    text-transform: uppercase;
+    color: #111827;
+}
+.cmr-hero-card-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem 0.9rem;
+}
+.cmr-mini-label {
+    display: block;
+    margin-bottom: 0.18rem;
+    font-size: 0.58rem;
+    font-weight: 900;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #566166;
+}
+.cmr-mini-value {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 800;
+    line-height: 1.35;
+    color: #111827;
+}
+.cmr-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.1rem;
+    margin-bottom: 1.75rem;
+    background: #2a3439;
+}
+.cmr-stat-card {
+    padding: 1.25rem 1.15rem;
+    background: #ffffff;
+    border-bottom: 3px solid #2a3439;
+}
+.cmr-stat-card--accent {
+    border-bottom-color: #565e74;
+}
+.cmr-stat-label {
+    margin-bottom: 0.4rem;
+    font-size: 0.58rem;
+    font-weight: 900;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #566166;
+}
+.cmr-stat-value {
+    font-size: 2.05rem;
+    line-height: 1;
+    font-weight: 900;
+    letter-spacing: -0.06em;
+    color: #111827;
+}
+.cmr-ledger {
+    margin-bottom: 1.75rem;
+    border: 1px solid #a9b4b9;
+}
+.cmr-ledger-header,
+.cmr-ledger-total {
+    display: grid;
+    grid-template-columns: minmax(0, 1.8fr) minmax(10rem, 0.7fr) minmax(12rem, 0.9fr);
+}
+.cmr-ledger-header {
+    background: #d9e4ea;
+    border-bottom: 2px solid #2a3439;
+}
+.cmr-ledger-heading {
+    padding: 0.85rem 0.95rem;
+    font-size: 0.58rem;
+    font-weight: 900;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #2a3439;
+}
+.cmr-ledger-heading--right {
+    text-align: right;
+}
+.cmr-ledger-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.cmr-ledger-row {
+    border-bottom: 1px solid #a9b4b9;
+}
+.cmr-ledger-row--recipe {
+    background: #edf2f4;
+}
+.cmr-ledger-row--group {
+    background: #f3f6f8;
+}
+.cmr-ledger-cell {
+    padding: 0.9rem 0.95rem;
+    vertical-align: top;
+    font-size: 0.82rem;
+    border-left: 1px solid #a9b4b9;
+    color: #2a3439;
+}
+.cmr-ledger-cell:first-child {
+    border-left: none;
+}
+.cmr-ledger-cell--qty {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+.cmr-ledger-namewrap {
+    display: flex;
+    gap: 0.7rem;
+    align-items: flex-start;
+}
+.cmr-ledger-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.35rem;
+    min-height: 1.6rem;
+    padding: 0 0.45rem;
+    background: #2a3439;
+    color: #f7f9fb;
+    font-size: 0.55rem;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+.cmr-ledger-badge--recipe {
+    background: #565e74;
+}
+.cmr-ledger-badge--option_group {
+    background: #717c82;
+}
+.cmr-ledger-title {
+    font-size: 0.9rem;
+    font-weight: 900;
+    line-height: 1.3;
+    text-transform: uppercase;
+    color: #111827;
+}
+.cmr-ledger-subline {
+    margin-top: 0.2rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1.45;
+    color: #566166;
+}
+.cmr-empty {
+    padding: 1rem;
+    color: #566166;
+    font-size: 0.86rem;
+    font-weight: 700;
+}
+.cmr-ledger-total {
+    border-top: 2px solid #2a3439;
+    background: #2a3439;
+    color: #f7f9fb;
+}
+.cmr-ledger-total span {
+    padding: 0.95rem 1rem;
+    font-size: 0.86rem;
+    font-weight: 900;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+.cmr-ledger-total span:last-child {
+    text-align: right;
+    font-size: 1.15rem;
+    letter-spacing: -0.03em;
+}
+.cmr-ledger-footnote {
+    padding: 0.55rem 1rem 0.7rem;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #566166;
+    background: #f8fafc;
+}
+.cmr-panel-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+    gap: 1rem;
+    margin-bottom: 1.75rem;
+}
+.cmr-panel {
+    padding: 1.1rem 1.15rem;
+    border-bottom: 3px solid #2a3439;
+}
+.cmr-panel--alert {
+    background: #edf2f4;
+    border-bottom-color: #c00815;
+}
+.cmr-panel--ops {
+    background: #e1e9ee;
+}
+.cmr-panel-title,
+.cmr-section-title {
+    margin-bottom: 0.7rem;
+    font-size: 0.82rem;
+    font-weight: 900;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #111827;
+}
+.cmr-panel-list {
+    display: grid;
+    gap: 0.55rem;
+}
+.cmr-panel-item {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.55rem;
+    align-items: start;
+}
+.cmr-panel-index {
+    color: #c00815;
+    font-weight: 900;
+    font-size: 0.76rem;
+    letter-spacing: 0.1em;
+}
+.cmr-panel-copy,
+.cmr-panel-empty {
+    font-size: 0.76rem;
+    line-height: 1.55;
+    color: #2a3439;
+}
+.cmr-operational-rows {
+    display: grid;
+    gap: 0.55rem;
+}
+.cmr-operational-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding-bottom: 0.35rem;
+    border-bottom: 1px solid rgba(42, 52, 57, 0.18);
+    font-size: 0.74rem;
+    line-height: 1.45;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+.cmr-operational-row span:first-child {
+    font-weight: 900;
+    color: #566166;
+}
+.cmr-operational-row span:last-child {
+    text-align: right;
+    font-weight: 800;
+    color: #111827;
+}
+.cmr-storage-block {
+    margin-top: 1rem;
+}
+.cmr-storage-title {
+    margin-bottom: 0.35rem;
+    font-size: 0.62rem;
+    font-weight: 900;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #566166;
+}
+.cmr-storage-list {
+    margin: 0;
+    padding-left: 1rem;
+    display: grid;
+    gap: 0.35rem;
+    color: #2a3439;
+    font-size: 0.78rem;
+    line-height: 1.55;
+}
+.cmr-chip-set {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+}
+.cmr-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.3rem 0.55rem;
+    border: 1px solid #717c82;
+    background: #ffffff;
+    color: #2a3439;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+.cmr-timeline {
+    border: 1px solid #a9b4b9;
+}
+.cmr-timeline-rows {
+    display: grid;
+}
+.cmr-timeline-row {
+    display: grid;
+    grid-template-columns: 2rem minmax(0, 1fr);
+    gap: 0.85rem;
+    align-items: start;
+    padding: 0.85rem 0.95rem;
+    border-top: 1px solid #a9b4b9;
+}
+.cmr-timeline-row:first-child {
+    border-top: none;
+}
+.cmr-timeline-index {
+    width: 1.7rem;
+    height: 1.7rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #2a3439;
+    color: #f7f9fb;
+    font-size: 0.64rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+}
+.cmr-timeline-copy,
+.cmr-freeform-copy {
+    font-size: 0.84rem;
+    line-height: 1.65;
+    color: #2a3439;
+}
+.cmr-freeform-copy {
+    padding: 0 0.95rem 0.95rem;
+}
 @media (max-width: 960px) {
     .pkt-doc-meta-grid,
     .pkt-doc-signatures {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .cmr-hero,
+    .cmr-panel-grid {
+        grid-template-columns: 1fr;
+    }
+    .cmr-stat-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
@@ -1184,6 +1820,17 @@
     .pkt-doc-meta-grid,
     .pkt-doc-signatures {
         grid-template-columns: 1fr;
+    }
+    .cmr-sheet {
+        padding: 1.15rem;
+    }
+    .cmr-stat-grid,
+    .cmr-hero-card-grid {
+        grid-template-columns: 1fr;
+    }
+    .cmr-ledger-header,
+    .cmr-ledger-total {
+        grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.8fr) minmax(0, 0.9fr);
     }
 }
 @media print {
@@ -1213,9 +1860,24 @@
     .pkt-doc-meta-grid,
     .pkt-step-num,
     .pkt-vendor-label,
-    .pkt-recipe-card {
+    .pkt-recipe-card,
+    .cmr-hero-card,
+    .cmr-stat-card,
+    .cmr-panel,
+    .cmr-ledger-header,
+    .cmr-ledger-total,
+    .cmr-timeline-index {
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
+    }
+    .pkt-recipe-master-stack {
+        margin-top: 0 !important;
+    }
+    .cmr-sheet {
+        margin: 0 !important;
+        max-width: none !important;
+        border-width: 2pt !important;
+        box-shadow: none !important;
     }
 }
 </style>

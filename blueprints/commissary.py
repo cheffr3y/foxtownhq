@@ -2392,8 +2392,6 @@ def commissary_packet_pdf():
                 )
         checklist_lines.sort(key=lambda row: ((row.get('outlet') or '').lower(), (row.get('item_name') or '').lower()))
 
-    from reportlab.platypus import KeepTogether
-
     header_black = colors.HexColor('#1A1A1A')
     light_gray = colors.HexColor('#F5F5F5')
     border_gray = colors.HexColor('#D9D9D9')
@@ -2454,6 +2452,14 @@ def commissary_packet_pdf():
         if qty_text == '—' or not unit_text:
             return qty_text
         return f'{qty_text} {unit_text}'
+
+    def display_label(display):
+        if not display:
+            return '-'
+        qty = to_text(display.get('quantity'), default='')
+        unit = to_text(display.get('unit'), default='')
+        text = f'{qty} {unit}'.strip()
+        return text or '-'
 
     def signoff_notes_markup(line):
         parts = []
@@ -2590,6 +2596,81 @@ def commissary_packet_pdf():
         fontSize=8.2,
         leading=9.6,
         textColor=muted_text,
+    )
+    master_kicker_style = ParagraphStyle(
+        'packet-pdf-master-kicker',
+        parent=small_style,
+        fontName='Helvetica-Bold',
+        fontSize=7.2,
+        leading=8.6,
+        textColor=muted_text,
+    )
+    master_title_style = ParagraphStyle(
+        'packet-pdf-master-title',
+        parent=base_style,
+        fontName='Helvetica-Bold',
+        fontSize=24,
+        leading=24,
+        textColor=header_black,
+        spaceAfter=2,
+    )
+    master_meta_style = ParagraphStyle(
+        'packet-pdf-master-meta',
+        parent=small_style,
+        fontName='Helvetica-Bold',
+        fontSize=7.2,
+        leading=8.6,
+        textColor=muted_text,
+        spaceAfter=4,
+    )
+    master_description_style = ParagraphStyle(
+        'packet-pdf-master-description',
+        parent=base_style,
+        fontSize=8.5,
+        leading=10.6,
+        textColor=muted_text,
+        spaceAfter=6,
+    )
+    master_stat_label_style = ParagraphStyle(
+        'packet-pdf-master-stat-label',
+        parent=small_style,
+        fontName='Helvetica-Bold',
+        fontSize=6.4,
+        leading=7.4,
+        textColor=muted_text,
+    )
+    master_stat_value_style = ParagraphStyle(
+        'packet-pdf-master-stat-value',
+        parent=base_style,
+        fontName='Helvetica-Bold',
+        fontSize=15,
+        leading=16.5,
+        textColor=header_black,
+    )
+    master_panel_title_style = ParagraphStyle(
+        'packet-pdf-master-panel-title',
+        parent=base_style,
+        fontName='Helvetica-Bold',
+        fontSize=8.6,
+        leading=10,
+        textColor=header_black,
+        spaceAfter=3,
+    )
+    master_panel_body_style = ParagraphStyle(
+        'packet-pdf-master-panel-body',
+        parent=small_style,
+        fontSize=7.8,
+        leading=9.5,
+        textColor=colors.black,
+    )
+    master_timeline_title_style = ParagraphStyle(
+        'packet-pdf-master-timeline-title',
+        parent=base_style,
+        fontName='Helvetica-Bold',
+        fontSize=9.4,
+        leading=11,
+        textColor=header_black,
+        spaceAfter=4,
     )
 
     def p(value, style=base_style, default='-'):
@@ -2828,56 +2909,157 @@ def commissary_packet_pdf():
 
     story.append(PageBreak())
 
-    story.append(Paragraph('Scaled Recipe Cards', section_title_style))
-    story.append(Paragraph('Primary production items only.', muted_style))
+    story.append(Paragraph('Scaled Recipe Master Sheets', section_title_style))
+    story.append(Paragraph('Recipe database sheets projected into commissary prep output.', muted_style))
     story.append(Spacer(1, 6))
-    if checklist_lines:
-        for idx, line in enumerate(checklist_lines):
-            card_parts = [
-                Paragraph(escape(line.get('item_name') or 'Item'), card_title_style),
-                Paragraph(
-                    f'{escape(qty_label(line))}<br/><font color="#4F5B6E">{escape(line.get("outlet") or DEFAULT_COMMISSARY_OUTLET)}</font>',
-                    card_meta_style,
+    weekly_prep = datasets.get('weekly_prep') or []
+    if weekly_prep:
+        for idx, prep in enumerate(weekly_prep):
+            if idx > 0:
+                story.append(PageBreak())
+
+            story.append(Paragraph('Kitchen Ops / Commissary Batch', master_kicker_style))
+            story.append(Paragraph(escape(prep.get('recipe_name') or 'Recipe'), master_title_style))
+            story.append(Paragraph(
+                escape(
+                    f"RECIPE ID: {(prep.get('recipe_id') or 'RECIPE').upper()} · "
+                    f"STATION: {(prep.get('station') or 'GENERAL').upper()}"
                 ),
-            ]
-            ingredient_rows = recipe_component_rows(line.get('components') or [])
-            if ingredient_rows:
-                ingredient_data = [
-                    [
-                        Paragraph('Ingredient', table_header_style),
-                        Paragraph('Quantity', table_header_style),
-                        Paragraph('Unit', table_header_style),
-                    ]
-                ] + ingredient_rows
-                ingredient_table = styled_table(
-                    ingredient_data,
-                    col_widths=[doc.width * 0.66, doc.width * 0.17, doc.width * 0.17],
-                    align_right_cols=[1],
-                )
-                card_parts.append(ingredient_table)
-            else:
-                card_parts.append(Paragraph('No scaled component data available.', empty_note_style))
+                master_meta_style,
+            ))
+            story.append(Paragraph(
+                escape(prep.get('menu_descriptor') or 'Scaled commissary production master generated from active order demand.'),
+                master_description_style,
+            ))
 
-            steps = line.get('instruction_steps') or []
-            if steps:
-                card_parts.append(Spacer(1, 6))
-                card_parts.append(Paragraph('Method', outlet_header_style))
-                for step_index, step in enumerate(steps, start=1):
-                    card_parts.append(
-                        Paragraph(f'<b>{step_index}.</b> {html_text(step, "")}', method_step_style)
+            stat_cells = []
+            for label, value in [
+                ('Required Output', display_label(prep.get('display_required'))),
+                ('Base Yield', display_label(prep.get('display_yield'))),
+                ('Scaled Run', f"{format_number(prep.get('required_batches'))}x"),
+                ('Component Rows', format_number(prep.get('component_count') or 0)),
+            ]:
+                stat_cells.append(
+                    Paragraph(
+                        f"<font size='6.4' color='#4F5B6E'><b>{escape(label.upper())}</b></font><br/>"
+                        f"<font size='15'><b>{escape(value)}</b></font>",
+                        base_style,
                     )
+                )
+            stat_table = Table([stat_cells], colWidths=[doc.width * 0.25] * 4)
+            stat_table.setStyle(
+                TableStyle(
+                    [
+                        ('BOX', (0, 0), (-1, -1), 0.5, header_black),
+                        ('INNERGRID', (0, 0), (-1, -1), 0.5, border_gray),
+                        ('LEFTPADDING', (0, 0), (-1, -1), 8),
+                        ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+                        ('TOPPADDING', (0, 0), (-1, -1), 8),
+                        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+                        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                    ]
+                )
+            )
+            story.append(stat_table)
+            story.append(Spacer(1, 8))
+
+            component_rows = recipe_component_rows(prep.get('components') or [])
+            component_data = [
+                [
+                    Paragraph('Ingredient / Sub-Recipe', table_header_style),
+                    Paragraph('Qty', table_header_style),
+                    Paragraph('Unit', table_header_style),
+                ]
+            ]
+            if component_rows:
+                component_data.extend(component_rows)
             else:
-                card_parts.append(Spacer(1, 4))
-                card_parts.append(Paragraph('No method provided.', empty_note_style))
+                component_data.append(
+                    [
+                        Paragraph('No scaled component data available.', small_style),
+                        Paragraph('—', small_style),
+                        Paragraph('—', small_style),
+                    ]
+                )
+            component_table = styled_table(
+                component_data,
+                col_widths=[doc.width * 0.68, doc.width * 0.16, doc.width * 0.16],
+                align_right_cols=[1],
+            )
+            story.append(component_table)
+            story.append(Spacer(1, 8))
 
-            if idx < len(checklist_lines) - 1:
-                card_parts.append(Spacer(1, 8))
-                card_parts.append(divider(doc.width))
-                card_parts.append(Spacer(1, 8))
+            critical_steps = prep.get('critical_steps') or []
+            if critical_steps:
+                critical_markup = '<b>Critical Yield Alerts</b><br/>' + '<br/>'.join(
+                    escape(f"{step_index:02d}. {step}") for step_index, step in enumerate(critical_steps, start=1)
+                )
+            else:
+                critical_markup = '<b>Critical Yield Alerts</b><br/>No critical steps are logged yet.'
+            storage_lines = prep.get('storage_lines') or []
+            handling_lines = [
+                f"Prep Time: {prep.get('prep_time_minutes')} min" if prep.get('prep_time_minutes') is not None else 'Prep Time: Not logged',
+                f"Shelf Life: {prep.get('shelf_life_days')} days" if prep.get('shelf_life_days') is not None else 'Shelf Life: Not logged',
+                f"Station: {prep.get('station') or 'General'}",
+                f"Equipment: {prep.get('equipment') or 'Not specified'}",
+                f"Assigned Cooks: {', '.join(prep.get('assigned_cooks') or []) or 'Open assignment'}",
+                f"Storage: {' / '.join(storage_lines) if storage_lines else 'Not logged'}",
+            ]
+            if prep.get('used_in_order_labels'):
+                handling_lines.append(f"Order Targets: {', '.join(prep['used_in_order_labels'][:6])}")
+            detail_table = Table(
+                [[
+                    Paragraph(critical_markup, master_panel_body_style),
+                    Paragraph('<b>Prep And Handling</b><br/>' + '<br/>'.join(escape(line) for line in handling_lines), master_panel_body_style),
+                ]],
+                colWidths=[doc.width * 0.5, doc.width * 0.5],
+            )
+            detail_table.setStyle(
+                TableStyle(
+                    [
+                        ('BACKGROUND', (0, 0), (0, 0), colors.HexColor('#EDF2F4')),
+                        ('BACKGROUND', (1, 0), (1, 0), colors.HexColor('#E1E9EE')),
+                        ('BOX', (0, 0), (-1, -1), 0.5, border_gray),
+                        ('INNERGRID', (0, 0), (-1, -1), 0.5, border_gray),
+                        ('LEFTPADDING', (0, 0), (-1, -1), 8),
+                        ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+                        ('TOPPADDING', (0, 0), (-1, -1), 8),
+                        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+                        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                    ]
+                )
+            )
+            story.append(detail_table)
+            story.append(Spacer(1, 8))
 
-            story.append(KeepTogether(card_parts))
+            steps = prep.get('instruction_steps') or []
+            if steps:
+                story.append(Paragraph('Production Timeline', master_timeline_title_style))
+                timeline_data = []
+                for step_index, step in enumerate(steps, start=1):
+                    timeline_data.append([
+                        Paragraph(f'<b>{step_index:02d}</b>', small_style),
+                        Paragraph(html_text(step, ''), method_step_style),
+                    ])
+                timeline_table = Table(timeline_data, colWidths=[doc.width * 0.08, doc.width * 0.92])
+                timeline_table.setStyle(
+                    TableStyle(
+                        [
+                            ('BOX', (0, 0), (-1, -1), 0.5, border_gray),
+                            ('INNERGRID', (0, 0), (-1, -1), 0.5, border_gray),
+                            ('LEFTPADDING', (0, 0), (-1, -1), 8),
+                            ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+                            ('TOPPADDING', (0, 0), (-1, -1), 6),
+                            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+                            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                        ]
+                    )
+                )
+                story.append(timeline_table)
+            else:
+                story.append(Paragraph('No method provided.', empty_note_style))
     else:
-        story.append(Paragraph('No recipe cards available for this date window.', empty_note_style))
+        story.append(Paragraph('No recipe master sheets are available for this date window.', empty_note_style))
 
     doc.build(story, onFirstPage=draw_first_page, onLaterPages=draw_later_pages, canvasmaker=NumberedCanvas)
     payload = buffer.getvalue()

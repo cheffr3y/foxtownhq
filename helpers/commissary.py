@@ -3,7 +3,7 @@ from datetime import date, datetime, timedelta
 
 from helpers.banquet import derive_prep_family_label
 from helpers.db_helpers import db_table_exists
-from helpers.formatting import collect_ingredient_usage_from_components, normalize_match_key, split_instruction_steps
+from helpers.formatting import collect_ingredient_usage_from_components, flatten_components_for_pdf, normalize_match_key, split_instruction_steps
 from helpers.menu import clean_menu_text
 from helpers.recipes import (
     build_component_tree,
@@ -841,7 +841,22 @@ def build_commissary_datasets(cur, start_date, end_date, outlet='', unit_system=
         recipe_map = {}
         if batch_ids:
             cur.execute("""
-                SELECT id, name, category, yield_qty, yield_unit, instructions, recipe_type
+                SELECT
+                    id,
+                    name,
+                    category,
+                    yield_qty,
+                    yield_unit,
+                    instructions,
+                    recipe_type,
+                    menu_descriptor,
+                    source_venue,
+                    equipment,
+                    station,
+                    critical_steps,
+                    storage_instructions,
+                    shelf_life_days,
+                    prep_time_minutes
                 FROM recipes
                 WHERE id = ANY(%s)
             """, (batch_ids,))
@@ -911,15 +926,28 @@ def build_commissary_datasets(cur, start_date, end_date, outlet='', unit_system=
                 'recipe_name': recipe.get('name'),
                 'category': recipe.get('category'),
                 'recipe_type': normalize_recipe_type(recipe.get('recipe_type')),
+                'menu_descriptor': recipe.get('menu_descriptor'),
+                'source_venue': recipe.get('source_venue'),
+                'equipment': recipe.get('equipment'),
+                'station': recipe.get('station'),
                 'required_batches': required_batches,
                 'required_qty': required_qty_in_yield,
                 'required_unit': yield_unit or qty_unit,
                 'display_required': smart_quantity(required_qty_in_yield, yield_unit or qty_unit, unit_system),
                 'yield_qty': yield_qty,
                 'yield_unit': yield_unit,
+                'display_yield': smart_quantity(yield_qty, yield_unit, unit_system),
                 'ingredient_rows': ingredient_rows,
                 'subrecipe_rows': subrecipe_rows,
+                'components': components,
+                'component_count': len(flatten_components_for_pdf(components)),
                 'instructions': recipe.get('instructions'),
+                'instruction_steps': split_instruction_steps(recipe.get('instructions')),
+                'critical_steps': split_instruction_steps(recipe.get('critical_steps')),
+                'storage_lines': split_instruction_steps(recipe.get('storage_instructions')),
+                'storage_instructions': recipe.get('storage_instructions'),
+                'shelf_life_days': recipe.get('shelf_life_days'),
+                'prep_time_minutes': recipe.get('prep_time_minutes'),
                 'used_in_orders': sorted(batch_usage_orders.get(recipe_id, set())),
                 'used_in_order_labels': [order_label_map.get(order_id, order_id) for order_id in sorted(batch_usage_orders.get(recipe_id, set()))],
                 'used_in_items': sorted(batch_usage_items.get(recipe_id, set())),
