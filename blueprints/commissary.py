@@ -2342,6 +2342,47 @@ def commissary_packet_print():
     )
 
 
+@bp.route('/commissary/recipe-cards')
+@login_required
+def commissary_recipe_cards():
+    conn = get_db()
+    with get_cursor() as cur:
+        ensure_commissary_tables(cur)
+        conn.commit()
+
+        selected_outlet = clean_menu_text(request.args.get('outlet'))
+        selected_units = get_unit_system()
+        week_start_raw = (request.args.get('week_start') or request.args.get('start_date') or '').strip()
+        start_date, end_date = get_commissary_week_window(week_start_raw)
+        selected_day_raw = (request.args.get('day') or '').strip()
+        if selected_day_raw:
+            try:
+                selected_day = datetime.strptime(selected_day_raw, '%Y-%m-%d').date()
+                start_date = selected_day
+                end_date = selected_day
+            except ValueError:
+                selected_day = None
+        else:
+            selected_day = None
+
+        datasets = build_commissary_datasets(cur, start_date, end_date, selected_outlet, selected_units)
+
+    manifest_window = selected_day.isoformat() if selected_day else f"{start_date.isoformat()} to {end_date.isoformat()}"
+
+    return render_template(
+        'commissary_recipe_cards_print.html',
+        selected_outlet=selected_outlet,
+        selected_units=selected_units,
+        week_start=start_date.isoformat(),
+        start_date=start_date.isoformat(),
+        end_date=end_date.isoformat(),
+        selected_day=selected_day.isoformat() if selected_day else '',
+        manifest_window=manifest_window,
+        generated_at=datetime.now().strftime('%b %d, %Y %I:%M %p'),
+        datasets=datasets,
+    )
+
+
 @bp.route('/commissary-planner/packet/pdf')
 @login_required
 def commissary_packet_pdf():

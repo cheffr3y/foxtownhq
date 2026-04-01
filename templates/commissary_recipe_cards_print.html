@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Recipe Cards - {{ selected_outlet or 'Commissary' }} &middot; {{ manifest_window }}</title>
+<style>
+/* PAGE SETUP */
+@page {
+    size: letter portrait;
+    margin: 0.5in 0.5in 0.6in 0.5in;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+    font-size: 11px;
+    line-height: 1.4;
+    color: #111827;
+    background: #fff;
+}
+
+/* SCREEN TOOLBAR (hidden on print) */
+.rc-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    flex-wrap: wrap;
+    padding: 1.25rem 1.5rem;
+    background: #f0f4f7;
+    border-bottom: 2px solid #2a3439;
+}
+.rc-toolbar-copy { display: grid; gap: 0.15rem; }
+.rc-toolbar-kicker {
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #566166;
+}
+.rc-toolbar-title {
+    font-size: 1.6rem;
+    font-weight: 900;
+    letter-spacing: -0.05em;
+    text-transform: uppercase;
+    color: #2a3439;
+}
+.rc-toolbar-sub {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #566166;
+}
+.rc-toolbar-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+.rc-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.6rem 1rem;
+    border: 1.5px solid #717c82;
+    background: #fff;
+    color: #2a3439;
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    text-decoration: none;
+    cursor: pointer;
+}
+.rc-btn--primary {
+    background: #2a3439;
+    border-color: #2a3439;
+    color: #f7f9fb;
+}
+.rc-btn--primary:hover { background: #566166; border-color: #566166; }
+.rc-empty {
+    padding: 3rem 1.5rem;
+    text-align: center;
+    font-size: 0.95rem;
+    color: #566166;
+}
+
+/* RECIPE CARD (one per page on print) */
+.rc-card {
+    padding: 0;
+    background: #fff;
+}
+@media print {
+    .rc-card {
+        page-break-before: always;
+        break-before: page;
+    }
+    .rc-card:first-of-type {
+        page-break-before: avoid;
+        break-before: avoid;
+    }
+}
+
+/* HERO SECTION */
+.rc-hero {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 1rem;
+    align-items: start;
+    padding-bottom: 0.75rem;
+    border-bottom: 3px solid #2a3439;
+    margin-bottom: 0.75rem;
+}
+.rc-hero-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.6rem;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #566166;
+    margin-bottom: 0.3rem;
+}
+.rc-hero-dot {
+    width: 0.25rem;
+    height: 0.25rem;
+    background: #a9b4b9;
+    flex-shrink: 0;
+}
+.rc-recipe-name {
+    margin: 0 0 0.3rem;
+    font-size: 2rem;
+    line-height: 1;
+    font-weight: 900;
+    letter-spacing: -0.06em;
+    text-transform: uppercase;
+    color: #111827;
+}
+.rc-descriptor {
+    margin: 0;
+    font-size: 0.75rem;
+    color: #566166;
+    line-height: 1.5;
+}
+.rc-info-card {
+    min-width: 10rem;
+    padding: 0.75rem 0.9rem;
+    background: #e1e9ee;
+    border-bottom: 3px solid #2a3439;
+}
+.rc-info-kicker {
+    font-size: 0.55rem;
+    font-weight: 900;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #566166;
+    margin-bottom: 0.2rem;
+}
+.rc-info-value {
+    font-size: 1.3rem;
+    font-weight: 900;
+    letter-spacing: -0.04em;
+    text-transform: uppercase;
+    color: #111827;
+    margin-bottom: 0.65rem;
+}
+.rc-info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.55rem 0.65rem;
+}
+.rc-mini-label {
+    display: block;
+    font-size: 0.5rem;
+    font-weight: 900;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #566166;
+    margin-bottom: 0.1rem;
+}
+.rc-mini-value {
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 800;
+    color: #111827;
+    line-height: 1.3;
+}
+
+/* STAT ROW */
+.rc-stat-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 2px;
+    background: #2a3439;
+    margin-bottom: 0.75rem;
+}
+.rc-stat {
+    padding: 0.6rem 0.75rem;
+    background: #fff;
+    border-bottom: 2px solid #2a3439;
+}
+.rc-stat--accent { border-bottom-color: #C0612B; }
+.rc-stat-label {
+    font-size: 0.52rem;
+    font-weight: 900;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #566166;
+    margin-bottom: 0.2rem;
+}
+.rc-stat-value {
+    font-size: 1.4rem;
+    font-weight: 900;
+    letter-spacing: -0.05em;
+    color: #111827;
+    line-height: 1;
+}
+
+/* INGREDIENT LEDGER */
+.rc-ledger {
+    border: 1.5px solid #a9b4b9;
+    margin-bottom: 0.75rem;
+}
+.rc-ledger-header {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 0;
+    background: #d9e4ea;
+    border-bottom: 2px solid #2a3439;
+}
+.rc-ledger-heading {
+    padding: 0.45rem 0.65rem;
+    font-size: 0.52rem;
+    font-weight: 900;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #2a3439;
+}
+.rc-ledger-heading--right { text-align: right; }
+.rc-ledger-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.rc-ledger-row {
+    border-bottom: 1px solid #d1d5db;
+}
+.rc-ledger-row:last-child { border-bottom: none; }
+.rc-ledger-row--sub { background: #edf2f4; }
+.rc-ledger-cell {
+    padding: 0.45rem 0.65rem;
+    vertical-align: top;
+    font-size: 0.78rem;
+    color: #2a3439;
+    border-left: 1px solid #d1d5db;
+}
+.rc-ledger-cell:first-child { border-left: none; }
+.rc-ledger-cell--qty {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    font-weight: 700;
+    min-width: 4rem;
+}
+.rc-ledger-cell--unit {
+    white-space: nowrap;
+    min-width: 3rem;
+    color: #566166;
+}
+.rc-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.1rem 0.35rem;
+    min-width: 2rem;
+    background: #2a3439;
+    color: #f7f9fb;
+    font-size: 0.48rem;
+    font-weight: 900;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-right: 0.4rem;
+    vertical-align: middle;
+}
+.rc-badge--sub { background: #565e74; }
+.rc-item-name {
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.76rem;
+}
+.rc-item-sub {
+    font-size: 0.62rem;
+    color: #566166;
+    font-weight: 600;
+    margin-top: 0.1rem;
+}
+.rc-ledger-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.55rem 0.65rem;
+    background: #2a3439;
+    color: #f7f9fb;
+    font-size: 0.68rem;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+.rc-ledger-total-qty {
+    font-size: 1.1rem;
+    font-weight: 900;
+    letter-spacing: -0.03em;
+}
+
+/* BOTTOM PANELS */
+.rc-panel-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.6rem;
+    margin-bottom: 0.75rem;
+}
+.rc-panel {
+    padding: 0.75rem 0.85rem;
+    border-bottom: 3px solid #2a3439;
+}
+.rc-panel--alert {
+    background: #e1e9ee;
+    border-bottom-color: #c00815;
+}
+.rc-panel--ops { background: #d9e4ea; }
+.rc-panel-title {
+    font-size: 0.72rem;
+    font-weight: 900;
+    letter-spacing: -0.01em;
+    text-transform: uppercase;
+    color: #111827;
+    margin-bottom: 0.55rem;
+}
+.rc-alert-list { display: flex; flex-direction: column; gap: 0.5rem; }
+.rc-alert-item { display: flex; gap: 0.5rem; align-items: flex-start; }
+.rc-alert-index {
+    flex-shrink: 0;
+    font-size: 0.68rem;
+    font-weight: 900;
+    color: #c00815;
+}
+.rc-alert-copy {
+    font-size: 0.68rem;
+    font-weight: 800;
+    line-height: 1.5;
+    text-transform: uppercase;
+    color: #465468;
+}
+.rc-alert-empty {
+    font-size: 0.68rem;
+    color: #566166;
+    line-height: 1.5;
+}
+.rc-ops-rows { display: flex; flex-direction: column; }
+.rc-ops-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.4rem 0;
+    border-bottom: 1px solid #a9b4b9;
+    font-size: 0.68rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: #2a3439;
+}
+.rc-ops-row:last-child { border-bottom: none; }
+.rc-storage-block { margin-top: 0.6rem; }
+.rc-storage-title {
+    font-size: 0.55rem;
+    font-weight: 900;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #566166;
+    margin-bottom: 0.3rem;
+}
+.rc-storage-list {
+    margin: 0;
+    padding-left: 1rem;
+    font-size: 0.66rem;
+    font-weight: 800;
+    line-height: 1.55;
+    text-transform: uppercase;
+    color: #465468;
+}
+.rc-storage-list li + li { margin-top: 0.2rem; }
+
+/* PRODUCTION TIMELINE */
+.rc-timeline {
+    padding: 0.75rem 0.85rem;
+    border: 1.5px solid #a9b4b9;
+    background: #fff;
+}
+.rc-timeline-title {
+    font-size: 0.72rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    color: #111827;
+    margin-bottom: 0.55rem;
+}
+.rc-timeline-rows { display: flex; flex-direction: column; gap: 0.5rem; }
+.rc-timeline-row { display: flex; gap: 0.6rem; align-items: flex-start; }
+.rc-timeline-index {
+    flex-shrink: 0;
+    width: 1.5rem;
+    height: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #2a3439;
+    color: #f7f9fb;
+    font-size: 0.6rem;
+    font-weight: 900;
+}
+.rc-timeline-copy {
+    flex: 1;
+    font-size: 0.76rem;
+    line-height: 1.6;
+    color: #2a3439;
+    padding-bottom: 0.5rem;
+    border-bottom: 1.5px solid #2a3439;
+}
+.rc-timeline-row:last-child .rc-timeline-copy {
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+/* PRINT OVERRIDES */
+@media print {
+    .rc-toolbar { display: none !important; }
+    body { font-size: 10px; }
+
+    .rc-info-card,
+    .rc-stat,
+    .rc-ledger-header,
+    .rc-ledger-total,
+    .rc-panel,
+    .rc-timeline-index,
+    .rc-ledger-row--sub {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+}
+
+/* SCREEN WRAPPER */
+@media screen {
+    body { background: #edf2f4; padding: 1.5rem; }
+    .rc-card {
+        max-width: 8.5in;
+        margin: 0 auto 2rem;
+        padding: 0.75in 0.6in;
+        background: #fff;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    }
+}
+</style>
+</head>
+<body>
+
+<div class="rc-toolbar">
+    <div class="rc-toolbar-copy">
+        <div class="rc-toolbar-kicker">Commissary &middot; Recipe Cards</div>
+        <div class="rc-toolbar-title">Production Cards</div>
+        <div class="rc-toolbar-sub">
+            {{ selected_outlet or 'All Outlets' }} &middot; {{ manifest_window }} &middot; {{ datasets.weekly_prep|length }} recipe(s)
+        </div>
+    </div>
+    <div class="rc-toolbar-actions">
+        <a href="{{ url_for('commissary_packet_print', outlet=selected_outlet, week_start=week_start, day=selected_day) }}" class="rc-btn">&larr; Packet View</a>
+        <button onclick="window.print()" class="rc-btn rc-btn--primary">Print Cards</button>
+    </div>
+</div>
+
+{% if not datasets.weekly_prep %}
+<div class="rc-empty">
+    No recipe prep found for this date window. Check that commissary orders exist and that order lines are linked to batch recipes.
+</div>
+{% else %}
+{% for prep in datasets.weekly_prep %}
+<article class="rc-card">
+
+    <div class="rc-hero">
+        <div>
+            <div class="rc-hero-meta">
+                <span>{{ prep.recipe_id|upper }}</span>
+                <span class="rc-hero-dot"></span>
+                <span>Station: {{ (prep.station or 'General')|upper }}</span>
+            </div>
+            <h1 class="rc-recipe-name">{{ prep.recipe_name }}</h1>
+            {% if prep.menu_descriptor %}
+            <p class="rc-descriptor">{{ prep.menu_descriptor }}</p>
+            {% endif %}
+        </div>
+        <div class="rc-info-card">
+            <div class="rc-info-kicker">Kitchen Ops</div>
+            <div class="rc-info-value">RB Batch</div>
+            <div class="rc-info-grid">
+                <div>
+                    <span class="rc-mini-label">Category</span>
+                    <span class="rc-mini-value">{{ prep.category or 'Uncategorized' }}</span>
+                </div>
+                <div>
+                    <span class="rc-mini-label">Source</span>
+                    <span class="rc-mini-value">{{ prep.source_venue or selected_outlet or 'Commissary' }}</span>
+                </div>
+                <div>
+                    <span class="rc-mini-label">Equipment</span>
+                    <span class="rc-mini-value">{{ prep.equipment or 'TBD' }}</span>
+                </div>
+                <div>
+                    <span class="rc-mini-label">Outlets</span>
+                    <span class="rc-mini-value">{{ prep.used_in_orders|length or '---' }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="rc-stat-row">
+        <div class="rc-stat">
+            <div class="rc-stat-label">Base Yield</div>
+            <div class="rc-stat-value">{{ prep.display_yield.quantity }} {{ prep.display_yield.unit }}</div>
+        </div>
+        <div class="rc-stat">
+            <div class="rc-stat-label">Required Output</div>
+            <div class="rc-stat-value">{{ prep.display_required.quantity }} {{ prep.display_required.unit }}</div>
+        </div>
+        <div class="rc-stat rc-stat--accent">
+            <div class="rc-stat-label">Scale Factor</div>
+            <div class="rc-stat-value">{{ '%.2f'|format(prep.required_batches) }}x</div>
+        </div>
+        <div class="rc-stat">
+            <div class="rc-stat-label">Components</div>
+            <div class="rc-stat-value">{{ prep.component_count }}</div>
+        </div>
+    </div>
+
+    <div class="rc-ledger">
+        <div class="rc-ledger-header">
+            <div class="rc-ledger-heading">Ingredient / Sub-Recipe</div>
+            <div class="rc-ledger-heading rc-ledger-heading--right">Qty</div>
+            <div class="rc-ledger-heading">Unit</div>
+        </div>
+        {% if prep.components %}
+        <table class="rc-ledger-table">
+            <tbody>
+                {% for component in prep.components recursive %}
+                {% if component.type == 'option_group' %}
+                    {{ loop(component.children or []) }}
+                {% else %}
+                    {% set comp_name = component.name or component.item_name or component.recipe_name or 'Component' %}
+                    {% set comp_qty = component.display_quantity %}
+                    {% if comp_qty in (None, '') %}{% set comp_qty = component.quantity %}{% endif %}
+                    {% set comp_unit = component.display_unit or component.unit or '' %}
+                    {% set is_sub = component.type == 'recipe' %}
+                    <tr class="rc-ledger-row {% if is_sub %}rc-ledger-row--sub{% endif %}">
+                        <td class="rc-ledger-cell">
+                            <span class="rc-badge {% if is_sub %}rc-badge--sub{% endif %}">{{ 'SUB' if is_sub else 'ING' }}</span>
+                            <span class="rc-item-name">{{ comp_name }}</span>
+                            {% if is_sub and component.sub_recipe %}
+                            <div class="rc-item-sub">Yield {{ component.sub_recipe.yield_qty or '---' }} {{ component.sub_recipe.yield_unit or '' }}</div>
+                            {% elif not is_sub and component.category %}
+                            <div class="rc-item-sub">{{ component.category }}</div>
+                            {% endif %}
+                        </td>
+                        <td class="rc-ledger-cell rc-ledger-cell--qty">{{ comp_qty if comp_qty not in (None, '') else '---' }}</td>
+                        <td class="rc-ledger-cell rc-ledger-cell--unit">{{ comp_unit or '---' }}</td>
+                    </tr>
+                    {% if component.children %}
+                        {{ loop(component.children) }}
+                    {% endif %}
+                {% endif %}
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div style="padding: 0.75rem 0.65rem; font-size: 0.75rem; color: #566166;">No ingredients linked to this recipe yet.</div>
+        {% endif %}
+        <div class="rc-ledger-total">
+            <span>Total Rollup</span>
+            <span class="rc-ledger-total-qty">{{ prep.display_required.quantity }} {{ prep.display_required.unit }}</span>
+        </div>
+    </div>
+
+    <div class="rc-panel-grid">
+        <div class="rc-panel rc-panel--alert">
+            <div class="rc-panel-title">Critical Yield Alerts</div>
+            {% if prep.critical_steps %}
+            <div class="rc-alert-list">
+                {% for step in prep.critical_steps %}
+                <div class="rc-alert-item">
+                    <span class="rc-alert-index">{{ '%02d'|format(loop.index) }}.</span>
+                    <div class="rc-alert-copy">{{ step }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="rc-alert-empty">No critical steps logged. Add them in the recipe form to surface hold points and food-safety controls here.</div>
+            {% endif %}
+        </div>
+        <div class="rc-panel rc-panel--ops">
+            <div class="rc-panel-title">Prep And Handling</div>
+            <div class="rc-ops-rows">
+                <div class="rc-ops-row">
+                    <span>Prep Time</span>
+                    <span>{% if prep.prep_time_minutes is not none %}{{ prep.prep_time_minutes }} MIN{% else %}---{% endif %}</span>
+                </div>
+                <div class="rc-ops-row">
+                    <span>Shelf Life</span>
+                    <span>{% if prep.shelf_life_days is not none %}{{ prep.shelf_life_days }} DAYS{% else %}---{% endif %}</span>
+                </div>
+                <div class="rc-ops-row">
+                    <span>Station</span>
+                    <span>{{ prep.station or 'General' }}</span>
+                </div>
+                <div class="rc-ops-row">
+                    <span>Equipment</span>
+                    <span>{{ prep.equipment or '---' }}</span>
+                </div>
+                <div class="rc-ops-row">
+                    <span>Assigned Cooks</span>
+                    <span>{{ prep.assigned_cooks|join(', ') if prep.assigned_cooks else 'Open' }}</span>
+                </div>
+            </div>
+            {% if prep.storage_lines %}
+            <div class="rc-storage-block">
+                <div class="rc-storage-title">Storage Instructions</div>
+                <ul class="rc-storage-list">
+                    {% for line in prep.storage_lines %}
+                    <li>{{ line }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if prep.instruction_steps %}
+    <div class="rc-timeline">
+        <div class="rc-timeline-title">Production Timeline</div>
+        <div class="rc-timeline-rows">
+            {% for step in prep.instruction_steps %}
+            <div class="rc-timeline-row">
+                <div class="rc-timeline-index">{{ '%02d'|format(loop.index) }}</div>
+                <div class="rc-timeline-copy">{{ step }}</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% elif prep.instructions %}
+    <div class="rc-timeline">
+        <div class="rc-timeline-title">Instructions</div>
+        <div class="rc-timeline-copy" style="border-bottom: none; padding-bottom: 0;">{{ prep.instructions }}</div>
+    </div>
+    {% endif %}
+
+</article>
+{% endfor %}
+{% endif %}
+
+</body>
+</html>
