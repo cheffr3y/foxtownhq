@@ -350,10 +350,18 @@
         border: 1px solid #a9b4b9;
         background: #f8fafc;
     }
+    .bf-detail-sheet--direct {
+        border-color: #d4a373;
+        background: #fffaf2;
+    }
     .bf-detail-head {
         padding: 1rem 1.05rem 0.95rem;
         border-bottom: 2px solid #2a3439;
         background: #ffffff;
+    }
+    .bf-detail-sheet--direct .bf-detail-head {
+        background: #fff7ed;
+        border-bottom-color: #c0612b;
     }
     .bf-detail-kicker {
         font-size: 0.6rem;
@@ -361,6 +369,9 @@
         letter-spacing: 0.16em;
         text-transform: uppercase;
         color: #566166;
+    }
+    .bf-detail-sheet--direct .bf-detail-kicker {
+        color: #9a3412;
     }
     .bf-detail-title {
         margin-top: 0.35rem;
@@ -385,6 +396,9 @@
         grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 0.08rem;
         background: #2a3439;
+    }
+    .bf-detail-sheet--direct .bf-detail-meta {
+        background: #c0612b;
     }
     .bf-detail-meta-card {
         padding: 0.85rem 0.9rem;
@@ -425,6 +439,10 @@
     }
     .bf-panel--alert {
         border-bottom-color: #c00815;
+    }
+    .bf-panel--direct {
+        background: #fff4e6;
+        border-bottom-color: #c0612b;
     }
     .bf-panel-title {
         margin-bottom: 0.55rem;
@@ -515,6 +533,9 @@
         font-size: 0.62rem;
         font-weight: 900;
         letter-spacing: 0.08em;
+    }
+    .bf-detail-sheet--direct .bf-timeline-num {
+        background: #c0612b;
     }
     .bf-timeline-copy {
         font-size: 0.74rem;
@@ -641,7 +662,7 @@
                     <span>Type: Buffet Prep</span>
                 </div>
                 <h1 class="bf-name">{{ event.name }}</h1>
-                <p class="bf-description">Operator-facing prep sheet with scaled recipe pulls, sub-recipe dependencies, and raw ingredient totals by station. Costing is intentionally removed from this print view so line teams only see what needs to be built and pulled.</p>
+                <p class="bf-description">Operator-facing prep sheet with scaled recipe pulls, sub-recipe dependencies, and raw ingredient task sheets by station. Costing is intentionally removed from this print view so line teams only see what needs to be built, pulled, and prepped for service.</p>
             </div>
             <div class="bf-hero-card">
                 <div class="bf-hero-kicker">Kitchen Ops</div>
@@ -689,7 +710,7 @@
         {% if no_recipe_lines %}
         <section class="bf-alert">
             <div class="bf-alert-title">Critical Coverage Alert</div>
-            <div class="bf-alert-copy">These menu lines do not have a recipe or direct ingredient linked and will not appear in the scaled prep calculations: {{ no_recipe_lines|join(', ') }}</div>
+            <div class="bf-alert-copy">These menu lines do not have a recipe or direct ingredient linked, so they will not produce a scaled pull or task sheet: {{ no_recipe_lines|join(', ') }}</div>
         </section>
         {% endif %}
 
@@ -767,6 +788,39 @@
                     </section>
                     {% endif %}
 
+                    {% if group.direct_lines %}
+                    <section>
+                        <div class="bf-section-title">Direct Ingredient Tasks</div>
+                        <div class="bf-table-wrap">
+                            <table class="bf-table">
+                                <thead>
+                                    <tr>
+                                        <th>Dish</th>
+                                        <th>Ingredient</th>
+                                        <th>Per Guest</th>
+                                        <th>Total Needed</th>
+                                        <th>Prep Direction</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for row in group.direct_lines %}
+                                    <tr>
+                                        <td>
+                                            <div class="bf-cell-title">{{ row.dish_name }}</div>
+                                            <div class="bf-cell-meta">{{ group.station }}</div>
+                                        </td>
+                                        <td><div class="bf-cell-title">{{ row.ingredient_name }}</div></td>
+                                        <td>{{ row.display_portion_qty }} {{ row.display_portion_unit }}</td>
+                                        <td>{{ row.display_total_qty }} {{ row.display_total_unit }}</td>
+                                        <td>{{ row.description or 'Pull to station spec.' }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+                    {% endif %}
+
                     {% if group.ingredients %}
                     <section>
                         <div class="bf-section-title">Ingredient Checklist</div>
@@ -795,10 +849,10 @@
 
                     {% if group.detail_sheets %}
                     <section>
-                        <div class="bf-section-title">Scaled Recipe Sheets</div>
+                        <div class="bf-section-title">Operator Detail Sheets</div>
                         <div class="bf-detail-stack">
                             {% for sheet in group.detail_sheets %}
-                            <article class="bf-detail-sheet">
+                            <article class="bf-detail-sheet{% if sheet.sheet_type_key == 'direct' %} bf-detail-sheet--direct{% endif %}">
                                 <div class="bf-detail-head">
                                     <div class="bf-detail-kicker">{{ sheet.sheet_type }}</div>
                                     <div class="bf-detail-title">{{ sheet.recipe_name }}</div>
@@ -810,6 +864,99 @@
                                         {% endif %}
                                     </div>
                                 </div>
+                                {% if sheet.sheet_type_key == 'direct' %}
+                                <div class="bf-detail-meta">
+                                    <div class="bf-detail-meta-card">
+                                        <span class="bf-detail-meta-label">Total Pull</span>
+                                        <span class="bf-detail-meta-value">{{ sheet.display_required_qty }} {{ sheet.display_required_unit }}</span>
+                                    </div>
+                                    <div class="bf-detail-meta-card">
+                                        <span class="bf-detail-meta-label">Per Guest</span>
+                                        <span class="bf-detail-meta-value">{{ sheet.display_portion_qty or '—' }} {{ sheet.display_portion_unit or '' }}</span>
+                                    </div>
+                                    <div class="bf-detail-meta-card">
+                                        <span class="bf-detail-meta-label">Dish</span>
+                                        <span class="bf-detail-meta-value">{{ sheet.dish_name }}</span>
+                                    </div>
+                                    <div class="bf-detail-meta-card">
+                                        <span class="bf-detail-meta-label">Station</span>
+                                        <span class="bf-detail-meta-value">{{ sheet.station_label or group.station }}</span>
+                                    </div>
+                                </div>
+                                <div class="bf-detail-body">
+                                    <div class="bf-table-wrap">
+                                        <table class="bf-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Ingredient</th>
+                                                    <th>Total Needed</th>
+                                                    <th>Per Guest</th>
+                                                    <th>Prep Direction</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr>
+                                                    <td>
+                                                        <div class="bf-cell-title">{{ sheet.recipe_name }}</div>
+                                                        <div class="bf-cell-meta">Direct station pull</div>
+                                                    </td>
+                                                    <td>{{ sheet.display_required_qty }} {{ sheet.display_required_unit }}</td>
+                                                    <td>{{ sheet.display_portion_qty or '—' }} {{ sheet.display_portion_unit or '' }}</td>
+                                                    <td>{{ sheet.prep_action or 'Pull to station spec.' }}</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    <div class="bf-detail-panels">
+                                        <section class="bf-panel bf-panel--direct">
+                                            <div class="bf-panel-title">Prep Direction</div>
+                                            <div class="bf-panel-list">
+                                                {% for step in sheet.prep_lines %}
+                                                <div class="bf-panel-item"><strong>{{ '%02d'|format(loop.index) }}.</strong>{{ step }}</div>
+                                                {% endfor %}
+                                            </div>
+                                        </section>
+                                        <section class="bf-panel">
+                                            <div class="bf-panel-title">Service And Notes</div>
+                                            <div class="bf-handling-grid">
+                                                <div class="bf-handling-row">
+                                                    <span>Dish</span>
+                                                    <span>{{ sheet.dish_name }}</span>
+                                                </div>
+                                                <div class="bf-handling-row">
+                                                    <span>Station</span>
+                                                    <span>{{ sheet.station_label or group.station }}</span>
+                                                </div>
+                                                <div class="bf-handling-row">
+                                                    <span>Per Guest</span>
+                                                    <span>{{ sheet.display_portion_qty or '—' }} {{ sheet.display_portion_unit or '' }}</span>
+                                                </div>
+                                                <div class="bf-handling-row">
+                                                    <span>Vessel</span>
+                                                    <span>{{ sheet.vessel or 'Not specified' }}</span>
+                                                </div>
+                                                <div class="bf-handling-row">
+                                                    <span>FOH</span>
+                                                    <span>{{ sheet.foh_talking_points or 'Not logged' }}</span>
+                                                </div>
+                                            </div>
+                                        </section>
+                                    </div>
+
+                                    <section class="bf-timeline">
+                                        <div class="bf-timeline-head">Task Sequence</div>
+                                        <div class="bf-timeline-list">
+                                            {% for step in sheet.instruction_steps %}
+                                            <div class="bf-timeline-row">
+                                                <div class="bf-timeline-num">{{ '%02d'|format(loop.index) }}</div>
+                                                <div class="bf-timeline-copy">{{ step }}</div>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    </section>
+                                </div>
+                                {% else %}
                                 <div class="bf-detail-meta">
                                     <div class="bf-detail-meta-card">
                                         <span class="bf-detail-meta-label">Required Output</span>
@@ -913,6 +1060,7 @@
                                         </div>
                                     </section>
                                 </div>
+                                {% endif %}
                             </article>
                             {% endfor %}
                         </div>
@@ -924,40 +1072,6 @@
         </section>
         {% else %}
         <div class="bf-empty">No scaled station prep groups are available for this event yet.</div>
-        {% endif %}
-
-        {% if direct_ingredient_lines %}
-        <section class="bf-station" style="margin-top: 1.5rem;">
-            <div class="bf-station-head">
-                <div class="bf-station-kicker">Line-Level Detail</div>
-                <div class="bf-station-name">Direct Ingredient Pulls</div>
-                <div class="bf-station-dishes">These items scale directly from serving size x guest count.</div>
-            </div>
-            <div class="bf-station-sections">
-                <div class="bf-table-wrap">
-                    <table class="bf-table">
-                        <thead>
-                            <tr>
-                                <th>Station</th>
-                                <th>Dish</th>
-                                <th>Ingredient</th>
-                                <th>Total Needed</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for row in direct_ingredient_lines %}
-                            <tr>
-                                <td>{{ row.station }}</td>
-                                <td><div class="bf-cell-title">{{ row.dish_name }}</div></td>
-                                <td>{{ row.ingredient_name }}</td>
-                                <td>{{ row.display_total_qty }} {{ row.display_total_unit }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
         {% endif %}
 
         <footer class="bf-signoff">

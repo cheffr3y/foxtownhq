@@ -207,6 +207,38 @@ def get_guest_total(event):
     )
 
 
+def _normalize_sentence(text):
+    cleaned = clean_menu_text(text) or ''
+    if not cleaned:
+        return ''
+    if cleaned[-1] not in '.!?':
+        return f'{cleaned}.'
+    return cleaned
+
+
+def _build_buffet_direct_task_copy(direct_line):
+    prep_lines = split_instruction_steps(direct_line.get('description'))
+    if not prep_lines:
+        qty_text = f"{direct_line.get('display_total_qty') or format_number(direct_line.get('total_qty'))} {direct_line.get('display_total_unit') or direct_line.get('unit') or ''}".strip()
+        ingredient_name = direct_line.get('ingredient_name') or 'Ingredient'
+        dish_name = direct_line.get('dish_name') or 'station service'
+        prep_lines = [_normalize_sentence(f'Pull {qty_text} of {ingredient_name} for {dish_name}') or 'Pull required quantity for station service.']
+
+    service_lines = []
+    vessel = clean_menu_text(direct_line.get('vessel'))
+    if vessel:
+        service_lines.append(_normalize_sentence(f'Stage in {vessel}'))
+    foh_talking_points = clean_menu_text(direct_line.get('foh_talking_points'))
+    if foh_talking_points:
+        service_lines.append(_normalize_sentence(f'FOH note: {foh_talking_points}'))
+
+    return {
+        'prep_lines': prep_lines,
+        'service_lines': service_lines,
+        'task_steps': prep_lines + service_lines,
+    }
+
+
 def get_recipe_options(cur):
     cur.execute(
         """
@@ -454,6 +486,7 @@ def build_buffet_prep_sheet(cur, event_id, unit_system='imperial'):
             'recipes': [],
             'subrecipes': {},
             'ingredients': {},
+            'direct_lines': [],
             'dish_names': set(),
             'recipe_sources': defaultdict(set),
             'subrecipe_sources': defaultdict(set),
@@ -508,6 +541,7 @@ def build_buffet_prep_sheet(cur, event_id, unit_system='imperial'):
             total_qty = serving_size_qty * guest_total
             unit = (line.get('direct_ingredient_unit') or line.get('serving_size_unit') or '').strip()
             display_total = smart_quantity(total_qty, unit, unit_system)
+            display_portion = smart_quantity(serving_size_qty, line.get('serving_size_unit') or unit, unit_system)
             ingredient = direct_ingredient_map.get(direct_ingredient_id, {})
             estimated_cost_total = None
             if ingredient.get('cost_per_unit') is not None:
@@ -530,6 +564,13 @@ def build_buffet_prep_sheet(cur, event_id, unit_system='imperial'):
                 'unit': unit,
                 'display_total_qty': display_total.get('quantity'),
                 'display_total_unit': display_total.get('unit'),
+                'serving_size_qty': serving_size_qty,
+                'serving_size_unit': line.get('serving_size_unit') or unit,
+                'display_portion_qty': display_portion.get('quantity'),
+                'display_portion_unit': display_portion.get('unit'),
+                'description': line.get('description') or '',
+                'vessel': line.get('vessel') or '',
+                'foh_talking_points': line.get('foh_talking_points') or '',
                 'estimated_cost_total': estimated_cost_total,
                 'estimated_cost_per_guest': (estimated_cost_total / guest_total) if estimated_cost_total is not None and guest_total > 0 else None,
             }
@@ -537,6 +578,7 @@ def build_buffet_prep_sheet(cur, event_id, unit_system='imperial'):
                 direct_line[flag] = bool(line.get(flag))
             direct_ingredient_lines.append(direct_line)
             station_pull_specs[station_name]['dish_names'].add(direct_line['dish_name'])
+            station_pull_specs[station_name]['direct_lines'].append(direct_line)
             key = (direct_ingredient_id, unit)
             station_pull_specs[station_name]['ingredients'][key] = station_pull_specs[station_name]['ingredients'].get(key, 0) + total_qty
             continue
@@ -708,6 +750,10 @@ def build_buffet_prep_sheet(cur, event_id, unit_system='imperial'):
                 station_spec['recipes'],
                 key=lambda item: ((item.get('dish_name') or '').lower(), (item.get('recipe_name') or '').lower()),
             )
+            direct_rows = sorted(
+                station_spec['direct_lines'],
+                key=lambda item: ((item.get('dish_name') or '').lower(), (item.get('ingredient_name') or '').lower()),
+            )
             subrecipe_rows = []
             for (subrecipe_id, required_unit), required_qty in sorted(
                 station_spec['subrecipes'].items(),
@@ -839,20 +885,64 @@ def build_buffet_prep_sheet(cur, event_id, unit_system='imperial'):
                     }
                 )
 
+            for row in direct_rows:
+                task_copy = _build_buffet_direct_task_copy(row)
+                detail_sheets.append(
+                    {
+                        'recipe_id': row.get('ingredient_id'),
+                        'recipe_name': row.get('ingredient_name') or 'Direct ingredient',
+                        'sheet_type': 'Direct Ingredient Task',
+                        'sheet_type_key': 'direct',
+                        'source_dishes': [row.get('dish_name') or 'Dish'],
+                        'display_required_qty': row.get('display_total_qty'),
+                        'display_required_unit': row.get('display_total_unit'),
+                        'yield_qty': row.get('display_portion_qty'),
+                        'yield_unit': row.get('display_portion_unit'),
+                        'display_scale_ratio': '',
+                        'components': [],
+                        'flat_components': [
+                            {
+                                'name': row.get('ingredient_name') or 'Ingredient',
+                                'qty': row.get('display_total_qty') or format_number(row.get('total_qty')),
+                                'unit': row.get('display_total_unit') or row.get('unit') or '',
+                                'notes': row.get('description') or 'Direct station pull',
+                            }
+                        ],
+                        'instruction_steps': task_copy['task_steps'],
+                        'critical_steps': [],
+                        'storage_lines': [],
+                        'prep_time_minutes': None,
+                        'shelf_life_days': None,
+                        'station_label': row.get('station') or station_name,
+                        'equipment': None,
+                        'category': 'Direct Ingredient',
+                        'recipe_type': 'direct',
+                        'dish_name': row.get('dish_name') or 'Dish',
+                        'display_portion_qty': row.get('display_portion_qty'),
+                        'display_portion_unit': row.get('display_portion_unit'),
+                        'prep_lines': task_copy['prep_lines'],
+                        'service_lines': task_copy['service_lines'],
+                        'prep_action': row.get('description') or '',
+                        'vessel': row.get('vessel') or '',
+                        'foh_talking_points': row.get('foh_talking_points') or '',
+                    }
+                )
+
             detail_sheets.sort(
                 key=lambda item: (
-                    0 if item.get('sheet_type_key') == 'linked' else 1,
+                    {'linked': 0, 'subrecipe': 1, 'direct': 2}.get(item.get('sheet_type_key'), 9),
                     (item.get('recipe_name') or '').lower(),
                 )
             )
 
-            if recipe_rows or subrecipe_rows or ingredient_rows:
+            if recipe_rows or subrecipe_rows or direct_rows or ingredient_rows:
                 prep_station_groups.append(
                     {
                         'station': station_name,
                         'dish_names': sorted(station_spec['dish_names']),
                         'recipes': recipe_rows,
                         'subrecipes': subrecipe_rows,
+                        'direct_lines': direct_rows,
                         'ingredients': ingredient_rows,
                         'detail_sheets': detail_sheets,
                     }
@@ -1666,50 +1756,6 @@ def buffet_prep_pdf(event_id):
 
     has_previous_sections = bool(station_names or prep_data['station_costs'])
 
-    if prep_data['direct_ingredient_lines']:
-        if has_previous_sections:
-            story.append(PageBreak())
-        story.append(Paragraph('Direct Ingredient Lines', section_title_style))
-        story.append(Paragraph(
-            'These lines scale directly from serving size times guest count and do not use recipe batch math.',
-            note_style,
-        ))
-        story.append(Spacer(1, 0.08 * inch))
-        direct_rows = [[
-            Paragraph('Station', table_header_style),
-            Paragraph('Dish Name', table_header_style),
-            Paragraph('Ingredient', table_header_style),
-            Paragraph('Total Needed', table_header_style),
-            Paragraph('Theo Spend', table_header_style),
-        ]]
-        for row in prep_data['direct_ingredient_lines']:
-            direct_rows.append(
-                [
-                    p(row.get('station') or 'Other'),
-                    p(row.get('dish_name') or 'Dish'),
-                    p(row.get('ingredient_name') or 'Ingredient'),
-                    p(fmt_qty(row.get('display_total_qty'), row.get('display_total_unit'))),
-                    p(f"${format_number(row.get('estimated_cost_total'))}" if row.get('estimated_cost_total') is not None else '—'),
-                ]
-            )
-        direct_table = Table(direct_rows, colWidths=[1.2 * inch, 2.0 * inch, 2.0 * inch, 1.1 * inch, 1.0 * inch], repeatRows=1)
-        direct_table.setStyle(
-            TableStyle(
-                [
-                    ('BACKGROUND', (0, 0), (-1, 0), header_navy),
-                    ('TEXTCOLOR', (0, 0), (-1, 0), white),
-                    ('ROWBACKGROUNDS', (0, 1), (-1, -1), [white, light_gray]),
-                    ('GRID', (0, 0), (-1, -1), 0.35, border_gray),
-                    ('LEFTPADDING', (0, 0), (-1, -1), 5),
-                    ('RIGHTPADDING', (0, 0), (-1, -1), 5),
-                    ('TOPPADDING', (0, 0), (-1, -1), 4),
-                    ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-                ]
-            )
-        )
-        story.append(direct_table)
-        has_previous_sections = True
-
     if prep_data['prep_station_groups']:
         if has_previous_sections:
             story.append(PageBreak())
@@ -1766,6 +1812,47 @@ def buffet_prep_pdf(event_id):
                     )
                 )
                 story.append(recipe_table)
+                story.append(Spacer(1, 0.06 * inch))
+
+            if station_group.get('direct_lines'):
+                direct_rows = [[
+                    Paragraph('Dish', table_header_style),
+                    Paragraph('Ingredient', table_header_style),
+                    Paragraph('Per Guest', table_header_style),
+                    Paragraph('Total Needed', table_header_style),
+                    Paragraph('Prep Direction', table_header_style),
+                ]]
+                for row in station_group['direct_lines']:
+                    direct_rows.append(
+                        [
+                            p(row.get('dish_name') or 'Dish'),
+                            p(row.get('ingredient_name') or 'Ingredient'),
+                            p(fmt_qty(row.get('display_portion_qty'), row.get('display_portion_unit'))),
+                            p(fmt_qty(row.get('display_total_qty'), row.get('display_total_unit'))),
+                            p(row.get('description') or 'Pull to station spec.'),
+                        ]
+                    )
+                direct_table = Table(
+                    direct_rows,
+                    colWidths=[1.55 * inch, 1.85 * inch, 0.85 * inch, 1.0 * inch, 2.05 * inch],
+                    repeatRows=1,
+                )
+                direct_table.setStyle(
+                    TableStyle(
+                        [
+                            ('BACKGROUND', (0, 0), (-1, 0), header_navy),
+                            ('TEXTCOLOR', (0, 0), (-1, 0), white),
+                            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [white, light_gray]),
+                            ('GRID', (0, 0), (-1, -1), 0.35, border_gray),
+                            ('LEFTPADDING', (0, 0), (-1, -1), 5),
+                            ('RIGHTPADDING', (0, 0), (-1, -1), 5),
+                            ('TOPPADDING', (0, 0), (-1, -1), 4),
+                            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+                            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                        ]
+                    )
+                )
+                story.append(direct_table)
                 story.append(Spacer(1, 0.06 * inch))
 
             if station_group.get('subrecipes'):
@@ -1833,19 +1920,27 @@ def buffet_prep_pdf(event_id):
 
             if station_group.get('detail_sheets'):
                 story.append(Spacer(1, 0.06 * inch))
-                story.append(Paragraph('Scaled Recipe Sheets', strong_style))
+                story.append(Paragraph('Operator Detail Sheets', strong_style))
                 story.append(Spacer(1, 0.04 * inch))
                 for detail_index, sheet in enumerate(station_group['detail_sheets']):
                     if detail_index > 0:
                         story.append(Spacer(1, 0.1 * inch))
                     story.append(Paragraph(escape(sheet.get('recipe_name') or 'Recipe'), strong_style))
-                    meta_bits = [
-                        sheet.get('sheet_type') or 'Recipe',
-                        f"Required: {fmt_qty(sheet.get('display_required_qty'), sheet.get('display_required_unit'))}",
-                        f"Yield: {fmt_qty(sheet.get('yield_qty'), sheet.get('yield_unit'))}",
-                    ]
-                    if sheet.get('display_scale_ratio'):
-                        meta_bits.append(f"Scale: {sheet.get('display_scale_ratio')}x")
+                    if sheet.get('sheet_type_key') == 'direct':
+                        meta_bits = [
+                            sheet.get('sheet_type') or 'Direct Ingredient Task',
+                            f"Total pull: {fmt_qty(sheet.get('display_required_qty'), sheet.get('display_required_unit'))}",
+                            f"Per guest: {fmt_qty(sheet.get('display_portion_qty'), sheet.get('display_portion_unit'))}",
+                            f"Dish: {sheet.get('dish_name') or 'Dish'}",
+                        ]
+                    else:
+                        meta_bits = [
+                            sheet.get('sheet_type') or 'Recipe',
+                            f"Required: {fmt_qty(sheet.get('display_required_qty'), sheet.get('display_required_unit'))}",
+                            f"Yield: {fmt_qty(sheet.get('yield_qty'), sheet.get('yield_unit'))}",
+                        ]
+                        if sheet.get('display_scale_ratio'):
+                            meta_bits.append(f"Scale: {sheet.get('display_scale_ratio')}x")
                     story.append(Paragraph(escape(' / '.join(meta_bits)), note_style))
                     if sheet.get('source_dishes'):
                         story.append(Paragraph(
@@ -1854,30 +1949,51 @@ def buffet_prep_pdf(event_id):
                         ))
                     story.append(Spacer(1, 0.03 * inch))
 
-                    component_rows = [[
-                        Paragraph('Ingredient / Sub-Recipe', table_header_style),
-                        Paragraph('Qty', table_header_style),
-                        Paragraph('Unit', table_header_style),
-                        Paragraph('Notes', table_header_style),
-                    ]]
-                    flat_components = sheet.get('flat_components') or []
-                    if flat_components:
-                        for component in flat_components:
-                            component_rows.append(
-                                [
-                                    p(component.get('name') or 'Component'),
-                                    p(component.get('qty') or '—'),
-                                    p(component.get('unit') or '—'),
-                                    p(component.get('notes') or '—'),
-                                ]
-                            )
+                    if sheet.get('sheet_type_key') == 'direct':
+                        component_rows = [[
+                            Paragraph('Ingredient', table_header_style),
+                            Paragraph('Total Needed', table_header_style),
+                            Paragraph('Per Guest', table_header_style),
+                            Paragraph('Prep Direction', table_header_style),
+                        ]]
+                        component_rows.append(
+                            [
+                                p(sheet.get('recipe_name') or 'Ingredient'),
+                                p(fmt_qty(sheet.get('display_required_qty'), sheet.get('display_required_unit'))),
+                                p(fmt_qty(sheet.get('display_portion_qty'), sheet.get('display_portion_unit'))),
+                                p(sheet.get('prep_action') or 'Pull to station spec.'),
+                            ]
+                        )
+                        component_table = Table(
+                            component_rows,
+                            colWidths=[2.45 * inch, 1.25 * inch, 1.0 * inch, 2.6 * inch],
+                            repeatRows=1,
+                        )
                     else:
-                        component_rows.append([p('No scaled components logged.'), p('—'), p('—'), p('—')])
-                    component_table = Table(
-                        component_rows,
-                        colWidths=[3.55 * inch, 1.0 * inch, 0.85 * inch, 1.6 * inch],
-                        repeatRows=1,
-                    )
+                        component_rows = [[
+                            Paragraph('Ingredient / Sub-Recipe', table_header_style),
+                            Paragraph('Qty', table_header_style),
+                            Paragraph('Unit', table_header_style),
+                            Paragraph('Notes', table_header_style),
+                        ]]
+                        flat_components = sheet.get('flat_components') or []
+                        if flat_components:
+                            for component in flat_components:
+                                component_rows.append(
+                                    [
+                                        p(component.get('name') or 'Component'),
+                                        p(component.get('qty') or '—'),
+                                        p(component.get('unit') or '—'),
+                                        p(component.get('notes') or '—'),
+                                    ]
+                                )
+                        else:
+                            component_rows.append([p('No scaled components logged.'), p('—'), p('—'), p('—')])
+                        component_table = Table(
+                            component_rows,
+                            colWidths=[3.55 * inch, 1.0 * inch, 0.85 * inch, 1.6 * inch],
+                            repeatRows=1,
+                        )
                     component_table.setStyle(
                         TableStyle(
                             [
@@ -1896,25 +2012,39 @@ def buffet_prep_pdf(event_id):
                     story.append(component_table)
                     story.append(Spacer(1, 0.04 * inch))
 
-                    critical_steps = sheet.get('critical_steps') or []
-                    if critical_steps:
-                        critical_body = '<b>Critical Yield Alerts</b><br/>' + '<br/>'.join(
-                            escape(f"{idx + 1:02d}. {step}") for idx, step in enumerate(critical_steps)
+                    if sheet.get('sheet_type_key') == 'direct':
+                        prep_lines = sheet.get('prep_lines') or [sheet.get('prep_action') or 'Pull to station spec.']
+                        prep_body = '<b>Prep Direction</b><br/>' + '<br/>'.join(
+                            escape(f"{idx + 1:02d}. {step}") for idx, step in enumerate(prep_lines)
                         )
+                        service_lines = [
+                            f"Dish: {sheet.get('dish_name') or 'Dish'}",
+                            f"Station: {sheet.get('station_label') or station_group.get('station') or 'Other'}",
+                            f"Per Guest: {fmt_qty(sheet.get('display_portion_qty'), sheet.get('display_portion_unit'))}",
+                            f"Vessel: {sheet.get('vessel') or 'Not specified'}",
+                            f"FOH: {sheet.get('foh_talking_points') or 'Not logged'}",
+                        ]
+                        handling_body = '<b>Service And Notes</b><br/>' + '<br/>'.join(escape(line) for line in service_lines)
                     else:
-                        critical_body = '<b>Critical Yield Alerts</b><br/>None logged.'
-                    storage_line = ' / '.join(sheet.get('storage_lines') or []) or 'Not logged'
-                    handling_lines = [
-                        f"Prep Time: {sheet.get('prep_time_minutes')} min" if sheet.get('prep_time_minutes') is not None else 'Prep Time: Not logged',
-                        f"Shelf Life: {sheet.get('shelf_life_days')} days" if sheet.get('shelf_life_days') is not None else 'Shelf Life: Not logged',
-                        f"Station: {sheet.get('station_label') or station_group.get('station') or 'Other'}",
-                        f"Equipment: {sheet.get('equipment') or 'Not specified'}",
-                        f"Storage: {storage_line}",
-                    ]
-                    handling_body = '<b>Prep And Handling</b><br/>' + '<br/>'.join(escape(line) for line in handling_lines)
+                        critical_steps = sheet.get('critical_steps') or []
+                        if critical_steps:
+                            prep_body = '<b>Critical Yield Alerts</b><br/>' + '<br/>'.join(
+                                escape(f"{idx + 1:02d}. {step}") for idx, step in enumerate(critical_steps)
+                            )
+                        else:
+                            prep_body = '<b>Critical Yield Alerts</b><br/>None logged.'
+                        storage_line = ' / '.join(sheet.get('storage_lines') or []) or 'Not logged'
+                        handling_lines = [
+                            f"Prep Time: {sheet.get('prep_time_minutes')} min" if sheet.get('prep_time_minutes') is not None else 'Prep Time: Not logged',
+                            f"Shelf Life: {sheet.get('shelf_life_days')} days" if sheet.get('shelf_life_days') is not None else 'Shelf Life: Not logged',
+                            f"Station: {sheet.get('station_label') or station_group.get('station') or 'Other'}",
+                            f"Equipment: {sheet.get('equipment') or 'Not specified'}",
+                            f"Storage: {storage_line}",
+                        ]
+                        handling_body = '<b>Prep And Handling</b><br/>' + '<br/>'.join(escape(line) for line in handling_lines)
                     detail_notes_table = Table(
                         [[
-                            Paragraph(critical_body, base_style),
+                            Paragraph(prep_body, base_style),
                             Paragraph(handling_body, base_style),
                         ]],
                         colWidths=[3.5 * inch, 3.5 * inch],
@@ -1937,7 +2067,7 @@ def buffet_prep_pdf(event_id):
 
                     if sheet.get('instruction_steps'):
                         story.append(Spacer(1, 0.04 * inch))
-                        story.append(Paragraph('Production Timeline', strong_style))
+                        story.append(Paragraph('Task Sequence' if sheet.get('sheet_type_key') == 'direct' else 'Production Timeline', strong_style))
                         for step_number, step in enumerate(sheet['instruction_steps'], start=1):
                             story.append(Paragraph(escape(f"{step_number:02d}. {step}"), base_style))
                 has_previous_sections = True
