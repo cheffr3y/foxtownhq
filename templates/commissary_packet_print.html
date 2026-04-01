@@ -375,30 +375,6 @@
         </div>
         <div class="pkt-screen-actions">
             <a
-                href="{{ url_for('commissary_packet_print', outlet=selected_outlet, week_start=week_start, day=selected_day, include_shopping=include_shopping, units='auto') }}"
-                class="pkt-toolbar-btn {% if selected_units == 'auto' %}pkt-toolbar-btn--active{% endif %}"
-            >
-                Auto
-            </a>
-            <a
-                href="{{ url_for('commissary_packet_print', outlet=selected_outlet, week_start=week_start, day=selected_day, include_shopping=include_shopping, units='imperial') }}"
-                class="pkt-toolbar-btn {% if selected_units == 'imperial' %}pkt-toolbar-btn--active{% endif %}"
-            >
-                Imperial
-            </a>
-            <a
-                href="{{ url_for('commissary_packet_print', outlet=selected_outlet, week_start=week_start, day=selected_day, include_shopping=include_shopping, units='metric') }}"
-                class="pkt-toolbar-btn {% if selected_units == 'metric' %}pkt-toolbar-btn--active{% endif %}"
-            >
-                Metric
-            </a>
-            <a
-                href="{{ url_for('commissary_packet_print', outlet=selected_outlet, week_start=week_start, day=selected_day, include_shopping=include_shopping, units='hybrid') }}"
-                class="pkt-toolbar-btn {% if selected_units == 'hybrid' %}pkt-toolbar-btn--active{% endif %}"
-            >
-                Grams + qt/gal
-            </a>
-            <a
                 href="{{ url_for('commissary_packet_print', outlet=selected_outlet, week_start=week_start, day=selected_day, include_shopping=(0 if include_shopping else 1), units=selected_units) }}"
                 class="pkt-toolbar-btn"
             >
@@ -428,7 +404,6 @@
                 <h1 class="pkt-doc-title">COMMISSARY_MANIFEST</h1>
                 <div class="pkt-doc-ref">Ref ID: {{ commissary_ref }}</div>
             </div>
-            <button onclick="window.print()" class="no-print pkt-toolbar-btn pkt-toolbar-btn--primary">Print Manifest</button>
         </header>
         <div class="pkt-doc-meta-grid break-inside-avoid">
             <div class="pkt-doc-meta">
