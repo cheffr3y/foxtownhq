@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Recipe Cards - {{ selected_outlet or 'Commissary' }} &middot; {{ manifest_window }}</title>
+<title>Manifest + Recipe Cards - {{ selected_outlet or 'Commissary' }} &middot; {{ manifest_window }}</title>
 <style>
 /* PAGE SETUP */
 @page {
@@ -83,19 +83,204 @@ body {
     color: #566166;
 }
 
+/* SHARED SHEET LAYOUT */
+.rc-sheet {
+    background: #fff;
+}
+
+/* MANIFEST SHEET */
+.rc-manifest {
+    padding: 0;
+}
+.rc-manifest-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    padding-bottom: 0.9rem;
+    margin-bottom: 0.9rem;
+    border-bottom: 3px solid #2a3439;
+}
+.rc-manifest-kicker {
+    font-size: 0.62rem;
+    font-weight: 900;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #566166;
+    margin-bottom: 0.35rem;
+}
+.rc-manifest-title {
+    margin: 0;
+    font-size: 2.35rem;
+    line-height: 0.96;
+    font-weight: 900;
+    letter-spacing: -0.07em;
+    text-transform: uppercase;
+    color: #111827;
+}
+.rc-manifest-ref {
+    margin-top: 0.45rem;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #566166;
+}
+.rc-manifest-stamp {
+    min-width: 10.25rem;
+    padding: 0.8rem 0.95rem;
+    background: #e1e9ee;
+    border-bottom: 3px solid #2a3439;
+}
+.rc-manifest-stamp-label {
+    font-size: 0.55rem;
+    font-weight: 900;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #566166;
+    margin-bottom: 0.2rem;
+}
+.rc-manifest-stamp-value {
+    font-size: 1.15rem;
+    font-weight: 900;
+    letter-spacing: -0.04em;
+    text-transform: uppercase;
+    color: #111827;
+}
+.rc-manifest-meta {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2px;
+    background: #2a3439;
+    margin-bottom: 0.9rem;
+}
+.rc-manifest-meta-card {
+    padding: 0.7rem 0.8rem;
+    background: #fff;
+    border-bottom: 2px solid #2a3439;
+}
+.rc-manifest-meta-label {
+    display: block;
+    font-size: 0.52rem;
+    font-weight: 900;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #566166;
+    margin-bottom: 0.18rem;
+}
+.rc-manifest-meta-value {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 900;
+    color: #111827;
+    line-height: 1.25;
+}
+.rc-manifest-section {
+    border: 1.5px solid #a9b4b9;
+    padding: 0.8rem 0.85rem 0.9rem;
+}
+.rc-manifest-section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+    margin-bottom: 0.7rem;
+    padding-bottom: 0.45rem;
+    border-bottom: 2px solid #2a3439;
+}
+.rc-manifest-section-title {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #2a3439;
+}
+.rc-manifest-section-sub {
+    font-size: 0.74rem;
+    font-weight: 700;
+    color: #566166;
+}
+.rc-manifest-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.78rem;
+}
+.rc-manifest-table thead th {
+    padding: 0.42rem 0.55rem;
+    border: 1px solid #445158;
+    background: #d9e4ea;
+    font-size: 0.56rem;
+    font-weight: 900;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    text-align: left;
+    color: #2a3439;
+}
+.rc-manifest-table tbody td {
+    padding: 0.48rem 0.55rem;
+    border: 1px solid #c8d0d5;
+    vertical-align: top;
+    color: #2a3439;
+}
+.rc-manifest-table tbody tr:nth-child(even) td {
+    background: #f7f9fb;
+}
+.rc-manifest-checkbox-cell {
+    width: 4.5rem;
+    text-align: center;
+}
+.rc-checkbox {
+    display: inline-block;
+    width: 0.82rem;
+    height: 0.82rem;
+    border: 1.5px solid #445158;
+}
+.rc-manifest-item {
+    font-weight: 800;
+    color: #111827;
+}
+.rc-manifest-note {
+    margin-top: 0.18rem;
+    font-size: 0.66rem;
+    color: #566166;
+}
+.rc-manifest-qty {
+    white-space: nowrap;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-weight: 800;
+}
+.rc-manifest-footer {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: 0.8rem;
+    padding-top: 0.65rem;
+    border-top: 2px solid #2a3439;
+    font-size: 0.68rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #566166;
+}
+
 /* RECIPE CARD (one per page on print) */
 .rc-card {
     padding: 0;
-    background: #fff;
 }
 @media print {
-    .rc-card {
+    .rc-sheet {
         page-break-before: always;
         break-before: page;
     }
-    .rc-card:first-of-type {
+    .rc-sheet:first-of-type {
         page-break-before: avoid;
         break-before: avoid;
+    }
+    .rc-card {
+        page-break-before: always;
+        break-before: page;
     }
 }
 
@@ -433,6 +618,10 @@ body {
     .rc-toolbar { display: none !important; }
     body { font-size: 10px; }
 
+    .rc-manifest-stamp,
+    .rc-manifest-meta-card,
+    .rc-manifest-table thead th,
+    .rc-manifest-table tbody tr:nth-child(even) td,
     .rc-info-card,
     .rc-stat,
     .rc-ledger-header,
@@ -448,7 +637,7 @@ body {
 /* SCREEN WRAPPER */
 @media screen {
     body { background: #edf2f4; padding: 1.5rem; }
-    .rc-card {
+    .rc-sheet {
         max-width: 8.5in;
         margin: 0 auto 2rem;
         padding: 0.75in 0.6in;
@@ -459,20 +648,115 @@ body {
 </style>
 </head>
 <body>
+{% set unit_label = 'Auto' %}
+{% if selected_units == 'imperial' %}
+{% set unit_label = 'Imperial' %}
+{% elif selected_units == 'metric' %}
+{% set unit_label = 'Metric' %}
+{% elif selected_units == 'hybrid' %}
+{% set unit_label = 'Grams + qt/gal/fl oz' %}
+{% endif %}
+{% set commissary_ref = 'FHQ-CM-' ~ (selected_day if selected_day else week_start)|replace('-', '') %}
 
 <div class="rc-toolbar">
     <div class="rc-toolbar-copy">
-        <div class="rc-toolbar-kicker">Commissary &middot; Recipe Cards</div>
-        <div class="rc-toolbar-title">Production Cards</div>
+        <div class="rc-toolbar-kicker">Commissary &middot; Manifest + Recipe Cards</div>
+        <div class="rc-toolbar-title">Production Packet</div>
         <div class="rc-toolbar-sub">
-            {{ selected_outlet or 'All Outlets' }} &middot; {{ manifest_window }} &middot; {{ datasets.weekly_prep|length }} recipe(s)
+            {{ selected_outlet or 'All Outlets' }} &middot; {{ manifest_window }} &middot; {{ checklist_lines|length }} manifest line(s) &middot; {{ datasets.weekly_prep|length }} recipe(s)
         </div>
     </div>
     <div class="rc-toolbar-actions">
-        <a href="{{ url_for('commissary_packet_print', outlet=selected_outlet, week_start=week_start, day=selected_day) }}" class="rc-btn">&larr; Packet View</a>
-        <button onclick="window.print()" class="rc-btn rc-btn--primary">Print Cards</button>
+        <a href="{{ url_for('commissary_packet_print', outlet=selected_outlet, week_start=week_start, day=selected_day, include_shopping=include_shopping, units=selected_units) }}" class="rc-btn">&larr; Packet View</a>
+        <button onclick="window.print()" class="rc-btn rc-btn--primary">Print Packet</button>
     </div>
 </div>
+
+<section class="rc-sheet rc-manifest">
+    <div class="rc-manifest-header">
+        <div>
+            <div class="rc-manifest-kicker">Kitchen Operations / Logistics Division</div>
+            <h1 class="rc-manifest-title">COMMISSARY_MANIFEST</h1>
+            <div class="rc-manifest-ref">Ref ID: {{ commissary_ref }}</div>
+        </div>
+        <div class="rc-manifest-stamp">
+            <div class="rc-manifest-stamp-label">Record Copy</div>
+            <div class="rc-manifest-stamp-value">Dispatch + Recipe Build</div>
+        </div>
+    </div>
+
+    <div class="rc-manifest-meta">
+        <div class="rc-manifest-meta-card">
+            <span class="rc-manifest-meta-label">Date Window</span>
+            <span class="rc-manifest-meta-value">{{ manifest_window }}</span>
+        </div>
+        <div class="rc-manifest-meta-card">
+            <span class="rc-manifest-meta-label">Outlet Scope</span>
+            <span class="rc-manifest-meta-value">{{ selected_outlet or 'All Outlets' }}</span>
+        </div>
+        <div class="rc-manifest-meta-card">
+            <span class="rc-manifest-meta-label">Units</span>
+            <span class="rc-manifest-meta-value">{{ unit_label }}</span>
+        </div>
+        <div class="rc-manifest-meta-card">
+            <span class="rc-manifest-meta-label">Orders</span>
+            <span class="rc-manifest-meta-value">{{ datasets.orders|length }}</span>
+        </div>
+        <div class="rc-manifest-meta-card">
+            <span class="rc-manifest-meta-label">Manifest Lines</span>
+            <span class="rc-manifest-meta-value">{{ checklist_lines|length }}</span>
+        </div>
+        <div class="rc-manifest-meta-card">
+            <span class="rc-manifest-meta-label">Shopping</span>
+            <span class="rc-manifest-meta-value">{{ 'Included' if include_shopping else 'Hidden' }}</span>
+        </div>
+    </div>
+
+    <div class="rc-manifest-section">
+        <div class="rc-manifest-section-head">
+            <h2 class="rc-manifest-section-title">Dispatch Manifest</h2>
+            <div class="rc-manifest-section-sub">{{ generated_at }}</div>
+        </div>
+        {% if checklist_lines %}
+        <table class="rc-manifest-table">
+            <thead>
+                <tr>
+                    <th style="width:8%">Loaded</th>
+                    <th>Item Name</th>
+                    <th style="width:16%">Quantity</th>
+                    <th style="width:18%">Destination</th>
+                    <th style="width:20%">Dispatch Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for line in checklist_lines %}
+                <tr>
+                    <td class="rc-manifest-checkbox-cell"><span class="rc-checkbox"></span></td>
+                    <td>
+                        <div class="rc-manifest-item">{{ line.item_name }}</div>
+                        {% if line.recipe_name and line.recipe_name != line.item_name %}
+                        <div class="rc-manifest-note">Recipe: {{ line.recipe_name }}</div>
+                        {% endif %}
+                    </td>
+                    <td class="rc-manifest-qty">{{ line.quantity }} {{ line.quantity_unit }}</td>
+                    <td>{{ line.outlet }}</td>
+                    <td>{{ line.notes or '—' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="rc-empty">
+            No production lines found for this date window.
+        </div>
+        {% endif %}
+        <div class="rc-manifest-footer">
+            <span>{{ commissary_ref }}</span>
+            <span>{{ checklist_lines|length }} manifest line(s)</span>
+            <span>{{ datasets.weekly_prep|length }} recipe card(s)</span>
+        </div>
+    </div>
+</section>
 
 {% if not datasets.weekly_prep %}
 <div class="rc-empty">
@@ -480,7 +764,7 @@ body {
 </div>
 {% else %}
 {% for prep in datasets.weekly_prep %}
-<article class="rc-card">
+<article class="rc-sheet rc-card">
 
     <div class="rc-hero">
         <div>

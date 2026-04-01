@@ -405,12 +405,12 @@
                 {% if include_shopping %}Hide Shopping{% else %}Include Shopping{% endif %}
             </a>
             <a
-                href="{{ url_for('commissary_recipe_cards', outlet=selected_outlet, week_start=week_start, day=selected_day, units=selected_units) }}"
+                href="{{ url_for('commissary_recipe_cards', outlet=selected_outlet, week_start=week_start, day=selected_day, include_shopping=include_shopping, units=selected_units) }}"
                 class="pkt-toolbar-btn"
                 target="_blank"
                 rel="noopener"
             >
-                Recipe Cards
+                Manifest + Cards
             </a>
             <a
                 href="{{ url_for('commissary_packet_pdf', outlet=selected_outlet, week_start=week_start, day=selected_day, include_shopping=include_shopping, units=selected_units) }}"

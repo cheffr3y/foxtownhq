@@ -2365,7 +2365,27 @@ def commissary_recipe_cards():
         else:
             selected_day = None
 
+        include_shopping_raw = request.args.get('include_shopping')
+        if include_shopping_raw is None:
+            include_shopping = False
+        else:
+            include_shopping = (include_shopping_raw or '').strip().lower() in ('1', 'true', 'yes', 'on')
+
         datasets = build_commissary_datasets(cur, start_date, end_date, selected_outlet, selected_units)
+        checklist_lines = []
+        for order in datasets.get('orders', []):
+            for line in order.get('lines', []):
+                production_log = line.get('production_log') or {}
+                checklist_lines.append({
+                    'item_name': line.get('item_name') or line.get('recipe_name') or 'Item',
+                    'recipe_name': line.get('recipe_name') or '',
+                    'quantity': line.get('quantity'),
+                    'quantity_unit': line.get('quantity_unit') or 'each',
+                    'outlet': order.get('outlet') or DEFAULT_COMMISSARY_OUTLET,
+                    'assigned_to': production_log.get('assigned_to') or '',
+                    'notes': line.get('notes') or '',
+                })
+        checklist_lines.sort(key=lambda row: ((row.get('outlet') or '').lower(), (row.get('item_name') or '').lower()))
 
     manifest_window = selected_day.isoformat() if selected_day else f"{start_date.isoformat()} to {end_date.isoformat()}"
 
@@ -2378,8 +2398,10 @@ def commissary_recipe_cards():
         end_date=end_date.isoformat(),
         selected_day=selected_day.isoformat() if selected_day else '',
         manifest_window=manifest_window,
+        include_shopping=include_shopping,
         generated_at=datetime.now().strftime('%b %d, %Y %I:%M %p'),
         datasets=datasets,
+        checklist_lines=checklist_lines,
     )
 
 
