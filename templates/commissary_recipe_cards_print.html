@@ -264,6 +264,20 @@ body {
     text-transform: uppercase;
     color: #566166;
 }
+.rc-shopping-group + .rc-shopping-group {
+    margin-top: 0.8rem;
+}
+.rc-shopping-vendor {
+    margin-bottom: 0.45rem;
+    padding: 0.35rem 0.55rem;
+    background: #d9e4ea;
+    border-left: 4px solid #2a3439;
+    font-size: 0.68rem;
+    font-weight: 900;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #2a3439;
+}
 
 /* RECIPE CARD (one per page on print) */
 .rc-card {
@@ -1087,6 +1101,96 @@ body {
         </div>
     </div>
 </section>
+
+{% if include_shopping %}
+<section class="rc-sheet rc-manifest">
+    <div class="rc-manifest-header">
+        <div>
+            <div class="rc-manifest-kicker">Kitchen Operations / Purchasing Division</div>
+            <h1 class="rc-manifest-title">SHOPPING_LIST</h1>
+            <div class="rc-manifest-ref">Ref ID: {{ commissary_ref }}-SHOP</div>
+        </div>
+        <div class="rc-manifest-stamp">
+            <div class="rc-manifest-stamp-label">Procurement Copy</div>
+            <div class="rc-manifest-stamp-value">{{ datasets.shopping_ingredients|length if datasets.shopping_ingredients else 0 }} Items</div>
+        </div>
+    </div>
+
+    <div class="rc-manifest-meta">
+        <div class="rc-manifest-meta-card">
+            <span class="rc-manifest-meta-label">Date Window</span>
+            <span class="rc-manifest-meta-value">{{ manifest_window }}</span>
+        </div>
+        <div class="rc-manifest-meta-card">
+            <span class="rc-manifest-meta-label">Outlet Scope</span>
+            <span class="rc-manifest-meta-value">{{ selected_outlet or 'All Outlets' }}</span>
+        </div>
+        <div class="rc-manifest-meta-card">
+            <span class="rc-manifest-meta-label">Units</span>
+            <span class="rc-manifest-meta-value">{{ unit_label }}</span>
+        </div>
+        <div class="rc-manifest-meta-card">
+            <span class="rc-manifest-meta-label">Shopping</span>
+            <span class="rc-manifest-meta-value">Included</span>
+        </div>
+        <div class="rc-manifest-meta-card">
+            <span class="rc-manifest-meta-label">Vendors</span>
+            <span class="rc-manifest-meta-value">{{ datasets.shopping_ingredients|groupby('vendor')|list|length if datasets.shopping_ingredients else 0 }}</span>
+        </div>
+        <div class="rc-manifest-meta-card">
+            <span class="rc-manifest-meta-label">Line Items</span>
+            <span class="rc-manifest-meta-value">{{ datasets.shopping_ingredients|length if datasets.shopping_ingredients else 0 }}</span>
+        </div>
+    </div>
+
+    <div class="rc-manifest-section">
+        <div class="rc-manifest-section-head">
+            <h2 class="rc-manifest-section-title">Shopping Pull List</h2>
+            <div class="rc-manifest-section-sub">{{ generated_at }}</div>
+        </div>
+        {% if datasets.shopping_ingredients %}
+            {% for vendor_group in datasets.shopping_ingredients|groupby('vendor') %}
+            <div class="rc-shopping-group">
+                <div class="rc-shopping-vendor">{{ vendor_group.grouper or 'Unassigned Vendor' }}</div>
+                <table class="rc-manifest-table">
+                    <thead>
+                        <tr>
+                            <th style="width:8%">Pulled</th>
+                            <th>Ingredient</th>
+                            <th style="width:16%">Quantity</th>
+                            <th style="width:14%">Unit</th>
+                            <th style="width:24%">Category</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in vendor_group.list %}
+                        <tr>
+                            <td class="rc-manifest-checkbox-cell"><span class="rc-checkbox"></span></td>
+                            <td>
+                                <div class="rc-manifest-item">{{ item.name }}</div>
+                            </td>
+                            <td class="rc-manifest-qty">{{ item.display_quantity if item.display_quantity not in (None, '') else '—' }}</td>
+                            <td>{{ item.display_unit or '—' }}</td>
+                            <td>{{ item.category or 'Uncategorized' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endfor %}
+        {% else %}
+        <div class="rc-empty">
+            No shopping items for the selected window.
+        </div>
+        {% endif %}
+        <div class="rc-manifest-footer">
+            <span>{{ commissary_ref }}-SHOP</span>
+            <span>{{ datasets.shopping_ingredients|length if datasets.shopping_ingredients else 0 }} shopping item(s)</span>
+            <span>{{ unit_label }}</span>
+        </div>
+    </div>
+</section>
+{% endif %}
 
 {% if not datasets.weekly_prep %}
 <div class="rc-empty">
