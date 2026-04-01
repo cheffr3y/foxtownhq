@@ -28,6 +28,7 @@ from helpers.commissary import (
     parse_commissary_order_lines,
 )
 from helpers.menu import clean_menu_text
+from helpers.formatting import split_instruction_steps
 from helpers.recipes import build_component_tree, collect_ingredients_from_components, normalize_recipe_type, ratio_from_line_quantity
 from helpers.shared import generate_id, handle_route_error, to_float
 from helpers.units import format_number, get_unit_system, smart_quantity
@@ -39,6 +40,17 @@ bp = Blueprint('commissary', __name__)
 def handle_commissary_error(error):
     traceback.print_exc()
     return handle_route_error(error, 'commissary')
+
+
+def annotate_component_subrecipes(components):
+    for component in components or []:
+        sub_recipe = component.get('sub_recipe')
+        if sub_recipe:
+            sub_recipe['instruction_steps'] = split_instruction_steps(sub_recipe.get('instructions'))
+            sub_recipe['critical_step_lines'] = split_instruction_steps(sub_recipe.get('critical_steps'))
+            sub_recipe['storage_lines'] = split_instruction_steps(sub_recipe.get('storage_instructions'))
+        if component.get('children'):
+            annotate_component_subrecipes(component.get('children'))
 
 
 def get_stats_window(preset, start_raw='', end_raw=''):
@@ -2312,6 +2324,8 @@ def commissary_packet_print():
             include_shopping = (include_shopping_raw or '').strip().lower() in ('1', 'true', 'yes', 'on')
 
         datasets = build_commissary_datasets(cur, start_date, end_date, selected_outlet, selected_units)
+        for prep in datasets.get('weekly_prep', []):
+            annotate_component_subrecipes(prep.get('components'))
         checklist_lines = []
         for order in datasets.get('orders', []):
             for line in order.get('lines', []):
@@ -2372,6 +2386,8 @@ def commissary_recipe_cards():
             include_shopping = (include_shopping_raw or '').strip().lower() in ('1', 'true', 'yes', 'on')
 
         datasets = build_commissary_datasets(cur, start_date, end_date, selected_outlet, selected_units)
+        for prep in datasets.get('weekly_prep', []):
+            annotate_component_subrecipes(prep.get('components'))
         checklist_lines = []
         for order in datasets.get('orders', []):
             for line in order.get('lines', []):

@@ -735,6 +735,9 @@ body {
     gap: 0.6rem;
     margin-top: 0.75rem;
 }
+.rc-subsheet-panels--single {
+    grid-template-columns: 1fr;
+}
 .rc-subsheet-panel {
     padding: 0.75rem 0.85rem;
     background: #f7f9fb;
@@ -802,6 +805,12 @@ body {
 {% set unit_label = 'Grams + qt/gal/fl oz' %}
 {% endif %}
 {% set commissary_ref = 'FHQ-CM-' ~ (selected_day if selected_day else week_start)|replace('-', '') %}
+{% set packet_ns = namespace(top_level_ids=[], attached_ids=[]) %}
+{% for prep in datasets.weekly_prep %}
+    {% if prep.recipe_id %}
+        {% set packet_ns.top_level_ids = packet_ns.top_level_ids + [prep.recipe_id] %}
+    {% endif %}
+{% endfor %}
 {% macro render_component_ledger_rows(components) -%}
     {% for component in components recursive %}
     {% if component.type == 'option_group' %}
@@ -813,6 +822,9 @@ body {
         {% set comp_unit = component.display_unit or component.unit or '' %}
         {% set is_sub = component.type == 'recipe' %}
         {% set sub_recipe = component.sub_recipe or {} %}
+        {% set sub_recipe_id = sub_recipe.id or component.item_id or component.recipe_id or '' %}
+        {% set has_full_card = sub_recipe_id and sub_recipe_id in packet_ns.top_level_ids %}
+        {% set has_attachment = sub_recipe_id and sub_recipe_id in packet_ns.attached_ids %}
         <tr class="rc-ledger-row {% if is_sub %}rc-ledger-row--sub{% endif %}">
             <td class="rc-ledger-cell">
                 {% if is_sub %}
@@ -820,12 +832,26 @@ body {
                     <div class="rc-subrecipe-callout-head">
                         <span class="rc-badge rc-badge--sub">SUB</span>
                         <span class="rc-item-name">{{ comp_name }}</span>
-                        <span class="rc-subrecipe-kicker">Linked Build Sheet Follows</span>
+                        <span class="rc-subrecipe-kicker">
+                            {% if has_full_card %}
+                            Full Recipe Card In Packet
+                            {% elif has_attachment %}
+                            Linked Build Already Attached
+                            {% else %}
+                            Linked Build Sheet Follows
+                            {% endif %}
+                        </span>
                     </div>
                     <div class="rc-subrecipe-note">
                         Yield {{ sub_recipe.yield_qty or '---' }} {{ sub_recipe.yield_unit or '' }}
                         {% if component.scale_note %} · {{ component.scale_note }}{% endif %}
-                        {% if component.children %} · {{ component.children|length }} linked row{{ '' if component.children|length == 1 else 's' }} below on attachment{% endif %}
+                        {% if has_full_card %}
+                        · Standalone recipe card included elsewhere in this packet
+                        {% elif has_attachment %}
+                        · Linked build sheet already included elsewhere in this packet
+                        {% elif component.children %}
+                        · {{ component.children|length }} linked row{{ '' if component.children|length == 1 else 's' }} below on attachment
+                        {% endif %}
                     </div>
                 </div>
                 {% else %}
@@ -855,6 +881,14 @@ body {
             {% if sub_qty in (None, '') %}{% set sub_qty = component.quantity %}{% endif %}
             {% set sub_unit = component.display_unit or component.unit or '' %}
             {% set sub_recipe = component.sub_recipe or {} %}
+            {% set sub_recipe_id = sub_recipe.id or component.item_id or component.recipe_id or '' %}
+            {% set has_full_card = sub_recipe_id and sub_recipe_id in packet_ns.top_level_ids %}
+            {% set already_attached = sub_recipe_id and sub_recipe_id in packet_ns.attached_ids %}
+            {% if has_full_card or already_attached %}
+            {% else %}
+            {% if sub_recipe_id %}
+                {% set packet_ns.attached_ids = packet_ns.attached_ids + [sub_recipe_id] %}
+            {% endif %}
             <article class="rc-sheet rc-subsheet">
                 <div class="rc-subsheet-kicker">Linked Sub-Recipe Attachment</div>
                 <div class="rc-subsheet-header">
@@ -908,24 +942,37 @@ body {
                     </div>
                 </div>
 
-                {% if sub_recipe.instructions or sub_recipe.critical_steps or sub_recipe.storage_instructions %}
-                <div class="rc-subsheet-panels">
-                    {% if sub_recipe.instructions %}
+                {% if sub_recipe.instruction_steps %}
+                <div class="rc-timeline">
+                    <div class="rc-timeline-title">Production Timeline</div>
+                    <div class="rc-timeline-rows">
+                        {% for step in sub_recipe.instruction_steps %}
+                        <div class="rc-timeline-row">
+                            <div class="rc-timeline-index">{{ '%02d'|format(loop.index) }}</div>
+                            <div class="rc-timeline-copy">{{ step }}</div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% elif sub_recipe.instructions %}
+                <div class="rc-timeline">
+                    <div class="rc-timeline-title">Instructions</div>
+                    <div class="rc-timeline-copy" style="border-bottom: none; padding-bottom: 0;">{{ sub_recipe.instructions }}</div>
+                </div>
+                {% endif %}
+
+                {% if sub_recipe.critical_step_lines or sub_recipe.storage_lines %}
+                <div class="rc-subsheet-panels {% if not (sub_recipe.critical_step_lines and sub_recipe.storage_lines) %}rc-subsheet-panels--single{% endif %}">
+                    {% if sub_recipe.critical_step_lines %}
                     <div class="rc-subsheet-panel">
-                        <div class="rc-subsheet-panel-title">Method</div>
-                        <div class="rc-subsheet-panel-copy">{{ sub_recipe.instructions }}</div>
+                        <div class="rc-subsheet-panel-title">Critical Steps</div>
+                        <div class="rc-subsheet-panel-copy">{{ sub_recipe.critical_step_lines|join('\n') }}</div>
                     </div>
                     {% endif %}
-                    {% if sub_recipe.critical_steps or sub_recipe.storage_instructions %}
+                    {% if sub_recipe.storage_lines %}
                     <div class="rc-subsheet-panel">
-                        {% if sub_recipe.critical_steps %}
-                        <div class="rc-subsheet-panel-title">Critical Steps</div>
-                        <div class="rc-subsheet-panel-copy">{{ sub_recipe.critical_steps }}</div>
-                        {% endif %}
-                        {% if sub_recipe.storage_instructions %}
-                        <div class="rc-subsheet-panel-title" {% if sub_recipe.critical_steps %}style="margin-top: 0.6rem;"{% endif %}>Storage</div>
-                        <div class="rc-subsheet-panel-copy">{{ sub_recipe.storage_instructions }}</div>
-                        {% endif %}
+                        <div class="rc-subsheet-panel-title">Storage</div>
+                        <div class="rc-subsheet-panel-copy">{{ sub_recipe.storage_lines|join('\n') }}</div>
                     </div>
                     {% endif %}
                 </div>
@@ -933,6 +980,7 @@ body {
             </article>
             {% if component.children %}
                 {{ render_subrecipe_sheets(component.children, sub_name) }}
+            {% endif %}
             {% endif %}
         {% elif component.children %}
             {{ render_subrecipe_sheets(component.children, parent_name) }}
