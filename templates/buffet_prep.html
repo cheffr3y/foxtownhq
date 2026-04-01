@@ -4,6 +4,10 @@
 
 {% block extra_head %}
 <style>
+    @page {
+        size: letter landscape;
+        margin: 0.35in;
+    }
     .bf-shell {
         padding: 1.5rem 1rem 3rem;
         background: linear-gradient(180deg, #edf2f4 0%, #f7f9fb 24%, #edf2f4 100%);
@@ -350,18 +354,10 @@
         border: 1px solid #a9b4b9;
         background: #f8fafc;
     }
-    .bf-detail-sheet--direct {
-        border-color: #d4a373;
-        background: #fffaf2;
-    }
     .bf-detail-head {
         padding: 1rem 1.05rem 0.95rem;
         border-bottom: 2px solid #2a3439;
         background: #ffffff;
-    }
-    .bf-detail-sheet--direct .bf-detail-head {
-        background: #fff7ed;
-        border-bottom-color: #c0612b;
     }
     .bf-detail-kicker {
         font-size: 0.6rem;
@@ -369,9 +365,6 @@
         letter-spacing: 0.16em;
         text-transform: uppercase;
         color: #566166;
-    }
-    .bf-detail-sheet--direct .bf-detail-kicker {
-        color: #9a3412;
     }
     .bf-detail-title {
         margin-top: 0.35rem;
@@ -396,9 +389,6 @@
         grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 0.08rem;
         background: #2a3439;
-    }
-    .bf-detail-sheet--direct .bf-detail-meta {
-        background: #c0612b;
     }
     .bf-detail-meta-card {
         padding: 0.85rem 0.9rem;
@@ -439,10 +429,6 @@
     }
     .bf-panel--alert {
         border-bottom-color: #c00815;
-    }
-    .bf-panel--direct {
-        background: #fff4e6;
-        border-bottom-color: #c0612b;
     }
     .bf-panel-title {
         margin-bottom: 0.55rem;
@@ -534,13 +520,25 @@
         font-weight: 900;
         letter-spacing: 0.08em;
     }
-    .bf-detail-sheet--direct .bf-timeline-num {
-        background: #c0612b;
-    }
     .bf-timeline-copy {
         font-size: 0.74rem;
         line-height: 1.55;
         color: #2a3439;
+    }
+    .bf-table--compact th {
+        padding: 0.45rem 0.5rem;
+        font-size: 0.52rem;
+    }
+    .bf-table--compact td {
+        padding: 0.48rem 0.5rem;
+        font-size: 0.72rem;
+    }
+    .bf-table--compact .bf-cell-title {
+        font-size: 0.75rem;
+    }
+    .bf-table--compact .bf-cell-meta {
+        font-size: 0.58rem;
+        margin-top: 0.12rem;
     }
     @media (max-width: 960px) {
         .bf-hero {
@@ -590,12 +588,142 @@
             margin: 0 !important;
             border-width: 2pt !important;
             box-shadow: none !important;
+            padding: 0.45rem !important;
         }
         .bf-stat-card,
         .bf-alert,
-        .bf-station-head {
+        .bf-station-head,
+        .bf-detail-meta-card,
+        .bf-panel {
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
+        }
+        .bf-hero {
+            gap: 0.55rem;
+            margin-bottom: 0.65rem;
+        }
+        .bf-name {
+            margin: 0.2rem 0 0.35rem;
+            font-size: 2rem;
+        }
+        .bf-description {
+            font-size: 0.68rem;
+            line-height: 1.35;
+            max-width: none;
+        }
+        .bf-hero-meta,
+        .bf-toolbar-sub,
+        .bf-station-dishes {
+            font-size: 0.52rem;
+        }
+        .bf-hero-card,
+        .bf-stat-card,
+        .bf-station-head,
+        .bf-station-sections,
+        .bf-detail-head,
+        .bf-detail-body,
+        .bf-panel {
+            padding: 0.45rem 0.55rem;
+        }
+        .bf-hero-value {
+            margin-bottom: 0.45rem;
+            font-size: 1.1rem;
+        }
+        .bf-mini-label,
+        .bf-stat-label,
+        .bf-detail-meta-label,
+        .bf-section-title,
+        .bf-panel-title,
+        .bf-timeline-head,
+        .bf-signoff-title {
+            font-size: 0.46rem;
+        }
+        .bf-mini-value,
+        .bf-stat-value,
+        .bf-detail-meta-value {
+            font-size: 0.78rem;
+        }
+        .bf-stat-grid,
+        .bf-detail-meta,
+        .bf-detail-panels {
+            gap: 0.04rem;
+            margin-bottom: 0.45rem;
+        }
+        .bf-section-title {
+            margin-bottom: 0.28rem;
+        }
+        .bf-table th {
+            padding: 0.28rem 0.35rem;
+            font-size: 0.45rem;
+        }
+        .bf-table td {
+            padding: 0.3rem 0.35rem;
+            font-size: 0.62rem;
+        }
+        .bf-cell-title {
+            font-size: 0.66rem;
+        }
+        .bf-cell-meta,
+        .bf-panel-item,
+        .bf-handling-row,
+        .bf-timeline-copy {
+            font-size: 0.54rem;
+            line-height: 1.25;
+        }
+        .bf-detail-section {
+            break-before: page;
+            page-break-before: always;
+        }
+        .bf-detail-stack {
+            display: block;
+        }
+        .bf-detail-sheet {
+            break-before: page;
+            page-break-before: always;
+            break-inside: avoid-page;
+            page-break-inside: avoid;
+        }
+        .bf-detail-sheet:first-child {
+            break-before: auto;
+            page-break-before: auto;
+        }
+        .bf-detail-body {
+            grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.9fr);
+            gap: 0.45rem;
+            align-items: start;
+        }
+        .bf-detail-body > .bf-table-wrap {
+            grid-column: 1;
+            grid-row: 1 / span 2;
+        }
+        .bf-detail-panels {
+            grid-column: 2;
+            grid-row: 1;
+            grid-template-columns: 1fr;
+        }
+        .bf-timeline {
+            grid-column: 2;
+            grid-row: 2;
+        }
+        .bf-timeline-head {
+            padding: 0.35rem 0.45rem;
+        }
+        .bf-timeline-row {
+            grid-template-columns: 1.1rem minmax(0, 1fr);
+            gap: 0.3rem;
+            padding: 0.28rem 0.4rem;
+        }
+        .bf-timeline-num {
+            width: 0.85rem;
+            height: 0.85rem;
+            font-size: 0.36rem;
+        }
+        .bf-signoff {
+            margin-top: 0.55rem;
+            gap: 0.45rem;
+        }
+        .bf-signoff-block {
+            padding: 0.45rem 0.55rem;
         }
     }
 </style>
@@ -662,7 +790,7 @@
                     <span>Type: Buffet Prep</span>
                 </div>
                 <h1 class="bf-name">{{ event.name }}</h1>
-                <p class="bf-description">Operator-facing prep sheet with scaled recipe pulls, sub-recipe dependencies, and raw ingredient task sheets by station. Costing is intentionally removed from this print view so line teams only see what needs to be built, pulled, and prepped for service.</p>
+                <p class="bf-description">Operator-facing prep sheet with scaled recipe pulls, sub-recipe dependencies, and compact raw ingredient task tables by station. Costing is intentionally removed from this print view so line teams only see what needs to be built, pulled, and prepped for service.</p>
             </div>
             <div class="bf-hero-card">
                 <div class="bf-hero-kicker">Kitchen Ops</div>
@@ -792,12 +920,11 @@
                     <section>
                         <div class="bf-section-title">Direct Ingredient Tasks</div>
                         <div class="bf-table-wrap">
-                            <table class="bf-table">
+                            <table class="bf-table bf-table--compact">
                                 <thead>
                                     <tr>
                                         <th>Dish</th>
                                         <th>Ingredient</th>
-                                        <th>Per Guest</th>
                                         <th>Total Needed</th>
                                         <th>Prep Direction</th>
                                     </tr>
@@ -810,9 +937,17 @@
                                             <div class="bf-cell-meta">{{ group.station }}</div>
                                         </td>
                                         <td><div class="bf-cell-title">{{ row.ingredient_name }}</div></td>
-                                        <td>{{ row.display_portion_qty }} {{ row.display_portion_unit }}</td>
                                         <td>{{ row.display_total_qty }} {{ row.display_total_unit }}</td>
-                                        <td>{{ row.description or 'Pull to station spec.' }}</td>
+                                        <td>
+                                            {{ row.description or 'Pull to station spec.' }}
+                                            {% if row.vessel or row.foh_talking_points %}
+                                            <div class="bf-cell-meta">
+                                                {% if row.vessel %}{{ row.vessel }}{% endif %}
+                                                {% if row.vessel and row.foh_talking_points %} / {% endif %}
+                                                {% if row.foh_talking_points %}{{ row.foh_talking_points }}{% endif %}
+                                            </div>
+                                            {% endif %}
+                                        </td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>
@@ -848,11 +983,11 @@
                     {% endif %}
 
                     {% if group.detail_sheets %}
-                    <section>
+                    <section class="bf-detail-section">
                         <div class="bf-section-title">Operator Detail Sheets</div>
                         <div class="bf-detail-stack">
                             {% for sheet in group.detail_sheets %}
-                            <article class="bf-detail-sheet{% if sheet.sheet_type_key == 'direct' %} bf-detail-sheet--direct{% endif %}">
+                            <article class="bf-detail-sheet">
                                 <div class="bf-detail-head">
                                     <div class="bf-detail-kicker">{{ sheet.sheet_type }}</div>
                                     <div class="bf-detail-title">{{ sheet.recipe_name }}</div>
@@ -864,99 +999,6 @@
                                         {% endif %}
                                     </div>
                                 </div>
-                                {% if sheet.sheet_type_key == 'direct' %}
-                                <div class="bf-detail-meta">
-                                    <div class="bf-detail-meta-card">
-                                        <span class="bf-detail-meta-label">Total Pull</span>
-                                        <span class="bf-detail-meta-value">{{ sheet.display_required_qty }} {{ sheet.display_required_unit }}</span>
-                                    </div>
-                                    <div class="bf-detail-meta-card">
-                                        <span class="bf-detail-meta-label">Per Guest</span>
-                                        <span class="bf-detail-meta-value">{{ sheet.display_portion_qty or '—' }} {{ sheet.display_portion_unit or '' }}</span>
-                                    </div>
-                                    <div class="bf-detail-meta-card">
-                                        <span class="bf-detail-meta-label">Dish</span>
-                                        <span class="bf-detail-meta-value">{{ sheet.dish_name }}</span>
-                                    </div>
-                                    <div class="bf-detail-meta-card">
-                                        <span class="bf-detail-meta-label">Station</span>
-                                        <span class="bf-detail-meta-value">{{ sheet.station_label or group.station }}</span>
-                                    </div>
-                                </div>
-                                <div class="bf-detail-body">
-                                    <div class="bf-table-wrap">
-                                        <table class="bf-table">
-                                            <thead>
-                                                <tr>
-                                                    <th>Ingredient</th>
-                                                    <th>Total Needed</th>
-                                                    <th>Per Guest</th>
-                                                    <th>Prep Direction</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <tr>
-                                                    <td>
-                                                        <div class="bf-cell-title">{{ sheet.recipe_name }}</div>
-                                                        <div class="bf-cell-meta">Direct station pull</div>
-                                                    </td>
-                                                    <td>{{ sheet.display_required_qty }} {{ sheet.display_required_unit }}</td>
-                                                    <td>{{ sheet.display_portion_qty or '—' }} {{ sheet.display_portion_unit or '' }}</td>
-                                                    <td>{{ sheet.prep_action or 'Pull to station spec.' }}</td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
-
-                                    <div class="bf-detail-panels">
-                                        <section class="bf-panel bf-panel--direct">
-                                            <div class="bf-panel-title">Prep Direction</div>
-                                            <div class="bf-panel-list">
-                                                {% for step in sheet.prep_lines %}
-                                                <div class="bf-panel-item"><strong>{{ '%02d'|format(loop.index) }}.</strong>{{ step }}</div>
-                                                {% endfor %}
-                                            </div>
-                                        </section>
-                                        <section class="bf-panel">
-                                            <div class="bf-panel-title">Service And Notes</div>
-                                            <div class="bf-handling-grid">
-                                                <div class="bf-handling-row">
-                                                    <span>Dish</span>
-                                                    <span>{{ sheet.dish_name }}</span>
-                                                </div>
-                                                <div class="bf-handling-row">
-                                                    <span>Station</span>
-                                                    <span>{{ sheet.station_label or group.station }}</span>
-                                                </div>
-                                                <div class="bf-handling-row">
-                                                    <span>Per Guest</span>
-                                                    <span>{{ sheet.display_portion_qty or '—' }} {{ sheet.display_portion_unit or '' }}</span>
-                                                </div>
-                                                <div class="bf-handling-row">
-                                                    <span>Vessel</span>
-                                                    <span>{{ sheet.vessel or 'Not specified' }}</span>
-                                                </div>
-                                                <div class="bf-handling-row">
-                                                    <span>FOH</span>
-                                                    <span>{{ sheet.foh_talking_points or 'Not logged' }}</span>
-                                                </div>
-                                            </div>
-                                        </section>
-                                    </div>
-
-                                    <section class="bf-timeline">
-                                        <div class="bf-timeline-head">Task Sequence</div>
-                                        <div class="bf-timeline-list">
-                                            {% for step in sheet.instruction_steps %}
-                                            <div class="bf-timeline-row">
-                                                <div class="bf-timeline-num">{{ '%02d'|format(loop.index) }}</div>
-                                                <div class="bf-timeline-copy">{{ step }}</div>
-                                            </div>
-                                            {% endfor %}
-                                        </div>
-                                    </section>
-                                </div>
-                                {% else %}
                                 <div class="bf-detail-meta">
                                     <div class="bf-detail-meta-card">
                                         <span class="bf-detail-meta-label">Required Output</span>
@@ -1060,7 +1102,6 @@
                                         </div>
                                     </section>
                                 </div>
-                                {% endif %}
                             </article>
                             {% endfor %}
                         </div>
