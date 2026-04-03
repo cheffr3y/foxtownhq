@@ -226,7 +226,11 @@ def get_recipe_weighted_options(cur, recipe_id):
                CASE
                    WHEN rwo.item_type = 'ingredient' THEN i.cost_per_unit
                    ELSE NULL
-               END AS ingredient_cost_per_unit
+               END AS ingredient_cost_per_unit,
+               CASE
+                   WHEN rwo.item_type = 'ingredient' THEN i.g_code
+                   ELSE NULL
+               END AS g_code
         FROM recipe_weighted_options rwo
         LEFT JOIN ingredients i ON rwo.item_type = 'ingredient' AND rwo.item_id = i.id
         LEFT JOIN recipes r ON rwo.item_type = 'recipe' AND rwo.item_id = r.id
@@ -346,7 +350,11 @@ def get_recipe_components(cur, recipe_id):
                CASE
                    WHEN ri.type = 'ingredient' THEN i.unit
                    ELSE NULL
-               END as ingredient_unit
+               END as ingredient_unit,
+               CASE
+                   WHEN ri.type = 'ingredient' THEN i.g_code
+                   ELSE NULL
+               END as g_code
         FROM recipe_ingredients ri
         LEFT JOIN ingredients i ON ri.type = 'ingredient' AND ri.item_id = i.id
         LEFT JOIN recipes r ON ri.type = 'recipe' AND ri.item_id = r.id
@@ -521,6 +529,7 @@ def build_component_tree(cur, recipe_id, scale_ratio, depth, path, unit_system, 
                     'item_id': option.get('item_id'),
                     'item_name': option.get('item_name') or 'Unknown option',
                     'category': 'Weighted option',
+                    'g_code': option.get('g_code') or '',
                     'unit': option.get('unit'),
                     'scaled_quantity': scaled_qty,
                     'scaled_quantity_display': format_number(scaled_qty),

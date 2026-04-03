@@ -21,6 +21,7 @@
             {% set unit_cost = ('$' ~ ('%.2f'|format(item.display_cost_per_unit)) ~ ' / ' ~ (item.display_unit or item.unit or 'unit')) if item.display_cost_per_unit is not none else 'N/A' %}
             {% set extension_cost = '$' ~ ('%.2f'|format(item.cost_total)) if item.cost_total is not none else 'N/A' %}
             {% set subline = item.category or 'Raw ingredient' %}
+            {% set code_copy = item.g_code or 'Unmapped' %}
         {% elif item.type == 'recipe' %}
             {% set item_label = 'Sub-Recipe' %}
             {% set item_badge = 'SUB' %}
@@ -32,6 +33,7 @@
             {% else %}
                 {% set subline = 'No child recipe detail recorded' %}
             {% endif %}
+            {% set code_copy = '' %}
         {% else %}
             {% set item_label = 'Choice Group' %}
             {% set item_badge = 'WG' %}
@@ -42,6 +44,7 @@
             {% else %}
                 {% set subline = 'Weighted option group' %}
             {% endif %}
+            {% set code_copy = '' %}
         {% endif %}
 <tr class="rm-ledger-row {% if item.type == 'recipe' %}rm-ledger-row--recipe{% elif item.type == 'option_group' %}rm-ledger-row--group{% endif %}">
     <td class="rm-ledger-cell rm-ledger-cell--name" style="padding-left: calc(1rem + {{ depth }} * 1.2rem);">
@@ -50,6 +53,9 @@
             <div>
                 <div class="rm-ledger-title">{{ item.item_name }}</div>
                 <div class="rm-ledger-subline">{{ item_label }} · {{ subline }}</div>
+                {% if code_copy %}
+                <div class="rm-ledger-code">G-Code · {{ code_copy }}</div>
+                {% endif %}
             </div>
         </div>
     </td>
@@ -80,7 +86,7 @@
         </div>
         <div class="rm-toolbar-actions">
             <a href="{{ url_for('recipes') }}" class="rm-btn rm-btn--ghost">All Recipes</a>
-            <button type="button" onclick="exportRecipePdf()" class="rm-btn rm-btn--ghost">Export PDF</button>
+            <button type="button" id="recipeExportButton" onclick="exportRecipePdf()" class="rm-btn rm-btn--ghost">Export PDF</button>
             <form method="POST" action="{{ url_for('recipe_clone', recipe_id=recipe.id) }}"><button type="submit" class="rm-btn rm-btn--ghost">Clone</button></form>
             <form method="POST" action="{{ url_for('recipe_delete', recipe_id=recipe.id) }}" onsubmit="return confirm('Delete ' + {{ recipe.name|tojson }} + '? This cannot be undone.')">
                 <button type="submit" class="rm-btn rm-btn--danger">Delete</button>
@@ -89,7 +95,7 @@
         </div>
     </div>
 
-    <div class="rm-sheet">
+    <div class="rm-sheet" id="recipeExportSheet">
         <section class="rm-hero">
             <div class="rm-hero-copy">
                 <div class="rm-hero-meta">
@@ -521,6 +527,14 @@
     text-transform: uppercase;
     color: #566166;
 }
+.rm-ledger-code {
+    margin-top: 0.2rem;
+    font-size: 0.62rem;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #2a3439;
+}
 .rm-ledger-note-row {
     background: #fafbfd;
     border-bottom: 1px solid #a9b4b9;
@@ -703,6 +717,29 @@
 .rm-timeline-row:last-child .rm-timeline-copy {
     padding-bottom: 0;
 }
+.rm-hero,
+.rm-stat-grid,
+.rm-panel-grid,
+.rm-panel,
+.rm-timeline-row {
+    break-inside: avoid-page;
+    page-break-inside: avoid;
+}
+.rm-sheet--pdf {
+    max-width: 72rem !important;
+    margin: 0 !important;
+}
+.rm-sheet--pdf .rm-hero,
+.rm-sheet--pdf .rm-panel-grid {
+    grid-template-columns: minmax(0, 1.4fr) minmax(18rem, 0.8fr);
+}
+.rm-sheet--pdf .rm-stat-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.rm-sheet--pdf .rm-ledger-header,
+.rm-sheet--pdf .rm-ledger-total {
+    grid-template-columns: minmax(0, 1.8fr) minmax(10rem, 0.6fr) minmax(10rem, 0.6fr) minmax(10rem, 0.6fr);
+}
 @media (max-width: 960px) {
     .rm-sheet,
     .rm-toolbar {
@@ -733,6 +770,18 @@
     }
 }
 @media print {
+    body {
+        background: #ffffff !important;
+    }
+    .fhq-topbar,
+    .fhq-flash,
+    .rm-toolbar {
+        display: none !important;
+    }
+    .fhq-frame {
+        max-width: none !important;
+        padding: 0 !important;
+    }
     .rm-shell {
         background: #ffffff !important;
         padding: 0 !important;
@@ -756,248 +805,83 @@
 }
 </style>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script>
-const recipePdfData = {{ recipe_pdf | tojson }};
+const recipeName = {{ recipe.name | tojson }};
 
-function exportRecipePdf() {
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF('l', 'pt', 'letter');
+async function exportRecipePdf() {
+    const sourceSheet = document.getElementById('recipeExportSheet');
+    const exportButton = document.getElementById('recipeExportButton');
+    if (!sourceSheet) return;
 
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const margin = 30;
-    const contentWidth = pageWidth - margin * 2;
-    const bottomLimit = pageHeight - margin;
-    let yPos = margin;
-
-    function ensureSpace(requiredHeight, redrawHeader) {
-        if (yPos + requiredHeight <= bottomLimit) return;
-        doc.addPage();
-        yPos = margin;
-        if (typeof redrawHeader === 'function') {
-            redrawHeader();
-        }
-    }
-
-    function drawBrandHeader(isContinuation = false) {
-        doc.setFontSize(9);
-        doc.setTextColor(42, 52, 57);
-        doc.setFont(undefined, 'bold');
-        doc.text(
-            isContinuation ? 'RECIPE MASTER · CONTINUED' : 'RECIPE MASTER',
-            pageWidth / 2,
-            yPos,
-            { align: 'center' }
-        );
-        yPos += 12;
-
-        doc.setDrawColor(42, 52, 57);
-        doc.setLineWidth(2);
-        doc.line(margin, yPos, pageWidth - margin, yPos);
-        yPos += 18;
-    }
-
-    function drawSectionBanner(title) {
-        ensureSpace(24, () => drawBrandHeader(true));
-        doc.setFontSize(11);
-        doc.setFont(undefined, 'bold');
-        doc.setTextColor(255, 255, 255);
-        doc.setFillColor(42, 52, 57);
-        doc.rect(margin, yPos - 10, contentWidth, 14, 'F');
-        doc.text(title, margin + 5, yPos);
-        yPos += 16;
-    }
-
-    function parseInstructionSteps(rawText) {
-        const cleanText = (rawText || '').replace(/\r/g, '\n').trim();
-        if (!cleanText) return [];
-
-        const lineSplit = cleanText
-            .split('\n')
-            .map((line) => line.trim())
-            .filter(Boolean);
-        if (lineSplit.length > 1) {
-            return lineSplit.map((line) => line.replace(/^\d+[\.\)]\s*/, '').trim()).filter(Boolean);
-        }
-
-        const numbered = [...cleanText.matchAll(/(?:^|\s)\d+[\.\)]\s*([\s\S]*?)(?=(?:\s+\d+[\.\)]\s)|$)/g)]
-            .map((match) => (match[1] || '').trim())
-            .filter(Boolean);
-        if (numbered.length > 1) {
-            return numbered;
-        }
-
-        return [cleanText.replace(/^\d+[\.\)]\s*/, '').trim()];
-    }
-
-    drawBrandHeader(false);
-
-    doc.setFontSize(9);
-    doc.setTextColor(86, 97, 102);
-    doc.setFont(undefined, 'bold');
-    doc.text(`Recipe ID: ${recipePdfData.id ? recipePdfData.id.toUpperCase() : 'RECIPE'}${recipePdfData.station ? ` · STATION: ${recipePdfData.station.toUpperCase()}` : ''}`, margin, yPos);
-    yPos += 16;
-
-    doc.setFontSize(22);
-    doc.setTextColor(0, 0, 0);
-    doc.setFont(undefined, 'bold');
-    const recipeNameLines = doc.splitTextToSize(recipePdfData.name || 'Recipe Name', contentWidth - 180);
-    doc.text(recipeNameLines, margin, yPos);
-    yPos += (recipeNameLines.length * 20) + 10;
-
-    doc.setFontSize(9);
-    doc.setTextColor(42, 52, 57);
-    doc.setFont(undefined, 'bold');
-    doc.text('Yield:', margin, yPos);
-    doc.setFont(undefined, 'normal');
-    doc.text(recipePdfData.yield || 'N/A', margin + 36, yPos);
-
-    doc.setFont(undefined, 'bold');
-    doc.text('Equipment:', margin + 170, yPos);
-    doc.setFont(undefined, 'normal');
-    doc.text(recipePdfData.equipment || 'N/A', margin + 235, yPos);
-
-    doc.setFont(undefined, 'bold');
-    doc.text('Venue:', margin + 430, yPos);
-    doc.setFont(undefined, 'normal');
-    doc.text(recipePdfData.venue || 'N/A', margin + 475, yPos);
-    yPos += 22;
-
-    const ingredients = recipePdfData.ingredients || [];
-    if (ingredients.length) {
-        const colWidths = [260, 70, 70, contentWidth - 400];
-        const colX = [margin, margin + colWidths[0], margin + colWidths[0] + colWidths[1], margin + colWidths[0] + colWidths[1] + colWidths[2]];
-        const totalTableWidth = colWidths.reduce((a, b) => a + b, 0);
-        const headers = ['Ingredient', 'Qty', 'UOM', 'Notes'];
-
-        function drawIngredientHeader() {
-            drawSectionBanner('COMPOSITION LEDGER');
-            ensureSpace(22, () => {
-                drawBrandHeader(true);
-                drawSectionBanner('COMPOSITION LEDGER');
-            });
-            doc.setFontSize(8);
-            doc.setFillColor(217, 228, 234);
-            doc.rect(margin, yPos, totalTableWidth, 18, 'F');
-            doc.setTextColor(42, 52, 57);
-            doc.setFont(undefined, 'bold');
-            headers.forEach((header, i) => doc.text(header, colX[i] + 3, yPos + 12));
-            yPos += 22;
-        }
-
-        drawIngredientHeader();
-        doc.setFont(undefined, 'normal');
-        doc.setTextColor(0, 0, 0);
-
-        ingredients.forEach((ing, index) => {
-            const nameLines = doc.splitTextToSize(ing.name || '', colWidths[0] - 6);
-            const qtyLines = doc.splitTextToSize(ing.qty || '', colWidths[1] - 6);
-            const unitLines = doc.splitTextToSize(ing.unit || '', colWidths[2] - 6);
-            const noteLines = doc.splitTextToSize(ing.notes || '', colWidths[3] - 6);
-            const lineCount = Math.max(nameLines.length, qtyLines.length, unitLines.length, noteLines.length, 1);
-            const rowHeight = Math.max(14, lineCount * 10 + 4);
-
-            ensureSpace(rowHeight + 2, () => {
-                drawBrandHeader(true);
-                drawIngredientHeader();
-                doc.setFont(undefined, 'normal');
-                doc.setTextColor(0, 0, 0);
-            });
-
-            if (index % 2 === 0) {
-                doc.setFillColor(248, 249, 250);
-                doc.rect(margin, yPos - 9, totalTableWidth, rowHeight, 'F');
-            }
-
-            doc.text(nameLines, colX[0] + 3, yPos);
-            doc.text(qtyLines, colX[1] + 3, yPos);
-            doc.text(unitLines, colX[2] + 3, yPos);
-            doc.text(noteLines, colX[3] + 3, yPos);
-            yPos += rowHeight;
-        });
-
-        yPos += 8;
-    }
-
-    const criticalSteps = parseInstructionSteps(recipePdfData.critical_steps);
-    if (criticalSteps.length) {
-        drawSectionBanner('CRITICAL STEPS');
-        criticalSteps.forEach((stepText, index) => {
-            const label = `${index + 1}.`;
-            const wrapped = doc.splitTextToSize(stepText, contentWidth - 24);
-            const blockHeight = Math.max(14, wrapped.length * 12 + 2);
-            ensureSpace(blockHeight + 2, () => {
-                drawBrandHeader(true);
-                drawSectionBanner('CRITICAL STEPS');
-            });
-            doc.setFont(undefined, 'bold');
-            doc.setTextColor(192, 8, 21);
-            doc.text(label, margin, yPos);
-            doc.setFont(undefined, 'normal');
-            doc.setTextColor(50, 50, 50);
-            doc.text(wrapped, margin + 18, yPos);
-            yPos += blockHeight;
-        });
-    }
-
-    const storageLines = parseInstructionSteps(recipePdfData.storage_instructions);
-    if (storageLines.length) {
-        drawSectionBanner('STORAGE');
-        storageLines.forEach((lineText) => {
-            const wrapped = doc.splitTextToSize(`• ${lineText}`, contentWidth - 12);
-            const blockHeight = Math.max(12, wrapped.length * 11 + 2);
-            ensureSpace(blockHeight + 2, () => {
-                drawBrandHeader(true);
-                drawSectionBanner('STORAGE');
-            });
-            doc.setTextColor(50, 50, 50);
-            doc.text(wrapped, margin, yPos);
-            yPos += blockHeight;
-        });
-    }
-
-    if (recipePdfData.instructions) {
-        const steps = parseInstructionSteps(recipePdfData.instructions);
-        if (steps.length) {
-            drawSectionBanner('INSTRUCTIONS');
-            doc.setFontSize(10);
-            doc.setTextColor(50, 50, 50);
-            doc.setFont(undefined, 'normal');
-
-            steps.forEach((stepText, index) => {
-                const label = `${index + 1}.`;
-                const wrapped = doc.splitTextToSize(stepText, contentWidth - 24);
-                const blockHeight = Math.max(14, wrapped.length * 12 + 2);
-                ensureSpace(blockHeight + 2, () => {
-                    drawBrandHeader(true);
-                    drawSectionBanner('INSTRUCTIONS');
-                    doc.setFontSize(10);
-                    doc.setTextColor(50, 50, 50);
-                    doc.setFont(undefined, 'normal');
-                });
-                doc.setFont(undefined, 'bold');
-                doc.text(label, margin, yPos);
-                doc.setFont(undefined, 'normal');
-                doc.text(wrapped, margin + 18, yPos);
-                yPos += blockHeight;
-            });
-        }
-    }
-
-    const pageCount = doc.getNumberOfPages();
-    for (let page = 1; page <= pageCount; page++) {
-        doc.setPage(page);
-        doc.setFontSize(8);
-        doc.setTextColor(120, 120, 120);
-        doc.text(`Page ${page} of ${pageCount}`, pageWidth - margin, pageHeight - 12, { align: 'right' });
-    }
-
-    const safeName = (recipePdfData.name || 'recipe')
+    const safeName = (recipeName || 'recipe')
         .replace(/[^a-z0-9]+/gi, '_')
         .replace(/^_+|_+$/g, '')
         .toLowerCase();
-    doc.save(`${safeName || 'recipe'}.pdf`);
+
+    const exportHost = document.createElement('div');
+    exportHost.style.position = 'fixed';
+    exportHost.style.left = '-10000px';
+    exportHost.style.top = '0';
+    exportHost.style.width = '72rem';
+    exportHost.style.padding = '1rem';
+    exportHost.style.background = '#ffffff';
+    exportHost.style.zIndex = '-1';
+
+    const pdfSheet = sourceSheet.cloneNode(true);
+    pdfSheet.classList.add('rm-sheet--pdf');
+    exportHost.appendChild(pdfSheet);
+    document.body.appendChild(exportHost);
+
+    const originalLabel = exportButton ? exportButton.textContent : '';
+    try {
+        if (exportButton) {
+            exportButton.disabled = true;
+            exportButton.textContent = 'Exporting...';
+        }
+
+        if (!window.html2pdf) {
+            window.print();
+            return;
+        }
+
+        const pdfOptions = {
+            margin: [0.2, 0.2, 0.2, 0.2],
+            filename: `${safeName || 'recipe'}.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: {
+                scale: 2,
+                useCORS: true,
+                backgroundColor: '#ffffff',
+                windowWidth: 1440,
+                scrollX: 0,
+                scrollY: 0
+            },
+            jsPDF: {
+                unit: 'in',
+                format: 'letter',
+                orientation: 'landscape'
+            },
+            pagebreak: {
+                mode: ['css', 'legacy']
+            }
+        };
+
+        try {
+            await window.html2pdf().set(pdfOptions).from(pdfSheet).save();
+        } catch (error) {
+            console.error('Recipe PDF export failed; falling back to print.', error);
+            window.print();
+        }
+    } finally {
+        if (exportHost.parentNode) {
+            exportHost.parentNode.removeChild(exportHost);
+        }
+        if (exportButton) {
+            exportButton.disabled = false;
+            exportButton.textContent = originalLabel || 'Export PDF';
+        }
+    }
 }
 </script>
 {% endblock %}

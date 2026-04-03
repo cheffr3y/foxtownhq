@@ -3,7 +3,7 @@ from db import get_cursor, get_db
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import login_required
 from helpers.db_helpers import db_table_exists, ensure_recipe_metadata_columns
-from helpers.formatting import flatten_components_for_pdf, split_instruction_steps
+from helpers.formatting import split_instruction_steps
 from helpers.recipes import (
     build_component_tree,
     clone_recipe,
@@ -938,20 +938,6 @@ def recipe_detail(recipe_id):
         instruction_steps = split_instruction_steps(recipe.get('instructions'))
         critical_steps_list = split_instruction_steps(recipe.get('critical_steps'))
         storage_lines = split_instruction_steps(recipe.get('storage_instructions'))
-        pdf_data = {
-            'id': recipe.get('id') or '',
-            'name': recipe.get('name') or '',
-            'venue': recipe.get('source_venue') or '',
-            'equipment': recipe.get('equipment') or '',
-            'station': recipe.get('station') or '',
-            'critical_steps': recipe.get('critical_steps') or '',
-            'storage_instructions': recipe.get('storage_instructions') or '',
-            'shelf_life_days': recipe.get('shelf_life_days'),
-            'prep_time_minutes': recipe.get('prep_time_minutes'),
-            'yield': f"{yield_display.get('quantity')} {yield_display.get('unit')}".strip(),
-            'ingredients': flatten_components_for_pdf(components),
-            'instructions': recipe.get('instructions') or ''
-        }
     
     return render_template(
         'recipe_detail.html',
@@ -964,7 +950,6 @@ def recipe_detail(recipe_id):
         base_total_cost=base_total_cost,
         q_factor_percent=RECIPE_Q_FACTOR_PERCENT,
         q_factor_amount=q_factor_amount,
-        recipe_pdf=pdf_data,
         instruction_steps=instruction_steps,
         critical_steps_list=critical_steps_list,
         storage_lines=storage_lines,
