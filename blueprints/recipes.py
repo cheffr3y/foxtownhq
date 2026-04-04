@@ -15,7 +15,7 @@ from helpers.recipes import (
     parse_weighted_options_from_form,
 )
 from helpers.shared import generate_id, handle_route_error, to_float
-from helpers.units import get_unit_system, normalize_unit, smart_quantity
+from helpers.units import get_unit_system, normalize_unit
 from helpers.venues import get_active_venues, get_recipe_venue_ids, parse_recipe_venue_ids
 
 bp = Blueprint('recipes', __name__)
@@ -114,6 +114,59 @@ def _prepare_option_items_for_form(option_items, label_map):
         )
         prepared.append(item)
     return prepared
+
+
+def _get_recipe_detail_context(recipe_id):
+    unit_system = get_unit_system()
+    conn = get_db()
+    with get_cursor() as cur:
+        ensure_recipe_metadata_columns(cur)
+        conn.commit()
+        recipe = get_recipe_by_id(cur, recipe_id)
+
+        if not recipe:
+            return None
+
+        recipe_venues = []
+        if db_table_exists(cur, 'public.recipe_venues') and db_table_exists(cur, 'public.venues'):
+            cur.execute("""
+                SELECT v.id, v.name
+                FROM recipe_venues rv
+                JOIN venues v ON v.id = rv.venue_id
+                WHERE rv.recipe_id = %s
+                ORDER BY v.name
+            """, (recipe_id,))
+            recipe_venues = cur.fetchall()
+
+        components, total_cost, _ = build_component_tree(cur, recipe_id, 1, 0, set(), unit_system, apply_q_factor=True)
+        base_total_cost = None
+        q_factor_amount = None
+        q_factor_percent = RECIPE_Q_FACTOR_PERCENT
+        if total_cost is not None and q_factor_percent and q_factor_percent > 0:
+            divisor = 1 + (q_factor_percent / 100)
+            base_total_cost = total_cost / divisor
+            q_factor_amount = total_cost - base_total_cost
+        elif total_cost is not None:
+            base_total_cost = total_cost
+        yield_qty_float = to_float(recipe.get('yield_qty'))
+        cost_per_yield = None
+        if total_cost is not None and yield_qty_float > 0:
+            cost_per_yield = total_cost / yield_qty_float
+
+        return {
+            'recipe': recipe,
+            'recipe_venues': recipe_venues,
+            'components': components,
+            'component_count': len(components),
+            'total_cost': total_cost,
+            'cost_per_yield': cost_per_yield,
+            'base_total_cost': base_total_cost,
+            'q_factor_percent': RECIPE_Q_FACTOR_PERCENT,
+            'q_factor_amount': q_factor_amount,
+            'instruction_steps': split_instruction_steps(recipe.get('instructions')),
+            'critical_steps_list': split_instruction_steps(recipe.get('critical_steps')),
+            'storage_lines': split_instruction_steps(recipe.get('storage_instructions')),
+        }
 
 
 @bp.errorhandler(Exception)
@@ -896,64 +949,21 @@ def recipe_delete(recipe_id):
 @bp.route('/recipes/<recipe_id>')
 @login_required
 def recipe_detail(recipe_id):
-    unit_system = get_unit_system()
-    conn = get_db()
-    with get_cursor() as cur:
-        ensure_recipe_metadata_columns(cur)
-        conn.commit()
-        # Get recipe details
-        recipe = get_recipe_by_id(cur, recipe_id)
+    context = _get_recipe_detail_context(recipe_id)
+    if not context:
+        flash('Recipe not found', 'error')
+        return redirect(url_for('recipes'))
+    return render_template('recipe_detail.html', auto_print=False, **context)
 
-        if not recipe:
-            flash('Recipe not found', 'error')
-            return redirect(url_for('recipes'))
 
-        recipe_venues = []
-        if db_table_exists(cur, 'public.recipe_venues') and db_table_exists(cur, 'public.venues'):
-            cur.execute("""
-                SELECT v.id, v.name
-                FROM recipe_venues rv
-                JOIN venues v ON v.id = rv.venue_id
-                WHERE rv.recipe_id = %s
-                ORDER BY v.name
-            """, (recipe_id,))
-            recipe_venues = cur.fetchall()
-
-        components, total_cost, _ = build_component_tree(cur, recipe_id, 1, 0, set(), unit_system, apply_q_factor=True)
-        base_total_cost = None
-        q_factor_amount = None
-        q_factor_percent = RECIPE_Q_FACTOR_PERCENT
-        if total_cost is not None and q_factor_percent and q_factor_percent > 0:
-            divisor = 1 + (q_factor_percent / 100)
-            base_total_cost = total_cost / divisor
-            q_factor_amount = total_cost - base_total_cost
-        elif total_cost is not None:
-            base_total_cost = total_cost
-        yield_qty_float = to_float(recipe.get('yield_qty'))
-        cost_per_yield = None
-        if total_cost is not None and yield_qty_float > 0:
-            cost_per_yield = total_cost / yield_qty_float
-
-        yield_display = smart_quantity(recipe.get('yield_qty'), recipe.get('yield_unit'), unit_system)
-        instruction_steps = split_instruction_steps(recipe.get('instructions'))
-        critical_steps_list = split_instruction_steps(recipe.get('critical_steps'))
-        storage_lines = split_instruction_steps(recipe.get('storage_instructions'))
-    
-    return render_template(
-        'recipe_detail.html',
-        recipe=recipe,
-        recipe_venues=recipe_venues,
-        components=components,
-        component_count=len(components),
-        total_cost=total_cost,
-        cost_per_yield=cost_per_yield,
-        base_total_cost=base_total_cost,
-        q_factor_percent=RECIPE_Q_FACTOR_PERCENT,
-        q_factor_amount=q_factor_amount,
-        instruction_steps=instruction_steps,
-        critical_steps_list=critical_steps_list,
-        storage_lines=storage_lines,
-    )
+@bp.route('/recipes/<recipe_id>/print')
+@login_required
+def recipe_print(recipe_id):
+    context = _get_recipe_detail_context(recipe_id)
+    if not context:
+        flash('Recipe not found', 'error')
+        return redirect(url_for('recipes'))
+    return render_template('recipe_detail.html', auto_print=True, **context)
 
 
 @bp.route('/api/recipes/search')

@@ -79,6 +79,7 @@
 {%- endmacro %}
 
 <div class="rm-shell">
+    {% if not auto_print %}
     <div class="rm-toolbar no-print">
         <div class="rm-toolbar-copy">
             <div class="rm-toolbar-kicker">Recipe Master</div>
@@ -86,7 +87,7 @@
         </div>
         <div class="rm-toolbar-actions">
             <a href="{{ url_for('recipes') }}" class="rm-btn rm-btn--ghost">All Recipes</a>
-            <button type="button" id="recipeExportButton" onclick="exportRecipePdf()" class="rm-btn rm-btn--ghost">Export PDF</button>
+            <button type="button" id="recipeExportButton" onclick="exportRecipePdf()" class="rm-btn rm-btn--ghost">Print / Save PDF</button>
             <form method="POST" action="{{ url_for('recipe_clone', recipe_id=recipe.id) }}"><button type="submit" class="rm-btn rm-btn--ghost">Clone</button></form>
             <form method="POST" action="{{ url_for('recipe_delete', recipe_id=recipe.id) }}" onsubmit="return confirm('Delete ' + {{ recipe.name|tojson }} + '? This cannot be undone.')">
                 <button type="submit" class="rm-btn rm-btn--danger">Delete</button>
@@ -94,8 +95,9 @@
             <a href="{{ url_for('recipe_edit', recipe_id=recipe.id) }}" class="rm-btn rm-btn--primary">Edit Recipe</a>
         </div>
     </div>
+    {% endif %}
 
-    <div class="rm-sheet" id="recipeExportSheet">
+    <div class="rm-sheet">
         <section class="rm-hero">
             <div class="rm-hero-copy">
                 <div class="rm-hero-meta">
@@ -725,21 +727,6 @@
     break-inside: avoid-page;
     page-break-inside: avoid;
 }
-.rm-sheet--pdf {
-    max-width: 72rem !important;
-    margin: 0 !important;
-}
-.rm-sheet--pdf .rm-hero,
-.rm-sheet--pdf .rm-panel-grid {
-    grid-template-columns: minmax(0, 1.4fr) minmax(18rem, 0.8fr);
-}
-.rm-sheet--pdf .rm-stat-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-.rm-sheet--pdf .rm-ledger-header,
-.rm-sheet--pdf .rm-ledger-total {
-    grid-template-columns: minmax(0, 1.8fr) minmax(10rem, 0.6fr) minmax(10rem, 0.6fr) minmax(10rem, 0.6fr);
-}
 @media (max-width: 960px) {
     .rm-sheet,
     .rm-toolbar {
@@ -805,83 +792,24 @@
 }
 </style>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script>
-const recipeName = {{ recipe.name | tojson }};
-
-async function exportRecipePdf() {
-    const sourceSheet = document.getElementById('recipeExportSheet');
-    const exportButton = document.getElementById('recipeExportButton');
-    if (!sourceSheet) return;
-
-    const safeName = (recipeName || 'recipe')
-        .replace(/[^a-z0-9]+/gi, '_')
-        .replace(/^_+|_+$/g, '')
-        .toLowerCase();
-
-    const exportHost = document.createElement('div');
-    exportHost.style.position = 'fixed';
-    exportHost.style.left = '-10000px';
-    exportHost.style.top = '0';
-    exportHost.style.width = '72rem';
-    exportHost.style.padding = '1rem';
-    exportHost.style.background = '#ffffff';
-    exportHost.style.zIndex = '-1';
-
-    const pdfSheet = sourceSheet.cloneNode(true);
-    pdfSheet.classList.add('rm-sheet--pdf');
-    exportHost.appendChild(pdfSheet);
-    document.body.appendChild(exportHost);
-
-    const originalLabel = exportButton ? exportButton.textContent : '';
-    try {
-        if (exportButton) {
-            exportButton.disabled = true;
-            exportButton.textContent = 'Exporting...';
-        }
-
-        if (!window.html2pdf) {
-            window.print();
-            return;
-        }
-
-        const pdfOptions = {
-            margin: [0.2, 0.2, 0.2, 0.2],
-            filename: `${safeName || 'recipe'}.pdf`,
-            image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: {
-                scale: 2,
-                useCORS: true,
-                backgroundColor: '#ffffff',
-                windowWidth: 1440,
-                scrollX: 0,
-                scrollY: 0
-            },
-            jsPDF: {
-                unit: 'in',
-                format: 'letter',
-                orientation: 'landscape'
-            },
-            pagebreak: {
-                mode: ['css', 'legacy']
-            }
-        };
-
-        try {
-            await window.html2pdf().set(pdfOptions).from(pdfSheet).save();
-        } catch (error) {
-            console.error('Recipe PDF export failed; falling back to print.', error);
-            window.print();
-        }
-    } finally {
-        if (exportHost.parentNode) {
-            exportHost.parentNode.removeChild(exportHost);
-        }
-        if (exportButton) {
-            exportButton.disabled = false;
-            exportButton.textContent = originalLabel || 'Export PDF';
-        }
+function exportRecipePdf() {
+    const printUrl = {{ url_for('recipe_print', recipe_id=recipe.id) | tojson }};
+    const popup = window.open(printUrl, '_blank', 'noopener,noreferrer');
+    if (!popup) {
+        window.location.href = printUrl;
     }
 }
+
+{% if auto_print %}
+window.addEventListener('load', () => {
+    window.setTimeout(() => {
+        window.print();
+    }, 250);
+    window.addEventListener('afterprint', () => {
+        window.close();
+    }, { once: true });
+});
+{% endif %}
 </script>
 {% endblock %}
