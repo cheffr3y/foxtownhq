@@ -1154,6 +1154,148 @@ def fetch_banquet_event_lines(cur, start_date, end_date, venue_id=''):
         row['is_event_only'] = bool(row.get('is_event_only', False))
     return rows
 
+def build_banquet_recipe_detail_card(
+    cur,
+    recipe_id,
+    required_qty,
+    required_unit,
+    required_batches,
+    ingredient_name_map=None,
+    unit_system='imperial',
+    recipe_cache=None,
+    ancestry=None,
+    max_depth=4
+):
+    if not recipe_id:
+        return None
+
+    ingredient_name_map = ingredient_name_map or {}
+    recipe_cache = recipe_cache or {}
+    ancestry = ancestry or set()
+
+    if recipe_id in recipe_cache:
+        recipe = recipe_cache.get(recipe_id)
+    else:
+        recipe = get_recipe_by_id(cur, recipe_id)
+        recipe_cache[recipe_id] = recipe
+    if not recipe:
+        return None
+
+    batches = to_float(required_batches)
+    if batches <= 0:
+        yield_qty = to_float(recipe.get('yield_qty'))
+        if yield_qty > 0 and to_float(required_qty) > 0:
+            required_qty_in_yield = to_float(required_qty)
+            yield_unit = recipe.get('yield_unit') or required_unit
+            if required_unit and yield_unit and required_unit != yield_unit:
+                converted = convert_quantity_between_units(required_qty_in_yield, required_unit, yield_unit)
+                if converted is not None:
+                    required_qty_in_yield = converted
+            batches = required_qty_in_yield / yield_qty
+        else:
+            batches = to_float(required_qty)
+    if batches <= 0:
+        return None
+
+    components, _, _ = build_component_tree(
+        cur,
+        recipe_id,
+        batches,
+        0,
+        set(),
+        unit_system,
+        apply_q_factor=False
+    )
+
+    ingredient_totals = {}
+    collect_direct_ingredients_for_prep(components, ingredient_totals)
+    ingredient_rows = []
+    for (ing_id, unit), qty in ingredient_totals.items():
+        display = smart_quantity(qty, unit, unit_system)
+        ingredient_rows.append({
+            'ingredient_id': ing_id,
+            'name': ingredient_name_map.get(ing_id, 'Unknown'),
+            'quantity': qty,
+            'unit': unit,
+            'display_quantity': display.get('quantity'),
+            'display_unit': display.get('unit')
+        })
+    ingredient_rows.sort(key=lambda item: (item.get('name') or '').lower())
+
+    subrecipe_totals = {}
+    collect_direct_subrecipes_for_prep(components, subrecipe_totals)
+    subrecipe_rows = []
+    child_cards = []
+    if len(ancestry) < max_depth:
+        for (child_recipe_id, child_unit), child_qty in subrecipe_totals.items():
+            if not child_recipe_id:
+                continue
+            child_recipe = recipe_cache.get(child_recipe_id)
+            if child_recipe is None:
+                child_recipe = get_recipe_by_id(cur, child_recipe_id)
+                recipe_cache[child_recipe_id] = child_recipe
+            if not child_recipe:
+                continue
+
+            child_yield_qty = to_float(child_recipe.get('yield_qty'))
+            child_yield_unit = child_recipe.get('yield_unit') or child_unit
+            child_required_qty_in_yield = child_qty
+            if child_unit and child_yield_unit and child_unit != child_yield_unit:
+                converted = convert_quantity_between_units(child_qty, child_unit, child_yield_unit)
+                if converted is not None:
+                    child_required_qty_in_yield = converted
+            child_required_batches = (child_required_qty_in_yield / child_yield_qty) if child_yield_qty > 0 else child_required_qty_in_yield
+            display = smart_quantity(child_qty, child_unit, unit_system)
+            subrecipe_rows.append({
+                'recipe_id': child_recipe_id,
+                'recipe_name': child_recipe.get('name') or 'Sub-recipe',
+                'required_qty': child_qty,
+                'required_unit': child_unit,
+                'display_required': display,
+                'required_batches': child_required_batches,
+                'yield_qty': child_yield_qty,
+                'yield_unit': child_yield_unit
+            })
+
+            if child_recipe_id in ancestry:
+                continue
+            child_card = build_banquet_recipe_detail_card(
+                cur,
+                child_recipe_id,
+                child_qty,
+                child_unit,
+                child_required_batches,
+                ingredient_name_map=ingredient_name_map,
+                unit_system=unit_system,
+                recipe_cache=recipe_cache,
+                ancestry=ancestry | {recipe_id, child_recipe_id},
+                max_depth=max_depth
+            )
+            if child_card:
+                child_cards.append(child_card)
+    subrecipe_rows.sort(key=lambda item: (item.get('recipe_name') or '').lower())
+
+    display_required = smart_quantity(required_qty, required_unit, unit_system)
+    if (display_required.get('quantity') in ('', '0')) and to_float(required_qty) <= 0:
+        yield_qty = to_float(recipe.get('yield_qty'))
+        display_required = smart_quantity(
+            (yield_qty * batches) if yield_qty > 0 else batches,
+            recipe.get('yield_unit') or required_unit,
+            unit_system
+        )
+
+    return {
+        'recipe_id': recipe_id,
+        'recipe_name': recipe.get('name') or 'Recipe',
+        'recipe_type': normalize_recipe_type(recipe.get('recipe_type')),
+        'display_required': display_required,
+        'required_batches': batches,
+        'ingredient_rows': ingredient_rows,
+        'subrecipe_rows': subrecipe_rows,
+        'instruction_steps': split_instruction_steps(recipe.get('instructions')),
+        'child_cards': child_cards
+    }
+
 def build_banquet_datasets(cur, start_date, end_date, venue_id='', unit_system='imperial'):
     rows = fetch_banquet_event_lines(cur, start_date, end_date, venue_id)
     events_map = {}
@@ -1163,7 +1305,7 @@ def build_banquet_datasets(cur, start_date, end_date, venue_id='', unit_system='
     batch_usage_events = defaultdict(set)
     batch_usage_menu_items = defaultdict(set)
     event_daily_ingredients = defaultdict(lambda: defaultdict(float))
-    menu_item_direct_pull_totals = {}
+    menu_item_execution_totals = {}
 
     # Keep prep/shopping usable for older event lines that lost menu_item_id
     # by resolving from menu-item name within the same venue.
@@ -1349,8 +1491,44 @@ def build_banquet_datasets(cur, start_date, end_date, venue_id='', unit_system='
         line['estimated_cost_total'] = None
         line['estimated_cost_per_unit'] = None
         line['components'] = []
+        line['recipe_requirements'] = []
         line['additional_ingredients'] = []
         line['additional_ingredient_cost'] = 0
+
+        execution_group_key = (
+            effective_menu_item_id or line.get('menu_item_name') or 'menu_item',
+            line.get('menu_item_name') or 'Menu Item'
+        )
+        if execution_group_key not in menu_item_execution_totals:
+            menu_item_execution_totals[execution_group_key] = {
+                'menu_item_id': effective_menu_item_id,
+                'menu_item_name': line.get('menu_item_name') or 'Menu Item',
+                'menu_descriptor': line.get('menu_descriptor'),
+                'menu_section': line.get('menu_section') or 'Uncategorized',
+                'ingredient_totals': {},
+                'recipe_totals': {},
+                'event_ids': set(),
+                'service_rows': [],
+                'line_notes': set()
+            }
+        execution_group = menu_item_execution_totals[execution_group_key]
+        if not execution_group.get('menu_descriptor') and line.get('menu_descriptor'):
+            execution_group['menu_descriptor'] = line.get('menu_descriptor')
+        if (not execution_group.get('menu_section') or execution_group.get('menu_section') == 'Uncategorized') and line.get('menu_section'):
+            execution_group['menu_section'] = line.get('menu_section')
+        execution_group['event_ids'].add(event_id)
+        execution_group['service_rows'].append({
+            'event_id': event_id,
+            'event_name': row.get('event_name'),
+            'event_date': row.get('event_date'),
+            'guests': row.get('guests'),
+            'service_timing': row.get('service_timing'),
+            'quantity': line.get('quantity'),
+            'quantity_unit': line.get('quantity_unit'),
+            'notes': line.get('notes')
+        })
+        if line.get('notes'):
+            execution_group['line_notes'].add(line.get('notes'))
 
         line_cost_total = 0
         line_multiplier = menu_line_base_multiplier(
@@ -1376,12 +1554,39 @@ def build_banquet_datasets(cur, start_date, end_date, venue_id='', unit_system='
             recipe_yield_qty = to_float(line_recipe.get('yield_qty'))
             required_output_qty = (recipe_yield_qty * total_ratio) if recipe_yield_qty > 0 else total_ratio
             required_output_unit = line_recipe.get('yield_unit') or line_recipe.get('unit') or ''
+            display_required = smart_quantity(required_output_qty, required_output_unit, unit_system)
             root_key = (line_recipe.get('id'), required_output_unit)
             batch_usage_qty[root_key] = batch_usage_qty.get(root_key, 0) + required_output_qty
             if event_id:
                 batch_usage_events[line_recipe.get('id')].add(event_id)
             if line.get('menu_item_name'):
                 batch_usage_menu_items[line_recipe.get('id')].add(line['menu_item_name'])
+            line['recipe_requirements'].append({
+                'recipe_id': line_recipe.get('id'),
+                'recipe_name': line_recipe.get('name') or 'Recipe',
+                'recipe_type': normalize_recipe_type(line_recipe.get('recipe_type')),
+                'required_qty': required_output_qty,
+                'required_unit': required_output_unit,
+                'required_batches': total_ratio,
+                'display_required': display_required
+            })
+
+            execution_recipe_key = (line_recipe.get('id'), required_output_unit or line_recipe.get('yield_unit') or '')
+            execution_recipe_row = execution_group['recipe_totals'].get(execution_recipe_key)
+            if not execution_recipe_row:
+                execution_recipe_row = {
+                    'recipe_id': line_recipe.get('id'),
+                    'recipe_name': line_recipe.get('name') or 'Recipe',
+                    'recipe_type': normalize_recipe_type(line_recipe.get('recipe_type')),
+                    'required_qty': 0,
+                    'required_unit': required_output_unit,
+                    'required_batches': 0,
+                    'event_ids': set()
+                }
+                execution_group['recipe_totals'][execution_recipe_key] = execution_recipe_row
+            execution_recipe_row['required_qty'] = to_float(execution_recipe_row.get('required_qty')) + required_output_qty
+            execution_recipe_row['required_batches'] = to_float(execution_recipe_row.get('required_batches')) + total_ratio
+            execution_recipe_row['event_ids'].add(event_id)
 
             components, _, _ = build_component_tree(cur, line_recipe['id'], total_ratio, 0, set(), unit_system, apply_q_factor=False)
             if components:
@@ -1426,20 +1631,8 @@ def build_banquet_datasets(cur, start_date, end_date, venue_id='', unit_system='
                 'unit': unit,
                 'ext_cost': ext_cost
             })
-            pull_group_key = (
-                effective_menu_item_id or line.get('menu_item_name') or 'menu_item',
-                line.get('menu_item_name') or 'Menu Item'
-            )
-            if pull_group_key not in menu_item_direct_pull_totals:
-                menu_item_direct_pull_totals[pull_group_key] = {
-                    'menu_item_name': line.get('menu_item_name') or 'Menu Item',
-                    'ingredient_totals': {},
-                    'event_ids': set()
-                }
-            pull_group = menu_item_direct_pull_totals[pull_group_key]
-            pull_group['event_ids'].add(event_id)
             ingredient_key = (ingredient_id, unit, extra.get('ingredient_name') or 'Unknown')
-            ingredient_row = pull_group['ingredient_totals'].get(ingredient_key)
+            ingredient_row = execution_group['ingredient_totals'].get(ingredient_key)
             if not ingredient_row:
                 ingredient_row = {
                     'ingredient_id': ingredient_id,
@@ -1447,7 +1640,7 @@ def build_banquet_datasets(cur, start_date, end_date, venue_id='', unit_system='
                     'quantity': 0,
                     'unit': unit
                 }
-                pull_group['ingredient_totals'][ingredient_key] = ingredient_row
+                execution_group['ingredient_totals'][ingredient_key] = ingredient_row
             ingredient_row['quantity'] = to_float(ingredient_row.get('quantity')) + extra_qty
 
         line['estimated_cost_total'] = line_cost_total
@@ -1593,8 +1786,15 @@ def build_banquet_datasets(cur, start_date, end_date, venue_id='', unit_system='
         prep['prep_family_key'] = normalize_match_key(prep_family)
     weekly_prep.sort(key=lambda item: (item.get('prep_family_key') or '', (item.get('recipe_name') or '').lower()))
 
+    ingredient_name_map = {
+        row.get('id'): row.get('name')
+        for row in ingredient_master
+        if row.get('id')
+    }
+    recipe_detail_cache = {}
+    kitchen_packets = []
     weekly_menu_pulls = []
-    for group in menu_item_direct_pull_totals.values():
+    for group in menu_item_execution_totals.values():
         ingredient_rows = []
         for row in group['ingredient_totals'].values():
             display = smart_quantity(row.get('quantity'), row.get('unit'), unit_system)
@@ -1607,12 +1807,89 @@ def build_banquet_datasets(cur, start_date, end_date, venue_id='', unit_system='
                 'display_unit': display.get('unit')
             })
         ingredient_rows.sort(key=lambda item: (item.get('name') or '').lower())
-        weekly_menu_pulls.append({
+        if ingredient_rows:
+            weekly_menu_pulls.append({
+                'menu_item_name': group.get('menu_item_name') or 'Menu Item',
+                'ingredient_rows': ingredient_rows,
+                'used_in_events': sorted(group.get('event_ids') or set())
+            })
+
+        recipe_rows = []
+        recipe_cards = []
+        for row in group['recipe_totals'].values():
+            display_required = smart_quantity(row.get('required_qty'), row.get('required_unit'), unit_system)
+            recipe_row = {
+                'recipe_id': row.get('recipe_id'),
+                'recipe_name': row.get('recipe_name') or 'Recipe',
+                'recipe_type': row.get('recipe_type'),
+                'required_qty': row.get('required_qty'),
+                'required_unit': row.get('required_unit'),
+                'required_batches': row.get('required_batches'),
+                'display_required': display_required,
+                'used_in_events': sorted(row.get('event_ids') or set())
+            }
+            recipe_rows.append(recipe_row)
+
+            recipe_card = build_banquet_recipe_detail_card(
+                cur,
+                row.get('recipe_id'),
+                row.get('required_qty'),
+                row.get('required_unit'),
+                row.get('required_batches'),
+                ingredient_name_map=ingredient_name_map,
+                unit_system=unit_system,
+                recipe_cache=recipe_detail_cache,
+                ancestry={row.get('recipe_id')} if row.get('recipe_id') else set()
+            )
+            if recipe_card:
+                recipe_cards.append(recipe_card)
+        recipe_rows.sort(key=lambda item: (item.get('recipe_name') or '').lower())
+        recipe_cards.sort(key=lambda item: (item.get('recipe_name') or '').lower())
+
+        service_rows = sorted(
+            group.get('service_rows') or [],
+            key=lambda item: (
+                item.get('event_date') or date.today(),
+                (item.get('event_name') or '').lower(),
+                item.get('quantity') or 0
+            )
+        )
+        service_totals_by_unit = defaultdict(float)
+        for service_row in service_rows:
+            service_unit = service_row.get('quantity_unit') or 'each'
+            service_totals_by_unit[service_unit] += to_float(service_row.get('quantity'))
+        service_totals = []
+        for service_unit, total_qty in service_totals_by_unit.items():
+            display = smart_quantity(total_qty, service_unit, unit_system)
+            service_totals.append({
+                'quantity': total_qty,
+                'unit': service_unit,
+                'display_quantity': display.get('quantity'),
+                'display_unit': display.get('unit')
+            })
+        service_totals.sort(key=lambda item: (item.get('unit') or '').lower())
+        service_total_label = ' · '.join(
+            f"{row.get('display_quantity')} {row.get('display_unit')}".strip()
+            for row in service_totals
+            if row.get('display_quantity') not in (None, '')
+        )
+
+        kitchen_packets.append({
+            'menu_item_id': group.get('menu_item_id'),
             'menu_item_name': group.get('menu_item_name') or 'Menu Item',
+            'menu_descriptor': group.get('menu_descriptor'),
+            'menu_section': group.get('menu_section') or 'Uncategorized',
             'ingredient_rows': ingredient_rows,
-            'used_in_events': sorted(group.get('event_ids') or set())
+            'recipe_rows': recipe_rows,
+            'recipe_cards': recipe_cards,
+            'service_rows': service_rows,
+            'service_totals': service_totals,
+            'service_total_label': service_total_label or '—',
+            'used_in_events': sorted(group.get('event_ids') or set()),
+            'line_notes': sorted(group.get('line_notes') or set())
         })
     weekly_menu_pulls.sort(key=lambda item: (item.get('menu_item_name') or '').lower())
+    kitchen_packets.sort(key=lambda item: ((item.get('menu_section') or '').lower(), (item.get('menu_item_name') or '').lower()))
 
     daily_groups = []
     by_day = defaultdict(list)
@@ -1646,6 +1923,7 @@ def build_banquet_datasets(cur, start_date, end_date, venue_id='', unit_system='
         'shopping_total_cost': ingredient_total_cost,
         'weekly_prep': weekly_prep,
         'weekly_menu_pulls': weekly_menu_pulls,
+        'kitchen_packets': kitchen_packets,
         'event_count': len(events),
         'menu_line_count': total_menu_lines,
         'total_estimated_cost': total_estimated_cost

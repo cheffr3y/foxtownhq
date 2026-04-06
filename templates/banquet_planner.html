@@ -141,8 +141,9 @@
             <div class="fhq-card quick-card">
                 <h2 class="quick-title">Exports</h2>
                 <div class="mt-3 space-y-2 text-sm">
+                    <a href="{{ url_for('banquet_packet_print', venue=selected_venue, start_date=start_date, end_date=end_date, packet_mode='kitchen', include_beo=0, include_shopping=0, simple=1) }}" target="_blank" class="link-accent block">Kitchen Packet (Recommended)</a>
+                    <a href="{{ url_for('banquet_packet_print', venue=selected_venue, start_date=start_date, end_date=end_date, packet_mode='full') }}" target="_blank" class="link-accent block">Full Banquet Packet</a>
                     <a href="{{ url_for('banquet_export_excel', venue=selected_venue, start_date=start_date, end_date=end_date) }}" class="link-accent block">Export Excel Packet</a>
-                    <a href="{{ url_for('banquet_packet_print', venue=selected_venue, start_date=start_date, end_date=end_date) }}" target="_blank" class="link-accent block">Print / Save PDF Packet</a>
                 </div>
             </div>
         </section>

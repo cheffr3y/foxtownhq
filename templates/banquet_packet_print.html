@@ -5,7 +5,10 @@
 {% block content %}
 {% set simple_raw = (request.args.get('simple') or '').strip().lower() %}
 {% set simplified_view = simple_raw in ('1', 'true', 'yes', 'on') %}
+{% set packet_mode = packet_mode|default('full') %}
 {% set print_lite = print_lite|default(false) %}
+{% set is_kitchen_packet = packet_mode == 'kitchen' %}
+{% set is_lite_packet = packet_mode == 'lite' or print_lite %}
 {% set banquet_meta = namespace(guest_total=0) %}
 {% for event in datasets.events %}
     {% set banquet_meta.guest_total = banquet_meta.guest_total + (event.guests|int) %}
@@ -60,6 +63,80 @@
     {% endfor %}
 </div>
 {%- endmacro %}
+{% macro render_component_card(card) -%}
+<div class="pkt-sub-prep-card pkt-component-card">
+    <div class="pkt-sub-prep-header">
+        <span class="pkt-sub-prep-label">Component Recipe</span>
+        <span class="pkt-bold">{{ card.recipe_name }}</span>
+        <span class="pkt-mono">{{ card.display_required.quantity }} {{ card.display_required.unit }}</span>
+    </div>
+    {% if card.ingredient_rows %}
+    <div class="pkt-card-body">
+        <table class="pkt-table pkt-table-ingredients">
+            <thead>
+                <tr>
+                    <th style="width:5%">✓</th>
+                    <th>Ingredient</th>
+                    <th class="text-right" style="width:15%">Qty</th>
+                    <th style="width:12%">Unit</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ing in card.ingredient_rows %}
+                <tr class="pkt-alt-row">
+                    <td class="text-center"><span class="pkt-checkbox"></span></td>
+                    <td class="pkt-bold pkt-ingredient-name">{{ ing.name }}</td>
+                    <td class="text-right pkt-mono pkt-qty pkt-qty-strong">{{ ing.display_quantity }}</td>
+                    <td>{{ ing.display_unit }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+    {% if card.subrecipe_rows %}
+    <div class="pkt-card-body pkt-sub-section">
+        <div class="pkt-label pkt-label--section">Sub-Recipe Pulls</div>
+        <table class="pkt-table pkt-table-ingredients">
+            <thead>
+                <tr>
+                    <th style="width:5%">✓</th>
+                    <th>Sub-Recipe</th>
+                    <th class="text-right" style="width:15%">Qty</th>
+                    <th style="width:12%">Unit</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for sub in card.subrecipe_rows %}
+                <tr class="pkt-alt-row">
+                    <td class="text-center"><span class="pkt-checkbox"></span></td>
+                    <td class="pkt-bold">{{ sub.recipe_name }}</td>
+                    <td class="text-right pkt-mono pkt-qty pkt-qty-strong">{{ sub.display_required.quantity }}</td>
+                    <td>{{ sub.display_required.unit }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+    {% if card.instruction_steps %}
+    <div class="pkt-card-body pkt-method-section">
+        <div class="pkt-label">Method</div>
+        <div class="pkt-steps">
+            {% for step in card.instruction_steps %}
+            <div class="pkt-step">
+                <div class="pkt-step-num">{{ loop.index }}</div>
+                <div class="pkt-step-text">{{ step }}</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    {% for child in card.child_cards %}
+        {{ render_sub_card(child, 1) }}
+    {% endfor %}
+</div>
+{%- endmacro %}
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 pkt-doc-shell" id="printRoot">
     <div class="no-print pkt-screen-toolbar">
         <div>
@@ -69,33 +146,45 @@
         </div>
         <div class="pkt-screen-actions">
             <a
-                href="{{ url_for('banquet_packet_print', venue=selected_venue, start_date=start_date, end_date=end_date, include_shopping=include_shopping, include_beo=include_beo, simple=(0 if simplified_view else 1), print_lite=(1 if print_lite else 0)) }}"
-                class="pkt-toolbar-btn"
+                href="{{ url_for('banquet_packet_print', venue=selected_venue, start_date=start_date, end_date=end_date, packet_mode='kitchen', include_shopping=0, include_beo=0, simple=1) }}"
+                class="pkt-toolbar-btn {{ 'pkt-toolbar-btn--primary' if is_kitchen_packet else '' }}"
             >
-                {% if simplified_view %}Full View{% else %}Simplified View{% endif %}
+                Kitchen Packet
             </a>
             <a
-                href="{{ url_for('banquet_packet_print', venue=selected_venue, start_date=start_date, end_date=end_date, include_shopping=include_shopping, include_beo=(0 if include_beo else 1), simple=(1 if simplified_view else 0), print_lite=(1 if print_lite else 0)) }}"
+                href="{{ url_for('banquet_packet_print', venue=selected_venue, start_date=start_date, end_date=end_date, packet_mode='full', include_shopping=include_shopping, include_beo=include_beo, simple=(1 if simplified_view else 0)) }}"
+                class="pkt-toolbar-btn {{ 'pkt-toolbar-btn--primary' if packet_mode == 'full' else '' }}"
+            >
+                Full Packet
+            </a>
+            <a
+                href="{{ url_for('banquet_packet_print', venue=selected_venue, start_date=start_date, end_date=end_date, packet_mode='lite', include_shopping=0, include_beo=include_beo, simple=1) }}"
+                class="pkt-toolbar-btn {{ 'pkt-toolbar-btn--primary' if is_lite_packet else '' }}"
+            >
+                Print Lite
+            </a>
+            {% if packet_mode == 'full' %}
+            <a
+                href="{{ url_for('banquet_packet_print', venue=selected_venue, start_date=start_date, end_date=end_date, packet_mode='full', include_shopping=include_shopping, include_beo=(0 if include_beo else 1), simple=(1 if simplified_view else 0)) }}"
                 class="pkt-toolbar-btn"
             >
                 {% if include_beo %}Hide BEO{% else %}Include BEO{% endif %}
             </a>
             <a
-                href="{{ url_for('banquet_packet_print', venue=selected_venue, start_date=start_date, end_date=end_date, include_shopping=include_shopping, include_beo=include_beo, simple=(1 if simplified_view else 0), print_lite=(0 if print_lite else 1)) }}"
-                class="pkt-toolbar-btn"
-            >
-                {% if print_lite %}Disable Print Lite{% else %}Enable Print Lite{% endif %}
-            </a>
-            {% if not print_lite %}
-            <a
-                href="{{ url_for('banquet_packet_print', venue=selected_venue, start_date=start_date, end_date=end_date, include_shopping=(0 if include_shopping else 1), include_beo=include_beo, simple=(1 if simplified_view else 0), print_lite=(1 if print_lite else 0)) }}"
+                href="{{ url_for('banquet_packet_print', venue=selected_venue, start_date=start_date, end_date=end_date, packet_mode='full', include_shopping=(0 if include_shopping else 1), include_beo=include_beo, simple=(1 if simplified_view else 0)) }}"
                 class="pkt-toolbar-btn"
             >
                 {% if include_shopping %}Hide Shopping{% else %}Include Shopping{% endif %}
             </a>
+            <a
+                href="{{ url_for('banquet_packet_print', venue=selected_venue, start_date=start_date, end_date=end_date, packet_mode='full', include_shopping=include_shopping, include_beo=include_beo, simple=(0 if simplified_view else 1)) }}"
+                class="pkt-toolbar-btn"
+            >
+                {% if simplified_view %}Detailed Columns{% else %}Compact Columns{% endif %}
+            </a>
             {% endif %}
             <a
-                href="{{ url_for('banquet_packet_pdf', venue=selected_venue, start_date=start_date, end_date=end_date, include_shopping=include_shopping, include_beo=include_beo, simple=(1 if simplified_view else 0), print_lite=(1 if print_lite else 0)) }}"
+                href="{{ url_for('banquet_packet_pdf', venue=selected_venue, start_date=start_date, end_date=end_date, packet_mode=packet_mode, include_shopping=include_shopping, include_beo=include_beo, simple=(1 if simplified_view else 0), print_lite=(1 if is_lite_packet else 0)) }}"
                 class="pkt-toolbar-btn pkt-toolbar-btn--primary"
             >
                 Download PDF
@@ -131,14 +220,22 @@
             </div>
             <div class="pkt-doc-meta">
                 <span class="pkt-doc-meta-label">Packet Mode</span>
-                <span class="pkt-doc-meta-value">{{ 'Print Lite' if print_lite else 'Full Packet' }}</span>
+                <span class="pkt-doc-meta-value">
+                    {% if is_kitchen_packet %}Kitchen Packet{% elif is_lite_packet %}Print Lite{% else %}Full Packet{% endif %}
+                </span>
             </div>
             <div class="pkt-doc-meta">
                 <span class="pkt-doc-meta-label">BEO Source</span>
-                <span class="pkt-doc-meta-value">{{ 'Included' if include_beo else 'Hidden' }}</span>
+                <span class="pkt-doc-meta-value">
+                    {% if is_kitchen_packet %}Hidden in kitchen packet{% else %}{{ 'Included' if include_beo else 'Hidden' }}{% endif %}
+                </span>
             </div>
         </div>
-    {% if print_lite %}
+    {% if is_kitchen_packet %}
+    <div class="pkt-section screen-only">
+        <p class="pkt-subtitle">Kitchen Packet is the cook-facing printout. Each menu item groups service lines, recipe components, and direct raw pulls in one place.</p>
+    </div>
+    {% elif is_lite_packet %}
     <div class="pkt-section screen-only">
         <p class="pkt-subtitle">Print Lite is on. Shopping, prep cards, direct pulls, and daily prep sections are excluded to reduce spooler load.</p>
     </div>
@@ -147,7 +244,7 @@
     {# ═══════════════════════════════════════════════════ #}
     {#  SECTION 1 — BEO SERVICE BRIEF (optional)          #}
     {# ═══════════════════════════════════════════════════ #}
-    {% if include_beo %}
+    {% if include_beo and not is_kitchen_packet %}
     <div class="pkt-section pkt-screen-only pkt-beo-first-page">
         <div class="pkt-section-header">
             <h2>BEO Service Brief</h2>
@@ -267,11 +364,11 @@
         </div>
     </div>
 
-    {% if not print_lite %}
+    {% if not is_lite_packet %}
     {# ═══════════════════════════════════════════════════ #}
     {#  SECTION 3 — SHOPPING LIST (optional)              #}
     {# ═══════════════════════════════════════════════════ #}
-    {% if include_shopping %}
+    {% if include_shopping and not is_kitchen_packet %}
     <div class="pkt-section break-before-page">
         <div class="pkt-section-header">
             <h2>Shopping List</h2>
@@ -314,6 +411,154 @@
     </div>
     {% endif %}
 
+    {% if is_kitchen_packet %}
+    {# ═══════════════════════════════════════════════════ #}
+    {#  SECTION 4 — KITCHEN BUILD SHEETS                  #}
+    {# ═══════════════════════════════════════════════════ #}
+    <div class="break-before-page">
+        <div class="pkt-section-header pkt-section-header-standalone print:hidden">
+            <h2>Kitchen Build Sheets</h2>
+        </div>
+
+        {% for packet in datasets.kitchen_packets %}
+        <div class="pkt-prep-card break-before-page">
+            <div class="pkt-card-header">
+                <div class="pkt-card-hero">
+                    <div class="pkt-card-badge">Kitchen Packet / Menu Build</div>
+                    <h3>{{ packet.menu_item_name }}</h3>
+                    <div class="pkt-card-reference">{{ packet.menu_section or 'Menu Item' }}</div>
+                    {% if packet.menu_descriptor %}
+                    <div class="pkt-card-reference">{{ packet.menu_descriptor }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="pkt-card-stat-grid">
+                <div class="pkt-card-stat">
+                    <span class="pkt-card-stat-label">Events</span>
+                    <span class="pkt-card-stat-value">{{ packet.used_in_events|length }}</span>
+                </div>
+                <div class="pkt-card-stat">
+                    <span class="pkt-card-stat-label">Service Totals</span>
+                    <span class="pkt-card-stat-value">{{ packet.service_total_label or '—' }}</span>
+                </div>
+                <div class="pkt-card-stat">
+                    <span class="pkt-card-stat-label">Component Recipes</span>
+                    <span class="pkt-card-stat-value">{{ packet.recipe_rows|length }}</span>
+                </div>
+                <div class="pkt-card-stat">
+                    <span class="pkt-card-stat-label">Raw Pulls</span>
+                    <span class="pkt-card-stat-value">{{ packet.ingredient_rows|length }}</span>
+                </div>
+            </div>
+
+            <div class="pkt-card-body">
+                <div class="pkt-label pkt-label--section">1. Service Lines</div>
+                <table class="pkt-table pkt-table-ingredients">
+                    <thead>
+                        <tr>
+                            <th>Event</th>
+                            <th style="width:20%">Timing</th>
+                            <th class="text-right" style="width:16%">Qty</th>
+                            <th style="width:24%">Notes / Mods</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for service in packet.service_rows %}
+                        <tr class="pkt-alt-row">
+                            <td class="pkt-bold">
+                                {{ service.event_name }}
+                                <div class="pkt-muted">{{ service.event_date }}</div>
+                            </td>
+                            <td>{{ service.service_timing or '—' }}</td>
+                            <td class="text-right pkt-mono pkt-qty pkt-qty-strong">{{ service.quantity }} {{ service.quantity_unit }}</td>
+                            <td>{{ service.notes or '—' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="pkt-card-body pkt-sub-section">
+                <div class="pkt-label pkt-label--section">2. Component Recipes</div>
+                {% if packet.recipe_rows %}
+                <table class="pkt-table pkt-table-ingredients">
+                    <thead>
+                        <tr>
+                            <th style="width:5%">✓</th>
+                            <th>Recipe</th>
+                            <th class="text-right" style="width:15%">Qty</th>
+                            <th style="width:12%">Unit</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for recipe in packet.recipe_rows %}
+                        <tr class="pkt-alt-row">
+                            <td class="text-center"><span class="pkt-checkbox"></span></td>
+                            <td class="pkt-bold">
+                                {{ recipe.recipe_name }}
+                                {% if recipe.recipe_type == 'batch' %}
+                                <div class="pkt-muted">Batch prep card included below</div>
+                                {% endif %}
+                            </td>
+                            <td class="text-right pkt-mono pkt-qty pkt-qty-strong">{{ recipe.display_required.quantity }}</td>
+                            <td>{{ recipe.display_required.unit }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="pkt-empty-note">No recipe components linked on this menu item.</div>
+                {% endif %}
+            </div>
+
+            <div class="pkt-card-body">
+                <div class="pkt-label pkt-label--section">3. Direct Raw Pulls</div>
+                {% if packet.ingredient_rows %}
+                <table class="pkt-table pkt-table-ingredients">
+                    <thead>
+                        <tr>
+                            <th style="width:5%">✓</th>
+                            <th>Ingredient</th>
+                            <th class="text-right" style="width:15%">Qty</th>
+                            <th style="width:12%">Unit</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ing in packet.ingredient_rows %}
+                        <tr class="pkt-alt-row">
+                            <td class="text-center"><span class="pkt-checkbox"></span></td>
+                            <td class="pkt-bold pkt-ingredient-name">{{ ing.name }}</td>
+                            <td class="text-right pkt-mono pkt-qty pkt-qty-strong">{{ ing.display_quantity }}</td>
+                            <td>{{ ing.display_unit }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="pkt-empty-note">No direct raw ingredients on this menu item.</div>
+                {% endif %}
+            </div>
+
+            {% if packet.recipe_cards %}
+            <div class="pkt-card-body pkt-sub-section">
+                <div class="pkt-label pkt-label--section">4. Recipe Detail</div>
+                <div class="pkt-component-stack">
+                    {% for card in packet.recipe_cards %}
+                        {{ render_component_card(card) }}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+
+        {% if not datasets.kitchen_packets %}
+        <div class="pkt-section">
+            <div class="pkt-empty-note">No menu builds found in this date window.</div>
+        </div>
+        {% endif %}
+    </div>
+    {% else %}
     {# ═══════════════════════════════════════════════════ #}
     {#  SECTION 4 — WEEKLY PREP CARDS                     #}
     {# ═══════════════════════════════════════════════════ #}
@@ -469,11 +714,12 @@
         </div>
         {% endif %}
     </div>
+    {% endif %}
 
     {# ═══════════════════════════════════════════════════ #}
     {#  SECTION 5 — DIRECT MENU PULLS                     #}
     {# ═══════════════════════════════════════════════════ #}
-    {% if datasets.weekly_menu_pulls %}
+    {% if datasets.weekly_menu_pulls and not is_kitchen_packet %}
     <div class="pkt-section break-before-page pkt-screen-only">
         <div class="pkt-section-header">
             <h2>Direct Menu Pulls</h2>
@@ -505,10 +751,12 @@
         {% endfor %}
     </div>
     {% endif %}
+    {% endif %}
 
     {# ═══════════════════════════════════════════════════ #}
     {#  SECTION 6 — DAILY PREP CHECKLIST                  #}
     {# ═══════════════════════════════════════════════════ #}
+    {% if not is_lite_packet %}
     <div class="break-before-page pkt-screen-only">
         <div class="pkt-section-header pkt-section-header-standalone">
             <h2>Daily Prep</h2>
@@ -561,7 +809,13 @@
         <div class="pkt-doc-meta-strip">
             <span>{{ banquet_ref }}</span>
             <span>{{ generated_at }}</span>
-            <span>{{ 'BEO included' if include_beo else 'BEO hidden' }} · {{ 'Shopping included' if include_shopping and not print_lite else 'Shopping hidden' }}</span>
+            <span>
+                {% if is_kitchen_packet %}
+                Kitchen packet · recipe + direct pulls combined
+                {% else %}
+                {{ 'BEO included' if include_beo else 'BEO hidden' }} · {{ 'Shopping included' if include_shopping and not is_lite_packet else 'Shopping hidden' }}
+                {% endif %}
+            </span>
         </div>
     </footer>
     </div>
@@ -811,6 +1065,14 @@
     letter-spacing: 0.08em;
     font-weight: 700;
     color: #78716c;
+}
+.pkt-component-card {
+    border-left-color: #2a3439;
+    background: #fff;
+}
+.pkt-component-stack {
+    display: grid;
+    gap: 0.9rem;
 }
 
 /* ── Helpers ── */

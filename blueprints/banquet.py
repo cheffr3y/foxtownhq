@@ -2000,7 +2000,11 @@ def banquet_packet_print():
             include_beo = True
         else:
             include_beo = (include_beo_raw or '').strip().lower() in ('1', 'true', 'yes', 'on')
-        print_lite = (request.args.get('print_lite') or '').strip().lower() in ('1', 'true', 'yes', 'on')
+        requested_print_lite = (request.args.get('print_lite') or '').strip().lower() in ('1', 'true', 'yes', 'on')
+        packet_mode = (request.args.get('packet_mode') or '').strip().lower()
+        if packet_mode not in ('full', 'kitchen', 'lite'):
+            packet_mode = 'lite' if requested_print_lite else 'full'
+        print_lite = packet_mode == 'lite'
         auto_complete_past_banquet_events(cur, selected_venue)
         datasets = build_banquet_datasets(cur, start_date, end_date, selected_venue, get_unit_system())
         beo_files_by_event = list_banquet_event_beo_files_by_events(cur, [event.get('id') for event in datasets.get('events', [])])
@@ -2010,6 +2014,8 @@ def banquet_packet_print():
         prep_groups = build_banquet_prep_groups(cur, datasets, get_unit_system())
         for pull in datasets.get('weekly_menu_pulls', []):
             pull['used_in_event_names'] = [event_name_map[event_id] for event_id in pull.get('used_in_events', []) if event_id in event_name_map]
+        for packet in datasets.get('kitchen_packets', []):
+            packet['used_in_event_names'] = [event_name_map[event_id] for event_id in packet.get('used_in_events', []) if event_id in event_name_map]
         venue_name = banquet_venue.get('name') if banquet_venue else 'Banquets'
         return render_template(
             'banquet_packet_print.html',
@@ -2020,6 +2026,7 @@ def banquet_packet_print():
             include_shopping=include_shopping,
             include_beo=include_beo,
             print_lite=print_lite,
+            packet_mode=packet_mode,
             beo_files_by_event=beo_files_by_event,
             generated_at=datetime.now().strftime('%b %d, %Y %I:%M %p'),
             prep_groups=prep_groups,
@@ -2042,7 +2049,11 @@ def banquet_packet_pdf():
             include_beo = True
         else:
             include_beo = (include_beo_raw or '').strip().lower() in ('1', 'true', 'yes', 'on')
-        print_lite = (request.args.get('print_lite') or '').strip().lower() in ('1', 'true', 'yes', 'on')
+        requested_print_lite = (request.args.get('print_lite') or '').strip().lower() in ('1', 'true', 'yes', 'on')
+        packet_mode = (request.args.get('packet_mode') or '').strip().lower()
+        if packet_mode not in ('full', 'kitchen', 'lite'):
+            packet_mode = 'lite' if requested_print_lite else 'full'
+        print_lite = packet_mode == 'lite'
         simple_raw = (request.args.get('simple') or '').strip().lower()
         simplified_view = simple_raw in ('1', 'true', 'yes', 'on')
 
@@ -2054,6 +2065,8 @@ def banquet_packet_pdf():
         prep_groups = build_banquet_prep_groups(cur, datasets, get_unit_system())
         for pull in datasets.get('weekly_menu_pulls', []):
             pull['used_in_event_names'] = [event_name_map[event_id] for event_id in pull.get('used_in_events', []) if event_id in event_name_map]
+        for packet in datasets.get('kitchen_packets', []):
+            packet['used_in_event_names'] = [event_name_map[event_id] for event_id in packet.get('used_in_events', []) if event_id in event_name_map]
         venue_name = banquet_venue.get('name') if banquet_venue else 'Banquets'
 
     header_navy = colors.HexColor('#1B2A4A')
@@ -2119,6 +2132,7 @@ def banquet_packet_pdf():
         leading=8.4,
         textColor=muted_text,
     )
+    is_kitchen_packet = packet_mode == 'kitchen'
 
     def draw_page_header(pdf_canvas, doc):
         page_width, page_height = letter
@@ -2130,7 +2144,9 @@ def banquet_packet_pdf():
         pdf_canvas.setFillColor(muted_text)
         pdf_canvas.setFont('Helvetica', 7.3)
         meta = f'{to_text(venue_name)} | {start_date.isoformat()} - {end_date.isoformat()}'
-        if print_lite:
+        if is_kitchen_packet:
+            meta = f'{meta} | Kitchen Packet'
+        elif print_lite:
             meta = f'{meta} | Print Lite'
         elif simplified_view:
             meta = f'{meta} | Simplified View'
@@ -2229,6 +2245,69 @@ def banquet_packet_pdf():
             story.append(Spacer(1, 4))
             render_sub_card(story, child, depth + 1)
 
+    def render_component_card(story, card):
+        display_required = card.get('display_required') or {}
+        heading = f"Component Recipe: {to_text(card.get('recipe_name'), 'Recipe')} | {to_text(display_required.get('quantity'), '—')} {to_text(display_required.get('unit'), '')}".strip()
+        story.append(Paragraph(heading, subheading_style))
+
+        ingredient_rows = card.get('ingredient_rows') or []
+        if ingredient_rows:
+            component_data = [
+                [
+                    Paragraph('✓', table_header_style),
+                    Paragraph('Ingredient', table_header_style),
+                    Paragraph('Qty', table_header_style),
+                    Paragraph('Unit', table_header_style),
+                ]
+            ]
+            for ing in ingredient_rows:
+                component_data.append(
+                    [
+                        p('[ ]', tiny_style),
+                        p(ing.get('name') or 'Ingredient', base_style),
+                        p(ing.get('display_quantity') if ing.get('display_quantity') not in (None, '') else '—', base_style),
+                        p(ing.get('display_unit') or '—', base_style),
+                    ]
+                )
+            component_table = Table(component_data, colWidths=[0.3 * inch, 4.0 * inch, 0.8 * inch, 0.75 * inch], repeatRows=1)
+            style_table(component_table, align_right_cols=[2])
+            story.append(component_table)
+
+        sub_rows = card.get('subrecipe_rows') or []
+        if sub_rows:
+            story.append(Spacer(1, 4))
+            sub_data = [
+                [
+                    Paragraph('✓', table_header_style),
+                    Paragraph('Sub-Recipe', table_header_style),
+                    Paragraph('Qty', table_header_style),
+                    Paragraph('Unit', table_header_style),
+                ]
+            ]
+            for sub in sub_rows:
+                sub_data.append(
+                    [
+                        p('[ ]', tiny_style),
+                        p(sub.get('recipe_name') or 'Sub-Recipe', base_style),
+                        p((sub.get('display_required') or {}).get('quantity') or '—', base_style),
+                        p((sub.get('display_required') or {}).get('unit') or '—', base_style),
+                    ]
+                )
+            sub_table = Table(sub_data, colWidths=[0.3 * inch, 4.0 * inch, 0.75 * inch, 0.8 * inch], repeatRows=1)
+            style_table(sub_table, align_right_cols=[2])
+            story.append(sub_table)
+
+        steps = step_lines(card)
+        if steps:
+            story.append(Spacer(1, 4))
+            story.append(Paragraph('Method', subheading_style))
+            for idx, step in enumerate(steps, start=1):
+                story.append(Paragraph(f'{idx}. {html_text(step, "")}', base_style))
+
+        for child in card.get('child_cards') or []:
+            story.append(Spacer(1, 4))
+            render_sub_card(story, child, 1)
+
     buffer = BytesIO()
     doc = SimpleDocTemplate(
         buffer,
@@ -2241,7 +2320,7 @@ def banquet_packet_pdf():
     )
     story = [Spacer(1, 2)]
 
-    if include_beo:
+    if include_beo and not is_kitchen_packet:
         story.append(Paragraph('BEO Service Brief', section_title_style))
         story.append(Paragraph(f'{start_date.isoformat()} - {end_date.isoformat()}', muted_style))
         story.append(Spacer(1, 4))
@@ -2304,7 +2383,7 @@ def banquet_packet_pdf():
         else:
             story.append(Paragraph('No events found in this date range.', muted_style))
 
-    story.append(PageBreak())
+        story.append(PageBreak())
     story.append(Paragraph('Event Summary', section_title_style))
     events = datasets.get('events') or []
     if events:
@@ -2331,7 +2410,147 @@ def banquet_packet_pdf():
     else:
         story.append(Paragraph('No events found in this date range.', muted_style))
 
-    if not print_lite:
+    if is_kitchen_packet:
+        story.append(PageBreak())
+        story.append(Paragraph('Kitchen Build Sheets', section_title_style))
+        kitchen_packets = datasets.get('kitchen_packets') or []
+        if kitchen_packets:
+            for index, packet in enumerate(kitchen_packets):
+                if index > 0:
+                    story.append(PageBreak())
+                story.append(Paragraph(to_text(packet.get('menu_item_name'), 'Menu Item'), subheading_style))
+                packet_meta_bits = []
+                if packet.get('menu_section'):
+                    packet_meta_bits.append(to_text(packet.get('menu_section')))
+                if packet.get('menu_descriptor'):
+                    packet_meta_bits.append(to_text(packet.get('menu_descriptor')))
+                if packet.get('used_in_event_names'):
+                    packet_meta_bits.append(', '.join(packet.get('used_in_event_names') or []))
+                if packet_meta_bits:
+                    story.append(Paragraph(' | '.join(packet_meta_bits), muted_style))
+                story.append(Spacer(1, 3))
+
+                service_data = [
+                    [
+                        Paragraph('Event', table_header_style),
+                        Paragraph('Timing', table_header_style),
+                        Paragraph('Qty', table_header_style),
+                        Paragraph('Notes / Mods', table_header_style),
+                    ]
+                ]
+                for service in packet.get('service_rows') or []:
+                    event_label = f"{to_text(service.get('event_name'), 'Event')}<br/><font color=\"#4F5B6E\">{to_text(service.get('event_date'))}</font>"
+                    service_data.append(
+                        [
+                            Paragraph(event_label, base_style),
+                            p(service.get('service_timing') or '—', tiny_style),
+                            p(f"{format_number(service.get('quantity'))} {to_text(service.get('quantity_unit'), '')}".strip(), base_style),
+                            p(service.get('notes') or '—', tiny_style),
+                        ]
+                    )
+                if len(service_data) > 1:
+                    service_table = Table(service_data, colWidths=[2.2 * inch, 1.2 * inch, 0.8 * inch, 1.3 * inch], repeatRows=1)
+                    style_table(service_table, align_right_cols=[2])
+                    story.append(service_table)
+                    story.append(Spacer(1, 4))
+
+                story.append(Paragraph('Component Recipes', subheading_style))
+                recipe_rows = packet.get('recipe_rows') or []
+                if recipe_rows:
+                    recipe_data = [
+                        [
+                            Paragraph('✓', table_header_style),
+                            Paragraph('Recipe', table_header_style),
+                            Paragraph('Qty', table_header_style),
+                            Paragraph('Unit', table_header_style),
+                        ]
+                    ]
+                    for recipe_row in recipe_rows:
+                        recipe_data.append(
+                            [
+                                p('[ ]', tiny_style),
+                                p(recipe_row.get('recipe_name') or 'Recipe', base_style),
+                                p((recipe_row.get('display_required') or {}).get('quantity') or '—', base_style),
+                                p((recipe_row.get('display_required') or {}).get('unit') or '—', base_style),
+                            ]
+                        )
+                    recipe_table = Table(recipe_data, colWidths=[0.3 * inch, 4.0 * inch, 0.75 * inch, 0.8 * inch], repeatRows=1)
+                    style_table(recipe_table, align_right_cols=[2])
+                    story.append(recipe_table)
+                else:
+                    story.append(Paragraph('No recipe components linked on this menu item.', muted_style))
+
+                story.append(Spacer(1, 4))
+                story.append(Paragraph('Direct Raw Pulls', subheading_style))
+                ingredient_rows = packet.get('ingredient_rows') or []
+                if ingredient_rows:
+                    pull_data = [
+                        [
+                            Paragraph('✓', table_header_style),
+                            Paragraph('Ingredient', table_header_style),
+                            Paragraph('Qty', table_header_style),
+                            Paragraph('Unit', table_header_style),
+                        ]
+                    ]
+                    for ing in ingredient_rows:
+                        pull_data.append(
+                            [
+                                p('[ ]', tiny_style),
+                                p(ing.get('name') or 'Ingredient', base_style),
+                                p(ing.get('display_quantity') if ing.get('display_quantity') not in (None, '') else '—', base_style),
+                                p(ing.get('display_unit') or '—', base_style),
+                            ]
+                        )
+                    pull_table = Table(pull_data, colWidths=[0.3 * inch, 4.0 * inch, 0.75 * inch, 0.8 * inch], repeatRows=1)
+                    style_table(pull_table, align_right_cols=[2])
+                    story.append(pull_table)
+                else:
+                    story.append(Paragraph('No direct raw ingredients on this menu item.', muted_style))
+
+                recipe_cards = packet.get('recipe_cards') or []
+                if recipe_cards:
+                    story.append(Spacer(1, 4))
+                    story.append(Paragraph('Recipe Detail', subheading_style))
+                    for recipe_card in recipe_cards:
+                        story.append(Spacer(1, 4))
+                        render_component_card(story, recipe_card)
+        else:
+            story.append(Paragraph('No menu builds found in this date window.', muted_style))
+
+        story.append(PageBreak())
+        story.append(Paragraph('Daily Prep', section_title_style))
+        daily_groups = datasets.get('daily_groups') or []
+        if daily_groups:
+            for day in daily_groups:
+                story.append(Paragraph(to_text(day.get('date')), subheading_style))
+                for event in day.get('events') or []:
+                    header = f"{to_text(event.get('name'), 'Event')} | {to_text(event.get('guests'), '—')} guests | {to_text(event.get('venue_name'), '—')}"
+                    story.append(Paragraph(header, base_style))
+                    line_data = [
+                        [
+                            Paragraph('✓', table_header_style),
+                            Paragraph('Menu Item', table_header_style),
+                            Paragraph('Qty', table_header_style),
+                            Paragraph('Notes', table_header_style),
+                        ]
+                    ]
+                    for line in event.get('lines') or []:
+                        line_data.append(
+                            [
+                                p('[ ]', tiny_style),
+                                p(line.get('menu_item_name') or 'Menu Item', base_style),
+                                p(f"{format_number(line.get('quantity'))} {to_text(line.get('quantity_unit'), '')}".strip(), tiny_style),
+                                p(line.get('notes') or '—', tiny_style),
+                            ]
+                        )
+                    if len(line_data) > 1:
+                        line_table = Table(line_data, colWidths=[0.3 * inch, 3.45 * inch, 0.95 * inch, 1.15 * inch], repeatRows=1)
+                        style_table(line_table, align_right_cols=[2])
+                        story.append(line_table)
+                    story.append(Spacer(1, 4))
+        else:
+            story.append(Paragraph('No daily prep lines in this date range.', muted_style))
+    elif not print_lite:
         if include_shopping:
             story.append(PageBreak())
             story.append(Paragraph('Shopping List', section_title_style))
