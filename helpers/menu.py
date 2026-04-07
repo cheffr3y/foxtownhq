@@ -10,7 +10,7 @@ from helpers.recipes import (
     get_recipe_total_cost,
 )
 from helpers.shared import to_float
-from helpers.units import convert_cost_per_unit, smart_quantity
+from helpers.units import convert_cost_per_unit, smart_quantity, summarize_yield_pricing
 
 def parse_menu_items(
     cur,
@@ -226,18 +226,24 @@ def build_rollout_breakdown(cur, unit_system, menu_items):
         for recipe in cur.fetchall():
             total_cost = get_recipe_total_cost(cur, recipe['id'], unit_system)
             yield_qty = to_float(recipe.get('yield_qty'))
-            cost_per_yield = total_cost / yield_qty if yield_qty > 0 else None
-            display_yield = smart_quantity(yield_qty, recipe.get('yield_unit'), unit_system) if yield_qty > 0 else None
+            yield_pricing = summarize_yield_pricing(
+                total_cost,
+                recipe.get('yield_qty'),
+                recipe.get('yield_unit'),
+                unit_system
+            )
             batch_recipes.append({
                 'id': recipe['id'],
                 'name': recipe['name'],
                 'category': recipe.get('category'),
                 'yield_qty': yield_qty,
                 'yield_unit': recipe.get('yield_unit'),
-                'display_yield_qty': display_yield['quantity'] if display_yield else None,
-                'display_yield_unit': display_yield['unit'] if display_yield else None,
+                'display_yield_qty': yield_pricing['display_yield_qty'],
+                'display_yield_qty_value': yield_pricing['display_yield_qty_value'],
+                'display_yield_unit': yield_pricing['display_yield_unit'],
                 'total_cost': total_cost,
-                'cost_per_yield': cost_per_yield
+                'cost_per_yield': yield_pricing['cost_per_yield'],
+                'cost_per_yield_unit': yield_pricing['cost_per_yield_unit']
             })
 
     return ingredient_master, ingredient_total_cost, batch_recipes

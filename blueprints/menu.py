@@ -16,7 +16,7 @@ from helpers.formatting import (
 from helpers.menu import apply_menu_pricing, build_rollout_breakdown, group_menu_items, parse_menu_items
 from helpers.recipes import build_component_tree, collect_subrecipes_from_components, compute_q_factor, normalize_recipe_type
 from helpers.shared import generate_id, handle_route_error, to_float
-from helpers.units import get_unit_system
+from helpers.units import get_unit_system, summarize_yield_pricing
 
 bp = Blueprint('menu', __name__)
 
@@ -951,15 +951,23 @@ def menu_rollout_packet_export(rollout_id):
                     continue
                 components, total_cost, _ = build_component_tree(cur, recipe['id'], 1, 0, set(), unit_system)
                 yield_qty = to_float(recipe.get('yield_qty'))
-                yield_unit = recipe.get('yield_unit') or ''
-                cost_per_yield = (total_cost / yield_qty) if yield_qty > 0 else None
+                yield_pricing = summarize_yield_pricing(
+                    total_cost,
+                    recipe.get('yield_qty'),
+                    recipe.get('yield_unit'),
+                    unit_system
+                )
                 rb_recipes.append({
                     'recipe': recipe,
                     'components': components,
                     'total_cost': total_cost,
                     'yield_qty': yield_qty,
-                    'yield_unit': yield_unit,
-                    'cost_per_yield': cost_per_yield
+                    'yield_unit': recipe.get('yield_unit') or '',
+                    'display_yield_qty': yield_pricing['display_yield_qty'],
+                    'display_yield_qty_value': yield_pricing['display_yield_qty_value'],
+                    'display_yield_unit': yield_pricing['display_yield_unit'],
+                    'cost_per_yield': yield_pricing['cost_per_yield'],
+                    'cost_per_yield_unit': yield_pricing['cost_per_yield_unit']
                 })
 
         ingredient_master, _, _ = build_rollout_breakdown(cur, unit_system, menu_items)
@@ -1040,8 +1048,8 @@ def menu_rollout_packet_export(rollout_id):
             recipe = rb['recipe']
             ws_rb.append([
                 recipe['name'],
-                rb['yield_qty'] or '',
-                rb['yield_unit'] or '',
+                rb.get('display_yield_qty_value') or '',
+                rb.get('display_yield_unit') or '',
                 round(to_float(rb['total_cost']), 4),
                 round(to_float(rb['cost_per_yield']), 4) if rb.get('cost_per_yield') else None,
                 "RB",
@@ -1209,11 +1217,19 @@ def menu_rollout_packet_print(rollout_id):
                 if normalize_recipe_type(recipe.get('recipe_type')) != 'batch':
                     continue
                 components, total_cost, _ = build_component_tree(cur, recipe['id'], 1, 0, set(), unit_system)
-                yield_qty = to_float(recipe.get('yield_qty'))
+                yield_pricing = summarize_yield_pricing(
+                    total_cost,
+                    recipe.get('yield_qty'),
+                    recipe.get('yield_unit'),
+                    unit_system
+                )
                 rb_recipes.append({
                     'recipe': recipe,
                     'total_cost': total_cost,
-                    'cost_per_yield': (total_cost / yield_qty) if yield_qty > 0 else None,
+                    'display_yield_qty': yield_pricing['display_yield_qty'],
+                    'display_yield_unit': yield_pricing['display_yield_unit'],
+                    'cost_per_yield': yield_pricing['cost_per_yield'],
+                    'cost_per_yield_unit': yield_pricing['cost_per_yield_unit'],
                     'rows': flatten_components_for_packet(components, ingredient_map, preserve_base_units=True)
                 })
 

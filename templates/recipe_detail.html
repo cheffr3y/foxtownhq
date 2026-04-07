@@ -142,7 +142,7 @@
                 <div class="rm-stat-value">{% if total_cost is not none %}${{ "%.2f"|format(total_cost) }}{% else %}N/A{% endif %}</div>
             </div>
             <div class="rm-stat-card rm-stat-card--accent">
-                <div class="rm-stat-label">Cost Per {{ yield_display.unit or 'Unit' }}</div>
+                <div class="rm-stat-label">Cost Per {{ cost_per_yield_unit or yield_display.unit or 'Unit' }}</div>
                 <div class="rm-stat-value">{% if cost_per_yield is not none %}${{ "%.2f"|format(cost_per_yield) }}{% else %}N/A{% endif %}</div>
             </div>
             <div class="rm-stat-card">

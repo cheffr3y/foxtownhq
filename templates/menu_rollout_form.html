@@ -279,7 +279,7 @@
                                 <td class="py-3 pr-4 text-stone-600">${{ "%.2f"|format(batch.total_cost) }}</td>
                                 <td class="py-3 text-stone-600">
                                     {% if batch.cost_per_yield %}
-                                        ${{ "%.2f"|format(batch.cost_per_yield) }} / {{ batch.yield_unit or batch.display_yield_unit or '' }}
+                                        ${{ "%.2f"|format(batch.cost_per_yield) }} / {{ batch.cost_per_yield_unit or batch.display_yield_unit or batch.yield_unit or '' }}
                                     {% else %}
                                         --
                                     {% endif %}

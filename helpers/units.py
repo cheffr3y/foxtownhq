@@ -160,6 +160,26 @@ def smart_quantity(quantity, unit, system=None):
         'type': result['type']
     }
 
+def summarize_yield_pricing(total_cost, yield_qty, yield_unit, system=None):
+    qty = to_float(yield_qty)
+    unit_system = system or get_unit_system()
+    display = convert_quantity(qty, yield_unit, unit_system) if qty > 0 else None
+    display_unit = (display or {}).get('unit') or yield_unit or ''
+
+    cost_per_yield = None
+    if total_cost is not None and qty > 0:
+        base_cost_per_yield = to_float(total_cost) / qty
+        cost_per_yield = convert_cost_per_unit(base_cost_per_yield, yield_unit, display_unit)
+
+    return {
+        'display_yield_qty': format_number(display['quantity']) if display else None,
+        'display_yield_qty_value': display['quantity'] if display else None,
+        'display_yield_unit': display_unit,
+        'display_yield_converted': bool(display and display['converted']),
+        'cost_per_yield': cost_per_yield,
+        'cost_per_yield_unit': display_unit or yield_unit or ''
+    }
+
 def convert_quantity_between_units(quantity, from_unit, to_unit):
     amount = to_float(quantity)
     from_canonical = normalize_unit(from_unit)
@@ -226,6 +246,7 @@ __all__ = [
     'convert_cost_per_unit',
     'convert_quantity',
     'smart_quantity',
+    'summarize_yield_pricing',
     'convert_quantity_between_units',
     'normalize_count_unit',
     'convert_count_units',

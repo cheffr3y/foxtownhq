@@ -202,10 +202,10 @@
         {{ rb.recipe.name }}
         <span class="small">
             Yield:
-            {% if rb.recipe.yield_qty %}{{ rb.recipe.yield_qty }}{% else %}--{% endif %}
-            {{ rb.recipe.yield_unit or '' }}
+            {% if rb.display_yield_qty %}{{ rb.display_yield_qty }}{% else %}--{% endif %}
+            {{ rb.display_yield_unit or rb.recipe.yield_unit or '' }}
             · Batch Cost: ${{ "%.4f"|format(rb.total_cost or 0) }}
-            {% if rb.cost_per_yield %}· Cost/Yield: ${{ "%.4f"|format(rb.cost_per_yield) }}{% endif %}
+            {% if rb.cost_per_yield %}· Cost/Yield: ${{ "%.4f"|format(rb.cost_per_yield) }} / {{ rb.cost_per_yield_unit or rb.display_yield_unit or rb.recipe.yield_unit or '' }}{% endif %}
         </span>
     </h3>
     <table>

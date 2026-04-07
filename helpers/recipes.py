@@ -11,6 +11,7 @@ from helpers.units import (
     normalize_count_unit,
     normalize_unit,
     smart_quantity,
+    summarize_yield_pricing,
 )
 
 def normalize_recipe_type(value):
@@ -467,18 +468,14 @@ def build_component_tree(cur, recipe_id, scale_ratio, depth, path, unit_system, 
                 item['sub_total_cost'] = 0
 
             if sub_recipe:
-                sub_yield_qty = to_float(sub_recipe.get('yield_qty'))
-                if sub_yield_qty > 0:
-                    full_cost = get_recipe_total_cost(cur, sub_recipe['id'], unit_system)
-                    cost_per_yield = full_cost / sub_yield_qty
-                    display_yield = smart_quantity(sub_yield_qty, sub_recipe.get('yield_unit'), unit_system)
-                    display_unit = display_yield.get('unit') or sub_recipe.get('yield_unit')
-                    item['sub_cost_per_unit'] = convert_cost_per_unit(
-                        cost_per_yield,
-                        sub_recipe.get('yield_unit'),
-                        display_unit
-                    )
-                    item['sub_cost_unit'] = display_unit
+                pricing = summarize_yield_pricing(
+                    get_recipe_total_cost(cur, sub_recipe['id'], unit_system),
+                    sub_recipe.get('yield_qty'),
+                    sub_recipe.get('yield_unit'),
+                    unit_system
+                )
+                item['sub_cost_per_unit'] = pricing['cost_per_yield']
+                item['sub_cost_unit'] = pricing['cost_per_yield_unit']
 
         components.append(item)
 
@@ -595,18 +592,14 @@ def build_component_tree(cur, recipe_id, scale_ratio, depth, path, unit_system, 
                         raw_option_cost = get_recipe_total_cost(cur, sub_recipe['id'], unit_system) * (scale_ratio * applied_ratio)
 
                     if sub_recipe:
-                        sub_yield_qty = to_float(sub_recipe.get('yield_qty'))
-                        if sub_yield_qty > 0:
-                            full_cost = get_recipe_total_cost(cur, sub_recipe['id'], unit_system)
-                            cost_per_yield = full_cost / sub_yield_qty
-                            display_yield = smart_quantity(sub_yield_qty, sub_recipe.get('yield_unit'), unit_system)
-                            display_unit = display_yield.get('unit') or sub_recipe.get('yield_unit')
-                            opt_item['sub_cost_per_unit'] = convert_cost_per_unit(
-                                cost_per_yield,
-                                sub_recipe.get('yield_unit'),
-                                display_unit
-                            )
-                            opt_item['sub_cost_unit'] = display_unit
+                        pricing = summarize_yield_pricing(
+                            get_recipe_total_cost(cur, sub_recipe['id'], unit_system),
+                            sub_recipe.get('yield_qty'),
+                            sub_recipe.get('yield_unit'),
+                            unit_system
+                        )
+                        opt_item['sub_cost_per_unit'] = pricing['cost_per_yield']
+                        opt_item['sub_cost_unit'] = pricing['cost_per_yield_unit']
 
                 weighted_cost = raw_option_cost * opt_weight_ratio
                 opt_item['raw_cost_total'] = raw_option_cost

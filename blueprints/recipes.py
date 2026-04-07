@@ -15,7 +15,7 @@ from helpers.recipes import (
     parse_weighted_options_from_form,
 )
 from helpers.shared import generate_id, handle_route_error, to_float
-from helpers.units import get_unit_system, normalize_unit
+from helpers.units import get_unit_system, normalize_unit, summarize_yield_pricing
 from helpers.venues import get_active_venues, get_recipe_venue_ids, parse_recipe_venue_ids
 
 bp = Blueprint('recipes', __name__)
@@ -148,10 +148,12 @@ def _get_recipe_detail_context(recipe_id):
             q_factor_amount = total_cost - base_total_cost
         elif total_cost is not None:
             base_total_cost = total_cost
-        yield_qty_float = to_float(recipe.get('yield_qty'))
-        cost_per_yield = None
-        if total_cost is not None and yield_qty_float > 0:
-            cost_per_yield = total_cost / yield_qty_float
+        yield_pricing = summarize_yield_pricing(
+            total_cost,
+            recipe.get('yield_qty'),
+            recipe.get('yield_unit'),
+            unit_system
+        )
 
         return {
             'recipe': recipe,
@@ -159,7 +161,8 @@ def _get_recipe_detail_context(recipe_id):
             'components': components,
             'component_count': len(components),
             'total_cost': total_cost,
-            'cost_per_yield': cost_per_yield,
+            'cost_per_yield': yield_pricing['cost_per_yield'],
+            'cost_per_yield_unit': yield_pricing['cost_per_yield_unit'],
             'base_total_cost': base_total_cost,
             'q_factor_percent': RECIPE_Q_FACTOR_PERCENT,
             'q_factor_amount': q_factor_amount,
