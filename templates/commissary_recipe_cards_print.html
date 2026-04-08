@@ -245,6 +245,51 @@ body {
     font-size: 0.66rem;
     color: #566166;
 }
+.rc-manifest-production-cell {
+    min-width: 11.5rem;
+}
+.rc-manifest-detail-list {
+    display: grid;
+    gap: 0.24rem;
+    margin-bottom: 0.45rem;
+}
+.rc-manifest-detail {
+    font-size: 0.62rem;
+    line-height: 1.35;
+    color: #566166;
+}
+.rc-manifest-detail-label {
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #2a3439;
+    margin-right: 0.28rem;
+}
+.rc-write-pair {
+    display: grid;
+    gap: 0.3rem;
+}
+.rc-write-row {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.4rem;
+    align-items: end;
+}
+.rc-write-label {
+    font-size: 0.52rem;
+    font-weight: 900;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #566166;
+    white-space: nowrap;
+}
+.rc-write-line {
+    display: block;
+    width: 100%;
+    min-width: 4.5rem;
+    height: 0.82rem;
+    border-bottom: 1px solid #94a3ab;
+}
 .rc-manifest-qty {
     white-space: nowrap;
     text-align: right;
@@ -1067,9 +1112,9 @@ body {
                 <tr>
                     <th style="width:8%">Loaded</th>
                     <th>Item Name</th>
-                    <th style="width:16%">Quantity</th>
-                    <th style="width:18%">Destination</th>
-                    <th style="width:20%">Dispatch Notes</th>
+                    <th style="width:14%">Quantity</th>
+                    <th style="width:16%">Destination</th>
+                    <th style="width:28%">Made By / Notes</th>
                 </tr>
             </thead>
             <tbody>
@@ -1084,7 +1129,28 @@ body {
                     </td>
                     <td class="rc-manifest-qty">{{ line.quantity }} {{ line.quantity_unit }}</td>
                     <td>{{ line.outlet }}</td>
-                    <td>{{ line.notes or '—' }}</td>
+                    <td class="rc-manifest-production-cell">
+                        {% if line.notes or line.assigned_to %}
+                        <div class="rc-manifest-detail-list">
+                            {% if line.notes %}
+                            <div class="rc-manifest-detail"><span class="rc-manifest-detail-label">Dispatch</span>{{ line.notes }}</div>
+                            {% endif %}
+                            {% if line.assigned_to %}
+                            <div class="rc-manifest-detail"><span class="rc-manifest-detail-label">Assigned</span>{{ line.assigned_to }}</div>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                        <div class="rc-write-pair">
+                            <div class="rc-write-row">
+                                <span class="rc-write-label">Made By</span>
+                                <span class="rc-write-line" aria-hidden="true"></span>
+                            </div>
+                            <div class="rc-write-row">
+                                <span class="rc-write-label">Notes</span>
+                                <span class="rc-write-line" aria-hidden="true"></span>
+                            </div>
+                        </div>
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
