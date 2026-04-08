@@ -31,7 +31,7 @@ from helpers.menu import clean_menu_text
 from helpers.formatting import split_instruction_steps
 from helpers.recipes import build_component_tree, collect_ingredients_from_components, normalize_recipe_type, ratio_from_line_quantity
 from helpers.shared import generate_id, handle_route_error, to_float
-from helpers.units import format_number, get_unit_system, smart_quantity
+from helpers.units import format_number, get_unit_system, preferred_order_quantity, smart_quantity
 
 bp = Blueprint('commissary', __name__)
 
@@ -233,8 +233,25 @@ def list_commissary_recipe_options(cur):
         display = f"{row.get('name') or 'Recipe'} ({type_label})"
         yield_qty = to_float(row.get('yield_qty'))
         yield_unit = row.get('yield_unit') or ''
+        order_friendly_yield = preferred_order_quantity(yield_qty, yield_unit)
+        display_yield_qty = order_friendly_yield.get('quantity')
+        display_yield_unit = order_friendly_yield.get('unit') or yield_unit
+        row['default_order_qty'] = display_yield_qty if display_yield_qty is not None else (yield_qty if yield_qty > 0 else 1)
+        row['default_order_qty_display'] = format_number(row['default_order_qty']) if row['default_order_qty'] is not None else '1'
+        row['default_order_unit'] = display_yield_unit or 'each'
+        row['yield_display_qty'] = format_number(display_yield_qty) if display_yield_qty is not None else ''
+        row['yield_display_unit'] = display_yield_unit
+        row['yield_display_converted'] = bool(order_friendly_yield.get('converted'))
+        row['yield_raw_qty'] = format_number(yield_qty) if yield_qty > 0 else ''
+        row['yield_raw_unit'] = yield_unit
         if yield_qty > 0 and yield_unit:
-            display = f"{display} - yield {format_number(yield_qty)} {yield_unit}"
+            if row['yield_display_converted']:
+                display = (
+                    f"{display} - yield {row['yield_display_qty']} {display_yield_unit} "
+                    f"({row['yield_raw_qty']} {yield_unit})"
+                )
+            else:
+                display = f"{display} - yield {row['yield_raw_qty']} {yield_unit}"
         row['display_label'] = display
     return rows
 

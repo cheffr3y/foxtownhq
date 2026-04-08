@@ -160,6 +160,36 @@ def smart_quantity(quantity, unit, system=None):
         'type': result['type']
     }
 
+def preferred_order_quantity(quantity, unit):
+    amount = to_float(quantity)
+    canonical = normalize_unit(unit)
+    display_unit = UNIT_DEFS.get(canonical, {}).get('display') if canonical else None
+    response = {
+        'quantity': amount,
+        'unit': display_unit or unit or '',
+        'converted': False,
+    }
+    if amount is None or not canonical:
+        return response
+
+    preferred_targets = {
+        'oz': 'lb',
+        'fl oz': 'qt',
+    }
+    target_unit = preferred_targets.get(canonical)
+    if not target_unit:
+        return response
+
+    converted = convert_quantity_between_units(amount, canonical, target_unit)
+    if converted is None or converted < 1:
+        return response
+
+    return {
+        'quantity': converted,
+        'unit': UNIT_DEFS[target_unit]['display'],
+        'converted': True,
+    }
+
 def summarize_yield_pricing(total_cost, yield_qty, yield_unit, system=None):
     qty = to_float(yield_qty)
     unit_system = system or get_unit_system()
@@ -246,6 +276,7 @@ __all__ = [
     'convert_cost_per_unit',
     'convert_quantity',
     'smart_quantity',
+    'preferred_order_quantity',
     'summarize_yield_pricing',
     'convert_quantity_between_units',
     'normalize_count_unit',

@@ -16,6 +16,7 @@
     .lines-table { min-width: 1120px; }
     .remove-btn { color: #8B2020; font-size: 0.8rem; font-weight: 600; }
     .remove-btn:hover { color: #B33A3A; }
+    .line-meta { margin-top: 0.4rem; font-size: 0.76rem; color: #8A8580; line-height: 1.45; }
     .delete-order {
         min-height: 42px;
         padding: 0.5rem 0.95rem;
@@ -120,12 +121,13 @@
                                     class="fhq-input"
                                     placeholder="Search recipe..."
                                 >
+                                <div class="line-meta" data-role="recipe-meta"></div>
                             </td>
                             <td>
                                 <input name="line_item_name[]" data-role="item-name" value="{{ line.item_name or line.recipe_name or '' }}" class="fhq-input" placeholder="Defaults to recipe name">
                             </td>
-                            <td><input type="number" step="0.01" min="0" name="line_qty[]" value="{{ line.quantity or '' }}" class="fhq-input"></td>
-                            <td><input name="line_unit[]" data-role="line-unit" value="{{ line.quantity_unit or line.yield_unit or 'each' }}" class="fhq-input"></td>
+                            <td><input type="number" step="0.01" min="0" name="line_qty[]" data-role="line-qty" value="{{ line.quantity or '' }}" class="fhq-input"></td>
+                            <td><input name="line_unit[]" data-role="line-unit" value="{{ line.quantity_unit or line.yield_unit or 'each' }}" list="orderUnitOptions" class="fhq-input" placeholder="qt, lb, each"></td>
                             <td><input type="date" name="line_prep_start[]" value="{{ line.prep_start_date or order.needed_date or '' }}" class="fhq-input"></td>
                             <td><input type="date" name="line_prep_end[]" value="{{ line.prep_end_date or line.prep_start_date or order.needed_date or '' }}" class="fhq-input"></td>
                             <td><input name="line_notes[]" value="{{ line.notes or line.line_notes or '' }}" class="fhq-input" placeholder="Pack size, delivery notes"></td>
@@ -177,10 +179,11 @@
             class="fhq-input"
             placeholder="Search recipe..."
         >
+        <div class="line-meta" data-role="recipe-meta"></div>
     </td>
     <td><input name="line_item_name[]" data-role="item-name" class="fhq-input" placeholder="Defaults to recipe name"></td>
-    <td><input type="number" step="0.01" min="0" name="line_qty[]" value="1" class="fhq-input"></td>
-    <td><input name="line_unit[]" data-role="line-unit" value="each" class="fhq-input"></td>
+    <td><input type="number" step="0.01" min="0" name="line_qty[]" data-role="line-qty" value="1" class="fhq-input"></td>
+    <td><input name="line_unit[]" data-role="line-unit" value="each" list="orderUnitOptions" class="fhq-input" placeholder="qt, lb, each"></td>
     <td><input type="date" name="line_prep_start[]" class="fhq-input"></td>
     <td><input type="date" name="line_prep_end[]" class="fhq-input"></td>
     <td><input name="line_notes[]" class="fhq-input" placeholder="Pack size, delivery notes"></td>
@@ -192,6 +195,18 @@
     {% for recipe in recipe_options %}
     <option value="{{ recipe.display_label }}"></option>
     {% endfor %}
+</datalist>
+
+<datalist id="orderUnitOptions">
+    <option value="each"></option>
+    <option value="dozen"></option>
+    <option value="oz"></option>
+    <option value="lb"></option>
+    <option value="fl oz"></option>
+    <option value="cup"></option>
+    <option value="pt"></option>
+    <option value="qt"></option>
+    <option value="gal"></option>
 </datalist>
 
 <script>
@@ -235,7 +250,9 @@
         const recipeSearchInput = row.querySelector('[data-role="recipe-search"]');
         const recipeIdInput = row.querySelector('[data-role="recipe-id"]');
         const itemNameInput = row.querySelector('[data-role="item-name"]');
+        const qtyInput = row.querySelector('[data-role="line-qty"]');
         const unitInput = row.querySelector('[data-role="line-unit"]');
+        const recipeMeta = row.querySelector('[data-role="recipe-meta"]');
         if (!recipeSearchInput || !recipeIdInput) return;
 
         let recipe = findRecipeFromSearch(recipeSearchInput.value);
@@ -252,13 +269,28 @@
         }
 
         const recipeName = recipe ? (recipe.name || '') : '';
-        const defaultUnit = recipe ? (recipe.yield_unit || 'each') : '';
+        const defaultQty = recipe ? (recipe.default_order_qty_display || recipe.default_order_qty || '1') : '1';
+        const defaultUnit = recipe ? (recipe.default_order_unit || recipe.yield_unit || 'each') : '';
 
         if (itemNameInput && (forceDefaults || !itemNameInput.value.trim())) {
             itemNameInput.value = recipeName;
         }
+        if (qtyInput && recipe && (forceDefaults || !qtyInput.value.trim())) {
+            qtyInput.value = defaultQty;
+        }
         if (unitInput && defaultUnit && (forceDefaults || !unitInput.value.trim())) {
             unitInput.value = defaultUnit;
+        }
+        if (recipeMeta) {
+            if (recipe && recipe.yield_display_qty && recipe.yield_display_unit) {
+                if (recipe.yield_display_converted && recipe.yield_raw_qty && recipe.yield_raw_unit) {
+                    recipeMeta.textContent = `Recipe yield: ${recipe.yield_display_qty} ${recipe.yield_display_unit} per batch (${recipe.yield_raw_qty} ${recipe.yield_raw_unit} stored). Compatible order units auto-scale.`;
+                } else {
+                    recipeMeta.textContent = `Recipe yield: ${recipe.yield_display_qty} ${recipe.yield_display_unit} per batch. Compatible order units auto-scale.`;
+                }
+            } else {
+                recipeMeta.textContent = '';
+            }
         }
     }
 
