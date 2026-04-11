@@ -12,6 +12,7 @@ from blueprints.commissary import bp as commissary_bp
 from blueprints.forecasting import bp as forecasting_bp
 from blueprints.ingredients import bp as ingredients_bp
 from blueprints.menu import bp as menu_bp
+from blueprints.prep import bp as prep_bp
 from blueprints.recipes import bp as recipes_bp
 from config import PRICE_REFRESH_DAYS
 from db import get_cursor, init_app as init_db_app
@@ -321,6 +322,7 @@ register_blueprint_with_legacy_endpoints(app, banquet_bp)
 register_blueprint_with_legacy_endpoints(app, buffet_bp)
 register_blueprint_with_legacy_endpoints(app, commissary_bp)
 register_blueprint_with_legacy_endpoints(app, forecasting_bp)
+register_blueprint_with_legacy_endpoints(app, prep_bp)
 register_blueprint_with_legacy_endpoints(app, recipes_bp)
 register_blueprint_with_legacy_endpoints(app, ingredients_bp)
 register_blueprint_with_legacy_endpoints(app, menu_bp)

@@ -2,6 +2,24 @@
 
 {% block title %}{{ recipe.name }} - Foxtown HQ{% endblock %}
 
+{% block extra_head %}
+<style>
+    .badge-prep {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        border-radius: 9999px;
+        background: #e0ecff;
+        color: #274472;
+        font-size: 0.72rem;
+        font-weight: 600;
+        line-height: 1;
+        padding: 0.28rem 0.6rem;
+        white-space: nowrap;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 {% set yield_display = smart_quantity(recipe.yield_qty, recipe.yield_unit) %}
 {% if recipe.recipe_type == 'menu' %}
@@ -12,6 +30,7 @@
 {% set recipe_kind = 'Recipe' %}
 {% endif %}
 {% set descriptor_copy = recipe.menu_descriptor or 'Operational recipe sheet with live component costing and sub-recipe rollups.' %}
+{% set ledger_colspan = 5 if not auto_print else 4 %}
 
 {% macro render_component_rows(items, depth=0) -%}
     {% for item in items %}
@@ -65,6 +84,13 @@
         <div class="rm-ledger-subline">{{ item.scaled_quantity_display }} {{ item.unit or '' }}</div>
         {% endif %}
     </td>
+    {% if not auto_print %}
+    <td class="rm-ledger-cell rm-ledger-cell--prep">
+        {% if item.type == 'ingredient' and item.prep_note %}
+        <span class="badge-prep">{{ item.prep_note }}</span>
+        {% endif %}
+    </td>
+    {% endif %}
     <td class="rm-ledger-cell rm-ledger-cell--unitcost">{{ unit_cost }}</td>
     <td class="rm-ledger-cell rm-ledger-cell--extension">{{ extension_cost }}</td>
 </tr>
@@ -72,7 +98,7 @@
             {{ render_component_rows(item.children, depth + 1) }}
         {% elif item.type == 'recipe' %}
 <tr class="rm-ledger-note-row">
-    <td class="rm-ledger-note" colspan="4" style="padding-left: calc(3.6rem + {{ depth }} * 1.2rem);">No nested ingredient rows are linked under this sub-recipe yet.</td>
+    <td class="rm-ledger-note" colspan="{{ ledger_colspan }}" style="padding-left: calc(3.6rem + {{ depth }} * 1.2rem);">No nested ingredient rows are linked under this sub-recipe yet.</td>
 </tr>
         {% endif %}
     {% endfor %}
@@ -155,6 +181,9 @@
             <div class="rm-ledger-header">
                 <div class="rm-ledger-heading">Ingredient / Sub-Recipe</div>
                 <div class="rm-ledger-heading rm-ledger-heading--right">Qty / Unit</div>
+                {% if not auto_print %}
+                <div class="rm-ledger-heading rm-ledger-heading--right">Prep Form</div>
+                {% endif %}
                 <div class="rm-ledger-heading rm-ledger-heading--right">Unit Cost</div>
                 <div class="rm-ledger-heading rm-ledger-heading--right">Extension</div>
             </div>

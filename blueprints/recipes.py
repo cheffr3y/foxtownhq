@@ -4,6 +4,7 @@ from flask import Blueprint, flash, jsonify, redirect, render_template, request,
 from flask_login import login_required
 from helpers.db_helpers import db_table_exists, ensure_recipe_metadata_columns
 from helpers.formatting import split_instruction_steps
+from helpers.prep_helpers import PREP_NOTE_OPTIONS, clean_prep_note, ensure_prep_schema
 from helpers.recipes import (
     build_component_tree,
     clone_recipe,
@@ -121,6 +122,7 @@ def _get_recipe_detail_context(recipe_id):
     conn = get_db()
     with get_cursor() as cur:
         ensure_recipe_metadata_columns(cur)
+        ensure_prep_schema(cur)
         conn.commit()
         recipe = get_recipe_by_id(cur, recipe_id)
 
@@ -329,6 +331,7 @@ def recipe_new():
     selected_venue_ids = []
     with get_cursor() as cur:
         ensure_recipe_metadata_columns(cur)
+        ensure_prep_schema(cur)
         conn.commit()
         if request.method == 'POST':
             errors = []
@@ -360,6 +363,7 @@ def recipe_new():
             ingredient_names = request.form.getlist('ingredient_name[]')
             ingredient_qtys = request.form.getlist('ingredient_qty[]')
             ingredient_units = request.form.getlist('ingredient_unit[]')
+            ingredient_prep_notes = request.form.getlist('prep_note[]')
 
             for idx, ing_id in enumerate(ingredient_ids):
                 ing_id = (ing_id or '').strip()
@@ -469,18 +473,20 @@ def recipe_new():
                             continue
                         qty = (ingredient_qtys[idx] if idx < len(ingredient_qtys) else '').strip()
                         unit = (ingredient_units[idx] if idx < len(ingredient_units) else '').strip()
+                        prep_note = clean_prep_note(ingredient_prep_notes[idx] if idx < len(ingredient_prep_notes) else '')
                         unit = normalize_unit(unit) or unit
                         if qty == '':
                             continue
                         cur.execute("""
-                            INSERT INTO recipe_ingredients (id, recipe_id, type, item_id, quantity, unit)
-                            VALUES (%s, %s, 'ingredient', %s, %s, %s)
+                            INSERT INTO recipe_ingredients (id, recipe_id, type, item_id, quantity, unit, prep_note)
+                            VALUES (%s, %s, 'ingredient', %s, %s, %s, %s)
                         """, (
                             generate_id('ri_'),
                             recipe_id,
                             ing_id,
                             qty,
-                            unit or None
+                            unit or None,
+                            prep_note
                         ))
 
                     # Sub-recipes
@@ -577,6 +583,7 @@ def recipe_new():
         selected_venue_ids=selected_venue_ids,
         ingredient_items=[],
         subrecipe_items=[],
+        prep_note_options=PREP_NOTE_OPTIONS,
         option_items=_prepare_option_items_for_form(option_items_input, option_label_map)
     )
 
@@ -586,6 +593,7 @@ def recipe_edit(recipe_id):
     conn = get_db()
     with get_cursor() as cur:
         ensure_recipe_metadata_columns(cur)
+        ensure_prep_schema(cur)
         conn.commit()
         recipe = get_recipe_by_id(cur, recipe_id)
         if not recipe:
@@ -642,6 +650,7 @@ def recipe_edit(recipe_id):
             ingredient_names = request.form.getlist('ingredient_name[]')
             ingredient_qtys = request.form.getlist('ingredient_qty[]')
             ingredient_units = request.form.getlist('ingredient_unit[]')
+            ingredient_prep_notes = request.form.getlist('prep_note[]')
 
             for idx, ing_id in enumerate(ingredient_ids):
                 ing_id = (ing_id or '').strip()
@@ -722,18 +731,20 @@ def recipe_edit(recipe_id):
                             continue
                         qty = (ingredient_qtys[idx] if idx < len(ingredient_qtys) else '').strip()
                         unit = (ingredient_units[idx] if idx < len(ingredient_units) else '').strip()
+                        prep_note = clean_prep_note(ingredient_prep_notes[idx] if idx < len(ingredient_prep_notes) else '')
                         unit = normalize_unit(unit) or unit
                         if qty == '':
                             continue
                         cur.execute("""
-                            INSERT INTO recipe_ingredients (id, recipe_id, type, item_id, quantity, unit)
-                            VALUES (%s, %s, 'ingredient', %s, %s, %s)
+                            INSERT INTO recipe_ingredients (id, recipe_id, type, item_id, quantity, unit, prep_note)
+                            VALUES (%s, %s, 'ingredient', %s, %s, %s, %s)
                         """, (
                             generate_id('ri_'),
                             recipe_id,
                             ing_id,
                             qty,
-                            unit or None
+                            unit or None,
+                            prep_note
                         ))
 
                     sub_qtys = request.form.getlist('sub_recipe_qty[]')
@@ -854,6 +865,7 @@ def recipe_edit(recipe_id):
         selected_venue_ids=selected_venue_ids,
         ingredient_items=ingredient_items,
         subrecipe_items=subrecipe_items,
+        prep_note_options=PREP_NOTE_OPTIONS,
         option_items=_prepare_option_items_for_form(option_items, option_label_map)
     )
 
@@ -869,6 +881,7 @@ def recipe_clone(recipe_id):
     conn = get_db()
     with get_cursor() as cur:
         ensure_recipe_metadata_columns(cur)
+        ensure_prep_schema(cur)
         conn.commit()
         source_recipe = get_recipe_by_id(cur, recipe_id)
         if not source_recipe:

@@ -158,6 +158,7 @@
                                 <th class="text-left py-2 pr-4">Ingredient</th>
                                 <th class="text-left py-2 pr-4">Quantity</th>
                                 <th class="text-left py-2 pr-4">Unit</th>
+                                <th class="text-left py-2 pr-4">Prep form</th>
                                 <th class="text-right py-2">Remove</th>
                             </tr>
                         </thead>
@@ -181,6 +182,20 @@
                                                list="unitOptions"
                                                class="ingredient-unit w-full border border-stone-300 rounded-xl px-3 py-2">
                                     </td>
+                                    <td class="py-2 pr-4">
+                                        {% set prep_value = item.prep_note or '' %}
+                                        {% set prep_is_known = prep_value in prep_note_options %}
+                                        <select class="ingredient-prep-select w-full border border-stone-300 rounded-xl px-3 py-2">
+                                            <option value="">No prep note</option>
+                                            {% for option in prep_note_options %}
+                                            <option value="{{ option }}" {% if prep_value == option %}selected{% endif %}>{{ option }}</option>
+                                            {% endfor %}
+                                            <option value="__other__" {% if prep_value and not prep_is_known %}selected{% endif %}>Other (free text)</option>
+                                        </select>
+                                        <input type="text" name="prep_note[]" value="{{ prep_value }}"
+                                               class="ingredient-prep-note mt-2 w-full border border-stone-300 rounded-xl px-3 py-2 {% if not prep_value or prep_is_known %}hidden{% endif %}"
+                                               placeholder="Describe prep form">
+                                    </td>
                                     <td class="py-2 text-right">
                                         <button type="button" class="remove-row text-red-600 hover:text-red-700 text-sm font-semibold">Remove</button>
                                     </td>
@@ -202,6 +217,18 @@
                                         <input type="text" name="ingredient_unit[]"
                                                list="unitOptions"
                                                class="ingredient-unit w-full border border-stone-300 rounded-xl px-3 py-2">
+                                    </td>
+                                    <td class="py-2 pr-4">
+                                        <select class="ingredient-prep-select w-full border border-stone-300 rounded-xl px-3 py-2">
+                                            <option value="" selected>No prep note</option>
+                                            {% for option in prep_note_options %}
+                                            <option value="{{ option }}">{{ option }}</option>
+                                            {% endfor %}
+                                            <option value="__other__">Other (free text)</option>
+                                        </select>
+                                        <input type="text" name="prep_note[]" value=""
+                                               class="ingredient-prep-note mt-2 hidden w-full border border-stone-300 rounded-xl px-3 py-2"
+                                               placeholder="Describe prep form">
                                     </td>
                                     <td class="py-2 text-right">
                                         <button type="button" class="remove-row text-red-600 hover:text-red-700 text-sm font-semibold">Remove</button>
@@ -413,6 +440,18 @@
                    list="unitOptions"
                    class="ingredient-unit w-full border border-stone-300 rounded-xl px-3 py-2">
         </td>
+        <td class="py-2 pr-4">
+            <select class="ingredient-prep-select w-full border border-stone-300 rounded-xl px-3 py-2">
+                <option value="" selected>No prep note</option>
+                {% for option in prep_note_options %}
+                <option value="{{ option }}">{{ option }}</option>
+                {% endfor %}
+                <option value="__other__">Other (free text)</option>
+            </select>
+            <input type="text" name="prep_note[]" value=""
+                   class="ingredient-prep-note mt-2 hidden w-full border border-stone-300 rounded-xl px-3 py-2"
+                   placeholder="Describe prep form">
+        </td>
         <td class="py-2 text-right">
             <button type="button" class="remove-row text-red-600 hover:text-red-700 text-sm font-semibold">Remove</button>
         </td>
@@ -503,6 +542,7 @@ const recipeTypeSelect = document.querySelector('select[name="recipe_type"]');
 const weightedOptionsSection = document.getElementById('weightedOptionsSection');
 const yieldQtyInput = document.querySelector('input[name="yield_qty"]');
 const yieldUnitInput = document.querySelector('input[name="yield_unit"]');
+const prepNoteOptions = {{ prep_note_options|tojson }};
 const ingredientOptions = Array.from(document.querySelectorAll('#ingredientOptions option'));
 const subRecipeOptions = Array.from(document.querySelectorAll('#subRecipeOptions option'));
 
@@ -546,6 +586,37 @@ function syncIngredientRow(row) {
             input.classList.remove('border-red-300');
         }
     }
+}
+
+function syncIngredientPrepRow(row) {
+    const select = row.querySelector('.ingredient-prep-select');
+    const input = row.querySelector('.ingredient-prep-note');
+    if (!select || !input) return;
+
+    if (select.value === '__other__') {
+        input.classList.remove('hidden');
+        return;
+    }
+
+    input.value = select.value || '';
+    input.classList.add('hidden');
+}
+
+function initializeIngredientPrepRow(row) {
+    const select = row.querySelector('.ingredient-prep-select');
+    const input = row.querySelector('.ingredient-prep-note');
+    if (!select || !input) return;
+
+    const currentValue = (input.value || '').trim();
+    if (currentValue && prepNoteOptions.includes(currentValue)) {
+        select.value = currentValue;
+    } else if (currentValue) {
+        select.value = '__other__';
+    } else {
+        select.value = '';
+    }
+
+    syncIngredientPrepRow(row);
 }
 
 function syncSubRecipeRow(row) {
@@ -647,6 +718,10 @@ function enforceMenuYield() {
 document.getElementById('addIngredientRow').addEventListener('click', () => {
     const template = document.getElementById('ingredientRowTemplate');
     ingredientRows.appendChild(template.content.cloneNode(true));
+    const newRow = ingredientRows.lastElementChild;
+    if (newRow) {
+        initializeIngredientPrepRow(newRow);
+    }
 });
 
 document.getElementById('addSubRecipeRow').addEventListener('click', () => {
@@ -694,7 +769,17 @@ document.addEventListener('input', (event) => {
     }
 });
 
-document.querySelectorAll('#ingredientRows tr').forEach((row) => syncIngredientRow(row));
+document.addEventListener('change', (event) => {
+    if (event.target.classList.contains('ingredient-prep-select')) {
+        const row = event.target.closest('tr');
+        if (row) syncIngredientPrepRow(row);
+    }
+});
+
+document.querySelectorAll('#ingredientRows tr').forEach((row) => {
+    syncIngredientRow(row);
+    initializeIngredientPrepRow(row);
+});
 document.querySelectorAll('#subRecipeRows tr').forEach((row) => syncSubRecipeRow(row));
 document.querySelectorAll('#weightedOptionRows tr').forEach((row) => syncWeightedOptionRow(row));
 if (recipeTypeSelect) {

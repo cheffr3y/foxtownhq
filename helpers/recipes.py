@@ -150,7 +150,7 @@ def clone_recipe(cur, source_recipe_id):
     ))
 
     cur.execute("""
-        SELECT type, item_id, quantity, unit
+        SELECT type, item_id, quantity, unit, prep_note
         FROM recipe_ingredients
         WHERE recipe_id = %s
         ORDER BY id
@@ -160,15 +160,16 @@ def clone_recipe(cur, source_recipe_id):
         if row.get('type') == 'recipe' and item_id == source_recipe_id:
             item_id = clone_id
         cur.execute("""
-            INSERT INTO recipe_ingredients (id, recipe_id, type, item_id, quantity, unit)
-            VALUES (%s, %s, %s, %s, %s, %s)
+            INSERT INTO recipe_ingredients (id, recipe_id, type, item_id, quantity, unit, prep_note)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
         """, (
             generate_id('ri_'),
             clone_id,
             row.get('type'),
             item_id,
             row.get('quantity'),
-            row.get('unit')
+            row.get('unit'),
+            row.get('prep_note')
         ))
 
     cur.execute("""

@@ -10,6 +10,7 @@ load_dotenv()
 
 MIGRATIONS = [
     "ALTER TABLE recipes ADD COLUMN IF NOT EXISTS menu_descriptor TEXT",
+    "ALTER TABLE recipe_ingredients ADD COLUMN IF NOT EXISTS prep_note TEXT",
     "ALTER TABLE menu_rollouts ADD COLUMN IF NOT EXISTS target_food_cost_percent NUMERIC",
     "ALTER TABLE menu_rollout_items ADD COLUMN IF NOT EXISTS menu_price NUMERIC",
     "ALTER TABLE menu_rollout_items ADD COLUMN IF NOT EXISTS target_food_cost_percent NUMERIC",
