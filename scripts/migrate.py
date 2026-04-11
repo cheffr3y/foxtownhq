@@ -361,6 +361,23 @@ MIGRATIONS = [
     )
     """,
     "CREATE INDEX IF NOT EXISTS idx_buffet_order_items_event_id ON buffet_order_items (event_id)",
+    """
+    CREATE TABLE IF NOT EXISTS forecasting_menu_items (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        category TEXT NOT NULL DEFAULT 'Uncategorized',
+        venue_id TEXT REFERENCES venues(id) ON DELETE SET NULL,
+        description TEXT,
+        recipe_id TEXT REFERENCES recipes(id) ON DELETE SET NULL,
+        sort_order INTEGER DEFAULT 0,
+        active BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_forecasting_menu_items_category ON forecasting_menu_items (category)",
+    "CREATE INDEX IF NOT EXISTS idx_forecasting_menu_items_venue_id ON forecasting_menu_items (venue_id)",
+    "CREATE INDEX IF NOT EXISTS idx_forecasting_menu_items_recipe_id ON forecasting_menu_items (recipe_id)",
 ]
 
 

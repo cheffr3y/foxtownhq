@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% from "base.html" import page_header %}
+
+{% block title %}Product Forecasting - Foxtown HQ{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    {% call page_header('Product Forecasting', selected_venue_name ~ ' menu item recipe coverage', 'forecasting') %}
+    <div class="flex flex-wrap items-end gap-3">
+        <form method="GET" class="flex items-end gap-2">
+            <div>
+                <label for="forecastingVenueFilter" class="block text-xs font-bold uppercase tracking-[0.14em] text-foxtown-muted mb-1.5">Venue</label>
+                <select id="forecastingVenueFilter" name="venue_id" class="fhq-input min-w-[13rem]" onchange="this.form.submit()">
+                    {% if venues %}
+                        {% for venue in venues %}
+                        <option value="{{ venue.id }}" {% if venue.id == selected_venue_id %}selected{% endif %}>{{ venue.name }}</option>
+                        {% endfor %}
+                    {% else %}
+                    <option value="">No Active Venues</option>
+                    {% endif %}
+                </select>
+            </div>
+        </form>
+        <a
+            href="{{ url_for('forecasting.forecasting_menu_item_new', venue_id=selected_venue_id) if selected_venue_id else url_for('forecasting.forecasting_menu_item_new') }}"
+            class="fhq-btn fhq-btn--primary"
+        >
+            + Add Menu Item
+        </a>
+    </div>
+    {% endcall %}
+
+    <section class="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <article class="fhq-card p-5">
+            <div class="fhq-section-head">Total Items</div>
+            <div class="text-3xl font-black tracking-[-0.05em] text-foxtown-text">{{ total_items }}</div>
+        </article>
+        <article class="fhq-card p-5">
+            <div class="fhq-section-head">Recipes Complete</div>
+            <div class="text-3xl font-black tracking-[-0.05em] text-foxtown-text">{{ items_with_recipe }}</div>
+        </article>
+        <article class="fhq-card p-5">
+            <div class="fhq-section-head">Needs Recipe</div>
+            <div class="text-3xl font-black tracking-[-0.05em] text-foxtown-text">{{ items_missing_recipe }}</div>
+        </article>
+    </section>
+
+    <section class="fhq-card p-5">
+        <div class="flex items-center justify-between gap-4">
+            <div>
+                <div class="fhq-section-head mb-2">Completion</div>
+                <p class="text-sm text-foxtown-muted">Recipe linkage progress for {{ selected_venue_name }}.</p>
+            </div>
+            <div class="text-2xl font-black tracking-[-0.05em] text-[#C0612B]">{{ completion_pct }}%</div>
+        </div>
+        <div class="mt-4 h-3 overflow-hidden border border-foxtown-border/30 bg-foxtown-panel">
+            <div class="h-full bg-[#C0612B]" style="width: {{ completion_pct }}%;"></div>
+        </div>
+    </section>
+
+    {% if items_by_category %}
+        {% for category, items in items_by_category.items() %}
+        <section class="fhq-card overflow-hidden">
+            <div class="flex items-center justify-between gap-3 border-b border-foxtown-border/25 bg-foxtown-panel px-5 py-4">
+                <div>
+                    <h2 class="text-lg font-bold tracking-tight text-foxtown-text">{{ category }}</h2>
+                    <p class="text-sm text-foxtown-muted">{{ items|length }} menu item{% if items|length != 1 %}s{% endif %}</p>
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="fhq-table">
+                    <thead>
+                        <tr>
+                            <th>Item Name</th>
+                            <th>Category</th>
+                            <th>Recipe Linked</th>
+                            <th>Recipe Type</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                        <tr>
+                            <td>
+                                <div class="pl-3 {% if not item.recipe_id %}border-l-2 border-[#C0612B]{% endif %}">
+                                    <div class="font-semibold text-foxtown-text">{{ item.name }}</div>
+                                    {% if item.description %}
+                                    <div class="mt-1 text-sm text-foxtown-muted">{{ item.description }}</div>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>{{ item.category }}</td>
+                            <td>
+                                {% if item.recipe_id %}
+                                <a href="{{ url_for('recipes.recipe_detail', recipe_id=item.recipe_id) }}" class="font-semibold text-foxtown-ember hover:text-orange-700">
+                                    {{ item.recipe_name }}
+                                </a>
+                                {% if item.yield_qty or item.yield_unit %}
+                                <div class="mt-1 text-xs text-foxtown-muted">Yield {{ item.yield_qty or '—' }} {{ item.yield_unit or '' }}</div>
+                                {% endif %}
+                                {% else %}
+                                <span class="inline-flex items-center border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-amber-800">
+                                    No Recipe
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td>{{ item.recipe_type or '' }}</td>
+                            <td class="whitespace-nowrap">
+                                <div class="flex items-center gap-3">
+                                    <a href="{{ url_for('forecasting.forecasting_menu_item_edit', item_id=item.id) }}" class="font-semibold text-foxtown-ember hover:text-orange-700">Edit</a>
+                                    <form method="POST" action="{{ url_for('forecasting.forecasting_menu_item_delete', item_id=item.id) }}">
+                                        <input type="hidden" name="venue_id" value="{{ selected_venue_id }}">
+                                        <button type="submit" class="font-semibold text-red-700 hover:text-red-900" onclick="return confirm('Remove this menu item from forecasting?');">
+                                            Delete
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+        {% endfor %}
+    {% else %}
+    <section class="fhq-card p-8 text-center">
+        <div class="mx-auto max-w-2xl space-y-3">
+            <div class="text-lg font-bold tracking-tight text-foxtown-text">No menu items yet for {{ selected_venue_name }}.</div>
+            <p class="text-sm text-foxtown-muted">Start the tracker by adding the first menu item, then link recipes as they are ready.</p>
+            <div>
+                <a
+                    href="{{ url_for('forecasting.forecasting_menu_item_new', venue_id=selected_venue_id) if selected_venue_id else url_for('forecasting.forecasting_menu_item_new') }}"
+                    class="fhq-btn fhq-btn--primary"
+                >
+                    + Add Menu Item
+                </a>
+            </div>
+        </div>
+    </section>
+    {% endif %}
+</div>
+{% endblock %}
