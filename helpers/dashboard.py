@@ -4,6 +4,7 @@ from config import PRICE_REFRESH_DAYS
 from flask import url_for
 
 from helpers.banquet import auto_complete_past_banquet_events, build_banquet_datasets
+from helpers.db_helpers import db_table_exists
 from helpers.formatting import add_amount, amount_label, as_float, as_int, enrich_event
 
 
@@ -37,11 +38,31 @@ def get_dashboard_counts(cur):
     )
     recent_rollout_count = cur.fetchone()['count']
 
+    if db_table_exists(cur, 'public.buffet_events'):
+        cur.execute('SELECT COUNT(*) AS count FROM buffet_events')
+        buffet_event_count = cur.fetchone()['count']
+    else:
+        buffet_event_count = 0
+
+    if db_table_exists(cur, 'public.forecasting_menu_items'):
+        cur.execute(
+            '''
+            SELECT COUNT(*) AS count
+            FROM forecasting_menu_items
+            WHERE active = TRUE
+            '''
+        )
+        forecasting_active_count = cur.fetchone()['count']
+    else:
+        forecasting_active_count = 0
+
     return {
         'recipe_count': recipe_count,
         'ingredient_count': ingredient_count,
         'stale_price_count': stale_price_count,
         'recent_rollout_count': recent_rollout_count,
+        'buffet_event_count': buffet_event_count,
+        'forecasting_active_count': forecasting_active_count,
     }
 
 

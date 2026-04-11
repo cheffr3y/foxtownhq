@@ -127,6 +127,8 @@ def dashboard():
         ingredient_count=counts['ingredient_count'],
         stale_price_count=counts['stale_price_count'],
         recent_rollout_count=counts['recent_rollout_count'],
+        buffet_event_count=counts['buffet_event_count'],
+        forecasting_active_count=counts['forecasting_active_count'],
         price_refresh_days=PRICE_REFRESH_DAYS,
         today=today,
         week_end=week_end,

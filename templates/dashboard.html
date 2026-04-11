@@ -877,15 +877,45 @@
                 </span>
                 <span class="db-sidebar-count">{{ all_events|length }}</span>
             </a>
-            <a href="{{ url_for('ingredients.ingredients') }}" class="db-sidebar-link">
+            <a href="{{ url_for('banquet.banquet_planner') }}" class="db-sidebar-link">
                 <span class="db-sidebar-link-main">
-                    <span class="material-symbols-outlined">inventory_2</span>
+                    <span class="material-symbols-outlined">event_seat</span>
                     <span>
-                        <span class="db-sidebar-label">Ingredients</span>
-                        <span class="db-sidebar-sub">Inventory file</span>
+                        <span class="db-sidebar-label">Banquets</span>
+                        <span class="db-sidebar-sub">{{ banquet_venue_name }}</span>
                     </span>
                 </span>
-                <span class="db-sidebar-count">{{ ingredient_count }}</span>
+                <span class="db-sidebar-count">{{ all_events|length }}</span>
+            </a>
+            <a href="{{ url_for('buffet.buffet_planner') }}" class="db-sidebar-link">
+                <span class="db-sidebar-link-main">
+                    <span class="material-symbols-outlined">table_restaurant</span>
+                    <span>
+                        <span class="db-sidebar-label">Buffets</span>
+                        <span class="db-sidebar-sub">Buffet planner</span>
+                    </span>
+                </span>
+                <span class="db-sidebar-count">{{ buffet_event_count }}</span>
+            </a>
+            <a href="{{ url_for('commissary.commissary_planner', week_start=today.isoformat()) }}" class="db-sidebar-link">
+                <span class="db-sidebar-link-main">
+                    <span class="material-symbols-outlined">conveyor_belt</span>
+                    <span>
+                        <span class="db-sidebar-label">Commissary</span>
+                        <span class="db-sidebar-sub">Demand pulse</span>
+                    </span>
+                </span>
+                <span class="db-sidebar-count">{{ production_pulse_total_subrecipes }}</span>
+            </a>
+            <a href="{{ url_for('forecasting.forecasting_dashboard') }}" class="db-sidebar-link">
+                <span class="db-sidebar-link-main">
+                    <span class="material-symbols-outlined">trending_up</span>
+                    <span>
+                        <span class="db-sidebar-label">Forecasting</span>
+                        <span class="db-sidebar-sub">Venue menu boards</span>
+                    </span>
+                </span>
+                <span class="db-sidebar-count">{{ forecasting_active_count }}</span>
             </a>
             <a href="{{ url_for('recipes.recipes') }}" class="db-sidebar-link">
                 <span class="db-sidebar-link-main">
@@ -897,25 +927,15 @@
                 </span>
                 <span class="db-sidebar-count">{{ recipe_count }}</span>
             </a>
-            <a href="{{ url_for('banquet.banquet_planner') }}" class="db-sidebar-link">
+            <a href="{{ url_for('ingredients.ingredients') }}" class="db-sidebar-link">
                 <span class="db-sidebar-link-main">
-                    <span class="material-symbols-outlined">event_seat</span>
+                    <span class="material-symbols-outlined">inventory_2</span>
                     <span>
-                        <span class="db-sidebar-label">Banquets</span>
-                        <span class="db-sidebar-sub">{{ banquet_venue_name }}</span>
+                        <span class="db-sidebar-label">Ingredients</span>
+                        <span class="db-sidebar-sub">Inventory file</span>
                     </span>
                 </span>
-                <span class="db-sidebar-count">{{ all_events|length }}</span>
-            </a>
-            <a href="{{ url_for('commissary.commissary_planner', week_start=today.isoformat()) }}" class="db-sidebar-link">
-                <span class="db-sidebar-link-main">
-                    <span class="material-symbols-outlined">conveyor_belt</span>
-                    <span>
-                        <span class="db-sidebar-label">Commissary</span>
-                        <span class="db-sidebar-sub">Demand pulse</span>
-                    </span>
-                </span>
-                <span class="db-sidebar-count">{{ production_pulse_total_subrecipes }}</span>
+                <span class="db-sidebar-count">{{ ingredient_count }}</span>
             </a>
             <a href="{{ url_for('menu.menu_rollouts') }}" class="db-sidebar-link">
                 <span class="db-sidebar-link-main">
@@ -1164,6 +1184,13 @@
                                 <span class="db-tool-sub">{{ all_events|length }} events in window</span>
                             </span>
                         </a>
+                        <a href="{{ url_for('buffet.buffet_planner') }}" class="db-tool-link">
+                            <span class="db-tool-icon"><span class="material-symbols-outlined">table_restaurant</span></span>
+                            <span>
+                                <span class="db-tool-title">Buffet Planner</span>
+                                <span class="db-tool-sub">{% if buffet_event_count %}{{ buffet_event_count }} buffet event{% if buffet_event_count != 1 %}s{% endif %} on file{% else %}Plan buffet events and prep{% endif %}</span>
+                            </span>
+                        </a>
                         <a href="{{ url_for('banquet.banquet_prep_daily', start_date=today.isoformat(), end_date=week_end.isoformat()) }}" class="db-tool-link">
                             <span class="db-tool-icon"><span class="material-symbols-outlined">checklist</span></span>
                             <span>
@@ -1176,6 +1203,13 @@
                             <span>
                                 <span class="db-tool-title">Commissary Planner</span>
                                 <span class="db-tool-sub">Orders, transfers, sign-off</span>
+                            </span>
+                        </a>
+                        <a href="{{ url_for('forecasting.forecasting_dashboard') }}" class="db-tool-link">
+                            <span class="db-tool-icon"><span class="material-symbols-outlined">trending_up</span></span>
+                            <span>
+                                <span class="db-tool-title">Forecasting</span>
+                                <span class="db-tool-sub">{% if forecasting_active_count %}{{ forecasting_active_count }} active menu item{% if forecasting_active_count != 1 %}s{% endif %}{% else %}Build venue menu boards{% endif %}</span>
                             </span>
                         </a>
                         <a href="{{ url_for('production_board') }}" class="db-tool-link db-tool-link--primary">
