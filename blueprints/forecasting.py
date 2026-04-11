@@ -3,17 +3,17 @@ from flask import Blueprint, flash, jsonify, redirect, render_template, request,
 from flask_login import login_required
 
 from helpers.forecasting import (
-    FORECASTING_CATEGORY_OPTIONS,
     ensure_forecasting_schema,
     ensure_recipe_venue_link,
+    get_active_menu_recipe_ids,
+    get_existing_menu_items_by_recipe,
     get_forecasting_menu_item,
-    get_forecasting_recipe,
     group_forecasting_items_by_category,
     list_forecasting_menu_items,
+    list_forecasting_recipes,
     search_forecasting_recipes,
-    summarize_forecasting_menu_items,
+    summarize_forecasting_items,
 )
-from helpers.menu import clean_menu_text
 from helpers.shared import generate_id, handle_route_error
 from helpers.venues import get_active_venues
 
@@ -23,21 +23,6 @@ bp = Blueprint('forecasting', __name__)
 @bp.errorhandler(Exception)
 def handle_forecasting_error(error):
     return handle_route_error(error, 'forecasting')
-
-
-def _parse_sort_order(value, errors):
-    text = (value or '').strip()
-    if not text:
-        return 0
-    try:
-        parsed = int(text)
-    except (TypeError, ValueError):
-        errors.append('Sort order must be a whole number.')
-        return 0
-    if parsed < 0:
-        errors.append('Sort order must be zero or greater.')
-        return 0
-    return parsed
 
 
 def _resolve_selected_venue(venues, requested_id=''):
@@ -56,63 +41,35 @@ def _dashboard_redirect(venue_id=''):
     return redirect(url_for('forecasting.forecasting_dashboard'))
 
 
-def _build_form_state(base=None, venue_id=''):
-    base = base or {}
-    return {
-        'name': base.get('name') or '',
-        'venue_id': base.get('venue_id') or venue_id or '',
-        'category': base.get('category') or '',
-        'description': base.get('description') or '',
-        'recipe_id': base.get('recipe_id') or '',
-        'sort_order': base.get('sort_order') if base.get('sort_order') is not None else 0,
-        'selected_recipe_name': base.get('selected_recipe_name') or base.get('recipe_name') or '',
-        'selected_recipe_type': base.get('selected_recipe_type') or base.get('recipe_type') or '',
-        'selected_recipe_category': base.get('selected_recipe_category') or base.get('recipe_category') or '',
-        'selected_recipe_venue_names': base.get('selected_recipe_venue_names') or base.get('venue_names') or '',
-    }
+def _wants_json_response():
+    return 'application/json' in (request.headers.get('Accept') or '').lower()
 
 
-def _hydrate_selected_recipe(cur, form_state):
-    recipe_id = (form_state.get('recipe_id') or '').strip()
-    if not recipe_id:
-        form_state['selected_recipe_name'] = ''
-        form_state['selected_recipe_type'] = ''
-        form_state['selected_recipe_category'] = ''
-        form_state['selected_recipe_venue_names'] = ''
-        return None
-
-    recipe = get_forecasting_recipe(cur, recipe_id)
-    if not recipe:
-        return None
-
-    form_state['selected_recipe_name'] = recipe.get('name') or ''
-    form_state['selected_recipe_type'] = recipe.get('recipe_type') or ''
-    form_state['selected_recipe_category'] = recipe.get('category') or ''
-    form_state['selected_recipe_venue_names'] = recipe.get('venue_names') or ''
-    return recipe
+def _normalize_id_list(values):
+    normalized = []
+    seen = set()
+    for value in values or []:
+        candidate = (value or '').strip()
+        if candidate and candidate not in seen:
+            normalized.append(candidate)
+            seen.add(candidate)
+    return normalized
 
 
-def _render_menu_item_form(cur, mode='new', item=None, form_state=None, errors=None, requested_venue_id=''):
+def _render_add_page(cur, selected_venue_id='', errors=None, selected_recipe_ids=None):
     venues = [dict(row) for row in get_active_venues(cur)]
-    venue_ids = {venue.get('id') for venue in venues if venue.get('id')}
-    active_item = item if item and item.get('active') else None
-    base_form_state = form_state or _build_form_state(active_item, requested_venue_id)
-    if not base_form_state.get('venue_id'):
-        base_form_state['venue_id'] = requested_venue_id or (active_item.get('venue_id') if active_item else '')
-    selected_venue = _resolve_selected_venue(venues, base_form_state.get('venue_id') or requested_venue_id)
-    if (not base_form_state.get('venue_id') or base_form_state.get('venue_id') not in venue_ids) and selected_venue:
-        base_form_state['venue_id'] = selected_venue.get('id') or ''
-    selected_recipe = _hydrate_selected_recipe(cur, base_form_state)
-    selected_venue_id = base_form_state.get('venue_id') or selected_venue.get('id') or ''
+    selected_venue = _resolve_selected_venue(venues, selected_venue_id)
+    effective_venue_id = selected_venue.get('id') or ''
+    recipes = list_forecasting_recipes(cur)
+    already_added_ids = get_active_menu_recipe_ids(cur, effective_venue_id)
     return render_template(
-        'forecasting_menu_item_form.html',
-        mode=mode,
-        page_title='Edit Menu Item' if mode == 'edit' else 'Add Menu Item',
-        form_state=base_form_state,
+        'forecasting_add.html',
         venues=venues,
-        category_options=FORECASTING_CATEGORY_OPTIONS,
-        selected_recipe=selected_recipe,
-        selected_venue_id=selected_venue_id,
+        selected_venue=selected_venue,
+        selected_venue_id=effective_venue_id,
+        recipes=recipes,
+        already_added_ids=already_added_ids,
+        selected_recipe_ids=selected_recipe_ids or [],
         errors=errors or [],
     )
 
@@ -127,220 +84,203 @@ def forecasting_dashboard():
         venues = [dict(row) for row in get_active_venues(cur)]
         selected_venue = _resolve_selected_venue(venues, request.args.get('venue_id'))
         selected_venue_id = selected_venue.get('id') or ''
-        selected_venue_name = selected_venue.get('name') or 'No Active Venue'
         items = list_forecasting_menu_items(cur, selected_venue_id)
-        summary = summarize_forecasting_menu_items(cur, selected_venue_id)
+
+    active_items = [item for item in items if bool(item.get('active'))]
+    archived_items = [item for item in items if not bool(item.get('active'))]
+    summary = summarize_forecasting_items(items)
+    venue_tabs = [
+        {
+            'id': venue.get('id') or '',
+            'label': venue.get('name') or 'Venue',
+            'url': url_for('forecasting.forecasting_dashboard', venue_id=venue.get('id') or ''),
+        }
+        for venue in venues
+        if venue.get('id')
+    ]
 
     return render_template(
         'forecasting_dashboard.html',
         venues=venues,
+        venue_tabs=venue_tabs,
+        selected_venue=selected_venue,
         selected_venue_id=selected_venue_id,
-        selected_venue_name=selected_venue_name,
-        items_by_category=group_forecasting_items_by_category(items),
-        total_items=summary['total_items'],
-        items_with_recipe=summary['items_with_recipe'],
-        items_missing_recipe=summary['items_missing_recipe'],
+        active_items_by_category=group_forecasting_items_by_category(active_items),
+        archived_items=archived_items,
+        active_count=summary['active_count'],
+        archived_count=summary['archived_count'],
+        with_recipe=summary['with_recipe'],
+        missing_recipe=summary['missing_recipe'],
         completion_pct=summary['completion_pct'],
     )
 
 
-@bp.route('/forecasting/menu-items/new', methods=['GET', 'POST'])
+@bp.route('/forecasting/add', methods=['GET', 'POST'])
 @login_required
-def forecasting_menu_item_new():
+def forecasting_add():
     conn = get_db()
     with get_cursor() as cur:
         ensure_forecasting_schema(cur)
         conn.commit()
-        venues = [dict(row) for row in get_active_venues(cur)]
-        valid_venue_ids = {venue.get('id') for venue in venues if venue.get('id')}
-        requested_venue_id = request.values.get('venue_id') or ''
 
         if request.method == 'POST':
+            venues = [dict(row) for row in get_active_venues(cur)]
+            valid_venue_ids = {venue.get('id') for venue in venues if venue.get('id')}
+            venue_id = (request.form.get('venue_id') or '').strip()
+            selected_recipe_ids = _normalize_id_list(request.form.getlist('recipe_ids[]'))
             errors = []
-            form_state = _build_form_state(
-                {
-                    'name': clean_menu_text(request.form.get('name')),
-                    'venue_id': (request.form.get('venue_id') or '').strip(),
-                    'category': clean_menu_text(request.form.get('category')),
-                    'description': clean_menu_text(request.form.get('description')),
-                    'recipe_id': (request.form.get('recipe_id') or '').strip(),
-                    'sort_order': _parse_sort_order(request.form.get('sort_order'), errors),
-                },
-                requested_venue_id,
-            )
 
-            if not form_state['name']:
-                errors.append('Name is required.')
-            if not form_state['venue_id']:
+            if not venue_id:
                 errors.append('Venue is required.')
-            elif form_state['venue_id'] not in valid_venue_ids:
+            elif venue_id not in valid_venue_ids:
                 errors.append('Selected venue was invalid.')
 
-            if not form_state['category']:
-                errors.append('Category is required.')
-            elif form_state['category'] not in FORECASTING_CATEGORY_OPTIONS:
-                errors.append('Choose a valid category.')
-
-            selected_recipe = None
-            if form_state['recipe_id']:
-                selected_recipe = _hydrate_selected_recipe(cur, form_state)
-                if not selected_recipe:
-                    errors.append('Selected recipe was invalid.')
+            if not selected_recipe_ids:
+                errors.append('Select at least one recipe to add.')
 
             if errors:
-                return _render_menu_item_form(
+                return _render_add_page(
                     cur,
-                    mode='new',
-                    form_state=form_state,
+                    selected_venue_id=venue_id,
                     errors=sorted(set(errors)),
-                    requested_venue_id=form_state.get('venue_id') or requested_venue_id,
+                    selected_recipe_ids=selected_recipe_ids,
                 )
+
+            cur.execute(
+                """
+                SELECT
+                    id,
+                    name,
+                    COALESCE(NULLIF(TRIM(category), ''), 'Uncategorized') AS category,
+                    menu_descriptor
+                FROM recipes
+                WHERE id = ANY(%s)
+                """,
+                (selected_recipe_ids,),
+            )
+            recipe_map = {row['id']: dict(row) for row in cur.fetchall()}
+            valid_recipe_ids = [recipe_id for recipe_id in selected_recipe_ids if recipe_id in recipe_map]
+
+            if not valid_recipe_ids:
+                return _render_add_page(
+                    cur,
+                    selected_venue_id=venue_id,
+                    errors=['Selected recipes were invalid.'],
+                    selected_recipe_ids=selected_recipe_ids,
+                )
+
+            existing_by_recipe = get_existing_menu_items_by_recipe(cur, venue_id, valid_recipe_ids)
+            added_count = 0
 
             try:
-                cur.execute(
-                    """
-                    INSERT INTO forecasting_menu_items (
-                        id,
-                        name,
-                        category,
-                        venue_id,
-                        description,
-                        recipe_id,
-                        sort_order
-                    )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
-                    """,
-                    (
-                        generate_id('fmi_'),
-                        form_state['name'],
-                        form_state['category'],
-                        form_state['venue_id'],
-                        form_state['description'] or None,
-                        form_state['recipe_id'] or None,
-                        form_state['sort_order'],
-                    ),
-                )
-                if form_state['recipe_id'] and form_state['venue_id']:
-                    ensure_recipe_venue_link(cur, form_state['recipe_id'], form_state['venue_id'])
+                for recipe_id in valid_recipe_ids:
+                    recipe = recipe_map[recipe_id]
+                    existing = existing_by_recipe.get(recipe_id)
+                    if existing and existing.get('active'):
+                        continue
+
+                    if existing:
+                        cur.execute(
+                            """
+                            UPDATE forecasting_menu_items
+                            SET
+                                name = %s,
+                                category = %s,
+                                description = %s,
+                                active = TRUE,
+                                updated_at = CURRENT_TIMESTAMP
+                            WHERE id = %s
+                            """,
+                            (
+                                recipe.get('name') or 'Menu Item',
+                                recipe.get('category') or 'Uncategorized',
+                                recipe.get('menu_descriptor') or None,
+                                existing['id'],
+                            ),
+                        )
+                    else:
+                        cur.execute(
+                            """
+                            INSERT INTO forecasting_menu_items (
+                                id,
+                                name,
+                                category,
+                                venue_id,
+                                description,
+                                recipe_id,
+                                sort_order,
+                                active
+                            )
+                            VALUES (%s, %s, %s, %s, %s, %s, 0, TRUE)
+                            """,
+                            (
+                                generate_id('fmi_'),
+                                recipe.get('name') or 'Menu Item',
+                                recipe.get('category') or 'Uncategorized',
+                                venue_id,
+                                recipe.get('menu_descriptor') or None,
+                                recipe_id,
+                            ),
+                        )
+
+                    ensure_recipe_venue_link(cur, recipe_id, venue_id)
+                    added_count += 1
+
                 conn.commit()
-                flash('Menu item added.', 'success')
-                return _dashboard_redirect(form_state['venue_id'])
+                flash(f'{added_count} items added to menu.', 'success')
+                return _dashboard_redirect(venue_id)
             except Exception:
                 conn.rollback()
-                return _render_menu_item_form(
+                return _render_add_page(
                     cur,
-                    mode='new',
-                    form_state=form_state,
-                    errors=['Error saving menu item.'],
-                    requested_venue_id=form_state.get('venue_id') or requested_venue_id,
+                    selected_venue_id=venue_id,
+                    errors=['Error adding recipes to the menu.'],
+                    selected_recipe_ids=selected_recipe_ids,
                 )
 
-        return _render_menu_item_form(cur, mode='new', requested_venue_id=requested_venue_id)
+        return _render_add_page(cur, selected_venue_id=request.args.get('venue_id'))
 
 
-@bp.route('/forecasting/menu-items/<item_id>/edit', methods=['GET', 'POST'])
+@bp.route('/forecasting/menu-items/<item_id>/toggle', methods=['POST'])
 @login_required
-def forecasting_menu_item_edit(item_id):
+def forecasting_menu_item_toggle(item_id):
     conn = get_db()
     with get_cursor() as cur:
         ensure_forecasting_schema(cur)
         conn.commit()
         item = get_forecasting_menu_item(cur, item_id)
-        if not item or not item.get('active'):
-            flash('Menu item not found.', 'error')
-            return _dashboard_redirect(request.args.get('venue_id') or '')
+        venue_id = (request.form.get('venue_id') or '').strip() or (item.get('venue_id') if item else '')
 
-        venues = [dict(row) for row in get_active_venues(cur)]
-        valid_venue_ids = {venue.get('id') for venue in venues if venue.get('id')}
+        if not item:
+            if _wants_json_response():
+                return jsonify({'ok': False, 'error': 'Item not found.'}), 404
+            flash('Item not found.', 'error')
+            return _dashboard_redirect(venue_id)
 
-        if request.method == 'POST':
-            errors = []
-            form_state = _build_form_state(
-                {
-                    'name': clean_menu_text(request.form.get('name')),
-                    'venue_id': (request.form.get('venue_id') or '').strip(),
-                    'category': clean_menu_text(request.form.get('category')),
-                    'description': clean_menu_text(request.form.get('description')),
-                    'recipe_id': (request.form.get('recipe_id') or '').strip(),
-                    'sort_order': _parse_sort_order(request.form.get('sort_order'), errors),
-                },
-                item.get('venue_id') or '',
+        new_active = not bool(item.get('active'))
+        try:
+            cur.execute(
+                """
+                UPDATE forecasting_menu_items
+                SET active = %s,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = %s
+                """,
+                (new_active, item_id),
             )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            if _wants_json_response():
+                return jsonify({'ok': False, 'error': 'Error updating item status.'}), 500
+            flash('Error updating item status.', 'error')
+            return _dashboard_redirect(venue_id)
 
-            if not form_state['name']:
-                errors.append('Name is required.')
-            if not form_state['venue_id']:
-                errors.append('Venue is required.')
-            elif form_state['venue_id'] not in valid_venue_ids:
-                errors.append('Selected venue was invalid.')
+    if _wants_json_response():
+        return jsonify({'active': new_active})
 
-            if not form_state['category']:
-                errors.append('Category is required.')
-            elif form_state['category'] not in FORECASTING_CATEGORY_OPTIONS:
-                errors.append('Choose a valid category.')
-
-            selected_recipe = None
-            if form_state['recipe_id']:
-                selected_recipe = _hydrate_selected_recipe(cur, form_state)
-                if not selected_recipe:
-                    errors.append('Selected recipe was invalid.')
-
-            if errors:
-                return _render_menu_item_form(
-                    cur,
-                    mode='edit',
-                    item=item,
-                    form_state=form_state,
-                    errors=sorted(set(errors)),
-                    requested_venue_id=form_state.get('venue_id') or item.get('venue_id') or '',
-                )
-
-            try:
-                cur.execute(
-                    """
-                    UPDATE forecasting_menu_items
-                    SET
-                        name = %s,
-                        category = %s,
-                        venue_id = %s,
-                        description = %s,
-                        recipe_id = %s,
-                        sort_order = %s,
-                        updated_at = CURRENT_TIMESTAMP
-                    WHERE id = %s
-                    """,
-                    (
-                        form_state['name'],
-                        form_state['category'],
-                        form_state['venue_id'],
-                        form_state['description'] or None,
-                        form_state['recipe_id'] or None,
-                        form_state['sort_order'],
-                        item_id,
-                    ),
-                )
-                if form_state['recipe_id'] and form_state['venue_id']:
-                    ensure_recipe_venue_link(cur, form_state['recipe_id'], form_state['venue_id'])
-                conn.commit()
-                flash('Menu item updated.', 'success')
-                return _dashboard_redirect(form_state['venue_id'])
-            except Exception:
-                conn.rollback()
-                return _render_menu_item_form(
-                    cur,
-                    mode='edit',
-                    item=item,
-                    form_state=form_state,
-                    errors=['Error saving menu item.'],
-                    requested_venue_id=form_state.get('venue_id') or item.get('venue_id') or '',
-                )
-
-        return _render_menu_item_form(
-            cur,
-            mode='edit',
-            item=item,
-            requested_venue_id=item.get('venue_id') or '',
-        )
+    flash('Item restored.' if new_active else 'Item archived.', 'success')
+    return _dashboard_redirect(venue_id)
 
 
 @bp.route('/forecasting/menu-items/<item_id>/delete', methods=['POST'])
@@ -351,35 +291,34 @@ def forecasting_menu_item_delete(item_id):
         ensure_forecasting_schema(cur)
         conn.commit()
         item = get_forecasting_menu_item(cur, item_id)
-        redirect_venue_id = (request.form.get('venue_id') or '').strip()
-        if not item or not item.get('active'):
-            flash('Menu item not found.', 'error')
-            return _dashboard_redirect(redirect_venue_id)
+        venue_id = (request.form.get('venue_id') or '').strip() or (item.get('venue_id') if item else '')
+
+        if not item:
+            flash('Item not found.', 'error')
+            return _dashboard_redirect(venue_id)
 
         try:
-            cur.execute(
-                """
-                UPDATE forecasting_menu_items
-                SET active = FALSE,
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE id = %s
-                """,
-                (item_id,),
-            )
+            cur.execute("DELETE FROM forecasting_menu_items WHERE id = %s", (item_id,))
             conn.commit()
-            flash('Menu item removed.', 'success')
+            flash('Item removed.', 'success')
         except Exception:
             conn.rollback()
-            flash('Error removing menu item.', 'error')
+            flash('Error removing item.', 'error')
 
-        return _dashboard_redirect(redirect_venue_id or item.get('venue_id') or '')
+        return _dashboard_redirect(venue_id)
 
 
 @bp.route('/api/forecasting/recipes/search')
 @login_required
 def api_forecasting_recipes_search():
-    query = (request.args.get('q') or '').strip()
-    venue_id = (request.args.get('venue_id') or '').strip()
+    conn = get_db()
     with get_cursor() as cur:
-        results = search_forecasting_recipes(cur, query=query, venue_id=venue_id, limit=20)
+        ensure_forecasting_schema(cur)
+        conn.commit()
+        results = search_forecasting_recipes(
+            cur,
+            query=(request.args.get('q') or '').strip(),
+            venue_id=(request.args.get('venue_id') or '').strip(),
+            limit=30,
+        )
     return jsonify(results)

@@ -1,17 +1,5 @@
 from helpers.db_helpers import db_table_exists
 
-FORECASTING_CATEGORY_OPTIONS = [
-    'Appetizers',
-    'Soups & Salads',
-    'Burgers',
-    'Sandwiches',
-    'Entrees',
-    'Sides',
-    'Desserts',
-    'Kids',
-    'Specials',
-]
-
 
 def escape_like(value):
     return value.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
@@ -108,26 +96,18 @@ def get_forecasting_menu_item(cur, item_id):
     cur.execute(
         """
         SELECT
-            item.id,
-            item.name,
-            COALESCE(NULLIF(TRIM(item.category), ''), 'Uncategorized') AS category,
-            item.venue_id,
-            item.description,
-            item.recipe_id,
-            COALESCE(item.sort_order, 0) AS sort_order,
-            item.active,
-            item.created_at,
-            item.updated_at,
-            recipe.name AS recipe_name,
-            recipe.recipe_type,
-            recipe.category AS recipe_category,
-            recipe.yield_qty,
-            recipe.yield_unit,
-            venue.name AS venue_name
-        FROM forecasting_menu_items item
-        LEFT JOIN recipes recipe ON recipe.id = item.recipe_id
-        LEFT JOIN venues venue ON venue.id = item.venue_id
-        WHERE item.id = %s
+            id,
+            name,
+            COALESCE(NULLIF(TRIM(category), ''), 'Uncategorized') AS category,
+            venue_id,
+            description,
+            recipe_id,
+            COALESCE(sort_order, 0) AS sort_order,
+            COALESCE(active, TRUE) AS active,
+            created_at,
+            updated_at
+        FROM forecasting_menu_items
+        WHERE id = %s
         LIMIT 1
         """,
         (item_id,),
@@ -137,61 +117,49 @@ def get_forecasting_menu_item(cur, item_id):
 
 
 def list_forecasting_menu_items(cur, venue_id=''):
+    if not venue_id:
+        return []
     cur.execute(
         """
         SELECT
-            item.id,
-            item.name,
-            COALESCE(NULLIF(TRIM(item.category), ''), 'Uncategorized') AS category,
-            item.venue_id,
-            item.description,
-            item.recipe_id,
-            COALESCE(item.sort_order, 0) AS sort_order,
-            item.active,
-            item.created_at,
-            item.updated_at,
-            recipe.name AS recipe_name,
-            recipe.recipe_type,
-            recipe.yield_qty,
-            recipe.yield_unit,
-            venue.name AS venue_name
-        FROM forecasting_menu_items item
-        LEFT JOIN recipes recipe ON recipe.id = item.recipe_id
-        LEFT JOIN venues venue ON venue.id = item.venue_id
-        WHERE item.active = TRUE
-          AND (%s = '' OR item.venue_id = %s)
+            fmi.id,
+            fmi.name,
+            COALESCE(NULLIF(TRIM(fmi.category), ''), 'Uncategorized') AS category,
+            COALESCE(fmi.active, TRUE) AS active,
+            COALESCE(fmi.sort_order, 0) AS sort_order,
+            fmi.recipe_id,
+            fmi.description,
+            r.name AS recipe_name,
+            r.recipe_type,
+            r.menu_descriptor,
+            r.yield_qty,
+            r.yield_unit
+        FROM forecasting_menu_items fmi
+        LEFT JOIN recipes r ON r.id = fmi.recipe_id
+        WHERE fmi.venue_id = %s
         ORDER BY
-            COALESCE(NULLIF(TRIM(item.category), ''), 'Uncategorized') ASC,
-            COALESCE(item.sort_order, 0) ASC,
-            LOWER(item.name) ASC
+            COALESCE(fmi.active, TRUE) DESC,
+            COALESCE(NULLIF(TRIM(fmi.category), ''), 'Uncategorized') ASC,
+            COALESCE(fmi.sort_order, 0) ASC,
+            LOWER(fmi.name) ASC
         """,
-        (venue_id or '', venue_id or ''),
+        (venue_id,),
     )
     return [dict(row) for row in cur.fetchall()]
 
 
-def summarize_forecasting_menu_items(cur, venue_id=''):
-    cur.execute(
-        """
-        SELECT
-            COUNT(*) AS total_items,
-            COUNT(*) FILTER (WHERE recipe_id IS NOT NULL) AS items_with_recipe,
-            COUNT(*) FILTER (WHERE recipe_id IS NULL) AS items_missing_recipe
-        FROM forecasting_menu_items
-        WHERE active = TRUE
-          AND (%s = '' OR venue_id = %s)
-        """,
-        (venue_id or '', venue_id or ''),
-    )
-    row = cur.fetchone() or {}
-    total_items = int(row.get('total_items') or 0)
-    items_with_recipe = int(row.get('items_with_recipe') or 0)
-    items_missing_recipe = int(row.get('items_missing_recipe') or 0)
-    completion_pct = int(round((items_with_recipe / total_items) * 100)) if total_items else 0
+def summarize_forecasting_items(items):
+    active_items = [item for item in (items or []) if bool(item.get('active'))]
+    active_count = len(active_items)
+    archived_count = len(items or []) - active_count
+    with_recipe = sum(1 for item in active_items if item.get('recipe_id'))
+    missing_recipe = active_count - with_recipe
+    completion_pct = int(round((with_recipe / active_count) * 100)) if active_count else 0
     return {
-        'total_items': total_items,
-        'items_with_recipe': items_with_recipe,
-        'items_missing_recipe': items_missing_recipe,
+        'active_count': active_count,
+        'archived_count': archived_count,
+        'with_recipe': with_recipe,
+        'missing_recipe': missing_recipe,
         'completion_pct': completion_pct,
     }
 
@@ -204,119 +172,111 @@ def group_forecasting_items_by_category(items):
     return grouped
 
 
-def get_forecasting_recipe(cur, recipe_id):
-    if not recipe_id:
-        return None
-
-    if db_table_exists(cur, 'public.recipe_venues') and db_table_exists(cur, 'public.venues'):
-        cur.execute(
-            """
-            SELECT
-                recipe.id,
-                recipe.name,
-                recipe.recipe_type,
-                recipe.category,
-                COALESCE(string_agg(DISTINCT venue.name, ', ' ORDER BY venue.name), '') AS venue_names
-            FROM recipes recipe
-            LEFT JOIN recipe_venues link ON link.recipe_id = recipe.id
-            LEFT JOIN venues venue ON venue.id = link.venue_id AND venue.active = TRUE
-            WHERE recipe.id = %s
-            GROUP BY recipe.id
-            LIMIT 1
-            """,
-            (recipe_id,),
-        )
-    else:
-        cur.execute(
-            """
-            SELECT
-                id,
-                name,
-                recipe_type,
-                category,
-                '' AS venue_names
-            FROM recipes
-            WHERE id = %s
-            LIMIT 1
-            """,
-            (recipe_id,),
-        )
-
-    row = cur.fetchone()
-    return dict(row) if row else None
+def list_forecasting_recipes(cur):
+    cur.execute(
+        """
+        SELECT
+            id,
+            name,
+            COALESCE(NULLIF(TRIM(category), ''), 'Uncategorized') AS category,
+            recipe_type,
+            menu_descriptor,
+            yield_qty,
+            yield_unit
+        FROM recipes
+        ORDER BY LOWER(name) ASC
+        """
+    )
+    return [dict(row) for row in cur.fetchall()]
 
 
-def search_forecasting_recipes(cur, query='', venue_id='', limit=20):
-    capped_limit = min(max(int(limit or 20), 1), 100)
+def get_active_menu_recipe_ids(cur, venue_id=''):
+    if not venue_id:
+        return set()
+    cur.execute(
+        """
+        SELECT recipe_id
+        FROM forecasting_menu_items
+        WHERE venue_id = %s
+          AND COALESCE(active, TRUE) = TRUE
+          AND recipe_id IS NOT NULL
+        """,
+        (venue_id,),
+    )
+    return {row.get('recipe_id') for row in cur.fetchall() if row.get('recipe_id')}
+
+
+def get_existing_menu_items_by_recipe(cur, venue_id, recipe_ids):
+    if not venue_id or not recipe_ids:
+        return {}
+
+    cur.execute(
+        """
+        SELECT
+            recipe_id,
+            id,
+            COALESCE(active, TRUE) AS active
+        FROM forecasting_menu_items
+        WHERE venue_id = %s
+          AND recipe_id = ANY(%s)
+        ORDER BY
+            recipe_id,
+            COALESCE(active, TRUE) DESC,
+            updated_at DESC NULLS LAST,
+            created_at DESC NULLS LAST,
+            id DESC
+        """,
+        (venue_id, recipe_ids),
+    )
+    existing = {}
+    for row in cur.fetchall():
+        recipe_id = row.get('recipe_id')
+        if recipe_id and recipe_id not in existing:
+            existing[recipe_id] = dict(row)
+    return existing
+
+
+def search_forecasting_recipes(cur, query='', venue_id='', limit=30):
+    capped_limit = min(max(int(limit or 30), 1), 100)
     like_query = f"%{escape_like(query or '')}%"
-
-    if db_table_exists(cur, 'public.recipe_venues') and db_table_exists(cur, 'public.venues'):
-        cur.execute(
-            """
-            SELECT
-                recipe.id,
-                recipe.name,
-                recipe.recipe_type,
-                recipe.category,
-                COALESCE(string_agg(DISTINCT venue.name, ', ' ORDER BY venue.name), '') AS venue_names,
-                CASE
-                    WHEN %s <> ''
-                     AND EXISTS (
-                        SELECT 1
-                        FROM recipe_venues priority_link
-                        WHERE priority_link.recipe_id = recipe.id
-                          AND priority_link.venue_id = %s
-                    ) THEN 0
-                    ELSE 1
-                END AS venue_priority
-            FROM recipes recipe
-            LEFT JOIN recipe_venues link ON link.recipe_id = recipe.id
-            LEFT JOIN venues venue ON venue.id = link.venue_id AND venue.active = TRUE
-            WHERE (%s = '' OR recipe.name ILIKE %s ESCAPE '\\')
-            GROUP BY recipe.id
-            ORDER BY venue_priority ASC, LOWER(recipe.name) ASC
-            LIMIT %s
-            """,
-            (venue_id or '', venue_id or '', query or '', like_query, capped_limit),
+    cur.execute(
+        """
+        SELECT
+            r.id,
+            r.name,
+            r.recipe_type,
+            COALESCE(NULLIF(TRIM(r.category), ''), 'Uncategorized') AS category,
+            r.menu_descriptor,
+            EXISTS (
+                SELECT 1
+                FROM forecasting_menu_items fmi
+                WHERE fmi.recipe_id = r.id
+                  AND fmi.venue_id = %s
+                  AND COALESCE(fmi.active, TRUE) = TRUE
+            ) AS already_added
+        FROM recipes r
+        WHERE (
+            %s = '' OR
+            r.name ILIKE %s ESCAPE '\\' OR
+            COALESCE(r.menu_descriptor, '') ILIKE %s ESCAPE '\\'
         )
-    else:
-        cur.execute(
-            """
-            SELECT
-                id,
-                name,
-                recipe_type,
-                category,
-                '' AS venue_names,
-                1 AS venue_priority
-            FROM recipes
-            WHERE (%s = '' OR name ILIKE %s ESCAPE '\\')
-            ORDER BY LOWER(name) ASC
-            LIMIT %s
-            """,
-            (query or '', like_query, capped_limit),
-        )
-
-    return [
-        {
-            'id': row.get('id'),
-            'name': row.get('name'),
-            'recipe_type': row.get('recipe_type'),
-            'category': row.get('category'),
-            'venue_names': row.get('venue_names') or '',
-        }
-        for row in cur.fetchall()
-    ]
+        ORDER BY LOWER(r.name) ASC
+        LIMIT %s
+        """,
+        (venue_id or '', query or '', like_query, like_query, capped_limit),
+    )
+    return [dict(row) for row in cur.fetchall()]
 
 
 __all__ = [
-    'FORECASTING_CATEGORY_OPTIONS',
     'ensure_forecasting_schema',
     'ensure_recipe_venue_link',
     'get_forecasting_menu_item',
-    'list_forecasting_menu_items',
-    'summarize_forecasting_menu_items',
+    'get_existing_menu_items_by_recipe',
+    'get_active_menu_recipe_ids',
     'group_forecasting_items_by_category',
-    'get_forecasting_recipe',
+    'list_forecasting_menu_items',
+    'list_forecasting_recipes',
     'search_forecasting_recipes',
+    'summarize_forecasting_items',
 ]

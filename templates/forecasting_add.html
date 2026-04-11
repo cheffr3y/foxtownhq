@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+{% from "base.html" import page_header %}
+
+{% block title %}Add Recipes to Menu - Foxtown HQ{% endblock %}
+
+{% block content %}
+{% set selected_venue_name = selected_venue.name or 'No Active Venue' %}
+<div class="space-y-6">
+    {% call page_header('Add Recipes to Menu', 'Select one or more recipes to add to the active menu.', 'forecasting') %}
+    <form method="GET" class="flex items-end gap-2">
+        <div>
+            <label for="forecastingAddVenue" class="block text-xs font-bold uppercase tracking-[0.14em] text-foxtown-muted mb-1.5">Venue</label>
+            <select id="forecastingAddVenue" name="venue_id" class="fhq-input min-w-[13rem]" onchange="this.form.submit()">
+                {% if venues %}
+                    {% for venue in venues %}
+                    <option value="{{ venue.id }}" {% if venue.id == selected_venue_id %}selected{% endif %}>{{ venue.name }}</option>
+                    {% endfor %}
+                {% else %}
+                <option value="">No Active Venues</option>
+                {% endif %}
+            </select>
+        </div>
+    </form>
+    {% endcall %}
+
+    {% if errors %}
+    <div class="fhq-flash fhq-flash--error">
+        {{ errors | join(' ') }}
+    </div>
+    {% endif %}
+
+    <form method="POST" class="space-y-5" data-selected-ids='{{ selected_recipe_ids|tojson }}'>
+        <input type="hidden" name="venue_id" value="{{ selected_venue_id }}">
+        <div id="selectedRecipeInputs"></div>
+
+        <section class="fhq-card p-5 space-y-4">
+            <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                <div>
+                    <h2 class="text-lg font-bold tracking-tight text-foxtown-text">Recipe Library</h2>
+                    <p class="mt-1 text-sm text-foxtown-muted">Search {{ selected_venue_name }} recipes by name or menu descriptor, then add them in one pass.</p>
+                </div>
+                <div class="w-full lg:max-w-md">
+                    <label for="recipeFilterInput" class="block text-sm font-medium text-foxtown-muted mb-1.5">Search Recipes</label>
+                    <input
+                        id="recipeFilterInput"
+                        type="text"
+                        class="fhq-input"
+                        placeholder="Filter by recipe name or descriptor..."
+                        autocomplete="off"
+                    >
+                </div>
+            </div>
+
+            <div class="max-h-[34rem] overflow-y-auto border border-foxtown-border/25">
+                <div id="recipeList">
+                    {% for recipe in recipes %}
+                    {% set already_added = recipe.id in already_added_ids %}
+                    {% set descriptor = recipe.menu_descriptor or '' %}
+                    <label
+                        class="flex cursor-pointer items-start gap-4 border-b border-foxtown-border/15 px-4 py-4 last:border-b-0 {% if already_added %}bg-foxtown-panel/70 text-foxtown-muted{% else %}bg-white hover:bg-foxtown-panel/40{% endif %}"
+                        data-recipe-row
+                        data-recipe-id="{{ recipe.id }}"
+                        data-filter-text="{{ (recipe.name ~ ' ' ~ descriptor)|lower }}"
+                    >
+                        <input
+                            type="checkbox"
+                            value="{{ recipe.id }}"
+                            class="mt-1 h-4 w-4 border border-foxtown-border/40 accent-[#C0612B]"
+                            data-recipe-checkbox
+                            {% if already_added %}disabled{% endif %}
+                        >
+                        <div class="min-w-0 flex-1">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <div class="font-semibold text-foxtown-text {% if already_added %}text-foxtown-muted{% endif %}">{{ recipe.name }}</div>
+                                <span class="fhq-pill fhq-pill--tentative">{{ recipe.category }}</span>
+                                {% if already_added %}
+                                <span class="fhq-pill fhq-pill--in-progress">Already Added</span>
+                                {% endif %}
+                            </div>
+                            {% if descriptor %}
+                            <div class="mt-2 text-sm text-foxtown-muted">{{ descriptor|truncate(110) }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="shrink-0">
+                            {% if recipe.recipe_type %}
+                            <span class="fhq-pill fhq-pill--pending">{{ recipe.recipe_type }}</span>
+                            {% endif %}
+                        </div>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            {% if not recipes %}
+            <p class="text-sm text-foxtown-muted">No recipes are available yet.</p>
+            {% endif %}
+        </section>
+
+        <div class="sticky bottom-0 border border-foxtown-border/25 bg-white px-5 py-4">
+            <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                    <div class="fhq-section-head mb-1">Selection</div>
+                    <div id="selectedRecipeCount" class="text-sm font-semibold text-foxtown-text">0 recipes selected</div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <a href="{{ url_for('forecasting.forecasting_dashboard', venue_id=selected_venue_id) if selected_venue_id else url_for('forecasting.forecasting_dashboard') }}" class="fhq-btn fhq-btn--outline">Cancel</a>
+                    <button
+                        id="addRecipesSubmit"
+                        type="submit"
+                        class="fhq-btn fhq-btn--primary"
+                        {% if not selected_venue_id %}disabled{% endif %}
+                    >
+                        Add to Menu
+                    </button>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+(function () {
+    const form = document.querySelector('form[data-selected-ids]');
+    if (!form) return;
+
+    const selectedIds = new Set(JSON.parse(form.dataset.selectedIds || '[]'));
+    const filterInput = document.getElementById('recipeFilterInput');
+    const checkboxes = Array.from(document.querySelectorAll('[data-recipe-checkbox]'));
+    const rows = Array.from(document.querySelectorAll('[data-recipe-row]'));
+    const selectedInputs = document.getElementById('selectedRecipeInputs');
+    const selectedCount = document.getElementById('selectedRecipeCount');
+    const submitButton = document.getElementById('addRecipesSubmit');
+
+    checkboxes.forEach((checkbox) => {
+        if (!checkbox.disabled && selectedIds.has(checkbox.value)) {
+            checkbox.checked = true;
+        }
+    });
+
+    function syncHiddenInputs() {
+        const values = checkboxes
+            .filter((checkbox) => checkbox.checked && !checkbox.disabled)
+            .map((checkbox) => checkbox.value);
+
+        selectedInputs.innerHTML = values
+            .map((value) => `<input type="hidden" name="recipe_ids[]" value="${value}">`)
+            .join('');
+
+        const count = values.length;
+        selectedCount.textContent = `${count} recipe${count === 1 ? '' : 's'} selected`;
+        if (submitButton) {
+            submitButton.disabled = count === 0 || !form.querySelector('input[name="venue_id"]').value;
+        }
+    }
+
+    function applyFilter() {
+        const query = (filterInput.value || '').trim().toLowerCase();
+        rows.forEach((row) => {
+            const haystack = row.dataset.filterText || '';
+            row.classList.toggle('hidden', Boolean(query) && !haystack.includes(query));
+        });
+    }
+
+    checkboxes.forEach((checkbox) => {
+        checkbox.addEventListener('change', syncHiddenInputs);
+    });
+
+    filterInput.addEventListener('input', applyFilter);
+    filterInput.addEventListener('change', applyFilter);
+
+    syncHiddenInputs();
+})();
+</script>
+{% endblock %}
