@@ -32,8 +32,10 @@
 {% set descriptor_copy = recipe.menu_descriptor or 'Operational recipe sheet with live component costing and sub-recipe rollups.' %}
 {% set ledger_colspan = 5 if not auto_print else 4 %}
 
-{% macro render_component_rows(items, depth=0) -%}
+{% macro render_component_rows(items, depth=0, parent_key='') -%}
     {% for item in items %}
+        {% set item_key = parent_key ~ loop.index %}
+        {% set has_children = item.children and item.children|length %}
         {% if item.type == 'ingredient' %}
             {% set item_label = 'Ingredient' %}
             {% set item_badge = 'ING' %}
@@ -65,12 +67,26 @@
             {% endif %}
             {% set code_copy = '' %}
         {% endif %}
-<tr class="rm-ledger-row {% if item.type == 'recipe' %}rm-ledger-row--recipe{% elif item.type == 'option_group' %}rm-ledger-row--group{% endif %}">
+<tr class="rm-ledger-row {% if item.type == 'recipe' %}rm-ledger-row--recipe{% elif item.type == 'option_group' %}rm-ledger-row--group{% endif %}"
+    data-node-key="{{ item_key }}"
+    data-depth="{{ depth }}">
     <td class="rm-ledger-cell rm-ledger-cell--name" style="padding-left: calc(1rem + {{ depth }} * 1.2rem);">
         <div class="rm-ledger-namewrap">
             <span class="rm-ledger-badge rm-ledger-badge--{{ item.type or 'ingredient' }}">{{ item_badge }}</span>
             <div>
-                <div class="rm-ledger-title">{{ item.item_name }}</div>
+                <div class="rm-ledger-titlewrap">
+                    {% if not auto_print and item.type == 'recipe' and has_children %}
+                    <button type="button"
+                            class="rm-ledger-toggle"
+                            data-toggle-target="{{ item_key }}"
+                            data-expanded="true"
+                            aria-expanded="true"
+                            aria-label="Collapse {{ item.item_name }}">
+                        <span class="rm-ledger-toggle-icon">▾</span>
+                    </button>
+                    {% endif %}
+                    <div class="rm-ledger-title">{{ item.item_name }}</div>
+                </div>
                 <div class="rm-ledger-subline">{{ item_label }} · {{ subline }}</div>
                 {% if code_copy %}
                 <div class="rm-ledger-code">G-Code · {{ code_copy }}</div>
@@ -95,9 +111,9 @@
     <td class="rm-ledger-cell rm-ledger-cell--extension">{{ extension_cost }}</td>
 </tr>
         {% if item.children %}
-            {{ render_component_rows(item.children, depth + 1) }}
+            {{ render_component_rows(item.children, depth + 1, item_key ~ '-') }}
         {% elif item.type == 'recipe' %}
-<tr class="rm-ledger-note-row">
+<tr class="rm-ledger-note-row" data-node-key="{{ item_key }}-note" data-depth="{{ depth + 1 }}">
     <td class="rm-ledger-note" colspan="{{ ledger_colspan }}" style="padding-left: calc(3.6rem + {{ depth }} * 1.2rem);">No nested ingredient rows are linked under this sub-recipe yet.</td>
 </tr>
         {% endif %}
@@ -113,6 +129,8 @@
         </div>
         <div class="rm-toolbar-actions">
             <a href="{{ url_for('recipes') }}" class="rm-btn rm-btn--ghost">All Recipes</a>
+            <button type="button" id="collapseSubrecipesButton" class="rm-btn rm-btn--ghost">Collapse Subs</button>
+            <button type="button" id="expandSubrecipesButton" class="rm-btn rm-btn--ghost">Expand Subs</button>
             <button type="button" id="recipeExportButton" onclick="exportRecipePdf()" class="rm-btn rm-btn--ghost">Print / Save PDF</button>
             <form method="POST" action="{{ url_for('recipe_clone', recipe_id=recipe.id) }}"><button type="submit" class="rm-btn rm-btn--ghost">Clone</button></form>
             <form method="POST" action="{{ url_for('recipe_delete', recipe_id=recipe.id) }}" onsubmit="return confirm('Delete ' + {{ recipe.name|tojson }} + '? This cannot be undone.')">
@@ -523,6 +541,33 @@
     gap: 0.7rem;
     align-items: flex-start;
 }
+.rm-ledger-titlewrap {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+}
+.rm-ledger-toggle {
+    width: 1.35rem;
+    height: 1.35rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #a9b4b9;
+    background: #ffffff;
+    color: #2a3439;
+    font-size: 0.78rem;
+    font-weight: 900;
+    line-height: 1;
+    padding: 0;
+    cursor: pointer;
+}
+.rm-ledger-toggle:hover {
+    background: #edf2f4;
+}
+.rm-ledger-toggle:focus-visible {
+    outline: 2px solid #c0612b;
+    outline-offset: 2px;
+}
 .rm-ledger-badge {
     display: inline-flex;
     align-items: center;
@@ -829,6 +874,69 @@ function exportRecipePdf() {
         window.location.href = printUrl;
     }
 }
+
+{% if not auto_print %}
+function syncSubrecipeVisibility() {
+    const toggles = Array.from(document.querySelectorAll('.rm-ledger-toggle[data-toggle-target]'));
+    const collapsedKeys = toggles
+        .filter((toggle) => toggle.dataset.expanded === 'false')
+        .map((toggle) => toggle.dataset.toggleTarget);
+
+    document.querySelectorAll('.rm-ledger-row[data-node-key], .rm-ledger-note-row[data-node-key]').forEach((row) => {
+        const nodeKey = row.dataset.nodeKey || '';
+        row.hidden = collapsedKeys.some((collapsedKey) => nodeKey.startsWith(`${collapsedKey}-`));
+    });
+
+    toggles.forEach((toggle) => {
+        const expanded = toggle.dataset.expanded !== 'false';
+        toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        const icon = toggle.querySelector('.rm-ledger-toggle-icon');
+        if (icon) {
+            icon.textContent = expanded ? '▾' : '▸';
+        }
+    });
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+    const toggles = Array.from(document.querySelectorAll('.rm-ledger-toggle[data-toggle-target]'));
+    const collapseAllButton = document.getElementById('collapseSubrecipesButton');
+    const expandAllButton = document.getElementById('expandSubrecipesButton');
+
+    if (!toggles.length) {
+        if (collapseAllButton) collapseAllButton.disabled = true;
+        if (expandAllButton) expandAllButton.disabled = true;
+        return;
+    }
+
+    toggles.forEach((toggle) => {
+        toggle.addEventListener('click', () => {
+            const expanded = toggle.dataset.expanded !== 'false';
+            toggle.dataset.expanded = expanded ? 'false' : 'true';
+            syncSubrecipeVisibility();
+        });
+    });
+
+    if (collapseAllButton) {
+        collapseAllButton.addEventListener('click', () => {
+            toggles.forEach((toggle) => {
+                toggle.dataset.expanded = 'false';
+            });
+            syncSubrecipeVisibility();
+        });
+    }
+
+    if (expandAllButton) {
+        expandAllButton.addEventListener('click', () => {
+            toggles.forEach((toggle) => {
+                toggle.dataset.expanded = 'true';
+            });
+            syncSubrecipeVisibility();
+        });
+    }
+
+    syncSubrecipeVisibility();
+});
+{% endif %}
 
 {% if auto_print %}
 window.addEventListener('load', () => {
