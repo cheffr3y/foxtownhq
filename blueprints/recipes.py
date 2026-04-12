@@ -3,6 +3,7 @@ from db import get_cursor, get_db
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import login_required
 from helpers.db_helpers import db_table_exists, ensure_recipe_metadata_columns
+from helpers.forecasting import sync_forecasting_menu_items_for_recipe
 from helpers.formatting import split_instruction_steps
 from helpers.prep_helpers import PREP_NOTE_OPTIONS, clean_prep_note, ensure_prep_schema
 from helpers.recipes import (
@@ -713,6 +714,14 @@ def recipe_edit(recipe_id):
                         menu_descriptor or None,
                         recipe_id
                     ))
+
+                    sync_forecasting_menu_items_for_recipe(
+                        cur,
+                        recipe_id,
+                        name=name,
+                        category=category,
+                        description=menu_descriptor,
+                    )
 
                     if db_table_exists(cur, 'public.recipe_venues'):
                         cur.execute("DELETE FROM recipe_venues WHERE recipe_id = %s", (recipe_id,))

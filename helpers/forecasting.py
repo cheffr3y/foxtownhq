@@ -116,6 +116,30 @@ def get_forecasting_menu_item(cur, item_id):
     return dict(row) if row else None
 
 
+def sync_forecasting_menu_items_for_recipe(cur, recipe_id, name='', category='', description=''):
+    if not recipe_id or not db_table_exists(cur, 'public.forecasting_menu_items'):
+        return 0
+
+    cur.execute(
+        """
+        UPDATE forecasting_menu_items
+        SET
+            name = %s,
+            category = %s,
+            description = %s,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE recipe_id = %s
+        """,
+        (
+            (name or '').strip() or 'Menu Item',
+            (category or '').strip() or 'Uncategorized',
+            (description or '').strip() or None,
+            recipe_id,
+        ),
+    )
+    return cur.rowcount or 0
+
+
 def list_forecasting_menu_items(cur, venue_id=''):
     if not venue_id:
         return []
@@ -123,12 +147,12 @@ def list_forecasting_menu_items(cur, venue_id=''):
         """
         SELECT
             fmi.id,
-            fmi.name,
-            COALESCE(NULLIF(TRIM(fmi.category), ''), 'Uncategorized') AS category,
+            COALESCE(NULLIF(TRIM(r.name), ''), NULLIF(TRIM(fmi.name), ''), 'Menu Item') AS name,
+            COALESCE(NULLIF(TRIM(r.category), ''), NULLIF(TRIM(fmi.category), ''), 'Uncategorized') AS category,
             COALESCE(fmi.active, TRUE) AS active,
             COALESCE(fmi.sort_order, 0) AS sort_order,
             fmi.recipe_id,
-            fmi.description,
+            COALESCE(NULLIF(TRIM(r.menu_descriptor), ''), fmi.description) AS description,
             r.name AS recipe_name,
             r.recipe_type,
             r.menu_descriptor,
@@ -139,9 +163,9 @@ def list_forecasting_menu_items(cur, venue_id=''):
         WHERE fmi.venue_id = %s
         ORDER BY
             COALESCE(fmi.active, TRUE) DESC,
-            COALESCE(NULLIF(TRIM(fmi.category), ''), 'Uncategorized') ASC,
+            COALESCE(NULLIF(TRIM(r.category), ''), NULLIF(TRIM(fmi.category), ''), 'Uncategorized') ASC,
             COALESCE(fmi.sort_order, 0) ASC,
-            LOWER(fmi.name) ASC
+            LOWER(COALESCE(NULLIF(TRIM(r.name), ''), NULLIF(TRIM(fmi.name), ''), 'Menu Item')) ASC
         """,
         (venue_id,),
     )
@@ -278,5 +302,6 @@ __all__ = [
     'list_forecasting_menu_items',
     'list_forecasting_recipes',
     'search_forecasting_recipes',
+    'sync_forecasting_menu_items_for_recipe',
     'summarize_forecasting_items',
 ]
