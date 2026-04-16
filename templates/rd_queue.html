@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}R&D Queue - Foxtown HQ{% endblock %}
+
+{% block content %}
+{% call page_header('R&D Queue', 'Recipes marked for development follow-up or pairing work.', 'recipes') %}
+    <a href="{{ url_for('dashboard') }}" class="fhq-btn fhq-btn--outline">Back To Dashboard</a>
+    <a href="{{ url_for('recipes.recipes') }}" class="fhq-btn fhq-btn--primary">Open Recipe DB</a>
+{% endcall %}
+
+<section class="fhq-card overflow-hidden">
+    <div class="fhq-section-head px-5 pt-5 pb-0">Open Queue</div>
+    {% if rd_queue_items %}
+    <div class="overflow-x-auto">
+        <table class="fhq-table">
+            <thead>
+                <tr>
+                    <th>Recipe</th>
+                    <th>Type</th>
+                    <th>Opened</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in rd_queue_items %}
+                <tr>
+                    <td>
+                        <div class="font-semibold text-foxtown-text">{{ item.name }}</div>
+                        <div class="text-sm text-foxtown-muted mt-1">
+                            {{ item.category }}{% if item.menu_descriptor %} · {{ item.menu_descriptor }}{% endif %}
+                        </div>
+                    </td>
+                    <td>{{ item.recipe_type|title if item.recipe_type else 'Recipe' }}</td>
+                    <td>{{ item.created_at.strftime('%b %d, %Y').replace(' 0', ' ') if item.created_at else 'Unknown' }}</td>
+                    <td><a href="{{ url_for('recipes.recipe_edit', recipe_id=item.id) }}" class="text-foxtown-ember font-semibold">Open</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="px-5 pb-5 text-sm text-foxtown-muted">
+        No recipes are currently tagged as R&amp;D hold. This stub route will start filling as soon as recipes are marked with an R&amp;D-oriented status or station tag.
+    </div>
+    {% endif %}
+</section>
+{% endblock %}

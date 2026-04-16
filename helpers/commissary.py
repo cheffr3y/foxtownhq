@@ -46,6 +46,7 @@ COMMISSARY_STATUS_CHOICES = [
 
 COMMISSARY_SOURCE_CHOICES = [
     ('outlet_request', 'Outlet Request'),
+    ('forecast', 'Forecast'),
     ('standing_prep', 'Standing Prep'),
     ('chef_add', 'Chef Add'),
 ]
@@ -961,7 +962,7 @@ def build_commissary_datasets(cur, start_date, end_date, outlet='', unit_system=
     weekly_prep.sort(key=lambda item: (item.get('prep_family_key') or '', (item.get('recipe_name') or '').lower()))
 
     source_label_map = {value: label for value, label in COMMISSARY_SOURCE_CHOICES}
-    source_display_order = ['outlet_request', 'chef_add', 'standing_prep']
+    source_display_order = ['outlet_request', 'forecast', 'chef_add', 'standing_prep']
 
     daily_groups = []
     by_day = defaultdict(list)

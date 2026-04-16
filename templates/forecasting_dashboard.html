@@ -7,12 +7,20 @@
 {% set selected_venue_name = selected_venue.name or 'No Active Venue' %}
 <div class="space-y-6">
     {% call page_header('Product Forecasting', selected_venue_name ~ ' active menu board', 'forecasting') %}
-    <a
-        href="{{ url_for('forecasting.forecasting_add', venue_id=selected_venue_id) if selected_venue_id else url_for('forecasting.forecasting_add') }}"
-        class="fhq-btn fhq-btn--primary"
-    >
-        + Add Recipes
-    </a>
+    <div class="flex flex-wrap items-center gap-2">
+        <a
+            href="{{ url_for('forecasting.forecasting_plan', venue_id=selected_venue_id) if selected_venue_id else url_for('forecasting.forecasting_plan') }}"
+            class="fhq-btn fhq-btn--primary"
+        >
+            Build Forecast
+        </a>
+        <a
+            href="{{ url_for('forecasting.forecasting_add', venue_id=selected_venue_id) if selected_venue_id else url_for('forecasting.forecasting_add') }}"
+            class="fhq-btn fhq-btn--outline"
+        >
+            + Add Recipes
+        </a>
+    </div>
     {% endcall %}
 
     {% if venue_tabs %}

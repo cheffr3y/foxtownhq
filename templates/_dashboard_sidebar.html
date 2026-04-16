@@ -1,0 +1,44 @@
+<aside class="brewpub-sidebar">
+    <div class="sidebar-head">
+        <div class="sidebar-kicker">Foxtown HQ</div>
+        <div class="sidebar-title">Brewpub Command</div>
+        <div class="sidebar-copy">{{ brewpub_venue_name }} culinary program</div>
+    </div>
+
+    <nav class="sidebar-nav" aria-label="Primary navigation">
+        {% for item in primary_nav %}
+        <a href="{{ item.href }}" class="sidebar-link {% if item.active %}sidebar-link--active{% endif %}">
+            <span class="sidebar-copy-block">
+                <span class="sidebar-label">{{ item.label }}</span>
+                <span class="sidebar-sub">{{ item.sub }}</span>
+            </span>
+            {% if item.badge_text %}
+            <span class="sidebar-badge sidebar-badge--{{ item.badge_tone }}">{{ item.badge_text }}</span>
+            {% endif %}
+        </a>
+        {% endfor %}
+    </nav>
+
+    <div class="sidebar-divider">
+        <span>Support</span>
+    </div>
+
+    <nav class="sidebar-nav sidebar-nav--support" aria-label="Support navigation">
+        {% for item in support_nav %}
+        <a href="{{ item.href }}" class="sidebar-link sidebar-link--support">
+            <span class="sidebar-copy-block">
+                <span class="sidebar-label">{{ item.label }}</span>
+                <span class="sidebar-sub">{{ item.sub }}</span>
+            </span>
+            {% if item.badge_text %}
+            <span class="sidebar-badge sidebar-badge--{{ item.badge_tone }}">{{ item.badge_text }}</span>
+            {% endif %}
+        </a>
+        {% endfor %}
+    </nav>
+
+    <div class="sidebar-foot">
+        <a href="{{ url_for('search') }}">Search index</a>
+        <a href="{{ url_for('forecast_send') }}">Send forecast</a>
+    </div>
+</aside>

@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+{% from "base.html" import page_header, tab_bar %}
+
+{% block title %}Weekly Forecast - Foxtown HQ{% endblock %}
+
+{% block extra_head %}
+<style>
+    .forecast-shell { padding-bottom: 4rem; }
+    .forecast-toolbar { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 1rem; }
+    .forecast-week-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 0.65rem; }
+    .forecast-grid-wrap { overflow-x: auto; border: 1px solid rgba(87, 83, 78, 0.18); }
+    .forecast-grid { min-width: 1320px; }
+    .forecast-grid th, .forecast-grid td { vertical-align: top; }
+    .forecast-item { min-width: 260px; }
+    .forecast-day { width: 108px; }
+    .forecast-unit { width: 112px; }
+    .forecast-total { width: 96px; }
+    .forecast-notes { min-width: 220px; }
+    .forecast-number { min-height: 40px; text-align: right; }
+    .forecast-sticky-actions {
+        position: sticky;
+        bottom: 0;
+        z-index: 10;
+        border: 1px solid rgba(87, 83, 78, 0.18);
+        background: rgba(255, 255, 255, 0.96);
+        backdrop-filter: blur(10px);
+    }
+    .forecast-date-label { display: block; margin-top: 0.15rem; color: #8A8580; font-size: 0.72rem; font-weight: 600; }
+</style>
+{% endblock %}
+
+{% block content %}
+{% set selected_venue_name = selected_venue.name or selected_venue_name or 'No Active Venue' %}
+{% set is_submitted = plan_status == 'submitted' %}
+<div class="space-y-6 forecast-shell">
+    {% call page_header('Weekly Forecast', selected_venue_name ~ ' / ' ~ week_start.strftime('%b %-d') ~ ' - ' ~ week_end.strftime('%b %-d'), 'forecasting') %}
+    <div class="flex flex-wrap items-center gap-2">
+        <a
+            href="{{ url_for('forecasting.forecasting_dashboard', venue_id=selected_venue_id) if selected_venue_id else url_for('forecasting.forecasting_dashboard') }}"
+            class="fhq-btn fhq-btn--outline"
+        >
+            Forecast Board
+        </a>
+        <a
+            href="{{ url_for('forecasting.forecasting_add', venue_id=selected_venue_id) if selected_venue_id else url_for('forecasting.forecasting_add') }}"
+            class="fhq-btn fhq-btn--primary"
+        >
+            + Add Recipes
+        </a>
+    </div>
+    {% endcall %}
+
+    {% if venue_tabs %}
+    {{ tab_bar(venue_tabs, selected_venue_id) }}
+    {% endif %}
+
+    <section class="fhq-card p-5">
+        <div class="forecast-toolbar">
+            <form method="GET" class="forecast-week-controls">
+                <input type="hidden" name="venue_id" value="{{ selected_venue_id }}">
+                <div>
+                    <label for="forecastWeekStart" class="block text-xs font-bold uppercase tracking-[0.14em] text-foxtown-muted mb-1.5">Week</label>
+                    <input id="forecastWeekStart" type="date" name="week_start" value="{{ week_start.isoformat() }}" class="fhq-input">
+                </div>
+                <button type="submit" class="fhq-btn fhq-btn--outline">Open Week</button>
+                <a href="{{ url_for('forecasting.forecasting_plan', venue_id=selected_venue_id, week_start=prev_week_start.isoformat()) }}" class="fhq-btn fhq-btn--outline">Prev Week</a>
+                <a href="{{ url_for('forecasting.forecasting_plan', venue_id=selected_venue_id, week_start=next_week_start.isoformat()) }}" class="fhq-btn fhq-btn--outline">Next Week</a>
+            </form>
+            <div class="flex flex-wrap items-center gap-3">
+                <span class="fhq-pill {% if is_submitted %}fhq-pill--confirmed{% else %}fhq-pill--pending{% endif %}">
+                    {{ plan_status|replace('_', ' ')|title }}
+                </span>
+                <span class="text-sm font-semibold text-foxtown-muted">{{ active_forecast_line_count }} forecasted line{% if active_forecast_line_count != 1 %}s{% endif %}</span>
+                <span class="text-sm font-semibold text-foxtown-muted"><span id="forecastGrandTotal">{{ total_qty }}</span> total units</span>
+            </div>
+        </div>
+    </section>
+
+    <form method="POST" class="space-y-5" id="forecastPlanForm">
+        <input type="hidden" name="venue_id" value="{{ selected_venue_id }}">
+        <input type="hidden" name="week_start" value="{{ week_start.isoformat() }}">
+
+        <section class="fhq-card p-5">
+            <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                <div>
+                    <h2 class="text-lg font-bold tracking-tight text-foxtown-text">Forecast Lines</h2>
+                    <p class="mt-1 text-sm text-foxtown-muted">Daily quantities from the active forecasting menu board.</p>
+                </div>
+                <div class="w-full lg:max-w-xl">
+                    <label for="forecastNotes" class="block text-sm font-medium text-foxtown-muted mb-1.5">Forecast Notes</label>
+                    <input id="forecastNotes" name="notes" value="{{ plan.notes or '' }}" class="fhq-input" {% if is_submitted %}disabled{% endif %}>
+                </div>
+            </div>
+
+            {% if plan_rows %}
+            <div class="forecast-grid-wrap mt-5">
+                <table class="fhq-table forecast-grid">
+                    <thead>
+                        <tr>
+                            <th class="forecast-item">Item</th>
+                            <th class="forecast-unit">Unit</th>
+                            {% for day in day_dates %}
+                            <th class="forecast-day">
+                                {{ day.label }}
+                                <span class="forecast-date-label">{{ day.date.strftime('%m/%d') }}</span>
+                            </th>
+                            {% endfor %}
+                            <th class="forecast-total">Total</th>
+                            <th class="forecast-notes">Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in plan_rows %}
+                        <tr data-forecast-row>
+                            <td class="forecast-item">
+                                <input type="hidden" name="line_menu_item_id[]" value="{{ row.menu_item_id or '' }}">
+                                <div class="font-semibold text-foxtown-text">{{ row.item_name }}</div>
+                                <div class="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-foxtown-muted">{{ row.category }}</div>
+                                {% if row.recipe_id %}
+                                <a href="{{ url_for('recipes.recipe_detail', recipe_id=row.recipe_id) }}" class="mt-2 inline-block text-xs font-bold text-foxtown-ember hover:text-orange-700">Recipe linked</a>
+                                {% else %}
+                                <div class="mt-2 text-xs font-bold text-foxtown-muted">No recipe yet</div>
+                                {% endif %}
+                            </td>
+                            <td class="forecast-unit">
+                                <input name="line_unit[]" value="{{ row.unit or 'each' }}" class="fhq-input" {% if is_submitted %}disabled{% endif %}>
+                            </td>
+                            {% for day in day_dates %}
+                            <td class="forecast-day">
+                                <input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    name="line_{{ day.key }}_qty[]"
+                                    value="{{ row[day.qty_field] if row[day.qty_field] else '' }}"
+                                    class="fhq-input forecast-number"
+                                    data-forecast-qty
+                                    {% if is_submitted %}disabled{% endif %}
+                                >
+                            </td>
+                            {% endfor %}
+                            <td class="forecast-total">
+                                <div class="pt-2 text-right text-sm font-black text-foxtown-text" data-row-total>{{ row.total_qty }}</div>
+                            </td>
+                            <td class="forecast-notes">
+                                <input name="line_notes[]" value="{{ row.notes or '' }}" class="fhq-input" {% if is_submitted %}disabled{% endif %}>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="mt-5 border border-foxtown-border/25 bg-foxtown-panel p-6 text-center">
+                <div class="text-lg font-bold tracking-tight text-foxtown-text">No active forecast items yet.</div>
+                <p class="mt-2 text-sm text-foxtown-muted">Add recipes to the menu board, then come back to enter weekly quantities.</p>
+                <a
+                    href="{{ url_for('forecasting.forecasting_add', venue_id=selected_venue_id) if selected_venue_id else url_for('forecasting.forecasting_add') }}"
+                    class="mt-4 inline-flex fhq-btn fhq-btn--primary"
+                >
+                    + Add Recipes
+                </a>
+            </div>
+            {% endif %}
+        </section>
+
+        {% if plan_rows %}
+        <div class="forecast-sticky-actions px-5 py-4">
+            <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                    <div class="fhq-section-head mb-1">Forecast Total</div>
+                    <div class="text-sm font-semibold text-foxtown-text"><span id="forecastActionTotal">{{ total_qty }}</span> total units across {{ active_forecast_line_count }} line{% if active_forecast_line_count != 1 %}s{% endif %}</div>
+                </div>
+                <div class="flex flex-wrap items-center gap-3">
+                    <button type="submit" name="intent" value="save" class="fhq-btn fhq-btn--outline" {% if is_submitted %}disabled{% endif %}>Save Draft</button>
+                    <button
+                        type="submit"
+                        name="intent"
+                        value="submit"
+                        class="fhq-btn fhq-btn--primary"
+                        onclick="return confirm('Submit this forecast to commissary? This will create dated commissary orders.');"
+                        {% if is_submitted %}disabled{% endif %}
+                    >
+                        Submit to Commissary
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </form>
+</div>
+
+<script>
+(function () {
+    const form = document.getElementById('forecastPlanForm');
+    if (!form) return;
+
+    const grandTotal = document.getElementById('forecastGrandTotal');
+    const actionTotal = document.getElementById('forecastActionTotal');
+
+    function formatNumber(value) {
+        if (!Number.isFinite(value)) return '0';
+        if (Math.abs(value - Math.round(value)) < 0.0001) return String(Math.round(value));
+        return value.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
+    }
+
+    function recalc() {
+        let total = 0;
+        form.querySelectorAll('[data-forecast-row]').forEach((row) => {
+            let rowTotal = 0;
+            row.querySelectorAll('[data-forecast-qty]').forEach((input) => {
+                const value = Number.parseFloat(input.value || '0');
+                if (Number.isFinite(value)) rowTotal += value;
+            });
+            total += rowTotal;
+            const totalNode = row.querySelector('[data-row-total]');
+            if (totalNode) totalNode.textContent = formatNumber(rowTotal);
+        });
+        if (grandTotal) grandTotal.textContent = formatNumber(total);
+        if (actionTotal) actionTotal.textContent = formatNumber(total);
+    }
+
+    form.querySelectorAll('[data-forecast-qty]').forEach((input) => {
+        input.addEventListener('input', recalc);
+        input.addEventListener('change', recalc);
+    });
+    recalc();
+})();
+</script>
+{% endblock %}

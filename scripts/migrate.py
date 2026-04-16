@@ -379,6 +379,80 @@ MIGRATIONS = [
     "CREATE INDEX IF NOT EXISTS idx_forecasting_menu_items_category ON forecasting_menu_items (category)",
     "CREATE INDEX IF NOT EXISTS idx_forecasting_menu_items_venue_id ON forecasting_menu_items (venue_id)",
     "CREATE INDEX IF NOT EXISTS idx_forecasting_menu_items_recipe_id ON forecasting_menu_items (recipe_id)",
+    """
+    CREATE TABLE IF NOT EXISTS commissary_pipeline (
+        id BIGSERIAL PRIMARY KEY,
+        item_name TEXT NOT NULL,
+        quantity NUMERIC NOT NULL DEFAULT 0,
+        unit TEXT DEFAULT 'each',
+        status TEXT NOT NULL DEFAULT 'requested',
+        due_date DATE,
+        requested_by TEXT,
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_commissary_pipeline_due_date ON commissary_pipeline (due_date)",
+    "CREATE INDEX IF NOT EXISTS idx_commissary_pipeline_status ON commissary_pipeline (status)",
+    """
+    CREATE TABLE IF NOT EXISTS tap_releases (
+        id BIGSERIAL PRIMARY KEY,
+        beer_name TEXT NOT NULL,
+        style TEXT,
+        abv NUMERIC,
+        handle_number INTEGER,
+        release_date DATE,
+        status TEXT NOT NULL DEFAULT 'releasing_soon',
+        paired_dish_id TEXT REFERENCES recipes(id) ON DELETE SET NULL,
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_tap_releases_release_date ON tap_releases (release_date)",
+    "CREATE INDEX IF NOT EXISTS idx_tap_releases_status ON tap_releases (status)",
+    "CREATE INDEX IF NOT EXISTS idx_tap_releases_paired_dish_id ON tap_releases (paired_dish_id)",
+    """
+    CREATE TABLE IF NOT EXISTS forecasting_plans (
+        id TEXT PRIMARY KEY,
+        venue_id TEXT REFERENCES venues(id) ON DELETE CASCADE,
+        week_start DATE NOT NULL,
+        status TEXT NOT NULL DEFAULT 'draft',
+        notes TEXT,
+        created_by TEXT,
+        submitted_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    "CREATE UNIQUE INDEX IF NOT EXISTS idx_forecasting_plans_venue_week ON forecasting_plans (venue_id, week_start)",
+    "CREATE INDEX IF NOT EXISTS idx_forecasting_plans_status ON forecasting_plans (status)",
+    """
+    CREATE TABLE IF NOT EXISTS forecasting_plan_lines (
+        id BIGSERIAL PRIMARY KEY,
+        plan_id TEXT NOT NULL REFERENCES forecasting_plans(id) ON DELETE CASCADE,
+        menu_item_id TEXT REFERENCES forecasting_menu_items(id) ON DELETE SET NULL,
+        recipe_id TEXT REFERENCES recipes(id) ON DELETE SET NULL,
+        item_name TEXT NOT NULL,
+        category TEXT,
+        unit TEXT DEFAULT 'each',
+        mon_qty NUMERIC NOT NULL DEFAULT 0,
+        tue_qty NUMERIC NOT NULL DEFAULT 0,
+        wed_qty NUMERIC NOT NULL DEFAULT 0,
+        thu_qty NUMERIC NOT NULL DEFAULT 0,
+        fri_qty NUMERIC NOT NULL DEFAULT 0,
+        sat_qty NUMERIC NOT NULL DEFAULT 0,
+        sun_qty NUMERIC NOT NULL DEFAULT 0,
+        notes TEXT,
+        sort_order INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_forecasting_plan_lines_plan_id ON forecasting_plan_lines (plan_id)",
+    "CREATE INDEX IF NOT EXISTS idx_forecasting_plan_lines_menu_item ON forecasting_plan_lines (menu_item_id)",
+    "CREATE INDEX IF NOT EXISTS idx_forecasting_plan_lines_recipe_id ON forecasting_plan_lines (recipe_id)",
 ]
 
 

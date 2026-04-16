@@ -15,7 +15,7 @@ from blueprints.menu import bp as menu_bp
 from blueprints.prep import bp as prep_bp
 from blueprints.recipes import bp as recipes_bp
 from config import PRICE_REFRESH_DAYS
-from db import get_cursor, init_app as init_db_app
+from db import get_cursor, get_db, init_app as init_db_app
 from helpers.auth import get_admin_config
 from helpers.banquet import (
     auto_complete_past_banquet_events,
@@ -23,8 +23,10 @@ from helpers.banquet import (
     resolve_banquet_venue,
 )
 from helpers.dashboard import (
+    BREWPUB_VENUE_ID,
     build_dashboard_view_model,
     get_dashboard_counts,
+    list_rd_queue_items,
 )
 from helpers.shared import inject_helpers
 from helpers.units import get_unit_system
@@ -106,48 +108,50 @@ def logout():
 @login_required
 def dashboard():
     today = date.today()
-    week_end = today + timedelta(days=6)
+    week_start = today - timedelta(days=today.weekday())
+    week_end = week_start + timedelta(days=6)
     unit_system = get_unit_system()
+    conn = get_db()
     with get_cursor() as cur:
         counts = get_dashboard_counts(cur)
-        venues = get_active_venues(cur)
-        banquet_venue = resolve_banquet_venue(venues)
-        selected_venue = banquet_venue.get('id') or ''
         dashboard_view = build_dashboard_view_model(
             cur,
             today,
+            week_start,
             week_end,
-            selected_venue,
             unit_system,
-            counts['stale_price_count'],
+            counts,
         )
+        conn.commit()
 
     return render_template(
         'dashboard.html',
-        recipe_count=counts['recipe_count'],
-        ingredient_count=counts['ingredient_count'],
-        stale_price_count=counts['stale_price_count'],
-        recent_rollout_count=counts['recent_rollout_count'],
-        buffet_event_count=counts['buffet_event_count'],
-        forecasting_active_count=counts['forecasting_active_count'],
-        price_refresh_days=PRICE_REFRESH_DAYS,
         today=today,
+        week_start=week_start,
         week_end=week_end,
-        banquet_venue_name=banquet_venue.get('name') or 'Banquets',
-        today_events=dashboard_view['today_events'],
-        upcoming_events=dashboard_view['upcoming_events'],
-        stale_badge_count=counts['stale_price_count'],
-        production_board_live=dashboard_view['production_board_live'],
-        production_board_active_tasks=dashboard_view['production_board_active_tasks'],
-        production_pulse_items=dashboard_view['production_pulse_items'],
-        production_pulse_total_batches=dashboard_view['production_pulse_total_batches'],
-        production_pulse_total_amount=dashboard_view['production_pulse_total_amount'],
-        production_pulse_total_subrecipes=dashboard_view['production_pulse_total_subrecipes'],
-        production_pulse_event_count=dashboard_view['production_pulse_event_count'],
-        pinned_recipes=dashboard_view['pinned_recipes'],
-        recent_recipes=dashboard_view['recent_recipes'],
-        system_health_items=dashboard_view['system_health_items'],
+        price_refresh_days=PRICE_REFRESH_DAYS,
+        **counts,
+        **dashboard_view,
     )
+
+
+@app.route('/recipes/rd-queue')
+@login_required
+def rd_queue():
+    with get_cursor() as cur:
+        rd_queue_items = list_rd_queue_items(cur)
+
+    return render_template(
+        'rd_queue.html',
+        rd_queue_items=rd_queue_items,
+    )
+
+
+@app.route('/forecasting/send', methods=['GET', 'POST'])
+@login_required
+def forecast_send():
+    flash('Weekly forecast opened for Foxtown Brewing.', 'info')
+    return redirect(url_for('forecasting.forecasting_plan', venue_id=BREWPUB_VENUE_ID))
 
 
 @app.route('/search')
