@@ -1128,6 +1128,84 @@ def save_forecasting_sales_mix_mappings(cur, venue_id, rows, updated_by=''):
     return result
 
 
+def create_forecasting_plan_from_sales_mix(cur, import_id, venue_id, week_start, created_by=''):
+    if not import_id or not venue_id or not week_start:
+        return {
+            'ok': False,
+            'message': 'Choose a sales mix import, venue, and forecast week.',
+        }
+
+    sales_mix_import = get_forecasting_sales_mix_import(cur, import_id)
+    if not sales_mix_import or sales_mix_import.get('venue_id') != venue_id:
+        return {
+            'ok': False,
+            'message': 'Sales mix import was not found for this venue.',
+        }
+
+    plan = get_or_create_forecasting_plan(cur, venue_id, week_start, created_by=created_by)
+    if normalize_forecasting_plan_status(plan.get('status')) == 'submitted':
+        return {
+            'ok': False,
+            'message': 'That forecast week is already submitted. Choose another week or archive the submitted plan first.',
+        }
+
+    preview = build_forecasting_sales_mix_par_preview(cur, import_id, venue_id, food_only=True)
+    weekly_rows = [
+        row
+        for row in preview.get('weekly_par_rows') or []
+        if to_float(row.get('par_qty')) > 0
+    ]
+    if not weekly_rows:
+        return {
+            'ok': False,
+            'message': 'Save at least one Product Mix match before creating a forecast draft.',
+        }
+
+    source_label = sales_mix_import.get('source_filename') or import_id
+    plan_rows = []
+    for row in weekly_rows:
+        pos_items = row.get('pos_items') or []
+        pos_preview = ', '.join(pos_items[:3])
+        if len(pos_items) > 3:
+            pos_preview = f"{pos_preview} +{len(pos_items) - 3} more"
+        notes = f"Weekly par from {source_label}"
+        if pos_preview:
+            notes = f"{notes}: {pos_preview}"
+
+        plan_row = {
+            'menu_item_id': row.get('menu_item_id'),
+            'recipe_id': row.get('recipe_id'),
+            'item_name': row.get('item_name') or 'Forecast item',
+            'category': row.get('category') or 'Uncategorized',
+            'unit': row.get('yield_unit') or 'each',
+            'notes': notes,
+            'mon_qty': to_float(row.get('par_qty')),
+            'tue_qty': 0,
+            'wed_qty': 0,
+            'thu_qty': 0,
+            'fri_qty': 0,
+            'sat_qty': 0,
+            'sun_qty': 0,
+        }
+        plan_rows.append(plan_row)
+
+    import_window = ''
+    if sales_mix_import.get('sales_start') and sales_mix_import.get('sales_end'):
+        import_window = f" ({sales_mix_import.get('sales_start')} through {sales_mix_import.get('sales_end')})"
+    notes = f"Draft created from Product Mix {source_label}{import_window}. Weekly par quantities are placed on the week-start day."
+    save_forecasting_plan_lines(cur, plan['id'], plan_rows, notes=notes)
+    missing_recipe_count = sum(1 for row in weekly_rows if not row.get('recipe_id'))
+
+    return {
+        'ok': True,
+        'plan_id': plan.get('id'),
+        'week_start': week_start,
+        'line_count': len(plan_rows),
+        'missing_recipe_count': missing_recipe_count,
+        'total_par_qty': sum(to_float(row.get('par_qty')) for row in weekly_rows),
+    }
+
+
 def ensure_recipe_venue_link(cur, recipe_id, venue_id):
     if not recipe_id or not venue_id or not db_table_exists(cur, 'public.recipe_venues'):
         return False
@@ -1671,6 +1749,7 @@ __all__ = [
     'FORECASTING_DAY_FIELDS',
     'build_forecasting_sales_mix_par_preview',
     'build_forecasting_plan_rows',
+    'create_forecasting_plan_from_sales_mix',
     'ensure_forecasting_schema',
     'ensure_forecasting_pipeline_schema',
     'ensure_recipe_venue_link',

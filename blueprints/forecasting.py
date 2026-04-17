@@ -9,6 +9,7 @@ from helpers.forecasting import (
     FORECASTING_DAY_FIELDS,
     build_forecasting_sales_mix_par_preview,
     build_forecasting_plan_rows,
+    create_forecasting_plan_from_sales_mix,
     ensure_forecasting_schema,
     ensure_recipe_venue_link,
     get_active_menu_recipe_ids,
@@ -398,6 +399,54 @@ def forecasting_sales_mix():
                 except Exception:
                     conn.rollback()
                     raise
+            elif intent == 'create_plan':
+                requested_import_id = (request.form.get('import_id') or '').strip()
+                target_import = get_forecasting_sales_mix_import(cur, requested_import_id)
+                if target_import and target_import.get('venue_id') != selected_venue_id:
+                    target_import = None
+                if not target_import:
+                    flash('Choose a sales mix import before creating a forecast draft.', 'error')
+                    return redirect(url_for('forecasting.forecasting_sales_mix', venue_id=selected_venue_id))
+
+                forecast_week_start, _ = get_forecasting_week_window(request.form.get('forecast_week_start'))
+                try:
+                    result = create_forecasting_plan_from_sales_mix(
+                        cur,
+                        requested_import_id,
+                        selected_venue_id,
+                        forecast_week_start,
+                        created_by=imported_by,
+                    )
+                    if not result.get('ok'):
+                        conn.rollback()
+                        flash(result.get('message') or 'Could not create forecast draft.', 'error')
+                        return redirect(
+                            url_for(
+                                'forecasting.forecasting_sales_mix',
+                                venue_id=selected_venue_id,
+                                import_id=requested_import_id,
+                                forecast_week_start=forecast_week_start.isoformat(),
+                            )
+                        )
+
+                    conn.commit()
+                    message = (
+                        f"Forecast draft created with {result.get('line_count', 0)} lines "
+                        f"and {result.get('total_par_qty', 0):.0f} weekly par units."
+                    )
+                    if result.get('missing_recipe_count'):
+                        message = f"{message} {result.get('missing_recipe_count')} lines still need recipes for shopping rollups."
+                    flash(message, 'success')
+                    return redirect(
+                        url_for(
+                            'forecasting.forecasting_plan',
+                            venue_id=selected_venue_id,
+                            week_start=forecast_week_start.isoformat(),
+                        )
+                    )
+                except Exception:
+                    conn.rollback()
+                    raise
             else:
                 upload = request.files.get('sales_mix_zip')
                 try:
@@ -448,6 +497,14 @@ def forecasting_sales_mix():
             selected_venue_id,
             food_only=True,
         )
+        default_forecast_week_raw = request.args.get('forecast_week_start') or ''
+        if not default_forecast_week_raw and selected_import and selected_import.get('sales_end'):
+            default_forecast_week_raw = (selected_import.get('sales_end') + timedelta(days=2)).isoformat()
+        forecast_week_start, forecast_week_end = get_forecasting_week_window(default_forecast_week_raw)
+        weekly_par_rows = par_preview.get('weekly_par_rows') or []
+        sales_mix_items = par_preview.get('pos_rows') or []
+        missing_recipe_rows = [row for row in weekly_par_rows if not row.get('recipe_id')]
+        unmatched_sales_mix_items = [row for row in sales_mix_items if not row.get('mapping_active')]
 
     venue_tabs = [
         {
@@ -468,9 +525,13 @@ def forecasting_sales_mix():
         recent_imports=recent_imports,
         selected_import=selected_import or {},
         forecast_item_options=forecast_item_options,
-        sales_mix_items=par_preview.get('pos_rows') or [],
-        weekly_par_rows=par_preview.get('weekly_par_rows') or [],
+        sales_mix_items=sales_mix_items,
+        weekly_par_rows=weekly_par_rows,
+        missing_recipe_rows=missing_recipe_rows,
+        unmatched_sales_mix_items=unmatched_sales_mix_items,
         sales_mix_summary=par_preview.get('summary') or {},
+        forecast_week_start=forecast_week_start,
+        forecast_week_end=forecast_week_end,
     )
 
 
