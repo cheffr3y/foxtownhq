@@ -465,7 +465,8 @@ def _find_toast_product_mix_csv(zip_file):
 def parse_toast_product_mix_zip(file_stream, filename=''):
     file_stream.seek(0)
     try:
-        with zipfile.ZipFile(file_stream) as zip_file:
+        upload_bytes = file_stream.read()
+        with zipfile.ZipFile(io.BytesIO(upload_bytes)) as zip_file:
             csv_name = _find_toast_product_mix_csv(zip_file)
             if not csv_name:
                 return None, 'Upload a Toast Product Mix ZIP that includes All levels.csv.'
