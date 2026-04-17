@@ -46,6 +46,10 @@
     .week-row:first-child { border-top: none; }
     .week-indicator { justify-self: end; font-size: 0.9rem; font-weight: 700; }
     .week-indicator.is-empty { color: #A09A94; }
+    .planner-tabs { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+    .planner-tab { border: 1px solid #ECEAE6; background: #fff; padding: 0.62rem 0.85rem; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #5F5E5A; }
+    .planner-tab.is-active { background: #EAF0F3; border-color: #A9B4B9; color: #1B1918; }
+    .orders-table { min-width: 860px; }
     @media (min-width: 900px) { .signoff-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
     @media (min-width: 980px) {
         .controls-grid { grid-template-columns: minmax(180px, 0.8fr) minmax(180px, 0.8fr) auto auto; }
@@ -96,7 +100,7 @@
             </form>
         </section>
 
-        <div class="planner-tabs" role="tablist" aria-label="Commissary workflow tabs" style="display:none;">
+        <div class="planner-tabs" role="tablist" aria-label="Commissary workflow tabs">
             <button type="button" class="planner-tab" data-planner-tab-btn="production" aria-pressed="false">Today's Production</button>
             <button type="button" class="planner-tab" data-planner-tab-btn="signoff" aria-pressed="false">Sign Off</button>
             <button type="button" class="planner-tab" data-planner-tab-btn="transfers" aria-pressed="false">Transfers</button>
@@ -109,6 +113,51 @@
                 <a class="manage-pill" href="{{ url_for('commissary_review', week_start=week_start, outlet=(selected_outlet or None)) }}">Weekly Review</a>
                 <a class="manage-pill" href="{{ url_for('commissary_order_new') }}">Manage Orders</a>
             </div>
+        </section>
+
+        <section class="fhq-card p-4">
+            <div class="section-head">
+                <div>
+                    <h2 class="text-xl font-bold tracking-tight text-foxtown-text">Orders This Week</h2>
+                    <p class="text-sm text-foxtown-muted">Submitted forecast pulls and outlet requests in the current date/outlet filter.</p>
+                </div>
+                <span class="fhq-pill fhq-pill--pending">{{ datasets.orders|length }} order{% if datasets.orders|length != 1 %}s{% endif %}</span>
+            </div>
+            {% if datasets.orders %}
+            <div class="table-wrap">
+                <table class="fhq-table orders-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Outlet</th>
+                            <th>Source</th>
+                            <th>Status</th>
+                            <th>Lines</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in datasets.orders %}
+                        <tr>
+                            <td>{{ order.needed_date.strftime('%-m/%-d/%Y') if order.needed_date else 'No date' }}</td>
+                            <td>{{ order.outlet }}</td>
+                            <td>{{ order.source|replace('_', ' ')|title }}</td>
+                            <td>{{ order.status|replace('_', ' ')|title }}</td>
+                            <td>{{ order.line_count }}</td>
+                            <td>
+                                <a href="{{ url_for('commissary_order_edit', order_id=order.id) }}" class="text-xs font-bold text-foxtown-ember hover:text-orange-700">Open</a>
+                                {% if order.needed_date %}
+                                <a href="{{ url_for('commissary_planner', day=order.needed_date.isoformat(), outlet=order.outlet, tab='production') }}" class="ml-3 text-xs font-bold text-foxtown-ember hover:text-orange-700">Production Day</a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="empty-note">No commissary orders found for this week/outlet filter. Forecast drafts only appear here after Submit to Commissary.</p>
+            {% endif %}
         </section>
 
         <section class="fhq-card p-4" data-planner-tab-panel="production" hidden>
