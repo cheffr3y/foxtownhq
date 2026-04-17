@@ -129,8 +129,9 @@
 
             <div class="salesmix-kpi-grid mt-5">
                 <article class="border border-foxtown-border/25 bg-foxtown-panel p-4">
-                    <div class="fhq-section-head">Toast Items</div>
+                    <div class="fhq-section-head">Review Items</div>
                     <div class="text-2xl font-black text-foxtown-text">{{ sales_mix_summary.pos_row_count or 0 }}</div>
+                    <div class="text-xs text-foxtown-muted">{{ sales_mix_summary.modifier_prep_count or 0 }} from modifiers</div>
                 </article>
                 <article class="border border-foxtown-border/25 bg-foxtown-panel p-4">
                     <div class="fhq-section-head">Matched Qty</div>
@@ -267,8 +268,8 @@
             <div class="mt-6">
                 <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                        <h3 class="text-base font-bold text-foxtown-text">Unmatched Food Items</h3>
-                        <p class="mt-1 text-sm text-foxtown-muted">These food items sold last week have no forecast match and won't appear in the prep list until matched below.</p>
+                        <h3 class="text-base font-bold text-foxtown-text">Unmatched Food + Modifier Items</h3>
+                        <p class="mt-1 text-sm text-foxtown-muted">These Product Mix items or prep-relevant modifiers have no forecast match and won't appear in the prep list until matched below.</p>
                     </div>
                     <span class="fhq-pill fhq-pill--error">{{ unmatched_sales_mix_items|length }} Unmatched</span>
                 </div>
@@ -276,7 +277,7 @@
                     <table class="fhq-table min-w-[640px]">
                         <thead>
                             <tr>
-                                <th>Toast Item</th>
+                                <th>Toast / Modifier Item</th>
                                 <th>Menu Group</th>
                                 <th>Qty Sold</th>
                             </tr>
@@ -363,7 +364,7 @@
                     <table class="fhq-table min-w-[1120px]">
                     <thead>
                         <tr>
-                            <th>Toast Item</th>
+                            <th>Toast / Modifier Item</th>
                             <th>Menu Group</th>
                             <th>Qty Sold</th>
                             <th>Forecast Match</th>

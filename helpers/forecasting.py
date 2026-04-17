@@ -23,6 +23,39 @@ FORECASTING_DAY_FIELDS = (
 
 FORECASTING_PLAN_STATUSES = {'draft', 'submitted', 'archived'}
 TOAST_PRODUCT_MIX_ALL_LEVELS_FILE = 'all levels.csv'
+FORECASTING_MODIFIER_PREP_MENU_GROUP = 'Modifier Prep'
+FORECASTING_MODIFIER_PREP_PREFIX = 'Modifier: '
+FORECASTING_PREP_MODIFIER_ALIASES = (
+    ('ranch', 'Ranch'),
+    ('buffalo', 'Buffalo'),
+    ('blue cheese', 'Blue Cheese'),
+    ('bleu cheese', 'Blue Cheese'),
+    ('bbq', 'BBQ'),
+    ('barbecue', 'BBQ'),
+    ('garlic parm', 'Garlic Parmesan'),
+    ('garlic parmesan', 'Garlic Parmesan'),
+    ('honey mustard', 'Honey Mustard'),
+    ('caesar', 'Caesar'),
+    ('italian', 'Italian Dressing'),
+    ('balsamic', 'Balsamic'),
+    ('vinaigrette', 'Vinaigrette'),
+    ('thousand island', 'Thousand Island'),
+    ('chipotle', 'Chipotle'),
+    ('sriracha', 'Sriracha'),
+    ('hot honey', 'Hot Honey'),
+    ('marinara', 'Marinara'),
+    ('aioli', 'Aioli'),
+    ('mayo', 'Mayo'),
+    ('mayonnaise', 'Mayo'),
+    ('ketchup', 'Ketchup'),
+    ('mustard', 'Mustard'),
+    ('salsa', 'Salsa'),
+    ('queso', 'Queso'),
+    ('sour cream', 'Sour Cream'),
+    ('guacamole', 'Guacamole'),
+)
+FORECASTING_MODIFIER_NEGATION_RE = re.compile(r'\b(no|without|omit|remove|hold)\b', re.IGNORECASE)
+FORECASTING_MODIFIER_SPLIT_RE = re.compile(r'[\n;,|]+')
 
 
 def escape_like(value):
@@ -475,7 +508,8 @@ def parse_toast_product_mix_zip(file_stream, filename=''):
                 reader = csv.DictReader(text_stream)
                 rows = []
                 for row in reader:
-                    if _clean_csv_value(row, 'Type') != 'menuItem':
+                    source_type = _clean_csv_value(row, 'Type')
+                    if source_type.lower() not in ('menuitem', 'modifier'):
                         continue
                     item_name = _clean_csv_value(row, 'Item, open item')
                     if not item_name:
@@ -484,7 +518,7 @@ def parse_toast_product_mix_zip(file_stream, filename=''):
                     net_sales = to_float(row.get('Net sales'))
                     rows.append(
                         {
-                            'source_type': _clean_csv_value(row, 'Type'),
+                            'source_type': source_type,
                             'menu': _clean_csv_value(row, 'Menu'),
                             'menu_group': _clean_csv_value(row, 'Menu group'),
                             'subgroup': _clean_csv_value(row, 'Subgroup'),
@@ -695,6 +729,7 @@ def list_forecasting_sales_mix_items(cur, import_id, food_only=False, limit=250)
             menu_group,
             subgroup,
             item_name,
+            modifier_text,
             qty_sold,
             avg_price,
             gross_sales,
@@ -833,6 +868,57 @@ def _suggest_sales_mix_menu_item(pos_item_name, active_items_by_name):
     return None
 
 
+def _extract_prep_modifier_choices(modifier_text=''):
+    text = (modifier_text or '').strip()
+    if not text:
+        return []
+
+    choices = []
+    for raw_part in FORECASTING_MODIFIER_SPLIT_RE.split(text):
+        part = raw_part.strip()
+        if not part:
+            continue
+        part = re.sub(r'\s+', ' ', part)
+        lower_part = part.lower()
+        if FORECASTING_MODIFIER_NEGATION_RE.search(lower_part):
+            continue
+
+        part_labels = []
+        for alias, label in FORECASTING_PREP_MODIFIER_ALIASES:
+            if re.search(rf'\b{re.escape(alias)}\b', lower_part):
+                if label not in part_labels:
+                    part_labels.append(label)
+        choices.extend(part_labels)
+    return choices
+
+
+def _build_modifier_prep_rows(items):
+    rows = []
+    for item in items or []:
+        qty_sold = to_float(item.get('qty_sold'))
+        if qty_sold <= 0:
+            continue
+        for choice in _extract_prep_modifier_choices(item.get('modifier_text')):
+            rows.append(
+                {
+                    'menu': item.get('menu') or '',
+                    'menu_group': FORECASTING_MODIFIER_PREP_MENU_GROUP,
+                    'subgroup': item.get('item_name') or '',
+                    'item_name': f'{FORECASTING_MODIFIER_PREP_PREFIX}{choice}',
+                    'item_tags': 'Product Mix modifier',
+                    'source_row_count': 1,
+                    'qty_sold': qty_sold,
+                    'gross_sales': 0,
+                    'discount_amount': 0,
+                    'refund_amount': 0,
+                    'void_amount': 0,
+                    'net_sales': 0,
+                    'tax': 0,
+                }
+            )
+    return rows
+
+
 def _aggregate_sales_mix_items(items):
     aggregated = {}
     for item in items or []:
@@ -892,6 +978,7 @@ def build_forecasting_sales_mix_par_preview(cur, import_id, venue_id, food_only=
                 'pos_row_count': 0,
                 'matched_pos_count': 0,
                 'unmatched_pos_count': 0,
+                'modifier_prep_count': 0,
                 'suggested_pos_count': 0,
                 'weekly_par_count': 0,
                 'missing_recipe_count': 0,
@@ -904,6 +991,9 @@ def build_forecasting_sales_mix_par_preview(cur, import_id, venue_id, food_only=
 
     source_rows = list_forecasting_sales_mix_items(cur, import_id, food_only=food_only, limit=limit)
     pos_rows = _aggregate_sales_mix_items(source_rows)
+    modifier_prep_rows = _aggregate_sales_mix_items(_build_modifier_prep_rows(source_rows))
+    pos_rows.extend(modifier_prep_rows)
+    pos_rows.sort(key=lambda row: (-to_float(row.get('qty_sold')), normalize_match_key(row.get('item_name'))))
     forecast_items = [
         item
         for item in list_forecasting_menu_items(cur, venue_id)
@@ -1004,6 +1094,7 @@ def build_forecasting_sales_mix_par_preview(cur, import_id, venue_id, food_only=
             'pos_row_count': len(pos_rows),
             'matched_pos_count': matched_pos_count,
             'unmatched_pos_count': len(pos_rows) - matched_pos_count,
+            'modifier_prep_count': len(modifier_prep_rows),
             'suggested_pos_count': suggested_pos_count,
             'weekly_par_count': len(weekly_par_rows),
             'missing_recipe_count': missing_recipe_count,
