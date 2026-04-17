@@ -5,6 +5,7 @@ from flask import Blueprint, flash, jsonify, redirect, render_template, request,
 from flask_login import current_user, login_required
 
 from helpers.commissary import ensure_commissary_tables
+from helpers.db_helpers import db_table_exists
 from helpers.forecasting import (
     FORECASTING_DAY_FIELDS,
     build_forecasting_sales_mix_par_preview,
@@ -161,6 +162,58 @@ def _parse_sales_mix_mapping_rows(form):
             }
         )
     return rows
+
+
+def _build_sales_mix_handoff_status(cur, selected_venue, week_start, week_end):
+    venue_id = (selected_venue or {}).get('id') or ''
+    venue_name = (selected_venue or {}).get('name') or ''
+    status = {
+        'plan': {},
+        'plan_line_count': 0,
+        'plan_total_qty': 0,
+        'order_count': 0,
+        'order_line_count': 0,
+        'order_dates': [],
+    }
+    if not venue_id or not week_start or not week_end:
+        return status
+
+    plan = get_forecasting_plan_by_week(cur, venue_id, week_start)
+    if plan:
+        plan['status'] = normalize_forecasting_plan_status(plan.get('status'))
+        lines = get_forecasting_plan_lines(cur, plan.get('id'))
+        status['plan'] = plan
+        status['plan_line_count'] = len(lines)
+        status['plan_total_qty'] = sum(float(line.get('total_qty') or 0) for line in lines)
+
+    if (
+        venue_name
+        and db_table_exists(cur, 'public.commissary_orders')
+        and db_table_exists(cur, 'public.commissary_order_lines')
+    ):
+        cur.execute(
+            """
+            SELECT
+                o.id,
+                o.needed_date,
+                COUNT(line.id) AS line_count
+            FROM commissary_orders o
+            LEFT JOIN commissary_order_lines line ON line.order_id = o.id
+            WHERE o.source = 'forecast'
+              AND o.outlet = %s
+              AND o.needed_date BETWEEN %s AND %s
+              AND COALESCE(NULLIF(TRIM(o.status), ''), 'draft') <> 'cancelled'
+            GROUP BY o.id, o.needed_date
+            ORDER BY o.needed_date, o.created_at
+            """,
+            (venue_name, week_start, week_end),
+        )
+        orders = [dict(row) for row in cur.fetchall()]
+        status['order_count'] = len(orders)
+        status['order_line_count'] = sum(int(order.get('line_count') or 0) for order in orders)
+        status['order_dates'] = [order.get('needed_date') for order in orders if order.get('needed_date')]
+
+    return status
 
 
 def _render_add_page(cur, selected_venue_id='', errors=None, selected_recipe_ids=None):
@@ -505,6 +558,7 @@ def forecasting_sales_mix():
         sales_mix_items = par_preview.get('pos_rows') or []
         missing_recipe_rows = [row for row in weekly_par_rows if not row.get('recipe_id')]
         unmatched_sales_mix_items = [row for row in sales_mix_items if not row.get('mapping_active')]
+        handoff_status = _build_sales_mix_handoff_status(cur, selected_venue, forecast_week_start, forecast_week_end)
 
     venue_tabs = [
         {
@@ -532,6 +586,7 @@ def forecasting_sales_mix():
         sales_mix_summary=par_preview.get('summary') or {},
         forecast_week_start=forecast_week_start,
         forecast_week_end=forecast_week_end,
+        handoff_status=handoff_status,
     )
 
 

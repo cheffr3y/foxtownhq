@@ -172,6 +172,53 @@
                         </button>
                     </form>
                 </div>
+                <div class="mt-4 grid gap-3 md:grid-cols-3">
+                    <div>
+                        <div class="fhq-section-head mb-1">Forecast Draft</div>
+                        {% if handoff_status.plan.id %}
+                        <div class="text-sm font-semibold text-foxtown-text">{{ handoff_status.plan.status|title }} / {{ handoff_status.plan_line_count }} lines</div>
+                        <div class="salesmix-muted-line">{{ "%.0f"|format(handoff_status.plan_total_qty or 0) }} total units</div>
+                        {% else %}
+                        <div class="text-sm font-semibold text-foxtown-muted">Not created yet</div>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <div class="fhq-section-head mb-1">Commissary Orders</div>
+                        {% if handoff_status.order_count %}
+                        <div class="text-sm font-semibold text-foxtown-text">{{ handoff_status.order_count }} order{% if handoff_status.order_count != 1 %}s{% endif %} / {{ handoff_status.order_line_count }} lines</div>
+                        <div class="salesmix-muted-line">
+                            {% for order_date in handoff_status.order_dates %}
+                            {{ order_date.strftime('%-m/%-d') }}{% if not loop.last %}, {% endif %}
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="text-sm font-semibold text-foxtown-muted">Not submitted yet</div>
+                        {% endif %}
+                    </div>
+                    <div class="flex flex-wrap items-end gap-2">
+                        <a
+                            href="{{ url_for('forecasting.forecasting_plan', venue_id=selected_venue_id, week_start=forecast_week_start.isoformat()) }}"
+                            class="fhq-btn fhq-btn--outline"
+                        >
+                            Open Forecast
+                        </a>
+                        {% if handoff_status.order_count %}
+                        <a
+                            href="{{ url_for('commissary.commissary_planner', day=forecast_week_start.isoformat(), outlet=selected_venue_name, tab='production') }}"
+                            class="fhq-btn fhq-btn--outline"
+                        >
+                            Open Commissary
+                        </a>
+                        <a
+                            href="{{ url_for('commissary.commissary_packet_print', outlet=selected_venue_name, week_start=forecast_week_start.isoformat(), day=forecast_week_start.isoformat(), include_shopping=1) }}"
+                            target="_blank"
+                            class="fhq-btn fhq-btn--outline"
+                        >
+                            Packet + Shopping
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
             </div>
 
             {% if missing_recipe_rows %}
