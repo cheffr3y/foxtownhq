@@ -91,8 +91,8 @@
     <section class="forecast-submit-callout">
         <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
-                <h2 class="text-base font-bold text-foxtown-text">This forecast is still a draft.</h2>
-                <p class="mt-1 text-sm text-foxtown-muted">Drafts stay here for review. Click Submit to Commissary to create dated production orders and packet shopping. Orders are created only on days with quantities.</p>
+                <h2 class="text-base font-bold text-foxtown-text">Review draft ready for Commissary.</h2>
+                <p class="mt-1 text-sm text-foxtown-muted">Check recipe links and quantities here. Save Changes Only keeps this out of Commissary; Finish Review creates dated production orders and packet shopping.</p>
             </div>
             <button
                 type="submit"
@@ -102,7 +102,7 @@
                 class="fhq-btn fhq-btn--primary"
                 onclick="return confirm('Submit this forecast to commissary? This will create dated commissary orders.');"
             >
-                Submit to Commissary
+                Finish Review: Send to Commissary
             </button>
         </div>
     </section>
@@ -204,7 +204,7 @@
                     <div class="text-sm font-semibold text-foxtown-text"><span id="forecastActionTotal">{{ total_qty }}</span> total units across {{ active_forecast_line_count }} line{% if active_forecast_line_count != 1 %}s{% endif %}</div>
                 </div>
                 <div class="flex flex-wrap items-center gap-3">
-                    <button type="submit" name="intent" value="save" class="fhq-btn fhq-btn--outline" {% if is_submitted %}disabled{% endif %}>Save Draft</button>
+                    <button type="submit" name="intent" value="save" class="fhq-btn fhq-btn--outline" {% if is_submitted %}disabled{% endif %}>Save Changes Only</button>
                     <button
                         type="submit"
                         name="intent"
@@ -213,7 +213,7 @@
                         onclick="return confirm('Submit this forecast to commissary? This will create dated commissary orders.');"
                         {% if is_submitted %}disabled{% endif %}
                     >
-                        Submit to Commissary
+                        Finish Review: Send to Commissary
                     </button>
                 </div>
             </div>

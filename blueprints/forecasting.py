@@ -355,7 +355,7 @@ def forecasting_plan():
                                 )
                         else:
                             conn.commit()
-                            flash('Forecast draft saved. It will not appear in Commissary until you submit it.', 'success')
+                            flash('Review draft saved. It is still not in Commissary. Use Finish Review: Send to Commissary when it is ready.', 'success')
                             return redirect(
                                 url_for(
                                     'forecasting.forecasting_plan',
@@ -415,6 +415,7 @@ def forecasting_sales_mix():
     conn = get_db()
     with get_cursor() as cur:
         ensure_forecasting_schema(cur)
+        ensure_commissary_tables(cur)
         conn.commit()
 
         venues = [dict(row) for row in get_active_venues(cur)]
@@ -452,13 +453,13 @@ def forecasting_sales_mix():
                 except Exception:
                     conn.rollback()
                     raise
-            elif intent == 'create_plan':
+            elif intent in ('create_plan', 'create_review_draft'):
                 requested_import_id = (request.form.get('import_id') or '').strip()
                 target_import = get_forecasting_sales_mix_import(cur, requested_import_id)
                 if target_import and target_import.get('venue_id') != selected_venue_id:
                     target_import = None
                 if not target_import:
-                    flash('Choose a sales mix import before creating a forecast draft.', 'error')
+                    flash('Choose a sales mix import before creating a review draft.', 'error')
                     return redirect(url_for('forecasting.forecasting_sales_mix', venue_id=selected_venue_id))
 
                 forecast_week_start, _ = get_forecasting_week_window(request.form.get('forecast_week_start'))
@@ -472,7 +473,7 @@ def forecasting_sales_mix():
                     )
                     if not result.get('ok'):
                         conn.rollback()
-                        flash(result.get('message') or 'Could not create forecast draft.', 'error')
+                        flash(result.get('message') or 'Could not create review draft.', 'error')
                         return redirect(
                             url_for(
                                 'forecasting.forecasting_sales_mix',
@@ -484,9 +485,12 @@ def forecasting_sales_mix():
 
                     conn.commit()
                     message = (
-                        f"Forecast draft created with {result.get('line_count', 0)} lines "
-                        f"and {result.get('total_par_qty', 0):.0f} weekly par units."
+                        f"Review draft created with {result.get('line_count', 0)} lines "
+                        f"and {result.get('total_par_qty', 0):.0f} matched par units. "
+                        "Check recipe alignment, then use Finish Review: Send to Commissary."
                     )
+                    if result.get('unmatched_pos_count'):
+                        message = f"{message} {result.get('unmatched_pos_count')} unmatched food items remain in Sales Mix."
                     if result.get('missing_recipe_count'):
                         message = f"{message} {result.get('missing_recipe_count')} lines still need recipes for shopping rollups."
                     flash(message, 'success')

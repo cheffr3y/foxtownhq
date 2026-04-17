@@ -1158,7 +1158,7 @@ def create_forecasting_plan_from_sales_mix(cur, import_id, venue_id, week_start,
     if not weekly_rows:
         return {
             'ok': False,
-            'message': 'Save at least one Product Mix match before creating a forecast draft.',
+            'message': 'Save at least one Product Mix match before creating a review draft.',
         }
 
     source_label = sales_mix_import.get('source_filename') or import_id
@@ -1201,6 +1201,7 @@ def create_forecasting_plan_from_sales_mix(cur, import_id, venue_id, week_start,
         'plan_id': plan.get('id'),
         'week_start': week_start,
         'line_count': len(plan_rows),
+        'unmatched_pos_count': (preview.get('summary') or {}).get('unmatched_pos_count', 0),
         'missing_recipe_count': missing_recipe_count,
         'total_par_qty': sum(to_float(row.get('par_qty')) for row in weekly_rows),
     }

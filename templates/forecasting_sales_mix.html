@@ -152,29 +152,35 @@
             <div class="salesmix-action-band mt-5">
                 <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                     <div>
-                        <h3 class="text-base font-bold text-foxtown-text">Create Weekly Forecast Draft</h3>
-                        <p class="mt-1 text-sm text-foxtown-muted">Matched pars become a reviewable forecast draft. Submit that draft to generate commissary prep and packet shopping.</p>
+                        <h3 class="text-base font-bold text-foxtown-text">Create Review Draft</h3>
+                        <p class="mt-1 text-sm text-foxtown-muted">Matched Product Mix items become a reviewable weekly forecast. Check recipe alignment there, then finish by sending it to Commissary. Unmatched food items are called out below and stay here until matched.</p>
                     </div>
                     <form method="POST" class="flex flex-col gap-3 sm:flex-row sm:items-end">
-                        <input type="hidden" name="intent" value="create_plan">
+                        <input type="hidden" name="intent" value="create_review_draft">
                         <input type="hidden" name="venue_id" value="{{ selected_venue_id }}">
                         <input type="hidden" name="import_id" value="{{ selected_import.id }}">
                         <div>
-                            <label for="forecastWeekStart" class="block text-sm font-medium text-foxtown-muted mb-1.5">Forecast Week</label>
+                            <label for="forecastWeekStart" class="block text-sm font-medium text-foxtown-muted mb-1.5">Review Week</label>
                             <input id="forecastWeekStart" type="date" name="forecast_week_start" value="{{ forecast_week_start.isoformat() }}" class="fhq-input">
                         </div>
                         <button
                             type="submit"
                             class="fhq-btn fhq-btn--primary"
-                            {% if not weekly_par_rows %}disabled{% endif %}
+                            {% if not weekly_par_rows or handoff_status.plan.status == 'submitted' %}disabled{% endif %}
                         >
-                            Create Draft
+                            {% if handoff_status.plan.status == 'submitted' %}
+                            Already Sent
+                            {% elif handoff_status.plan.id %}
+                            Update Review Draft
+                            {% else %}
+                            Create Review Draft
+                            {% endif %}
                         </button>
                     </form>
                 </div>
                 <div class="mt-4 grid gap-3 md:grid-cols-3">
                     <div>
-                        <div class="fhq-section-head mb-1">Forecast Draft</div>
+                        <div class="fhq-section-head mb-1">Review Draft</div>
                         {% if handoff_status.plan.id %}
                         <div class="text-sm font-semibold text-foxtown-text">{{ handoff_status.plan.status|title }} / {{ handoff_status.plan_line_count }} lines</div>
                         <div class="salesmix-muted-line">{{ "%.0f"|format(handoff_status.plan_total_qty or 0) }} total units</div>
@@ -192,16 +198,18 @@
                             {% endfor %}
                         </div>
                         {% else %}
-                        <div class="text-sm font-semibold text-foxtown-muted">Not submitted yet</div>
+                        <div class="text-sm font-semibold text-foxtown-muted">Not in Commissary yet</div>
                         {% endif %}
                     </div>
                     <div class="flex flex-wrap items-end gap-2">
+                        {% if handoff_status.plan.id and handoff_status.plan.status != 'submitted' %}
                         <a
                             href="{{ url_for('forecasting.forecasting_plan', venue_id=selected_venue_id, week_start=forecast_week_start.isoformat()) }}"
                             class="fhq-btn fhq-btn--outline"
                         >
-                            Open Forecast
+                            Open Review Draft
                         </a>
+                        {% endif %}
                         {% if handoff_status.order_count %}
                         <a
                             href="{{ url_for('commissary.commissary_planner', day=forecast_week_start.isoformat(), outlet=selected_venue_name, tab='production') }}"
