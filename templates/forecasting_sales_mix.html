@@ -255,6 +255,39 @@
             </div>
             {% endif %}
 
+            {% if unmatched_sales_mix_items %}
+            <div class="mt-6">
+                <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <h3 class="text-base font-bold text-foxtown-text">Unmatched Food Items</h3>
+                        <p class="mt-1 text-sm text-foxtown-muted">These food items sold last week have no forecast match and won't appear in the prep list until matched below.</p>
+                    </div>
+                    <span class="fhq-pill fhq-pill--error">{{ unmatched_sales_mix_items|length }} Unmatched</span>
+                </div>
+                <div class="mt-3 overflow-x-auto border border-red-200 bg-red-50">
+                    <table class="fhq-table min-w-[640px]">
+                        <thead>
+                            <tr>
+                                <th>Toast Item</th>
+                                <th>Menu Group</th>
+                                <th>Qty Sold</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in unmatched_sales_mix_items %}
+                            <tr>
+                                <td class="font-semibold text-foxtown-text">{{ item.item_name }}</td>
+                                <td class="text-foxtown-muted">{{ item.menu_group or '—' }}</td>
+                                <td class="font-semibold">{{ "%.0f"|format(item.qty_sold or 0) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <p class="mt-2 text-xs text-foxtown-muted">Use the Toast Match Review table below to assign these items to forecast recipes.</p>
+            </div>
+            {% endif %}
+
             <div class="mt-6">
                 <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <h3 class="text-base font-bold text-foxtown-text">Matched Weekly Pars</h3>
