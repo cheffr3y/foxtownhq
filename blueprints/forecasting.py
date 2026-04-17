@@ -355,7 +355,7 @@ def forecasting_plan():
                                 )
                         else:
                             conn.commit()
-                            flash('Forecast draft saved.', 'success')
+                            flash('Forecast draft saved. It will not appear in Commissary until you submit it.', 'success')
                             return redirect(
                                 url_for(
                                     'forecasting.forecasting_plan',

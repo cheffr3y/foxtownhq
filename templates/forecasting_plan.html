@@ -26,6 +26,11 @@
         backdrop-filter: blur(10px);
     }
     .forecast-date-label { display: block; margin-top: 0.15rem; color: #8A8580; font-size: 0.72rem; font-weight: 600; }
+    .forecast-submit-callout {
+        border: 1px solid rgba(192, 97, 43, 0.26);
+        background: #fff8f2;
+        padding: 1rem;
+    }
 </style>
 {% endblock %}
 
@@ -81,6 +86,27 @@
             </div>
         </div>
     </section>
+
+    {% if plan_rows and not is_submitted %}
+    <section class="forecast-submit-callout">
+        <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+                <h2 class="text-base font-bold text-foxtown-text">This forecast is still a draft.</h2>
+                <p class="mt-1 text-sm text-foxtown-muted">Drafts stay here for review. Click Submit to Commissary to create dated production orders and packet shopping. Orders are created only on days with quantities.</p>
+            </div>
+            <button
+                type="submit"
+                form="forecastPlanForm"
+                name="intent"
+                value="submit"
+                class="fhq-btn fhq-btn--primary"
+                onclick="return confirm('Submit this forecast to commissary? This will create dated commissary orders.');"
+            >
+                Submit to Commissary
+            </button>
+        </div>
+    </section>
+    {% endif %}
 
     <form method="POST" class="space-y-5" id="forecastPlanForm">
         <input type="hidden" name="venue_id" value="{{ selected_venue_id }}">
