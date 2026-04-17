@@ -453,6 +453,75 @@ MIGRATIONS = [
     "CREATE INDEX IF NOT EXISTS idx_forecasting_plan_lines_plan_id ON forecasting_plan_lines (plan_id)",
     "CREATE INDEX IF NOT EXISTS idx_forecasting_plan_lines_menu_item ON forecasting_plan_lines (menu_item_id)",
     "CREATE INDEX IF NOT EXISTS idx_forecasting_plan_lines_recipe_id ON forecasting_plan_lines (recipe_id)",
+    """
+    CREATE TABLE IF NOT EXISTS forecasting_sales_mix_imports (
+        id TEXT PRIMARY KEY,
+        venue_id TEXT REFERENCES venues(id) ON DELETE SET NULL,
+        source_filename TEXT,
+        sales_start DATE,
+        sales_end DATE,
+        source_format TEXT DEFAULT 'toast_product_mix',
+        item_count INTEGER DEFAULT 0,
+        food_item_count INTEGER DEFAULT 0,
+        total_qty NUMERIC DEFAULT 0,
+        total_net_sales NUMERIC DEFAULT 0,
+        imported_by TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_forecasting_sales_mix_imports_venue ON forecasting_sales_mix_imports (venue_id, sales_start DESC, created_at DESC)",
+    """
+    CREATE TABLE IF NOT EXISTS forecasting_sales_mix_items (
+        id BIGSERIAL PRIMARY KEY,
+        import_id TEXT NOT NULL REFERENCES forecasting_sales_mix_imports(id) ON DELETE CASCADE,
+        source_type TEXT,
+        menu TEXT,
+        menu_group TEXT,
+        subgroup TEXT,
+        item_name TEXT NOT NULL,
+        size_modifier TEXT,
+        modifier_text TEXT,
+        item_tags TEXT,
+        qty_sold NUMERIC DEFAULT 0,
+        avg_price NUMERIC,
+        gross_sales NUMERIC DEFAULT 0,
+        discount_amount NUMERIC DEFAULT 0,
+        refund_amount NUMERIC DEFAULT 0,
+        void_amount NUMERIC DEFAULT 0,
+        net_sales NUMERIC DEFAULT 0,
+        tax NUMERIC DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_forecasting_sales_mix_items_import ON forecasting_sales_mix_items (import_id)",
+    "CREATE INDEX IF NOT EXISTS idx_forecasting_sales_mix_items_name ON forecasting_sales_mix_items (LOWER(item_name))",
+    """
+    CREATE TABLE IF NOT EXISTS forecasting_sales_mix_mappings (
+        id BIGSERIAL PRIMARY KEY,
+        venue_id TEXT REFERENCES venues(id) ON DELETE CASCADE,
+        pos_menu TEXT,
+        pos_menu_group TEXT,
+        pos_item_name TEXT NOT NULL,
+        menu_item_id TEXT REFERENCES forecasting_menu_items(id) ON DELETE CASCADE,
+        multiplier NUMERIC NOT NULL DEFAULT 1,
+        active BOOLEAN NOT NULL DEFAULT TRUE,
+        notes TEXT,
+        updated_by TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    "ALTER TABLE forecasting_sales_mix_mappings ADD COLUMN IF NOT EXISTS updated_by TEXT",
+    """
+    CREATE INDEX IF NOT EXISTS idx_forecasting_sales_mix_mappings_lookup
+        ON forecasting_sales_mix_mappings (
+            venue_id,
+            LOWER(pos_item_name),
+            LOWER(COALESCE(pos_menu, '')),
+            LOWER(COALESCE(pos_menu_group, ''))
+        )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_forecasting_sales_mix_mappings_menu_item ON forecasting_sales_mix_mappings (menu_item_id)",
 ]
 
 

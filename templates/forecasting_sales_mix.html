@@ -1,0 +1,292 @@
+{% extends "base.html" %}
+{% from "base.html" import page_header, tab_bar %}
+
+{% block title %}Sales Mix Import - Foxtown HQ{% endblock %}
+
+{% block extra_head %}
+<style>
+    .salesmix-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
+    @media (min-width: 1100px) {
+        .salesmix-grid { grid-template-columns: minmax(18rem, 0.7fr) minmax(0, 1.6fr); }
+    }
+    .salesmix-import-list { display: grid; gap: 0.6rem; }
+    .salesmix-import-link {
+        display: block;
+        border: 1px solid rgba(87, 83, 78, 0.18);
+        background: #fff;
+        padding: 0.85rem;
+        color: inherit;
+    }
+    .salesmix-import-link:hover,
+    .salesmix-import-link.is-active { border-color: #C0612B; background: #fff8f2; }
+    .salesmix-import-title { font-size: 0.9rem; font-weight: 800; color: #1c1917; }
+    .salesmix-import-meta { margin-top: 0.2rem; font-size: 0.78rem; color: #78716c; }
+    .salesmix-kpi-grid { display: grid; grid-template-columns: repeat(1, minmax(0, 1fr)); gap: 0.75rem; }
+    @media (min-width: 760px) {
+        .salesmix-kpi-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    }
+    .salesmix-map-select { min-width: 16rem; }
+    .salesmix-factor-input { width: 5.5rem; }
+    .salesmix-muted-line { margin-top: 0.2rem; font-size: 0.74rem; color: #78716c; }
+</style>
+{% endblock %}
+
+{% block content %}
+{% set selected_venue_name = selected_venue.name or 'No Active Venue' %}
+<div class="space-y-6">
+    {% call page_header('Sales Mix Import', selected_venue_name ~ ' weekly par baseline', 'forecasting') %}
+    <div class="flex flex-wrap items-center gap-2">
+        <a
+            href="{{ url_for('forecasting.forecasting_plan', venue_id=selected_venue_id) if selected_venue_id else url_for('forecasting.forecasting_plan') }}"
+            class="fhq-btn fhq-btn--primary"
+        >
+            Weekly Forecast
+        </a>
+        <a
+            href="{{ url_for('forecasting.forecasting_dashboard', venue_id=selected_venue_id) if selected_venue_id else url_for('forecasting.forecasting_dashboard') }}"
+            class="fhq-btn fhq-btn--outline"
+        >
+            Forecast Board
+        </a>
+        <a
+            href="{{ url_for('forecasting.forecasting_add', venue_id=selected_venue_id) if selected_venue_id else url_for('forecasting.forecasting_add') }}"
+            class="fhq-btn fhq-btn--outline"
+        >
+            + Add Recipes
+        </a>
+    </div>
+    {% endcall %}
+
+    {% if venue_tabs %}
+    {{ tab_bar(venue_tabs, selected_venue_id) }}
+    {% endif %}
+
+    <section class="fhq-card p-5">
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+                <h2 class="text-lg font-bold tracking-tight text-foxtown-text">Upload Product Mix ZIP</h2>
+                <p class="mt-1 text-sm text-foxtown-muted">Use the Toast Product Mix export ZIP. This importer reads <strong>All levels.csv</strong> and stores weekly item totals for par planning.</p>
+            </div>
+            <form method="POST" enctype="multipart/form-data" class="flex flex-col gap-3 sm:flex-row sm:items-end">
+                <input type="hidden" name="intent" value="import">
+                <input type="hidden" name="venue_id" value="{{ selected_venue_id }}">
+                <div>
+                    <label for="salesMixZip" class="block text-sm font-medium text-foxtown-muted mb-1.5">Product Mix ZIP</label>
+                    <input id="salesMixZip" type="file" name="sales_mix_zip" accept=".zip,application/zip" class="fhq-input min-w-[18rem]" required>
+                </div>
+                <button type="submit" class="fhq-btn fhq-btn--primary" {% if not selected_venue_id %}disabled{% endif %}>Import Sales Mix</button>
+            </form>
+        </div>
+    </section>
+
+    <div class="salesmix-grid">
+        <aside class="fhq-card p-5">
+            <div class="flex items-center justify-between gap-3">
+                <h2 class="text-lg font-bold tracking-tight text-foxtown-text">Recent Imports</h2>
+                <span class="text-sm font-semibold text-foxtown-muted">{{ recent_imports|length }}</span>
+            </div>
+            <div class="salesmix-import-list mt-4">
+                {% for import_row in recent_imports %}
+                <a
+                    href="{{ url_for('forecasting.forecasting_sales_mix', venue_id=selected_venue_id, import_id=import_row.id) }}"
+                    class="salesmix-import-link {% if selected_import.id == import_row.id %}is-active{% endif %}"
+                >
+                    <div class="salesmix-import-title">
+                        {% if import_row.sales_start and import_row.sales_end %}
+                        {{ import_row.sales_start.strftime('%b %-d') }} - {{ import_row.sales_end.strftime('%b %-d') }}
+                        {% else %}
+                        Date range pending
+                        {% endif %}
+                    </div>
+                    <div class="salesmix-import-meta">{{ import_row.food_item_count }} food items / {{ "%.0f"|format(import_row.total_qty or 0) }} total sold</div>
+                    <div class="salesmix-import-meta">{{ import_row.source_filename }}</div>
+                </a>
+                {% else %}
+                <p class="text-sm text-foxtown-muted">No sales mix imports yet.</p>
+                {% endfor %}
+            </div>
+        </aside>
+
+        <section class="fhq-card p-5">
+            {% if selected_import.id %}
+            <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                    <h2 class="text-lg font-bold tracking-tight text-foxtown-text">Weekly Food Pars</h2>
+                    <p class="mt-1 text-sm text-foxtown-muted">
+                        Imported from {{ selected_import.source_filename }}.
+                        {% if selected_import.sales_start and selected_import.sales_end %}
+                        Sales week {{ selected_import.sales_start }} through {{ selected_import.sales_end }}.
+                        {% endif %}
+                    </p>
+                </div>
+                <span class="fhq-pill fhq-pill--confirmed">Weekly Aggregate</span>
+            </div>
+
+            <div class="salesmix-kpi-grid mt-5">
+                <article class="border border-foxtown-border/25 bg-foxtown-panel p-4">
+                    <div class="fhq-section-head">Toast Items</div>
+                    <div class="text-2xl font-black text-foxtown-text">{{ sales_mix_summary.pos_row_count or 0 }}</div>
+                </article>
+                <article class="border border-foxtown-border/25 bg-foxtown-panel p-4">
+                    <div class="fhq-section-head">Matched Qty</div>
+                    <div class="text-2xl font-black text-foxtown-text">{{ "%.0f"|format(sales_mix_summary.matched_source_qty or 0) }}</div>
+                    <div class="text-xs text-foxtown-muted">{{ sales_mix_summary.match_coverage_pct or 0 }}% coverage</div>
+                </article>
+                <article class="border border-foxtown-border/25 bg-foxtown-panel p-4">
+                    <div class="fhq-section-head">Weekly Par Qty</div>
+                    <div class="text-2xl font-black text-foxtown-text">{{ "%.0f"|format(sales_mix_summary.total_par_qty or 0) }}</div>
+                    <div class="text-xs text-foxtown-muted">{{ sales_mix_summary.weekly_par_count or 0 }} forecast items</div>
+                </article>
+                <article class="border border-foxtown-border/25 bg-foxtown-panel p-4">
+                    <div class="fhq-section-head">Needs Review</div>
+                    <div class="text-2xl font-black text-foxtown-text">{{ sales_mix_summary.unmatched_pos_count or 0 }}</div>
+                    <div class="text-xs text-foxtown-muted">{{ sales_mix_summary.missing_recipe_count or 0 }} matched without recipes</div>
+                </article>
+            </div>
+
+            <div class="mt-6">
+                <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <h3 class="text-base font-bold text-foxtown-text">Matched Weekly Pars</h3>
+                    {% if sales_mix_summary.missing_recipe_count %}
+                    <span class="fhq-pill fhq-pill--pending">Recipe Gaps</span>
+                    {% else %}
+                    <span class="fhq-pill fhq-pill--confirmed">Recipe Ready</span>
+                    {% endif %}
+                </div>
+                <div class="mt-3 overflow-x-auto border border-foxtown-border/25">
+                    <table class="fhq-table min-w-[820px]">
+                        <thead>
+                            <tr>
+                                <th>Forecast Item</th>
+                                <th>Toast Qty</th>
+                                <th>Weekly Par</th>
+                                <th>Unit</th>
+                                <th>Recipe</th>
+                                <th>POS Items</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in weekly_par_rows %}
+                            <tr>
+                                <td>
+                                    <div class="font-semibold text-foxtown-text">{{ row.item_name }}</div>
+                                    <div class="text-xs text-foxtown-muted">{{ row.category }}</div>
+                                </td>
+                                <td>{{ "%.0f"|format(row.source_qty or 0) }}</td>
+                                <td class="font-semibold">{{ "%.0f"|format(row.par_qty or 0) }}</td>
+                                <td>{{ row.yield_unit or 'each' }}</td>
+                                <td>
+                                    {% if row.recipe_id %}
+                                    <span class="fhq-pill fhq-pill--confirmed">Linked</span>
+                                    {% else %}
+                                    <span class="fhq-pill fhq-pill--pending">Missing</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-foxtown-muted">{{ row.pos_items|join(', ') }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center text-foxtown-muted">No matched weekly pars yet.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <form method="POST" class="mt-6">
+                <input type="hidden" name="intent" value="save_mappings">
+                <input type="hidden" name="venue_id" value="{{ selected_venue_id }}">
+                <input type="hidden" name="import_id" value="{{ selected_import.id }}">
+
+                <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <h3 class="text-base font-bold text-foxtown-text">Toast Match Review</h3>
+                        <p class="mt-1 text-sm text-foxtown-muted">{{ sales_mix_summary.suggested_pos_count or 0 }} suggested matches are shown for review.</p>
+                    </div>
+                    <button type="submit" class="fhq-btn fhq-btn--primary">Save Matches</button>
+                </div>
+
+                <div class="mt-3 overflow-x-auto border border-foxtown-border/25">
+                    <table class="fhq-table min-w-[1120px]">
+                    <thead>
+                        <tr>
+                            <th>Toast Item</th>
+                            <th>Menu Group</th>
+                            <th>Qty Sold</th>
+                            <th>Forecast Match</th>
+                            <th>Par Factor</th>
+                            <th>Weekly Par</th>
+                            <th>Recipe</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in sales_mix_items %}
+                        <tr>
+                            <td>
+                                <input type="hidden" name="pos_menu[]" value="{{ item.menu }}">
+                                <input type="hidden" name="pos_menu_group[]" value="{{ item.menu_group }}">
+                                <input type="hidden" name="pos_item_name[]" value="{{ item.item_name }}">
+                                <div class="font-semibold text-foxtown-text">{{ item.item_name }}</div>
+                                {% if item.subgroups %}
+                                <div class="salesmix-muted-line">{{ item.subgroups }}</div>
+                                {% endif %}
+                            </td>
+                            <td>{{ item.menu_group or 'Uncategorized' }}</td>
+                            <td class="font-semibold">{{ "%.0f"|format(item.qty_sold or 0) }}</td>
+                            <td>
+                                <select name="mapping_menu_item_id[]" class="fhq-input salesmix-map-select">
+                                    <option value="">Unmapped</option>
+                                    {% for option in forecast_item_options %}
+                                    <option value="{{ option.id }}" {% if item.menu_item_id == option.id %}selected{% endif %}>
+                                        {{ option.category }} / {{ option.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                {% if not forecast_item_options %}
+                                <div class="salesmix-muted-line">Add recipes to the Forecast Board before saving Toast matches.</div>
+                                {% endif %}
+                                {% if item.suggested_menu_item and not item.menu_item_id %}
+                                <div class="salesmix-muted-line">Suggestion: {{ item.suggested_menu_item.category }} / {{ item.suggested_menu_item.name }} ({{ item.suggested_menu_item.suggestion_type }})</div>
+                                {% endif %}
+                                {% if item.mapping_invalid %}
+                                <div class="salesmix-muted-line">Saved match points to an inactive or missing forecast item.</div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <input
+                                    type="number"
+                                    name="mapping_multiplier[]"
+                                    min="0.01"
+                                    step="0.01"
+                                    value="{{ '%.2f'|format(item.multiplier or 1) }}"
+                                    class="fhq-input salesmix-factor-input"
+                                >
+                                <input type="hidden" name="mapping_notes[]" value="{{ item.notes }}">
+                            </td>
+                            <td class="font-semibold">{{ "%.0f"|format(item.par_qty or 0) }}</td>
+                            <td>
+                                {% if item.mapping_active and item.recipe_ready %}
+                                <span class="fhq-pill fhq-pill--confirmed">Linked</span>
+                                {% elif item.mapping_active %}
+                                <span class="fhq-pill fhq-pill--pending">Missing</span>
+                                {% else %}
+                                <span class="fhq-pill fhq-pill--in-progress">Unmatched</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    </table>
+                </div>
+            </form>
+            {% else %}
+            <div class="border border-foxtown-border/25 bg-foxtown-panel p-8 text-center">
+                <div class="text-lg font-bold tracking-tight text-foxtown-text">Upload last week’s Product Mix ZIP.</div>
+                <p class="mt-2 text-sm text-foxtown-muted">Once imported, the item totals become the weekly par baseline for mapping into forecast items.</p>
+            </div>
+            {% endif %}
+        </section>
+    </div>
+</div>
+{% endblock %}

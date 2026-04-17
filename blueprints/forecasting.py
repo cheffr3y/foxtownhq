@@ -7,6 +7,7 @@ from flask_login import current_user, login_required
 from helpers.commissary import ensure_commissary_tables
 from helpers.forecasting import (
     FORECASTING_DAY_FIELDS,
+    build_forecasting_sales_mix_par_preview,
     build_forecasting_plan_rows,
     ensure_forecasting_schema,
     ensure_recipe_venue_link,
@@ -16,13 +17,17 @@ from helpers.forecasting import (
     get_forecasting_menu_item,
     get_forecasting_plan_by_week,
     get_forecasting_plan_lines,
+    get_forecasting_sales_mix_import,
     get_forecasting_week_window,
     get_or_create_forecasting_plan,
     group_forecasting_items_by_category,
+    import_forecasting_sales_mix,
     list_forecasting_menu_items,
     list_forecasting_recipes,
+    list_forecasting_sales_mix_imports,
     normalize_forecasting_plan_status,
     save_forecasting_plan_lines,
+    save_forecasting_sales_mix_mappings,
     search_forecasting_recipes,
     summarize_forecasting_items,
     submit_forecasting_plan_to_commissary,
@@ -122,6 +127,39 @@ def _parse_forecasting_plan_rows(form, active_items):
             )
         rows.append(row)
     return rows, errors
+
+
+def _parse_sales_mix_mapping_rows(form):
+    pos_menus = form.getlist('pos_menu[]')
+    pos_menu_groups = form.getlist('pos_menu_group[]')
+    pos_item_names = form.getlist('pos_item_name[]')
+    menu_item_ids = form.getlist('mapping_menu_item_id[]')
+    multipliers = form.getlist('mapping_multiplier[]')
+    notes = form.getlist('mapping_notes[]')
+    row_count = max(
+        len(pos_menus),
+        len(pos_menu_groups),
+        len(pos_item_names),
+        len(menu_item_ids),
+        len(multipliers),
+        len(notes),
+    )
+    rows = []
+    for idx in range(row_count):
+        pos_item_name = clean_menu_text(pos_item_names[idx] if idx < len(pos_item_names) else '')
+        if not pos_item_name:
+            continue
+        rows.append(
+            {
+                'pos_menu': clean_menu_text(pos_menus[idx] if idx < len(pos_menus) else ''),
+                'pos_menu_group': clean_menu_text(pos_menu_groups[idx] if idx < len(pos_menu_groups) else ''),
+                'pos_item_name': pos_item_name,
+                'menu_item_id': clean_menu_text(menu_item_ids[idx] if idx < len(menu_item_ids) else ''),
+                'multiplier': clean_menu_text(multipliers[idx] if idx < len(multipliers) else ''),
+                'notes': clean_menu_text(notes[idx] if idx < len(notes) else ''),
+            }
+        )
+    return rows
 
 
 def _render_add_page(cur, selected_venue_id='', errors=None, selected_recipe_ids=None):
@@ -314,6 +352,125 @@ def forecasting_plan():
         day_dates=day_dates,
         total_qty=total_qty,
         active_forecast_line_count=active_forecast_line_count,
+    )
+
+
+@bp.route('/forecasting/sales-mix', methods=['GET', 'POST'])
+@login_required
+def forecasting_sales_mix():
+    conn = get_db()
+    with get_cursor() as cur:
+        ensure_forecasting_schema(cur)
+        conn.commit()
+
+        venues = [dict(row) for row in get_active_venues(cur)]
+        requested_venue_id = request.form.get('venue_id') if request.method == 'POST' else request.args.get('venue_id')
+        selected_venue = _resolve_selected_venue(venues, requested_venue_id)
+        selected_venue_id = selected_venue.get('id') or ''
+
+        if request.method == 'POST':
+            intent = (request.form.get('intent') or 'import').strip().lower()
+            imported_by = clean_menu_text(getattr(current_user, 'username', '') or 'chef')
+            if intent == 'save_mappings':
+                requested_import_id = (request.form.get('import_id') or '').strip()
+                rows = _parse_sales_mix_mapping_rows(request.form)
+                try:
+                    result = save_forecasting_sales_mix_mappings(
+                        cur,
+                        selected_venue_id,
+                        rows,
+                        updated_by=imported_by,
+                    )
+                    if result.get('invalid'):
+                        conn.rollback()
+                        flash('Some matches pointed at invalid forecast items and were not saved.', 'error')
+                    else:
+                        conn.commit()
+                        changed = result.get('saved', 0) + result.get('cleared', 0)
+                        flash(f'Saved {changed} Toast menu matches.', 'success')
+                    return redirect(
+                        url_for(
+                            'forecasting.forecasting_sales_mix',
+                            venue_id=selected_venue_id,
+                            import_id=requested_import_id,
+                        )
+                    )
+                except Exception:
+                    conn.rollback()
+                    raise
+            else:
+                upload = request.files.get('sales_mix_zip')
+                try:
+                    imported, error = import_forecasting_sales_mix(
+                        cur,
+                        selected_venue_id,
+                        upload,
+                        imported_by=imported_by,
+                    )
+                    if error:
+                        conn.rollback()
+                        flash(error, 'error')
+                    else:
+                        conn.commit()
+                        flash(
+                            f"Imported {imported.get('food_item_count', 0)} food items "
+                            f"from {imported.get('source_filename')}.",
+                            'success',
+                        )
+                        return redirect(
+                            url_for(
+                                'forecasting.forecasting_sales_mix',
+                                venue_id=selected_venue_id,
+                                import_id=imported.get('id'),
+                            )
+                        )
+                except Exception:
+                    conn.rollback()
+                    raise
+
+        recent_imports = list_forecasting_sales_mix_imports(cur, selected_venue_id)
+        requested_import_id = (request.args.get('import_id') or '').strip()
+        selected_import = None
+        if requested_import_id:
+            selected_import = get_forecasting_sales_mix_import(cur, requested_import_id)
+            if selected_import and selected_import.get('venue_id') != selected_venue_id:
+                selected_import = None
+        if not selected_import and recent_imports:
+            selected_import = recent_imports[0]
+        forecast_item_options = [
+            item
+            for item in list_forecasting_menu_items(cur, selected_venue_id)
+            if bool(item.get('active'))
+        ]
+        par_preview = build_forecasting_sales_mix_par_preview(
+            cur,
+            selected_import.get('id') if selected_import else '',
+            selected_venue_id,
+            food_only=True,
+        )
+
+    venue_tabs = [
+        {
+            'id': venue.get('id') or '',
+            'label': venue.get('name') or 'Venue',
+            'url': url_for('forecasting.forecasting_sales_mix', venue_id=venue.get('id') or ''),
+        }
+        for venue in venues
+        if venue.get('id')
+    ]
+
+    return render_template(
+        'forecasting_sales_mix.html',
+        venues=venues,
+        venue_tabs=venue_tabs,
+        selected_venue=selected_venue,
+        selected_venue_id=selected_venue_id,
+        recent_imports=recent_imports,
+        selected_import=selected_import or {},
+        forecast_item_options=forecast_item_options,
+        sales_mix_items=par_preview.get('pos_rows') or [],
+        weekly_par_rows=par_preview.get('weekly_par_rows') or [],
+        sales_mix_summary=par_preview.get('summary') or {},
     )
 
 

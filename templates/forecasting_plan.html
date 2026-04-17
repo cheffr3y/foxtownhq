@@ -47,6 +47,12 @@
         >
             + Add Recipes
         </a>
+        <a
+            href="{{ url_for('forecasting.forecasting_sales_mix', venue_id=selected_venue_id) if selected_venue_id else url_for('forecasting.forecasting_sales_mix') }}"
+            class="fhq-btn fhq-btn--outline"
+        >
+            Sales Mix
+        </a>
     </div>
     {% endcall %}
 
