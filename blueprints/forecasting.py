@@ -62,6 +62,15 @@ def _dashboard_redirect(venue_id=''):
     return redirect(url_for('forecasting.forecasting_dashboard'))
 
 
+def _next_forecast_week_start_after(sales_end):
+    if not sales_end:
+        return ''
+    days_until_monday = (7 - sales_end.weekday()) % 7
+    if days_until_monday == 0:
+        days_until_monday = 7
+    return (sales_end + timedelta(days=days_until_monday)).isoformat()
+
+
 def _wants_json_response():
     return 'application/json' in (request.headers.get('Accept') or '').lower()
 
@@ -556,7 +565,7 @@ def forecasting_sales_mix():
         )
         default_forecast_week_raw = request.args.get('forecast_week_start') or ''
         if not default_forecast_week_raw and selected_import and selected_import.get('sales_end'):
-            default_forecast_week_raw = (selected_import.get('sales_end') + timedelta(days=2)).isoformat()
+            default_forecast_week_raw = _next_forecast_week_start_after(selected_import.get('sales_end'))
         forecast_week_start, forecast_week_end = get_forecasting_week_window(default_forecast_week_raw)
         weekly_par_rows = par_preview.get('weekly_par_rows') or []
         sales_mix_items = par_preview.get('pos_rows') or []

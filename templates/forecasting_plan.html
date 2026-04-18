@@ -87,30 +87,29 @@
         </div>
     </section>
 
-    {% if plan_rows and not is_submitted %}
-    <section class="forecast-submit-callout">
-        <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-                <h2 class="text-base font-bold text-foxtown-text">Review draft ready for Commissary.</h2>
-                <p class="mt-1 text-sm text-foxtown-muted">Check recipe links and quantities here. Save Changes Only keeps this out of Commissary; Finish Review creates dated production orders and packet shopping.</p>
-            </div>
-            <button
-                type="submit"
-                form="forecastPlanForm"
-                name="intent"
-                value="submit"
-                class="fhq-btn fhq-btn--primary"
-                onclick="return confirm('Submit this forecast to commissary? This will create dated commissary orders.');"
-            >
-                Finish Review: Send to Commissary
-            </button>
-        </div>
-    </section>
-    {% endif %}
-
     <form method="POST" class="space-y-5" id="forecastPlanForm">
         <input type="hidden" name="venue_id" value="{{ selected_venue_id }}">
         <input type="hidden" name="week_start" value="{{ week_start.isoformat() }}">
+
+        {% if plan_rows and not is_submitted %}
+        <section class="forecast-submit-callout">
+            <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                    <h2 class="text-base font-bold text-foxtown-text">Review draft ready for Commissary.</h2>
+                    <p class="mt-1 text-sm text-foxtown-muted">Check recipe links and quantities here. Save Changes Only keeps this out of Commissary; Finish Review creates dated production orders and packet shopping.</p>
+                </div>
+                <button
+                    type="submit"
+                    name="intent"
+                    value="submit"
+                    class="fhq-btn fhq-btn--primary"
+                    onclick="return confirm('Submit this forecast to commissary? This will create dated commissary orders.');"
+                >
+                    Finish Review: Send to Commissary
+                </button>
+            </div>
+        </section>
+        {% endif %}
 
         <section class="fhq-card p-5">
             <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
