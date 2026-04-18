@@ -1712,25 +1712,24 @@ def submit_forecasting_plan_to_commissary(cur, plan, venue_name='', submitted_by
 
     plan_id = plan.get('id')
     week_start = plan.get('week_start')
+    week_end = week_start + timedelta(days=6) if week_start else None
     lines = get_forecasting_plan_lines(cur, plan_id)
-    day_dates = get_forecasting_day_dates(week_start)
-    grouped_lines = defaultdict(list)
+    weekly_lines = []
     for line in lines:
-        for day in day_dates:
-            qty = to_float(line.get(day['qty_field']))
-            if qty <= 0:
-                continue
-            grouped_lines[day['date']].append(
-                {
-                    'recipe_id': line.get('recipe_id'),
-                    'item_name': line.get('item_name') or line.get('recipe_name') or 'Forecast item',
-                    'quantity': qty,
-                    'unit': line.get('unit') or line.get('yield_unit') or 'each',
-                    'notes': line.get('notes'),
-                }
-            )
+        total_qty = sum(to_float(line.get(f'{day_key}_qty')) for day_key, _, _ in FORECASTING_DAY_FIELDS)
+        if total_qty <= 0:
+            continue
+        weekly_lines.append(
+            {
+                'recipe_id': line.get('recipe_id'),
+                'item_name': line.get('item_name') or line.get('recipe_name') or 'Forecast item',
+                'quantity': total_qty,
+                'unit': line.get('unit') or line.get('yield_unit') or 'each',
+                'notes': line.get('notes'),
+            }
+        )
 
-    if not grouped_lines:
+    if not weekly_lines:
         return {
             'ok': False,
             'message': 'Add at least one forecast quantity before submitting.',
@@ -1742,82 +1741,81 @@ def submit_forecasting_plan_to_commissary(cur, plan, venue_name='', submitted_by
     created_order_ids = []
     created_line_count = 0
 
-    for needed_date in sorted(grouped_lines.keys()):
-        order_id = generate_id('cor_')
+    order_id = generate_id('cor_')
+    cur.execute(
+        """
+        INSERT INTO commissary_orders (
+            id,
+            outlet,
+            needed_date,
+            status,
+            source,
+            notes,
+            created_by
+        )
+        VALUES (%s, %s, %s, 'submitted', 'forecast', %s, %s)
+        """,
+        (
+            order_id,
+            outlet,
+            week_start,
+            f"Weekly forecast plan {plan_id} for {week_start} through {week_end}",
+            requester,
+        ),
+    )
+    created_order_ids.append(order_id)
+
+    for idx, line in enumerate(weekly_lines):
         cur.execute(
             """
-            INSERT INTO commissary_orders (
-                id,
-                outlet,
-                needed_date,
-                status,
-                source,
+            INSERT INTO commissary_order_lines (
+                order_id,
+                recipe_id,
+                item_name,
+                quantity,
+                quantity_unit,
+                prep_start_date,
+                prep_end_date,
                 notes,
-                created_by
+                sort_order
             )
-            VALUES (%s, %s, %s, 'submitted', 'forecast', %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             """,
             (
                 order_id,
-                outlet,
-                needed_date,
-                f"Forecast plan {plan_id} for week starting {week_start}",
-                requester,
+                line.get('recipe_id') or None,
+                line.get('item_name') or 'Forecast item',
+                line.get('quantity'),
+                line.get('unit') or 'each',
+                week_start,
+                week_start,
+                line.get('notes') or None,
+                idx,
             ),
         )
-        created_order_ids.append(order_id)
-
-        for idx, line in enumerate(grouped_lines[needed_date]):
-            cur.execute(
-                """
-                INSERT INTO commissary_order_lines (
-                    order_id,
-                    recipe_id,
-                    item_name,
-                    quantity,
-                    quantity_unit,
-                    prep_start_date,
-                    prep_end_date,
-                    notes,
-                    sort_order
-                )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                """,
-                (
-                    order_id,
-                    line.get('recipe_id') or None,
-                    line.get('item_name') or 'Forecast item',
-                    line.get('quantity'),
-                    line.get('unit') or 'each',
-                    needed_date,
-                    needed_date,
-                    line.get('notes') or None,
-                    idx,
-                ),
+        cur.execute(
+            """
+            INSERT INTO commissary_pipeline (
+                item_name,
+                quantity,
+                unit,
+                status,
+                due_date,
+                requested_by,
+                notes
             )
-            cur.execute(
-                """
-                INSERT INTO commissary_pipeline (
-                    item_name,
-                    quantity,
-                    unit,
-                    status,
-                    due_date,
-                    requested_by,
-                    notes
-                )
-                VALUES (%s, %s, %s, 'requested', %s, %s, %s)
-                """,
-                (
-                    line.get('item_name') or 'Forecast item',
-                    line.get('quantity'),
-                    line.get('unit') or 'each',
-                    needed_date,
-                    requester,
-                    f"Forecast plan {plan_id}",
-                ),
-            )
-            created_line_count += 1
+            VALUES (%s, %s, %s, 'requested', %s, %s, %s)
+            """,
+            (
+                line.get('item_name') or 'Forecast item',
+                line.get('quantity'),
+                line.get('unit') or 'each',
+                week_start,
+                requester,
+                f"Weekly forecast plan {plan_id}",
+            ),
+        )
+        created_line_count += 1
 
     cur.execute(
         """

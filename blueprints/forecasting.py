@@ -356,10 +356,9 @@ def forecasting_plan():
                                 )
                                 return redirect(
                                     url_for(
-                                        'commissary.commissary_planner',
-                                        day=week_start.isoformat(),
+                                        'commissary.commissary_review',
+                                        week_start=week_start.isoformat(),
                                         outlet=selected_venue_name,
-                                        tab='production',
                                     )
                                 )
                         else:

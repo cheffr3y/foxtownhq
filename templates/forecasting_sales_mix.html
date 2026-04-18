@@ -213,17 +213,17 @@
                         {% endif %}
                         {% if handoff_status.order_count %}
                         <a
-                            href="{{ url_for('commissary.commissary_planner', day=forecast_week_start.isoformat(), outlet=selected_venue_name, tab='production') }}"
+                            href="{{ url_for('commissary.commissary_review', week_start=forecast_week_start.isoformat(), outlet=selected_venue_name) }}"
                             class="fhq-btn fhq-btn--outline"
                         >
-                            Open Commissary
+                            Open Weekly Review
                         </a>
                         <a
-                            href="{{ url_for('commissary.commissary_packet_print', outlet=selected_venue_name, week_start=forecast_week_start.isoformat(), day=forecast_week_start.isoformat(), include_shopping=1) }}"
+                            href="{{ url_for('commissary.commissary_packet_print', outlet=selected_venue_name, week_start=forecast_week_start.isoformat(), include_shopping=1) }}"
                             target="_blank"
                             class="fhq-btn fhq-btn--outline"
                         >
-                            Packet + Shopping
+                            Weekly Packet + Shopping
                         </a>
                         {% endif %}
                     </div>
