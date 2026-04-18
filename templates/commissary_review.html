@@ -59,22 +59,65 @@
         <section class="fhq-card p-4">
             <div class="summary-grid">
                 <div class="fhq-card p-4">
-                    <div class="fhq-section-head mb-0">Total Production Lines</div>
+                    <div class="fhq-section-head mb-0">Batch Prep Sheets</div>
+                    <div class="summary-value">{{ review.weekly_prep|length }}</div>
+                </div>
+                <div class="fhq-card p-4">
+                    <div class="fhq-section-head mb-0">Ingredients to Order</div>
+                    <div class="summary-value">{{ review.shopping_ingredients|length }}</div>
+                </div>
+                <div class="fhq-card p-4">
+                    <div class="fhq-section-head mb-0">Forecast Pulls</div>
                     <div class="summary-value">{{ review.total_lines }}</div>
-                </div>
-                <div class="fhq-card p-4">
-                    <div class="fhq-section-head mb-0">Signed Off Lines</div>
-                    <div class="summary-value">{{ review.signed_off_lines }}</div>
-                </div>
-                <div class="fhq-card p-4">
-                    <div class="fhq-section-head mb-0">Completion Rate</div>
-                    <div class="summary-value">{{ review.completion_rate }}%</div>
                 </div>
             </div>
         </section>
 
         <section class="fhq-card p-4">
-            <h2 class="mb-3 text-xl font-bold tracking-tight text-foxtown-text">Weekly Production Lines</h2>
+            <h2 class="mb-3 text-xl font-bold tracking-tight text-foxtown-text">Batch + Sub-Recipe Prep Needed</h2>
+            {% if review.weekly_prep %}
+            <div class="table-wrap">
+                <table class="fhq-table review-table">
+                    <thead>
+                        <tr>
+                            <th>Batch Recipe</th>
+                            <th>Needed</th>
+                            <th>Batches</th>
+                            <th>Used In</th>
+                            <th>Sub-Recipes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for prep in review.weekly_prep %}
+                        <tr>
+                            <td>
+                                <div class="font-semibold text-foxtown-text">{{ prep.recipe_name }}</div>
+                                <div class="text-xs text-foxtown-muted">{{ prep.category or 'Uncategorized' }}</div>
+                            </td>
+                            <td>{{ prep.display_required.quantity }} {{ prep.display_required.unit }}</td>
+                            <td>{{ "%.2f"|format(prep.required_batches or 0) }}</td>
+                            <td>{{ prep.used_in_items|join(', ') if prep.used_in_items else '—' }}</td>
+                            <td>
+                                {% if prep.subrecipe_rows %}
+                                {% for sub in prep.subrecipe_rows %}
+                                <div>{{ sub.recipe_name }} · {{ sub.display_required.quantity }} {{ sub.display_required.unit }}</div>
+                                {% endfor %}
+                                {% else %}
+                                —
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="empty-note">No batch or sub-recipe prep sheets found for this week.</p>
+            {% endif %}
+        </section>
+
+        <section class="fhq-card p-4">
+            <h2 class="mb-3 text-xl font-bold tracking-tight text-foxtown-text">Forecast Item Pulls / Ordering Reference</h2>
             {% if review.daily_rows %}
             <div class="table-wrap">
                 <table class="fhq-table review-table">

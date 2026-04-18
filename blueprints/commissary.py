@@ -205,6 +205,8 @@ def build_weekly_review_context(cur, week_start, week_end, selected_outlet=''):
         'signed_off_lines': signed_off_lines,
         'completion_rate': completion_rate,
         'items_by_outlet': outlet_rows,
+        'weekly_prep': datasets.get('weekly_prep', []) or [],
+        'shopping_ingredients': datasets.get('shopping_ingredients', []) or [],
         'daily_rows': daily_rows,
         'incomplete_lines': incomplete_lines,
         'deferred_lines': deferred_lines,

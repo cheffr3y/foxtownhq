@@ -742,10 +742,10 @@
     <div class="pkt-recipe-master-stack">
         <div class="pkt-section pkt-section--attachments break-before-page no-print">
             <div class="pkt-section-header">
-                <h2>Scaled Recipe Master Attachments</h2>
+                <h2>Batch + Sub-Recipe Prep Attachments</h2>
                 <span class="pkt-date-range">{{ datasets.weekly_prep|length }} sheets</span>
             </div>
-            <div class="pkt-empty-note">These sheets project the recipe database master format into commissary prep based on the total ordered output for the selected window.</div>
+            <div class="pkt-empty-note">These sheets include batch recipes and sub-recipes needed for the forecast. RM/plated recipes stay in shopping and ordering math.</div>
         </div>
         {% for prep in datasets.weekly_prep %}
             {{ render_commissary_master_sheet(prep, commissary_ref ~ '-PREP-' ~ '%02d'|format(loop.index)) }}

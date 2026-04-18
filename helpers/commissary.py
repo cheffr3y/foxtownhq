@@ -867,6 +867,9 @@ def build_commissary_datasets(cur, start_date, end_date, outlet='', unit_system=
             recipe = recipe_map.get(recipe_id)
             if not recipe:
                 continue
+            recipe_type = normalize_recipe_type(recipe.get('recipe_type'))
+            if recipe_type == 'menu':
+                continue
             yield_qty = to_float(recipe.get('yield_qty'))
             yield_unit = recipe.get('yield_unit')
             required_qty_in_yield = required_qty
@@ -901,6 +904,9 @@ def build_commissary_datasets(cur, start_date, end_date, outlet='', unit_system=
                     sub_recipe = get_recipe_by_id(cur, sub_recipe_id)
                 if not sub_recipe:
                     continue
+                sub_recipe_type = normalize_recipe_type(sub_recipe.get('recipe_type'))
+                if sub_recipe_type == 'menu':
+                    continue
                 sub_yield_qty = to_float(sub_recipe.get('yield_qty'))
                 sub_yield_unit = sub_recipe.get('yield_unit') or sub_unit
                 sub_required_qty_in_yield = sub_qty
@@ -926,7 +932,7 @@ def build_commissary_datasets(cur, start_date, end_date, outlet='', unit_system=
                 'recipe_id': recipe_id,
                 'recipe_name': recipe.get('name'),
                 'category': recipe.get('category'),
-                'recipe_type': normalize_recipe_type(recipe.get('recipe_type')),
+                'recipe_type': recipe_type,
                 'menu_descriptor': recipe.get('menu_descriptor'),
                 'source_venue': recipe.get('source_venue'),
                 'equipment': recipe.get('equipment'),
