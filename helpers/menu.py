@@ -1,16 +1,31 @@
 import re
+from collections import defaultdict
 
 from config import DEFAULT_TARGET_FOOD_COST_PERCENT
-from helpers.formatting import normalize_match_key
+from helpers.formatting import (
+    collect_ingredient_usage_from_components,
+    flatten_components_for_pdf,
+    normalize_match_key,
+    split_instruction_steps,
+)
 from helpers.recipes import (
     build_component_tree,
+    collect_batch_recipe_usage_from_components,
+    collect_direct_ingredients_for_prep,
+    collect_direct_subrecipes_for_prep,
     collect_ingredients_from_components,
     collect_subrecipes_from_components,
     get_recipe_by_id,
     get_recipe_total_cost,
 )
 from helpers.shared import to_float
-from helpers.units import convert_cost_per_unit, smart_quantity, summarize_yield_pricing
+from helpers.units import (
+    convert_cost_per_unit,
+    convert_quantity_between_units,
+    format_number,
+    smart_quantity,
+    summarize_yield_pricing,
+)
 
 def parse_menu_items(
     cur,
@@ -248,6 +263,337 @@ def build_rollout_breakdown(cur, unit_system, menu_items):
 
     return ingredient_master, ingredient_total_cost, batch_recipes
 
+
+def build_rollout_ops_dataset(cur, unit_system, menu_items):
+    station_specs = {}
+    batch_usage_totals = {}
+    batch_menu_usage = defaultdict(set)
+    ingredient_menu_usage = {}
+    ingredient_station_usage = {}
+    all_menu_cards = []
+
+    for item in menu_items:
+        recipe = item.get('recipe') or {}
+        recipe_id = item.get('recipe_id')
+        scale_ratio = to_float(item.get('batches')) or 1
+        if not recipe_id or scale_ratio <= 0:
+            continue
+
+        station_name = (recipe.get('station') or '').strip() or 'General'
+        station_spec = station_specs.setdefault(
+            station_name,
+            {
+                'station': station_name,
+                'menu_cards': [],
+                'subrecipes': {},
+                'ingredients': {},
+                'subrecipe_sources': {},
+                'ingredient_sources': {},
+                'sections': set(),
+                'equipment': set(),
+            },
+        )
+
+        components, _, _ = build_component_tree(
+            cur,
+            recipe_id,
+            scale_ratio,
+            0,
+            set(),
+            unit_system,
+            apply_q_factor=False,
+        )
+
+        menu_name = recipe.get('name') or 'Menu Item'
+        direct_subrecipe_totals = {}
+        direct_ingredient_totals = {}
+        nested_ingredient_usage = {}
+        collect_direct_subrecipes_for_prep(components, direct_subrecipe_totals)
+        collect_direct_ingredients_for_prep(components, direct_ingredient_totals)
+        collect_batch_recipe_usage_from_components(
+            components,
+            batch_usage_totals,
+            menu_item_usage_map=batch_menu_usage,
+            menu_item_name=menu_name,
+        )
+        collect_ingredient_usage_from_components(components, menu_name, nested_ingredient_usage)
+
+        for ingredient_id in nested_ingredient_usage:
+            ingredient_menu_usage.setdefault(ingredient_id, set()).add(menu_name)
+            ingredient_station_usage.setdefault(ingredient_id, set()).add(station_name)
+
+        for key, qty in direct_subrecipe_totals.items():
+            station_spec['subrecipes'][key] = station_spec['subrecipes'].get(key, 0) + qty
+            recipe_key = key[0]
+            if recipe_key:
+                station_spec['subrecipe_sources'].setdefault(recipe_key, set()).add(menu_name)
+
+        for key, qty in direct_ingredient_totals.items():
+            station_spec['ingredients'][key] = station_spec['ingredients'].get(key, 0) + qty
+            ingredient_key = key[0]
+            if ingredient_key:
+                station_spec['ingredient_sources'].setdefault(ingredient_key, set()).add(menu_name)
+
+        station_spec['sections'].add((item.get('menu_section') or '').strip() or 'Uncategorized')
+        if recipe.get('equipment'):
+            station_spec['equipment'].add(recipe.get('equipment'))
+
+        direct_subrecipe_rows = []
+        for (subrecipe_id, required_unit), required_qty in sorted(
+            direct_subrecipe_totals.items(),
+            key=lambda row: (row[0][0] or '', row[0][1] or ''),
+        ):
+            display_required = smart_quantity(required_qty, required_unit, unit_system)
+            direct_subrecipe_rows.append(
+                {
+                    'recipe_id': subrecipe_id,
+                    'required_qty': required_qty,
+                    'required_unit': required_unit,
+                    'display_required_qty': display_required.get('quantity'),
+                    'display_required_unit': display_required.get('unit'),
+                }
+            )
+
+        direct_ingredient_rows = []
+        for (ingredient_id, unit), total_qty in sorted(
+            direct_ingredient_totals.items(),
+            key=lambda row: (row[0][0] or '', row[0][1] or ''),
+        ):
+            display_total = smart_quantity(total_qty, unit, unit_system)
+            direct_ingredient_rows.append(
+                {
+                    'ingredient_id': ingredient_id,
+                    'total_qty': total_qty,
+                    'unit': unit,
+                    'display_total_qty': display_total.get('quantity'),
+                    'display_total_unit': display_total.get('unit'),
+                }
+            )
+
+        card = {
+            'recipe_id': recipe_id,
+            'menu_name': menu_name,
+            'menu_section': item.get('menu_section') or 'Uncategorized',
+            'menu_descriptor': item.get('menu_descriptor') or '',
+            'station': station_name,
+            'equipment': recipe.get('equipment') or '',
+            'yield_qty': recipe.get('yield_qty'),
+            'yield_unit': recipe.get('yield_unit') or '',
+            'price': item.get('menu_price'),
+            'food_cost_percent': item.get('food_cost_percent'),
+            'components': components,
+            'flat_components': flatten_components_for_pdf(components),
+            'instruction_steps': split_instruction_steps(recipe.get('instructions')),
+            'critical_steps': split_instruction_steps(recipe.get('critical_steps')),
+            'storage_lines': split_instruction_steps(recipe.get('storage_instructions')),
+            'prep_time_minutes': recipe.get('prep_time_minutes'),
+            'shelf_life_days': recipe.get('shelf_life_days'),
+            'direct_subrecipes': direct_subrecipe_rows,
+            'direct_ingredients': direct_ingredient_rows,
+        }
+        station_spec['menu_cards'].append(card)
+        all_menu_cards.append(card)
+
+    batch_recipe_ids = sorted({recipe_id for recipe_id, _unit in batch_usage_totals.keys() if recipe_id})
+    batch_recipe_map = {}
+    if batch_recipe_ids:
+        cur.execute(
+            """
+            SELECT
+                id,
+                name,
+                category,
+                yield_qty,
+                yield_unit,
+                instructions,
+                equipment,
+                station,
+                critical_steps,
+                storage_instructions,
+                shelf_life_days,
+                prep_time_minutes,
+                recipe_type
+            FROM recipes
+            WHERE id = ANY(%s)
+            """,
+            (batch_recipe_ids,),
+        )
+        batch_recipe_map = {row['id']: row for row in cur.fetchall()}
+
+    ingredient_master, _, _ = build_rollout_breakdown(cur, unit_system, menu_items)
+    ingredient_map = {row['id']: row for row in ingredient_master}
+
+    for card in all_menu_cards:
+        for row in card['direct_subrecipes']:
+            recipe_meta = batch_recipe_map.get(row.get('recipe_id')) or {}
+            row['recipe_name'] = recipe_meta.get('name') or 'Sub-recipe'
+            row['yield_qty'] = recipe_meta.get('yield_qty')
+            row['yield_unit'] = recipe_meta.get('yield_unit') or row.get('required_unit') or ''
+            yield_qty = to_float(recipe_meta.get('yield_qty'))
+            required_qty = to_float(row.get('required_qty'))
+            required_unit = (row.get('required_unit') or '').strip()
+            yield_unit = (row.get('yield_unit') or '').strip()
+            qty_in_yield_unit = required_qty
+            if required_unit and yield_unit and required_unit != yield_unit:
+                converted = convert_quantity_between_units(required_qty, required_unit, yield_unit)
+                if converted is not None:
+                    qty_in_yield_unit = converted
+            row['required_batches'] = (qty_in_yield_unit / yield_qty) if yield_qty > 0 else None
+            row['display_required_batches'] = format_number(row['required_batches']) if row['required_batches'] is not None else ''
+
+        for row in card['direct_ingredients']:
+            ingredient_meta = ingredient_map.get(row.get('ingredient_id')) or {}
+            row['ingredient_name'] = ingredient_meta.get('name') or 'Ingredient'
+            row['category'] = ingredient_meta.get('category') or ''
+            row['vendor'] = ingredient_meta.get('vendor') or ''
+            row['vendor_code'] = ingredient_meta.get('vendor_code') or ''
+            row['g_code'] = ingredient_meta.get('g_code') or ''
+
+    batch_cards = []
+    for (recipe_id, required_unit), required_qty in sorted(
+        batch_usage_totals.items(),
+        key=lambda row: (batch_recipe_map.get(row[0][0], {}).get('name') or '').lower(),
+    ):
+        recipe = batch_recipe_map.get(recipe_id) or {}
+        yield_qty = to_float(recipe.get('yield_qty'))
+        yield_unit = (recipe.get('yield_unit') or required_unit or '').strip()
+        qty_in_yield_unit = required_qty
+        if required_unit and yield_unit and required_unit != yield_unit:
+            converted = convert_quantity_between_units(required_qty, required_unit, yield_unit)
+            if converted is not None:
+                qty_in_yield_unit = converted
+        required_batches = (qty_in_yield_unit / yield_qty) if yield_qty > 0 else None
+        display_required = smart_quantity(qty_in_yield_unit, yield_unit or required_unit, unit_system)
+        scale_ratio = required_batches if required_batches and required_batches > 0 else 1
+        components, _, _ = build_component_tree(
+            cur,
+            recipe_id,
+            scale_ratio,
+            0,
+            set(),
+            unit_system,
+            apply_q_factor=False,
+        )
+        batch_cards.append(
+            {
+                'recipe_id': recipe_id,
+                'recipe_name': recipe.get('name') or 'Sub-recipe',
+                'category': recipe.get('category') or '',
+                'station': recipe.get('station') or 'General',
+                'equipment': recipe.get('equipment') or '',
+                'yield_qty': recipe.get('yield_qty'),
+                'yield_unit': recipe.get('yield_unit') or required_unit or '',
+                'required_qty': qty_in_yield_unit,
+                'required_unit': yield_unit or required_unit,
+                'display_required_qty': display_required.get('quantity'),
+                'display_required_unit': display_required.get('unit'),
+                'required_batches': required_batches,
+                'display_required_batches': format_number(required_batches) if required_batches is not None else '',
+                'source_menu_items': sorted(batch_menu_usage.get(recipe_id, set())),
+                'components': components,
+                'flat_components': flatten_components_for_pdf(components),
+                'instruction_steps': split_instruction_steps(recipe.get('instructions')),
+                'critical_steps': split_instruction_steps(recipe.get('critical_steps')),
+                'storage_lines': split_instruction_steps(recipe.get('storage_instructions')),
+                'prep_time_minutes': recipe.get('prep_time_minutes'),
+                'shelf_life_days': recipe.get('shelf_life_days'),
+            }
+        )
+
+    station_groups = []
+    for station_name in sorted(station_specs, key=lambda value: value.lower()):
+        station_spec = station_specs[station_name]
+        menu_cards = sorted(
+            station_spec['menu_cards'],
+            key=lambda row: ((row.get('menu_section') or '').lower(), (row.get('menu_name') or '').lower()),
+        )
+
+        subrecipe_rows = []
+        for (recipe_id, required_unit), required_qty in sorted(
+            station_spec['subrecipes'].items(),
+            key=lambda row: (batch_recipe_map.get(row[0][0], {}).get('name') or '').lower(),
+        ):
+            recipe = batch_recipe_map.get(recipe_id) or {}
+            yield_qty = to_float(recipe.get('yield_qty'))
+            yield_unit = (recipe.get('yield_unit') or required_unit or '').strip()
+            qty_in_yield_unit = required_qty
+            if required_unit and yield_unit and required_unit != yield_unit:
+                converted = convert_quantity_between_units(required_qty, required_unit, yield_unit)
+                if converted is not None:
+                    qty_in_yield_unit = converted
+            required_batches = (qty_in_yield_unit / yield_qty) if yield_qty > 0 else None
+            display_required = smart_quantity(qty_in_yield_unit, yield_unit or required_unit, unit_system)
+            subrecipe_rows.append(
+                {
+                    'recipe_id': recipe_id,
+                    'recipe_name': recipe.get('name') or 'Sub-recipe',
+                    'required_qty': qty_in_yield_unit,
+                    'required_unit': yield_unit or required_unit,
+                    'display_required_qty': display_required.get('quantity'),
+                    'display_required_unit': display_required.get('unit'),
+                    'required_batches': required_batches,
+                    'display_required_batches': format_number(required_batches) if required_batches is not None else '',
+                    'source_menu_items': sorted(station_spec['subrecipe_sources'].get(recipe_id, set())),
+                    'station': recipe.get('station') or station_name,
+                }
+            )
+
+        ingredient_rows = []
+        for (ingredient_id, unit), total_qty in sorted(
+            station_spec['ingredients'].items(),
+            key=lambda row: (ingredient_map.get(row[0][0], {}).get('name') or '').lower(),
+        ):
+            ingredient = ingredient_map.get(ingredient_id) or {}
+            display_total = smart_quantity(total_qty, unit, unit_system)
+            ingredient_rows.append(
+                {
+                    'ingredient_id': ingredient_id,
+                    'ingredient_name': ingredient.get('name') or 'Ingredient',
+                    'category': ingredient.get('category') or '',
+                    'vendor': ingredient.get('vendor') or '',
+                    'vendor_code': ingredient.get('vendor_code') or '',
+                    'g_code': ingredient.get('g_code') or '',
+                    'total_qty': total_qty,
+                    'unit': unit,
+                    'display_total_qty': display_total.get('quantity'),
+                    'display_total_unit': display_total.get('unit'),
+                    'source_menu_items': sorted(station_spec['ingredient_sources'].get(ingredient_id, set())),
+                }
+            )
+
+        station_groups.append(
+            {
+                'station': station_name,
+                'menu_cards': menu_cards,
+                'menu_count': len(menu_cards),
+                'batch_count': len(subrecipe_rows),
+                'ingredient_count': len(ingredient_rows),
+                'sections': sorted(station_spec['sections']),
+                'equipment_list': sorted(station_spec['equipment']),
+                'subrecipe_rows': subrecipe_rows,
+                'ingredient_rows': ingredient_rows,
+            }
+        )
+
+    for ingredient in ingredient_master:
+        ingredient['used_in_menu_items'] = sorted(ingredient_menu_usage.get(ingredient['id'], set()))
+        ingredient['used_in_stations'] = sorted(ingredient_station_usage.get(ingredient['id'], set()))
+
+    quantity_basis_label = 'Saved rollout quantities'
+    if all(abs(to_float(item.get('batches')) - 1) < 1e-9 for item in menu_items):
+        quantity_basis_label = 'Sold-as recipe quantities'
+
+    return {
+        'station_groups': station_groups,
+        'menu_cards': sorted(
+            all_menu_cards,
+            key=lambda row: ((row.get('station') or '').lower(), (row.get('menu_name') or '').lower()),
+        ),
+        'batch_cards': batch_cards,
+        'ingredient_master': ingredient_master,
+        'quantity_basis_label': quantity_basis_label,
+    }
+
 def clean_menu_text(value):
     text = re.sub(r'\s+', ' ', (value or '')).strip()
     text = text.replace('  ', ' ')
@@ -284,6 +630,7 @@ __all__ = [
     'apply_menu_pricing',
     'group_menu_items',
     'build_rollout_breakdown',
+    'build_rollout_ops_dataset',
     'clean_menu_text',
     'auto_match_menu_recipe_id',
     'MENU_SECTION_OPTIONS',

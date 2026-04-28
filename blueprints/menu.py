@@ -13,7 +13,13 @@ from helpers.formatting import (
     make_safe_filename,
     sanitize_sheet_title,
 )
-from helpers.menu import apply_menu_pricing, build_rollout_breakdown, group_menu_items, parse_menu_items
+from helpers.menu import (
+    apply_menu_pricing,
+    build_rollout_breakdown,
+    build_rollout_ops_dataset,
+    group_menu_items,
+    parse_menu_items,
+)
 from helpers.recipes import build_component_tree, collect_subrecipes_from_components, compute_q_factor, normalize_recipe_type
 from helpers.shared import generate_id, handle_route_error, to_float
 from helpers.units import get_unit_system, summarize_yield_pricing
@@ -719,6 +725,404 @@ def menu_rollout_order_guide(rollout_id):
             as_attachment=True,
             download_name=filename
         )
+
+
+@bp.route('/menu-rollouts/<rollout_id>/ops-workbook')
+@login_required
+def menu_rollout_ops_export(rollout_id):
+    with get_cursor() as cur:
+        unit_system = get_unit_system()
+
+        cur.execute("SELECT * FROM menu_rollouts WHERE id = %s", (rollout_id,))
+        rollout = cur.fetchone()
+        if not rollout:
+            flash('Menu rollout not found', 'error')
+            return redirect(url_for('menu_rollouts'))
+
+        cur.execute("""
+            SELECT mri.recipe_id,
+                   mri.batches,
+                   mri.menu_price,
+                   mri.target_food_cost_percent,
+                   mri.menu_section,
+                   mri.menu_descriptor,
+                   r.name
+            FROM menu_rollout_items mri
+            JOIN recipes r ON r.id = mri.recipe_id
+            WHERE mri.rollout_id = %s
+            ORDER BY r.name
+        """, (rollout_id,))
+        items = cur.fetchall()
+        if not items:
+            flash('Add recipes to this rollout before exporting an ops workbook.', 'error')
+            return redirect(url_for('menu_rollout_edit', rollout_id=rollout_id))
+
+        recipe_ids = [row['recipe_id'] for row in items]
+        batch_values = [row['batches'] for row in items]
+        menu_prices = [row.get('menu_price') for row in items]
+        target_values = [row.get('target_food_cost_percent') for row in items]
+        section_values = [row.get('menu_section') for row in items]
+        descriptor_values = [row.get('menu_descriptor') for row in items]
+        default_target = rollout.get('target_food_cost_percent') or 20
+
+        menu_items, _, errors = parse_menu_items(
+            cur,
+            unit_system,
+            recipe_ids,
+            batch_values,
+            menu_prices,
+            target_values,
+            None,
+            default_target,
+            section_values,
+            descriptor_values
+        )
+        if errors:
+            flash(' '.join(sorted(set(errors))), 'error')
+            return redirect(url_for('menu_rollout_edit', rollout_id=rollout_id))
+
+        apply_menu_pricing(menu_items, default_target)
+        ops_dataset = build_rollout_ops_dataset(cur, unit_system, menu_items)
+        if not ops_dataset.get('station_groups') and not ops_dataset.get('menu_cards'):
+            flash('No rollout operations data was generated.', 'error')
+            return redirect(url_for('menu_rollout_edit', rollout_id=rollout_id))
+
+    wb = Workbook()
+    header_fill = PatternFill('solid', fgColor='E2E8F0')
+    header_font = Font(bold=True, color='1F2937')
+    section_fill = PatternFill('solid', fgColor='FFF7ED')
+    section_font = Font(bold=True, color='9A3412')
+    note_fill = PatternFill('solid', fgColor='F8FAFC')
+    thin = Side(border_style='thin', color='E5E7EB')
+    border = Border(top=thin, bottom=thin, left=thin, right=thin)
+    align = Alignment(vertical='top', wrap_text=True)
+
+    def style_headers(sheet, row=1):
+        for cell in sheet[row]:
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.border = border
+            cell.alignment = align
+
+    def style_sheet(sheet):
+        for row in sheet.iter_rows():
+            for cell in row:
+                cell.border = border
+                cell.alignment = align
+        sheet.freeze_panes = 'A2'
+
+    ws_station = wb.active
+    ws_station.title = '01 Station Map'
+    ws_station.append([
+        'Station',
+        'Section',
+        'Menu Item',
+        'Descriptor',
+        'Equipment',
+        'Direct RB Pulls',
+        'Direct Ingredient Pulls',
+        'Menu Price',
+        'Food Cost %',
+    ])
+    style_headers(ws_station)
+    for group in ops_dataset.get('station_groups', []):
+        for card in group.get('menu_cards', []):
+            subrecipe_label = ', '.join(
+                f"{row.get('recipe_name')} ({row.get('display_required_qty')} {row.get('display_required_unit')})"
+                for row in card.get('direct_subrecipes', [])
+            )
+            ingredient_label = ', '.join(
+                f"{row.get('ingredient_name')} ({row.get('display_total_qty')} {row.get('display_total_unit')})"
+                for row in card.get('direct_ingredients', [])
+            )
+            ws_station.append([
+                group.get('station'),
+                card.get('menu_section'),
+                card.get('menu_name'),
+                card.get('menu_descriptor'),
+                card.get('equipment'),
+                subrecipe_label,
+                ingredient_label,
+                round(to_float(card.get('price')), 2) if card.get('price') is not None else None,
+                round(to_float(card.get('food_cost_percent')), 1) if card.get('food_cost_percent') is not None else None,
+            ])
+    for width, col in [(18, 'A'), (18, 'B'), (28, 'C'), (32, 'D'), (18, 'E'), (36, 'F'), (36, 'G'), (10, 'H'), (12, 'I')]:
+        ws_station.column_dimensions[col].width = width
+    style_sheet(ws_station)
+
+    ws_pulls = wb.create_sheet('02 Station Pulls')
+    ws_pulls.append([
+        'Station',
+        'Pull Type',
+        'Item',
+        'Qty',
+        'Unit',
+        'Approx Batches',
+        'Vendor',
+        'Vendor SKU',
+        'G-Code',
+        'Source Menu Items',
+    ])
+    style_headers(ws_pulls)
+    for group in ops_dataset.get('station_groups', []):
+        ws_pulls.append([group.get('station'), 'Summary', '', '', '', '', '', '', '', ''])
+        for cell in ws_pulls[ws_pulls.max_row]:
+            cell.fill = section_fill
+            cell.font = section_font
+        for row in group.get('subrecipe_rows', []):
+            ws_pulls.append([
+                group.get('station'),
+                'RB',
+                row.get('recipe_name'),
+                row.get('display_required_qty'),
+                row.get('display_required_unit'),
+                row.get('display_required_batches'),
+                '',
+                '',
+                '',
+                ', '.join(row.get('source_menu_items') or []),
+            ])
+        for row in group.get('ingredient_rows', []):
+            ws_pulls.append([
+                group.get('station'),
+                'Ingredient',
+                row.get('ingredient_name'),
+                row.get('display_total_qty'),
+                row.get('display_total_unit'),
+                '',
+                row.get('vendor'),
+                row.get('vendor_code'),
+                row.get('g_code'),
+                ', '.join(row.get('source_menu_items') or []),
+            ])
+        ws_pulls.append([''] * 10)
+    for width, col in [(18, 'A'), (12, 'B'), (28, 'C'), (10, 'D'), (10, 'E'), (14, 'F'), (20, 'G'), (16, 'H'), (14, 'I'), (32, 'J')]:
+        ws_pulls.column_dimensions[col].width = width
+    style_sheet(ws_pulls)
+
+    ws_batches = wb.create_sheet('03 Batch Builds')
+    ws_batches.append([
+        'Batch Recipe',
+        'Used In Menu Items',
+        'Required Qty',
+        'Required Unit',
+        'Approx Batches',
+        'Yield',
+        'Station',
+        'Equipment',
+        'Row Type',
+        'Component',
+        'Qty',
+        'Unit',
+        'Notes',
+    ])
+    style_headers(ws_batches)
+    for card in ops_dataset.get('batch_cards', []):
+        ws_batches.append([
+            card.get('recipe_name'),
+            ', '.join(card.get('source_menu_items') or []),
+            card.get('display_required_qty'),
+            card.get('display_required_unit'),
+            card.get('display_required_batches'),
+            f"{card.get('yield_qty') or ''} {card.get('yield_unit') or ''}".strip(),
+            card.get('station'),
+            card.get('equipment'),
+            'Batch',
+            card.get('recipe_name'),
+            '',
+            '',
+            '',
+        ])
+        for row in card.get('flat_components', []):
+            ws_batches.append([
+                card.get('recipe_name'),
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                row.get('notes') or row.get('name'),
+                row.get('name'),
+                row.get('qty'),
+                row.get('unit'),
+                row.get('notes'),
+            ])
+        ws_batches.append([''] * 13)
+    for width, col in [(26, 'A'), (28, 'B'), (10, 'C'), (10, 'D'), (14, 'E'), (14, 'F'), (18, 'G'), (18, 'H'), (14, 'I'), (30, 'J'), (10, 'K'), (10, 'L'), (28, 'M')]:
+        ws_batches.column_dimensions[col].width = width
+    style_sheet(ws_batches)
+
+    ws_menu = wb.create_sheet('04 Menu Builds')
+    ws_menu.append([
+        'Station',
+        'Section',
+        'Menu Item',
+        'Descriptor',
+        'Equipment',
+        'Row Type',
+        'Component',
+        'Qty',
+        'Unit',
+        'Notes',
+    ])
+    style_headers(ws_menu)
+    for card in ops_dataset.get('menu_cards', []):
+        ws_menu.append([
+            card.get('station'),
+            card.get('menu_section'),
+            card.get('menu_name'),
+            card.get('menu_descriptor'),
+            card.get('equipment'),
+            'Menu Item',
+            card.get('menu_name'),
+            '',
+            '',
+            '',
+        ])
+        for row in card.get('flat_components', []):
+            ws_menu.append([
+                card.get('station'),
+                card.get('menu_section'),
+                card.get('menu_name'),
+                '',
+                '',
+                row.get('notes') or 'Component',
+                row.get('name'),
+                row.get('qty'),
+                row.get('unit'),
+                row.get('notes'),
+            ])
+        ws_menu.append([''] * 10)
+    for width, col in [(18, 'A'), (18, 'B'), (28, 'C'), (30, 'D'), (18, 'E'), (14, 'F'), (34, 'G'), (10, 'H'), (10, 'I'), (28, 'J')]:
+        ws_menu.column_dimensions[col].width = width
+    style_sheet(ws_menu)
+
+    ws_order = wb.create_sheet('05 Order Guide')
+    ws_order.append([
+        'Vendor',
+        'Category',
+        'Ingredient',
+        'Unit',
+        'Vendor Code',
+        'G-Code',
+        'Used In Stations',
+        'Used In Menu Items',
+        'Quantity Basis',
+    ])
+    style_headers(ws_order)
+    for ingredient in ops_dataset.get('ingredient_master', []):
+        ws_order.append([
+            ingredient.get('vendor') or 'Unassigned Vendor',
+            ingredient.get('category') or '',
+            ingredient.get('name'),
+            ingredient.get('unit') or ingredient.get('display_unit') or '',
+            ingredient.get('vendor_code') or '',
+            ingredient.get('g_code') or '',
+            ', '.join(ingredient.get('used_in_stations') or []),
+            ', '.join(ingredient.get('used_in_menu_items') or []),
+            ops_dataset.get('quantity_basis_label'),
+        ])
+    for width, col in [(20, 'A'), (18, 'B'), (28, 'C'), (10, 'D'), (16, 'E'), (14, 'F'), (24, 'G'), (36, 'H'), (22, 'I')]:
+        ws_order.column_dimensions[col].width = width
+    style_sheet(ws_order)
+
+    ws_notes = wb.create_sheet('06 Notes')
+    ws_notes.append(['Rollout', rollout.get('name') or 'Menu Rollout'])
+    ws_notes.append(['Venue', rollout.get('venue') or ''])
+    ws_notes.append(['Quarter', f"{rollout.get('quarter') or ''} {rollout.get('year') or ''}".strip()])
+    ws_notes.append(['Quantity Basis', ops_dataset.get('quantity_basis_label')])
+    ws_notes.append([
+        'Operator Note',
+        'Workbook quantities are driven by the saved rollout setup. If every menu line is saved at 1, this workbook reflects sold-as build quantities rather than forecasted production volumes.',
+    ])
+    for row in ws_notes.iter_rows():
+        for cell in row:
+            cell.border = border
+            cell.alignment = align
+    for row_idx in range(1, 6):
+        ws_notes.cell(row=row_idx, column=1).fill = note_fill
+        ws_notes.cell(row=row_idx, column=1).font = header_font
+    ws_notes.column_dimensions['A'].width = 18
+    ws_notes.column_dimensions['B'].width = 110
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    filename = f"{make_safe_filename(rollout.get('name') or 'menu_rollout')}_ops_workbook.xlsx"
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=filename
+    )
+
+
+@bp.route('/menu-rollouts/<rollout_id>/ops-print')
+@login_required
+def menu_rollout_ops_print(rollout_id):
+    with get_cursor() as cur:
+        unit_system = get_unit_system()
+
+        cur.execute("SELECT * FROM menu_rollouts WHERE id = %s", (rollout_id,))
+        rollout = cur.fetchone()
+        if not rollout:
+            flash('Menu rollout not found', 'error')
+            return redirect(url_for('menu_rollouts'))
+
+        cur.execute("""
+            SELECT mri.recipe_id,
+                   mri.batches,
+                   mri.menu_price,
+                   mri.target_food_cost_percent,
+                   mri.menu_section,
+                   mri.menu_descriptor,
+                   r.name
+            FROM menu_rollout_items mri
+            JOIN recipes r ON r.id = mri.recipe_id
+            WHERE mri.rollout_id = %s
+            ORDER BY r.name
+        """, (rollout_id,))
+        items = cur.fetchall()
+        if not items:
+            flash('Add recipes to this rollout before printing an ops packet.', 'error')
+            return redirect(url_for('menu_rollout_edit', rollout_id=rollout_id))
+
+        recipe_ids = [row['recipe_id'] for row in items]
+        batch_values = [row['batches'] for row in items]
+        menu_prices = [row.get('menu_price') for row in items]
+        target_values = [row.get('target_food_cost_percent') for row in items]
+        section_values = [row.get('menu_section') for row in items]
+        descriptor_values = [row.get('menu_descriptor') for row in items]
+        default_target = rollout.get('target_food_cost_percent') or 20
+
+        menu_items, _, errors = parse_menu_items(
+            cur,
+            unit_system,
+            recipe_ids,
+            batch_values,
+            menu_prices,
+            target_values,
+            None,
+            default_target,
+            section_values,
+            descriptor_values
+        )
+        if errors:
+            flash(' '.join(sorted(set(errors))), 'error')
+            return redirect(url_for('menu_rollout_edit', rollout_id=rollout_id))
+
+        apply_menu_pricing(menu_items, default_target)
+        ops_dataset = build_rollout_ops_dataset(cur, unit_system, menu_items)
+
+    return render_template(
+        'menu_rollout_ops_print.html',
+        rollout=rollout,
+        ops_dataset=ops_dataset,
+        generated_at=datetime.now(datetime.UTC),
+    )
 
 @bp.route('/menu-rollouts/<rollout_id>/pricing-export')
 @login_required

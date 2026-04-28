@@ -15,6 +15,8 @@
         ], 'rollouts') }}
         {% if mode == 'edit' %}
         <div class="flex flex-wrap gap-2 mt-3">
+            <a href="{{ url_for('menu_rollout_ops_print', rollout_id=rollout.id) }}" class="fhq-btn fhq-btn--primary">Print Kitchen Ops Packet</a>
+            <a href="{{ url_for('menu_rollout_ops_export', rollout_id=rollout.id) }}" class="fhq-btn fhq-btn--outline">Export Ops Workbook</a>
             <a href="{{ url_for('menu_rollout_print', rollout_id=rollout.id) }}" class="fhq-btn fhq-btn--outline">Print Rollout (PDF)</a>
             <a href="{{ url_for('menu_rollout_pricing_export', rollout_id=rollout.id) }}" class="fhq-btn fhq-btn--outline">Export Menu Pricing</a>
             <a href="{{ url_for('menu_rollout_order_guide', rollout_id=rollout.id) }}" class="fhq-btn fhq-btn--outline">Export Order Guide</a>
