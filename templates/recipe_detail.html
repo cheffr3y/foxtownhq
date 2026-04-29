@@ -29,8 +29,9 @@
 {% else %}
 {% set recipe_kind = 'Recipe' %}
 {% endif %}
-{% set descriptor_copy = recipe.menu_descriptor or 'Operational recipe sheet with live component costing and sub-recipe rollups.' %}
-{% set ledger_colspan = 5 if not auto_print else 4 %}
+{% set default_descriptor_copy = 'Operational recipe sheet with component yields and sub-recipe rollups.' if auto_print else 'Operational recipe sheet with live component costing and sub-recipe rollups.' %}
+{% set descriptor_copy = recipe.menu_descriptor or default_descriptor_copy %}
+{% set ledger_colspan = 5 if not auto_print else 2 %}
 
 {% macro render_component_rows(items, depth=0, parent_key='') -%}
     {% for item in items %}
@@ -107,8 +108,10 @@
         {% endif %}
     </td>
     {% endif %}
+    {% if not auto_print %}
     <td class="rm-ledger-cell rm-ledger-cell--unitcost">{{ unit_cost }}</td>
     <td class="rm-ledger-cell rm-ledger-cell--extension">{{ extension_cost }}</td>
+    {% endif %}
 </tr>
         {% if item.children %}
             {{ render_component_rows(item.children, depth + 1, item_key ~ '-') }}
@@ -176,11 +179,12 @@
             </div>
         </section>
 
-        <section class="rm-stat-grid">
+        <section class="rm-stat-grid {% if auto_print %}rm-stat-grid--ops-only{% endif %}">
             <div class="rm-stat-card">
                 <div class="rm-stat-label">Yield</div>
                 <div class="rm-stat-value">{{ yield_display.quantity }} {{ yield_display.unit }}</div>
             </div>
+            {% if not auto_print %}
             <div class="rm-stat-card">
                 <div class="rm-stat-label">Estimated Total Cost</div>
                 <div class="rm-stat-value">{% if total_cost is not none %}${{ "%.2f"|format(total_cost) }}{% else %}N/A{% endif %}</div>
@@ -189,6 +193,7 @@
                 <div class="rm-stat-label">Cost Per {{ cost_per_yield_unit or yield_display.unit or 'Unit' }}</div>
                 <div class="rm-stat-value">{% if cost_per_yield is not none %}${{ "%.2f"|format(cost_per_yield) }}{% else %}N/A{% endif %}</div>
             </div>
+            {% endif %}
             <div class="rm-stat-card">
                 <div class="rm-stat-label">Component Rows</div>
                 <div class="rm-stat-value">{{ component_count }}</div>
@@ -196,14 +201,16 @@
         </section>
 
         <section class="rm-ledger">
-            <div class="rm-ledger-header">
+            <div class="rm-ledger-header {% if auto_print %}rm-ledger-header--ops-only{% endif %}">
                 <div class="rm-ledger-heading">Ingredient / Sub-Recipe</div>
                 <div class="rm-ledger-heading rm-ledger-heading--right">Qty / Unit</div>
                 {% if not auto_print %}
                 <div class="rm-ledger-heading rm-ledger-heading--right">Prep Form</div>
                 {% endif %}
+                {% if not auto_print %}
                 <div class="rm-ledger-heading rm-ledger-heading--right">Unit Cost</div>
                 <div class="rm-ledger-heading rm-ledger-heading--right">Extension</div>
+                {% endif %}
             </div>
             {% if components %}
             <table class="rm-ledger-table">
@@ -214,12 +221,14 @@
             {% else %}
             <div class="rm-empty">No ingredients or linked sub-recipes have been added yet.</div>
             {% endif %}
+            {% if not auto_print %}
             <div class="rm-ledger-total">
                 <span>Total Rollup</span>
                 <span>{% if total_cost is not none %}${{ "%.2f"|format(total_cost) }}{% else %}N/A{% endif %}</span>
             </div>
             {% if base_total_cost is not none and q_factor_amount is not none and q_factor_percent %}
             <div class="rm-ledger-footnote">Subtotal: ${{ "%.2f"|format(base_total_cost) }} · Q Factor ({{ q_factor_percent|round(2) }}%): ${{ "%.2f"|format(q_factor_amount) }}</div>
+            {% endif %}
             {% endif %}
         </section>
 
@@ -463,6 +472,9 @@
     margin-bottom: 1.75rem;
     background: #2a3439;
 }
+.rm-stat-grid--ops-only {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
 .rm-stat-card {
     padding: 1.25rem 1.15rem;
     background: #ffffff;
@@ -493,6 +505,9 @@
 .rm-ledger-total {
     display: grid;
     grid-template-columns: minmax(0, 1.8fr) minmax(10rem, 0.6fr) minmax(10rem, 0.6fr) minmax(10rem, 0.6fr);
+}
+.rm-ledger-header--ops-only {
+    grid-template-columns: minmax(0, 1.8fr) minmax(10rem, 0.55fr);
 }
 .rm-ledger-header {
     background: #d9e4ea;
@@ -831,8 +846,13 @@
     }
 }
 @media print {
+    @page {
+        size: letter;
+        margin: 0.35in;
+    }
     body {
         background: #ffffff !important;
+        font-size: 8.5pt !important;
     }
     .fhq-topbar,
     .fhq-flash,
@@ -850,8 +870,200 @@
     .rm-sheet {
         max-width: none !important;
         margin: 0 !important;
-        border-width: 2pt !important;
+        padding: 0.22in !important;
+        border-width: 1.25pt !important;
         box-shadow: none !important;
+    }
+    .rm-hero {
+        grid-template-columns: minmax(0, 1.35fr) minmax(13rem, 0.75fr) !important;
+        gap: 0.75rem !important;
+        margin-bottom: 0.7rem !important;
+    }
+    .rm-hero-meta {
+        gap: 0.32rem !important;
+        font-size: 6pt !important;
+        letter-spacing: 0.1em !important;
+    }
+    .rm-dot {
+        width: 0.2rem !important;
+        height: 0.2rem !important;
+    }
+    .rm-name {
+        margin: 0.22rem 0 0.28rem !important;
+        font-size: 27pt !important;
+        line-height: 0.92 !important;
+        letter-spacing: -0.07em !important;
+    }
+    .rm-description {
+        max-width: none !important;
+        font-size: 7.5pt !important;
+        line-height: 1.35 !important;
+    }
+    .rm-hero-card {
+        padding: 0.5rem !important;
+        border-bottom-width: 1.5pt !important;
+    }
+    .rm-hero-card-kicker {
+        margin-bottom: 0.12rem !important;
+        font-size: 5.8pt !important;
+    }
+    .rm-hero-card-value {
+        margin-bottom: 0.45rem !important;
+        font-size: 15pt !important;
+    }
+    .rm-hero-card-grid {
+        gap: 0.36rem 0.5rem !important;
+    }
+    .rm-mini-label {
+        margin-bottom: 0.05rem !important;
+        font-size: 5.4pt !important;
+    }
+    .rm-mini-value {
+        font-size: 7pt !important;
+        line-height: 1.2 !important;
+    }
+    .rm-stat-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+        gap: 0.05rem !important;
+        margin-bottom: 0.65rem !important;
+    }
+    .rm-stat-grid--ops-only {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+    .rm-stat-card {
+        padding: 0.45rem 0.55rem !important;
+        border-bottom-width: 1.25pt !important;
+    }
+    .rm-stat-label {
+        margin-bottom: 0.15rem !important;
+        font-size: 5.4pt !important;
+        letter-spacing: 0.12em !important;
+    }
+    .rm-stat-value {
+        font-size: 16pt !important;
+        line-height: 0.95 !important;
+    }
+    .rm-ledger {
+        margin-bottom: 0.65rem !important;
+    }
+    .rm-ledger-header,
+    .rm-ledger-total {
+        grid-template-columns: minmax(0, 1.8fr) minmax(5.8rem, 0.55fr) minmax(6rem, 0.55fr) minmax(6rem, 0.55fr) !important;
+    }
+    .rm-ledger-header--ops-only {
+        grid-template-columns: minmax(0, 1.8fr) minmax(5.8rem, 0.55fr) !important;
+    }
+    .rm-ledger-heading {
+        padding: 0.36rem 0.45rem !important;
+        font-size: 5.4pt !important;
+        letter-spacing: 0.12em !important;
+    }
+    .rm-ledger-cell {
+        padding: 0.36rem 0.45rem !important;
+        font-size: 7pt !important;
+    }
+    .rm-ledger-namewrap {
+        gap: 0.35rem !important;
+    }
+    .rm-ledger-badge {
+        min-width: 1.55rem !important;
+        min-height: 1rem !important;
+        padding: 0 0.2rem !important;
+        font-size: 4.8pt !important;
+    }
+    .rm-ledger-title {
+        font-size: 7.2pt !important;
+        line-height: 1.2 !important;
+    }
+    .rm-ledger-subline,
+    .rm-ledger-note {
+        margin-top: 0.08rem !important;
+        font-size: 5.8pt !important;
+        line-height: 1.25 !important;
+    }
+    .rm-ledger-code {
+        margin-top: 0.08rem !important;
+        font-size: 5.2pt !important;
+        letter-spacing: 0.08em !important;
+    }
+    .rm-ledger-note {
+        padding-top: 0.1rem !important;
+        padding-bottom: 0.34rem !important;
+    }
+    .rm-ledger-total span {
+        padding: 0.4rem 0.45rem !important;
+        font-size: 6.4pt !important;
+        letter-spacing: 0.1em !important;
+    }
+    .rm-ledger-total span:last-child {
+        font-size: 10pt !important;
+    }
+    .rm-ledger-footnote {
+        padding: 0.35rem 0.45rem !important;
+        font-size: 5.8pt !important;
+    }
+    .rm-panel-grid {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 0.95fr) !important;
+        gap: 0.5rem !important;
+        margin-bottom: 0.65rem !important;
+    }
+    .rm-panel {
+        padding: 0.55rem 0.65rem !important;
+        border-bottom-width: 1.5pt !important;
+    }
+    .rm-panel-title,
+    .rm-section-title {
+        margin-bottom: 0.4rem !important;
+        font-size: 8.5pt !important;
+    }
+    .rm-panel-list,
+    .rm-timeline-rows {
+        gap: 0.35rem !important;
+    }
+    .rm-panel-item,
+    .rm-timeline-row {
+        gap: 0.4rem !important;
+    }
+    .rm-panel-index,
+    .rm-panel-copy,
+    .rm-panel-empty,
+    .rm-storage-list {
+        font-size: 6.4pt !important;
+        line-height: 1.3 !important;
+    }
+    .rm-operational-row {
+        padding: 0.24rem 0 !important;
+        font-size: 6.3pt !important;
+        letter-spacing: 0.06em !important;
+    }
+    .rm-storage-block {
+        margin-top: 0.45rem !important;
+    }
+    .rm-storage-title {
+        margin-bottom: 0.2rem !important;
+        font-size: 5.8pt !important;
+    }
+    .rm-venue-chips {
+        gap: 0.22rem !important;
+    }
+    .rm-venue-chip {
+        padding: 0.15rem 0.24rem !important;
+        font-size: 5.3pt !important;
+    }
+    .rm-timeline {
+        padding: 0.55rem 0.6rem !important;
+    }
+    .rm-timeline-index {
+        width: 1.25rem !important;
+        height: 1.25rem !important;
+        font-size: 6pt !important;
+    }
+    .rm-timeline-copy,
+    .rm-freeform-copy {
+        padding-bottom: 0.35rem !important;
+        border-bottom-width: 1pt !important;
+        font-size: 7pt !important;
+        line-height: 1.35 !important;
     }
     .rm-stat-card,
     .rm-ledger-header,
