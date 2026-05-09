@@ -113,9 +113,9 @@
     <td class="rm-ledger-cell rm-ledger-cell--extension">{{ extension_cost }}</td>
     {% endif %}
 </tr>
-        {% if item.children %}
+        {% if item.children and not auto_print %}
             {{ render_component_rows(item.children, depth + 1, item_key ~ '-') }}
-        {% elif item.type == 'recipe' %}
+        {% elif item.type == 'recipe' and not auto_print %}
 <tr class="rm-ledger-note-row" data-node-key="{{ item_key }}-note" data-depth="{{ depth + 1 }}">
     <td class="rm-ledger-note" colspan="{{ ledger_colspan }}" style="padding-left: calc(3.6rem + {{ depth }} * 1.2rem);">No nested ingredient rows are linked under this sub-recipe yet.</td>
 </tr>
@@ -848,7 +848,10 @@
 @media print {
     @page {
         size: letter;
-        margin: 0;
+        margin: 0.36in 0.3in;
+    }
+    html {
+        background: #ffffff !important;
     }
     body {
         background: #ffffff !important;
@@ -865,12 +868,12 @@
     }
     .rm-shell {
         background: #ffffff !important;
-        padding: 0.28in !important;
+        padding: 0 !important;
     }
     .rm-sheet {
         max-width: none !important;
         margin: 0 !important;
-        padding: 0.22in !important;
+        padding: 0.18in !important;
         border-width: 1.25pt !important;
         box-shadow: none !important;
     }
