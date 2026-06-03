@@ -635,11 +635,6 @@
             {% endif %}
         {% endwith %}
         <div class="fhq-frame">
-            {% block content %}{% endblock %}
-        </div>
-    </div><!-- .fhq-main -->
-</div><!-- .fhq-layout -->
-
 {% else %}
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
@@ -653,8 +648,16 @@
         {% endif %}
     {% endwith %}
     <div class="fhq-frame">
-        {% block content %}{% endblock %}
-    </div>
+{% endif %}
+
+{% block content %}{% endblock %}
+
+{% if show_global_nav %}
+        </div><!-- .fhq-frame -->
+    </div><!-- .fhq-main -->
+</div><!-- .fhq-layout -->
+{% else %}
+    </div><!-- .fhq-frame -->
 {% endif %}
 
 <script>
