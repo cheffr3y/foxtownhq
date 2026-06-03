@@ -14,13 +14,154 @@
     gap: 1.5rem;
     align-items: start;
   }
-  #recipeForm > * {
-    margin-top: 0 !important;
-  }
+  #recipeForm > * { margin-top: 0 !important; }
   #recipeForm .rfg-method-col {
     grid-column: 2;
     grid-row: 1 / -1;
   }
+}
+
+/* ── Card shell ── */
+.rfg-card {
+  background: var(--surface);
+  border: 1px solid var(--outline-ghost);
+  border-top: 3px solid var(--primary);
+  padding: 1.5rem;
+}
+
+/* ── Section meta + heading ── */
+.rfg-meta {
+  font-size: 0.58rem;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--primary);
+  margin-bottom: 0.15rem;
+}
+.rfg-heading {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--fg);
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+.rfg-heading-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+/* ── Add / action button ── */
+.rfg-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.38rem 0.7rem;
+  font-size: 0.6rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--primary);
+  border: 1px solid var(--outline-ghost);
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-top: 0.25rem;
+}
+.rfg-add-btn:hover {
+  background: var(--surface-low);
+  border-color: var(--primary);
+}
+.rfg-add-btn svg { width: 10px; height: 10px; flex-shrink: 0; }
+
+/* ── Icon delete button ── */
+.rfg-del-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: var(--outline);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color 0.12s;
+}
+.rfg-del-btn:hover { color: var(--danger); }
+.rfg-del-btn svg { width: 14px; height: 14px; }
+
+/* ── Method step rows ── */
+#methodStepRows { }
+.rfg-step-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  padding: 0.85rem 0;
+  border-bottom: 1px solid var(--outline-ghost);
+}
+.rfg-step-row:last-child { border-bottom: none; }
+.rfg-step-num {
+  width: 1.55rem;
+  min-width: 1.55rem;
+  height: 1.55rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--primary);
+  color: #f7f7ff;
+  font-size: 0.58rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+  margin-top: 0.44rem;
+  user-select: none;
+}
+.rfg-step-inner { flex: 1; min-width: 0; }
+.rfg-step-header { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem; }
+
+/* ── Data table ── */
+.rfg-tbl { width: 100%; border-collapse: collapse; }
+.rfg-tbl thead th {
+  font-size: 0.58rem;
+  font-weight: 900;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 0 0 0.5rem 0;
+  border-bottom: 2px solid var(--outline-ghost);
+  text-align: left;
+}
+.rfg-tbl thead th + th { padding-left: 0.5rem; }
+.rfg-tbl thead th.th-r { text-align: right; padding-left: 0; }
+.rfg-tbl tbody td {
+  padding: 0.45rem 0 0.45rem 0;
+  border-bottom: 1px solid var(--outline-ghost);
+  vertical-align: middle;
+}
+.rfg-tbl tbody td + td { padding-left: 0.5rem; }
+.rfg-tbl tbody td.td-r { text-align: right; padding-left: 0; }
+.rfg-tbl tbody tr:last-child td { border-bottom: none; }
+
+/* ── Field-group divider inside Recipe Details grid ── */
+.rfg-divider {
+  border: none;
+  border-top: 1px solid var(--outline-ghost);
+  margin: 0.5rem 0 0.25rem;
+  grid-column: 1 / -1;
+}
+
+/* ── Hint text ── */
+.rfg-hint {
+  font-size: 0.7rem;
+  color: var(--muted);
+  margin-top: 0.4rem;
+  line-height: 1.45;
 }
 </style>
 {% endblock %}
@@ -37,12 +178,15 @@
         ], 'all') }}
     </div>
 
-    <!-- Main Content -->
     <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <form id="recipeForm" method="POST" class="space-y-6">
-            <!-- Details -->
-            <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-6">
-                <h2 class="text-xl font-display text-foxtown-ink mb-4">Recipe Details</h2>
+
+            <!-- ── Recipe Details ── -->
+            <div class="rfg-card">
+                <div style="margin-bottom:1.25rem">
+                    <div class="rfg-meta">Recipe</div>
+                    <h2 class="rfg-heading">Details</h2>
+                </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-stone-700 mb-1">Name</label>
@@ -54,6 +198,9 @@
                         <input type="text" name="category" value="{{ recipe.category or '' }}"
                                class="w-full px-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none">
                     </div>
+
+                    <hr class="rfg-divider">
+
                     <div class="md:col-span-2">
                         <label class="block text-sm font-medium text-stone-700 mb-2">Venues</label>
                         {% if venues %}
@@ -67,11 +214,14 @@
                             </label>
                             {% endfor %}
                         </div>
-                        <p class="text-xs text-stone-500 mt-2">Leave blank to make this recipe available for all venues.</p>
+                        <p class="rfg-hint">Leave blank to make this recipe available for all venues.</p>
                         {% else %}
                         <p class="text-xs text-amber-700">Venue mapping unavailable until venue migrations are applied.</p>
                         {% endif %}
                     </div>
+
+                    <hr class="rfg-divider">
+
                     <div>
                         <label class="block text-sm font-medium text-stone-700 mb-1">Recipe Type</label>
                         <select name="recipe_type"
@@ -100,6 +250,9 @@
                             list="unitOptions"
                             class="w-full px-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none">
                     </div>
+
+                    <hr class="rfg-divider">
+
                     <div>
                         <label class="block text-sm font-medium text-stone-700 mb-1">Source Venue</label>
                         <input type="text" name="source_venue" value="{{ recipe.source_venue or '' }}"
@@ -133,96 +286,111 @@
                 </div>
             </div>
 
-            <!-- Method Steps -->
-            <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-6 rfg-method-col">
-                <div class="flex items-center justify-between mb-4">
-                    <h2 class="text-xl font-display text-foxtown-ink">Method Steps</h2>
-                    <button type="button" id="addMethodStepRow"
-                            class="text-foxtown-ember hover:text-orange-700 text-sm font-semibold">
-                        + Add Step
+            <!-- ── Method Steps ── -->
+            <div class="rfg-card rfg-method-col">
+                <div class="rfg-heading-row">
+                    <div>
+                        <div class="rfg-meta">Preparation</div>
+                        <h2 class="rfg-heading">Method Steps</h2>
+                    </div>
+                    <button type="button" id="addMethodStepRow" class="rfg-add-btn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+                        Add Step
                     </button>
                 </div>
-                <div id="methodStepRows" class="space-y-3">
+                <div id="methodStepRows">
                     {% for step in (method_steps if method_steps else [{'title': '', 'duration_text': '', 'body': ''}]) %}
-                    <div class="method-step-row rounded-xl border border-stone-200 bg-stone-50 p-4">
-                        <div class="flex gap-2 mb-2">
-                            <input type="text" name="step_title[]" value="{{ step.title or '' }}"
-                                   class="flex-1 px-3 py-2 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none text-sm"
-                                   placeholder="Step title (e.g. Wash potatoes)">
-                            <input type="text" name="step_duration[]" value="{{ step.duration_text or '' }}"
-                                   class="w-24 px-3 py-2 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none text-sm"
-                                   placeholder="5 min">
-                            <button type="button" class="remove-method-step px-2 text-stone-400 hover:text-red-600 text-xl leading-none">&times;</button>
+                    <div class="method-step-row rfg-step-row">
+                        <div class="rfg-step-num" data-step-num>{{ loop.index0 + 1 | string | rjust(2, '0') }}</div>
+                        <div class="rfg-step-inner">
+                            <div class="rfg-step-header">
+                                <input type="text" name="step_title[]" value="{{ step.title or '' }}"
+                                       class="flex-1 px-3 py-2 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none text-sm"
+                                       placeholder="Step title (e.g. Wash potatoes)">
+                                <input type="text" name="step_duration[]" value="{{ step.duration_text or '' }}"
+                                       class="w-20 px-3 py-2 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none text-sm"
+                                       placeholder="5 min">
+                                <button type="button" class="remove-method-step rfg-del-btn" title="Remove step">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                                </button>
+                            </div>
+                            <textarea name="step_body[]" rows="2"
+                                      class="w-full px-3 py-2 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none text-sm resize-y"
+                                      placeholder="Describe what to do...">{{ step.body or '' }}</textarea>
                         </div>
-                        <textarea name="step_body[]" rows="2"
-                                  class="w-full px-3 py-2 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none text-sm resize-y"
-                                  placeholder="Describe what to do...">{{ step.body or '' }}</textarea>
                     </div>
                     {% endfor %}
                 </div>
             </div>
 
-            <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-6">
-                <h2 class="text-xl font-display text-foxtown-ink mb-4">Operational Metadata</h2>
+            <!-- ── Operational Metadata ── -->
+            <div class="rfg-card">
+                <div style="margin-bottom:1.25rem">
+                    <div class="rfg-meta">Operations</div>
+                    <h2 class="rfg-heading">Metadata</h2>
+                </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-stone-700 mb-1">Critical Steps</label>
                         <textarea name="critical_steps" rows="6"
                                   class="w-full px-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none"
                                   placeholder="One line per critical control, hold point, or risk note.">{{ recipe.critical_steps or '' }}</textarea>
-                        <p class="text-xs text-stone-500 mt-2">These render as highlighted operational alerts on the recipe master sheet.</p>
+                        <p class="rfg-hint">Renders as highlighted operational alerts on the recipe master sheet.</p>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-stone-700 mb-1">Storage Instructions</label>
                         <textarea name="storage_instructions" rows="6"
                                   class="w-full px-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none"
                                   placeholder="Container, temperature, labeling, walk-in location, hold notes...">{{ recipe.storage_instructions or '' }}</textarea>
-                        <p class="text-xs text-stone-500 mt-2">Keep this concise and operational. It shows up as the lower-right handling panel.</p>
+                        <p class="rfg-hint">Keep concise and operational — shown in the lower-right handling panel.</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Ingredients -->
-            <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-6">
-                <div class="flex items-center justify-between mb-4">
-                    <h2 class="text-xl font-display text-foxtown-ink">Ingredients</h2>
-                    <button type="button" id="addIngredientRow"
-                            class="text-foxtown-ember hover:text-orange-700 text-sm font-semibold">
-                        + Add Ingredient
+            <!-- ── Ingredients ── -->
+            <div class="rfg-card">
+                <div class="rfg-heading-row">
+                    <div>
+                        <div class="rfg-meta">Build</div>
+                        <h2 class="rfg-heading">Ingredients</h2>
+                    </div>
+                    <button type="button" id="addIngredientRow" class="rfg-add-btn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+                        Add Ingredient
                     </button>
                 </div>
                 <div class="overflow-x-auto">
-                    <table class="min-w-full">
-                        <thead class="text-xs uppercase text-stone-500 border-b border-stone-200">
+                    <table class="rfg-tbl">
+                        <thead>
                             <tr>
-                                <th class="text-left py-2 pr-4">Ingredient</th>
-                                <th class="text-left py-2 pr-4">Quantity</th>
-                                <th class="text-left py-2 pr-4">Unit</th>
-                                <th class="text-left py-2 pr-4">Prep form</th>
-                                <th class="text-right py-2">Remove</th>
+                                <th>Ingredient</th>
+                                <th>Quantity</th>
+                                <th>Unit</th>
+                                <th>Prep Form</th>
+                                <th class="th-r">Remove</th>
                             </tr>
                         </thead>
                         <tbody id="ingredientRows">
                             {% if ingredient_items %}
                                 {% for item in ingredient_items %}
                                 <tr>
-                                    <td class="py-2 pr-4">
+                                    <td>
                                         <input type="text" name="ingredient_name[]" value="{{ item.item_name }}"
                                                list="ingredientOptions"
                                                class="ingredient-autocomplete w-full border border-stone-300 rounded-xl px-3 py-2"
-                                               placeholder="Start typing ingredient name...">
+                                               placeholder="Start typing ingredient…">
                                         <input type="hidden" name="ingredient_id[]" value="{{ item.item_id }}" class="ingredient-id">
                                     </td>
-                                    <td class="py-2 pr-4">
+                                    <td>
                                         <input type="number" step="0.01" name="ingredient_qty[]" value="{{ item.quantity }}"
-                                               class="w-full border border-stone-300 rounded-xl px-3 py-2">
+                                               class="w-full border border-stone-300 rounded-xl px-3 py-2" style="min-width:5rem">
                                     </td>
-                                    <td class="py-2 pr-4">
+                                    <td>
                                         <input type="text" name="ingredient_unit[]" value="{{ item.unit or '' }}"
                                                list="unitOptions"
-                                               class="ingredient-unit w-full border border-stone-300 rounded-xl px-3 py-2">
+                                               class="ingredient-unit w-full border border-stone-300 rounded-xl px-3 py-2" style="min-width:5rem">
                                     </td>
-                                    <td class="py-2 pr-4">
+                                    <td>
                                         {% set prep_value = item.prep_note or '' %}
                                         {% set prep_is_known = prep_value in prep_note_options %}
                                         <select class="ingredient-prep-select w-full border border-stone-300 rounded-xl px-3 py-2">
@@ -233,32 +401,34 @@
                                             <option value="__other__" {% if prep_value and not prep_is_known %}selected{% endif %}>Other (free text)</option>
                                         </select>
                                         <input type="text" name="prep_note[]" value="{{ prep_value }}"
-                                               class="ingredient-prep-note mt-2 w-full border border-stone-300 rounded-xl px-3 py-2 {% if not prep_value or prep_is_known %}hidden{% endif %}"
+                                               class="ingredient-prep-note mt-1 w-full border border-stone-300 rounded-xl px-3 py-2 {% if not prep_value or prep_is_known %}hidden{% endif %}"
                                                placeholder="Describe prep form">
                                     </td>
-                                    <td class="py-2 text-right">
-                                        <button type="button" class="remove-row text-red-600 hover:text-red-700 text-sm font-semibold">Remove</button>
+                                    <td class="td-r">
+                                        <button type="button" class="remove-row rfg-del-btn" title="Remove" style="margin-left:auto">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                                        </button>
                                     </td>
                                 </tr>
                                 {% endfor %}
                             {% else %}
                                 <tr>
-                                    <td class="py-2 pr-4">
+                                    <td>
                                         <input type="text" name="ingredient_name[]" list="ingredientOptions"
                                                class="ingredient-autocomplete w-full border border-stone-300 rounded-xl px-3 py-2"
-                                               placeholder="Start typing ingredient name...">
+                                               placeholder="Start typing ingredient…">
                                         <input type="hidden" name="ingredient_id[]" value="" class="ingredient-id">
                                     </td>
-                                    <td class="py-2 pr-4">
+                                    <td>
                                         <input type="number" step="0.01" name="ingredient_qty[]"
-                                               class="w-full border border-stone-300 rounded-xl px-3 py-2">
+                                               class="w-full border border-stone-300 rounded-xl px-3 py-2" style="min-width:5rem">
                                     </td>
-                                    <td class="py-2 pr-4">
+                                    <td>
                                         <input type="text" name="ingredient_unit[]"
                                                list="unitOptions"
-                                               class="ingredient-unit w-full border border-stone-300 rounded-xl px-3 py-2">
+                                               class="ingredient-unit w-full border border-stone-300 rounded-xl px-3 py-2" style="min-width:5rem">
                                     </td>
-                                    <td class="py-2 pr-4">
+                                    <td>
                                         <select class="ingredient-prep-select w-full border border-stone-300 rounded-xl px-3 py-2">
                                             <option value="" selected>No prep note</option>
                                             {% for option in prep_note_options %}
@@ -267,11 +437,13 @@
                                             <option value="__other__">Other (free text)</option>
                                         </select>
                                         <input type="text" name="prep_note[]" value=""
-                                               class="ingredient-prep-note mt-2 hidden w-full border border-stone-300 rounded-xl px-3 py-2"
+                                               class="ingredient-prep-note mt-1 hidden w-full border border-stone-300 rounded-xl px-3 py-2"
                                                placeholder="Describe prep form">
                                     </td>
-                                    <td class="py-2 text-right">
-                                        <button type="button" class="remove-row text-red-600 hover:text-red-700 text-sm font-semibold">Remove</button>
+                                    <td class="td-r">
+                                        <button type="button" class="remove-row rfg-del-btn" title="Remove" style="margin-left:auto">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                                        </button>
                                     </td>
                                 </tr>
                             {% endif %}
@@ -280,74 +452,79 @@
                 </div>
             </div>
 
-            <!-- Sub-Recipes -->
-            <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-6">
-                <div class="flex items-center justify-between mb-4">
+            <!-- ── Linked Recipes ── -->
+            <div class="rfg-card">
+                <div class="rfg-heading-row">
                     <div>
-                        <h2 class="text-xl font-display text-foxtown-ink">Linked Recipes</h2>
-                        <p class="text-sm text-stone-500">Use plated or batch recipes as components inside another recipe.</p>
+                        <div class="rfg-meta">Components</div>
+                        <h2 class="rfg-heading">Linked Recipes</h2>
+                        <p class="rfg-hint" style="margin-top:0.2rem">Use plated or batch recipes as components inside another recipe.</p>
                     </div>
-                    <button type="button" id="addSubRecipeRow"
-                            class="text-foxtown-ember hover:text-orange-700 text-sm font-semibold">
-                        + Add Linked Recipe
+                    <button type="button" id="addSubRecipeRow" class="rfg-add-btn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+                        Add Linked Recipe
                     </button>
                 </div>
                 <div class="overflow-x-auto">
-                    <table class="min-w-full">
-                        <thead class="text-xs uppercase text-stone-500 border-b border-stone-200">
+                    <table class="rfg-tbl">
+                        <thead>
                             <tr>
-                                <th class="text-left py-2 pr-4">Recipe</th>
-                                <th class="text-left py-2 pr-4">Quantity</th>
-                                <th class="text-left py-2 pr-4">Unit</th>
-                                <th class="text-right py-2">Remove</th>
+                                <th>Recipe</th>
+                                <th>Quantity</th>
+                                <th>Unit</th>
+                                <th class="th-r">Remove</th>
                             </tr>
                         </thead>
                         <tbody id="subRecipeRows">
                             {% if subrecipe_items %}
                                 {% for item in subrecipe_items %}
                                 <tr>
-                                    <td class="py-2 pr-4">
+                                    <td>
                                         <input type="text" name="sub_recipe_name[]"
                                                value="{{ item.item_name }}"
                                                list="subRecipeOptions"
                                                class="subrecipe-autocomplete w-full border border-stone-300 rounded-xl px-3 py-2"
-                                               placeholder="Start typing recipe name...">
+                                               placeholder="Start typing recipe name…">
                                         <input type="hidden" name="sub_recipe_id[]" value="{{ item.item_id }}" class="subrecipe-id">
                                     </td>
-                                    <td class="py-2 pr-4">
+                                    <td>
                                         <input type="number" step="0.01" name="sub_recipe_qty[]" value="{{ item.quantity }}"
-                                               class="w-full border border-stone-300 rounded-xl px-3 py-2">
+                                               class="w-full border border-stone-300 rounded-xl px-3 py-2" style="min-width:5rem">
                                     </td>
-                                    <td class="py-2 pr-4">
+                                    <td>
                                         <input type="text" name="sub_recipe_unit[]" value="{{ item.unit or '' }}"
                                                list="unitOptions"
-                                               class="subrecipe-unit w-full border border-stone-300 rounded-xl px-3 py-2">
+                                               class="subrecipe-unit w-full border border-stone-300 rounded-xl px-3 py-2" style="min-width:5rem">
                                     </td>
-                                    <td class="py-2 text-right">
-                                        <button type="button" class="remove-row text-red-600 hover:text-red-700 text-sm font-semibold">Remove</button>
+                                    <td class="td-r">
+                                        <button type="button" class="remove-row rfg-del-btn" title="Remove" style="margin-left:auto">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                                        </button>
                                     </td>
                                 </tr>
                                 {% endfor %}
                             {% else %}
                                 <tr>
-                                    <td class="py-2 pr-4">
+                                    <td>
                                         <input type="text" name="sub_recipe_name[]"
                                                list="subRecipeOptions"
                                                class="subrecipe-autocomplete w-full border border-stone-300 rounded-xl px-3 py-2"
-                                               placeholder="Start typing recipe name...">
+                                               placeholder="Start typing recipe name…">
                                         <input type="hidden" name="sub_recipe_id[]" value="" class="subrecipe-id">
                                     </td>
-                                    <td class="py-2 pr-4">
+                                    <td>
                                         <input type="number" step="0.01" name="sub_recipe_qty[]"
-                                               class="w-full border border-stone-300 rounded-xl px-3 py-2">
+                                               class="w-full border border-stone-300 rounded-xl px-3 py-2" style="min-width:5rem">
                                     </td>
-                                    <td class="py-2 pr-4">
+                                    <td>
                                         <input type="text" name="sub_recipe_unit[]"
                                                list="unitOptions"
-                                               class="subrecipe-unit w-full border border-stone-300 rounded-xl px-3 py-2">
+                                               class="subrecipe-unit w-full border border-stone-300 rounded-xl px-3 py-2" style="min-width:5rem">
                                     </td>
-                                    <td class="py-2 text-right">
-                                        <button type="button" class="remove-row text-red-600 hover:text-red-700 text-sm font-semibold">Remove</button>
+                                    <td class="td-r">
+                                        <button type="button" class="remove-row rfg-del-btn" title="Remove" style="margin-left:auto">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                                        </button>
                                     </td>
                                 </tr>
                             {% endif %}
@@ -356,101 +533,107 @@
                 </div>
             </div>
 
-            <div id="weightedOptionsSection" class="bg-white rounded-2xl shadow-soft border border-stone-200 p-6 {% if recipe.recipe_type != 'menu' %}hidden{% endif %}">
-                <div class="flex items-center justify-between mb-4">
+            <!-- ── Choice Groups (menu-only) ── -->
+            <div id="weightedOptionsSection" class="rfg-card {% if recipe.recipe_type != 'menu' %}hidden{% endif %}">
+                <div class="rfg-heading-row">
                     <div>
-                        <h2 class="text-xl font-display text-foxtown-ink">Choice Groups (RM Averages)</h2>
-                        <p class="text-sm text-stone-500">Use this for averages like dressing choice, protein mix, or filling sets. Choose RM/RB recipes or raw ingredients; each group must total 100%.</p>
+                        <div class="rfg-meta">Menu</div>
+                        <h2 class="rfg-heading">Choice Groups (RM Averages)</h2>
+                        <p class="rfg-hint" style="margin-top:0.2rem">Use for averages like dressing choice, protein mix, or filling sets. Each group must total 100%.</p>
                     </div>
-                    <button type="button" id="addWeightedOptionRow"
-                            class="text-foxtown-ember hover:text-orange-700 text-sm font-semibold">
-                        + Add Choice
+                    <button type="button" id="addWeightedOptionRow" class="rfg-add-btn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+                        Add Choice
                     </button>
                 </div>
                 <div class="overflow-x-auto">
-                    <table class="min-w-full">
-                        <thead class="text-xs uppercase text-stone-500 border-b border-stone-200">
+                    <table class="rfg-tbl">
+                        <thead>
                             <tr>
-                                <th class="text-left py-2 pr-4">Group Name</th>
-                                <th class="text-left py-2 pr-4">Recipe / Ingredient</th>
-                                <th class="text-left py-2 pr-4">Qty</th>
-                                <th class="text-left py-2 pr-4">Unit</th>
-                                <th class="text-left py-2 pr-4">Weight %</th>
-                                <th class="text-right py-2">Remove</th>
+                                <th>Group Name</th>
+                                <th>Recipe / Ingredient</th>
+                                <th>Qty</th>
+                                <th>Unit</th>
+                                <th>Weight %</th>
+                                <th class="th-r">Remove</th>
                             </tr>
                         </thead>
                         <tbody id="weightedOptionRows">
                             {% if option_items %}
                                 {% for option in option_items %}
                                 <tr class="weighted-option-row">
-                                    <td class="py-2 pr-4">
+                                    <td>
                                         <input type="text" name="option_group_name[]"
                                                value="{{ option.group_name or '' }}"
                                                placeholder="Dressing Choice"
                                                class="weighted-group-name w-full border border-stone-300 rounded-xl px-3 py-2">
                                     </td>
-                                    <td class="py-2 pr-4">
+                                    <td>
                                         <input type="hidden" name="option_item_type[]" value="{{ option.item_type or 'recipe' }}">
                                         <input type="text" name="option_item_name[]"
                                                value="{{ option.display_label or option.item_name or '' }}"
                                                list="weightedOptionSources"
                                                class="weighted-option-autocomplete w-full border border-stone-300 rounded-xl px-3 py-2"
-                                               placeholder="Start typing recipe or ingredient...">
+                                               placeholder="Recipe or ingredient…">
                                         <input type="hidden" name="option_item_id[]" value="{{ option.item_id or '' }}" class="weighted-item-id">
                                     </td>
-                                    <td class="py-2 pr-4">
+                                    <td>
                                         <input type="number" step="any" min="0.0001" name="option_qty[]"
                                                value="{{ option.quantity or '' }}"
-                                               class="w-full border border-stone-300 rounded-xl px-3 py-2">
+                                               class="w-full border border-stone-300 rounded-xl px-3 py-2" style="min-width:5rem">
                                     </td>
-                                    <td class="py-2 pr-4">
+                                    <td>
                                         <input type="text" name="option_unit[]"
                                                value="{{ option.unit or '' }}"
                                                list="unitOptions"
-                                               class="weighted-option-unit w-full border border-stone-300 rounded-xl px-3 py-2">
+                                               class="weighted-option-unit w-full border border-stone-300 rounded-xl px-3 py-2" style="min-width:5rem">
                                     </td>
-                                    <td class="py-2 pr-4">
+                                    <td>
                                         <input type="number" step="0.01" min="0" max="100" name="option_weight[]"
                                                value="{{ option.weight_percent if option.weight_percent is not none else '' }}"
                                                class="weighted-option-weight w-full border border-stone-300 rounded-xl px-3 py-2"
-                                               placeholder="e.g. 70">
+                                               placeholder="e.g. 70" style="min-width:5rem">
                                     </td>
-                                    <td class="py-2 text-right">
-                                        <button type="button" class="remove-row text-red-600 hover:text-red-700 text-sm font-semibold">Remove</button>
+                                    <td class="td-r">
+                                        <button type="button" class="remove-row rfg-del-btn" title="Remove" style="margin-left:auto">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                                        </button>
                                     </td>
                                 </tr>
                                 {% endfor %}
                             {% else %}
                                 <tr class="weighted-option-row">
-                                    <td class="py-2 pr-4">
+                                    <td>
                                         <input type="text" name="option_group_name[]"
                                                placeholder="Dressing Choice"
                                                class="weighted-group-name w-full border border-stone-300 rounded-xl px-3 py-2">
                                     </td>
-                                    <td class="py-2 pr-4">
+                                    <td>
                                         <input type="hidden" name="option_item_type[]" value="recipe">
                                         <input type="text" name="option_item_name[]"
                                                list="weightedOptionSources"
                                                class="weighted-option-autocomplete w-full border border-stone-300 rounded-xl px-3 py-2"
-                                               placeholder="Start typing recipe or ingredient...">
+                                               placeholder="Recipe or ingredient…">
                                         <input type="hidden" name="option_item_id[]" value="" class="weighted-item-id">
                                     </td>
-                                    <td class="py-2 pr-4">
+                                    <td>
                                         <input type="number" step="any" min="0.0001" name="option_qty[]"
-                                               class="w-full border border-stone-300 rounded-xl px-3 py-2">
+                                               class="w-full border border-stone-300 rounded-xl px-3 py-2" style="min-width:5rem">
                                     </td>
-                                    <td class="py-2 pr-4">
+                                    <td>
                                         <input type="text" name="option_unit[]"
                                                list="unitOptions"
-                                               class="weighted-option-unit w-full border border-stone-300 rounded-xl px-3 py-2">
+                                               class="weighted-option-unit w-full border border-stone-300 rounded-xl px-3 py-2" style="min-width:5rem">
                                     </td>
-                                    <td class="py-2 pr-4">
+                                    <td>
                                         <input type="number" step="0.01" min="0" max="100" name="option_weight[]"
                                                class="weighted-option-weight w-full border border-stone-300 rounded-xl px-3 py-2"
-                                               placeholder="e.g. 70">
+                                               placeholder="e.g. 70" style="min-width:5rem">
                                     </td>
-                                    <td class="py-2 text-right">
-                                        <button type="button" class="remove-row text-red-600 hover:text-red-700 text-sm font-semibold">Remove</button>
+                                    <td class="td-r">
+                                        <button type="button" class="remove-row rfg-del-btn" title="Remove" style="margin-left:auto">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                                        </button>
                                     </td>
                                 </tr>
                             {% endif %}
@@ -463,41 +646,48 @@
     </div>
 </div>
 
+<!-- ── Templates ── -->
+
 <template id="methodStepRowTemplate">
-    <div class="method-step-row rounded-xl border border-stone-200 bg-stone-50 p-4">
-        <div class="flex gap-2 mb-2">
-            <input type="text" name="step_title[]" value=""
-                   class="flex-1 px-3 py-2 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none text-sm"
-                   placeholder="Step title (e.g. Wash potatoes)">
-            <input type="text" name="step_duration[]" value=""
-                   class="w-24 px-3 py-2 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none text-sm"
-                   placeholder="5 min">
-            <button type="button" class="remove-method-step px-2 text-stone-400 hover:text-red-600 text-xl leading-none">&times;</button>
+    <div class="method-step-row rfg-step-row">
+        <div class="rfg-step-num" data-step-num>—</div>
+        <div class="rfg-step-inner">
+            <div class="rfg-step-header">
+                <input type="text" name="step_title[]" value=""
+                       class="flex-1 px-3 py-2 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none text-sm"
+                       placeholder="Step title (e.g. Wash potatoes)">
+                <input type="text" name="step_duration[]" value=""
+                       class="w-20 px-3 py-2 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none text-sm"
+                       placeholder="5 min">
+                <button type="button" class="remove-method-step rfg-del-btn" title="Remove step">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <textarea name="step_body[]" rows="2"
+                      class="w-full px-3 py-2 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none text-sm resize-y"
+                      placeholder="Describe what to do..."></textarea>
         </div>
-        <textarea name="step_body[]" rows="2"
-                  class="w-full px-3 py-2 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none text-sm resize-y"
-                  placeholder="Describe what to do..."></textarea>
     </div>
 </template>
 
 <template id="ingredientRowTemplate">
     <tr>
-        <td class="py-2 pr-4">
+        <td>
             <input type="text" name="ingredient_name[]" list="ingredientOptions"
                    class="ingredient-autocomplete w-full border border-stone-300 rounded-xl px-3 py-2"
-                   placeholder="Start typing ingredient name...">
+                   placeholder="Start typing ingredient…">
             <input type="hidden" name="ingredient_id[]" value="" class="ingredient-id">
         </td>
-        <td class="py-2 pr-4">
+        <td>
             <input type="number" step="0.01" name="ingredient_qty[]"
-                   class="w-full border border-stone-300 rounded-xl px-3 py-2">
+                   class="w-full border border-stone-300 rounded-xl px-3 py-2" style="min-width:5rem">
         </td>
-        <td class="py-2 pr-4">
+        <td>
             <input type="text" name="ingredient_unit[]"
                    list="unitOptions"
-                   class="ingredient-unit w-full border border-stone-300 rounded-xl px-3 py-2">
+                   class="ingredient-unit w-full border border-stone-300 rounded-xl px-3 py-2" style="min-width:5rem">
         </td>
-        <td class="py-2 pr-4">
+        <td>
             <select class="ingredient-prep-select w-full border border-stone-300 rounded-xl px-3 py-2">
                 <option value="" selected>No prep note</option>
                 {% for option in prep_note_options %}
@@ -506,11 +696,13 @@
                 <option value="__other__">Other (free text)</option>
             </select>
             <input type="text" name="prep_note[]" value=""
-                   class="ingredient-prep-note mt-2 hidden w-full border border-stone-300 rounded-xl px-3 py-2"
+                   class="ingredient-prep-note mt-1 hidden w-full border border-stone-300 rounded-xl px-3 py-2"
                    placeholder="Describe prep form">
         </td>
-        <td class="py-2 text-right">
-            <button type="button" class="remove-row text-red-600 hover:text-red-700 text-sm font-semibold">Remove</button>
+        <td class="td-r">
+            <button type="button" class="remove-row rfg-del-btn" title="Remove" style="margin-left:auto">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
         </td>
     </tr>
 </template>
@@ -536,56 +728,60 @@
 
 <template id="subRecipeRowTemplate">
     <tr>
-        <td class="py-2 pr-4">
+        <td>
             <input type="text" name="sub_recipe_name[]" list="subRecipeOptions"
                    class="subrecipe-autocomplete w-full border border-stone-300 rounded-xl px-3 py-2"
-                   placeholder="Start typing recipe name...">
+                   placeholder="Start typing recipe name…">
             <input type="hidden" name="sub_recipe_id[]" value="" class="subrecipe-id">
         </td>
-        <td class="py-2 pr-4">
+        <td>
             <input type="number" step="0.01" name="sub_recipe_qty[]"
-                   class="w-full border border-stone-300 rounded-xl px-3 py-2">
+                   class="w-full border border-stone-300 rounded-xl px-3 py-2" style="min-width:5rem">
         </td>
-        <td class="py-2 pr-4">
+        <td>
             <input type="text" name="sub_recipe_unit[]"
                    list="unitOptions"
-                   class="subrecipe-unit w-full border border-stone-300 rounded-xl px-3 py-2">
+                   class="subrecipe-unit w-full border border-stone-300 rounded-xl px-3 py-2" style="min-width:5rem">
         </td>
-        <td class="py-2 text-right">
-            <button type="button" class="remove-row text-red-600 hover:text-red-700 text-sm font-semibold">Remove</button>
+        <td class="td-r">
+            <button type="button" class="remove-row rfg-del-btn" title="Remove" style="margin-left:auto">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
         </td>
     </tr>
 </template>
 
 <template id="weightedOptionRowTemplate">
     <tr class="weighted-option-row">
-        <td class="py-2 pr-4">
+        <td>
             <input type="text" name="option_group_name[]"
                    placeholder="Dressing Choice"
                    class="weighted-group-name w-full border border-stone-300 rounded-xl px-3 py-2">
         </td>
-        <td class="py-2 pr-4">
+        <td>
             <input type="hidden" name="option_item_type[]" value="recipe">
             <input type="text" name="option_item_name[]" list="weightedOptionSources"
                    class="weighted-option-autocomplete w-full border border-stone-300 rounded-xl px-3 py-2"
-                   placeholder="Start typing recipe or ingredient...">
+                   placeholder="Recipe or ingredient…">
             <input type="hidden" name="option_item_id[]" value="" class="weighted-item-id">
         </td>
-        <td class="py-2 pr-4">
+        <td>
             <input type="number" step="any" min="0.0001" name="option_qty[]"
-                   class="w-full border border-stone-300 rounded-xl px-3 py-2">
+                   class="w-full border border-stone-300 rounded-xl px-3 py-2" style="min-width:5rem">
         </td>
-        <td class="py-2 pr-4">
+        <td>
             <input type="text" name="option_unit[]" list="unitOptions"
-                   class="weighted-option-unit w-full border border-stone-300 rounded-xl px-3 py-2">
+                   class="weighted-option-unit w-full border border-stone-300 rounded-xl px-3 py-2" style="min-width:5rem">
         </td>
-        <td class="py-2 pr-4">
+        <td>
             <input type="number" step="0.01" min="0" max="100" name="option_weight[]"
                    class="weighted-option-weight w-full border border-stone-300 rounded-xl px-3 py-2"
-                   placeholder="e.g. 70">
+                   placeholder="e.g. 70" style="min-width:5rem">
         </td>
-        <td class="py-2 text-right">
-            <button type="button" class="remove-row text-red-600 hover:text-red-700 text-sm font-semibold">Remove</button>
+        <td class="td-r">
+            <button type="button" class="remove-row rfg-del-btn" title="Remove" style="margin-left:auto">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
         </td>
     </tr>
 </template>
@@ -772,15 +968,24 @@ function enforceMenuYield() {
     yieldUnitInput.classList.toggle('bg-stone-50', isMenu);
 }
 
+function updateStepNumbers() {
+    const steps = document.querySelectorAll('#methodStepRows .method-step-row');
+    steps.forEach((row, i) => {
+        const numEl = row.querySelector('[data-step-num]');
+        if (numEl) numEl.textContent = String(i + 1).padStart(2, '0');
+    });
+}
+
 document.getElementById('addMethodStepRow').addEventListener('click', () => {
     const template = document.getElementById('methodStepRowTemplate');
     document.getElementById('methodStepRows').appendChild(template.content.cloneNode(true));
+    updateStepNumbers();
 });
 
 document.addEventListener('click', (event) => {
-    if (event.target.classList.contains('remove-method-step')) {
+    if (event.target.closest('.remove-method-step')) {
         const row = event.target.closest('.method-step-row');
-        if (row) row.remove();
+        if (row) { row.remove(); updateStepNumbers(); }
     }
 });
 
@@ -808,7 +1013,7 @@ if (addWeightedOptionRow) {
 }
 
 document.addEventListener('click', (event) => {
-    if (event.target.classList.contains('remove-row')) {
+    if (event.target.closest('.remove-row')) {
         const row = event.target.closest('tr');
         if (row) {
             row.remove();
@@ -860,6 +1065,7 @@ if (recipeTypeSelect) {
 toggleWeightedSection();
 enforceMenuYield();
 renderWeightedGroupSummary();
+updateStepNumbers();
 </script>
 
 <datalist id="unitOptions">
