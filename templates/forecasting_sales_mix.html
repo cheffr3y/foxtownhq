@@ -211,21 +211,6 @@
                             Open Review Draft
                         </a>
                         {% endif %}
-                        {% if handoff_status.order_count %}
-                        <a
-                            href="{{ url_for('commissary.commissary_review', week_start=forecast_week_start.isoformat(), outlet=selected_venue_name) }}"
-                            class="fhq-btn fhq-btn--outline"
-                        >
-                            Open Weekly Review
-                        </a>
-                        <a
-                            href="{{ url_for('commissary.commissary_packet_print', outlet=selected_venue_name, week_start=forecast_week_start.isoformat(), include_shopping=1) }}"
-                            target="_blank"
-                            class="fhq-btn fhq-btn--outline"
-                        >
-                            Weekly Packet + Shopping
-                        </a>
-                        {% endif %}
                     </div>
                 </div>
             </div>

@@ -205,7 +205,6 @@ def _ensure_tap_releases_schema(cur):
 
 def ensure_dashboard_schema(cur):
     ensure_forecasting_schema(cur)
-    _ensure_commissary_pipeline_schema(cur)
     _ensure_tap_releases_schema(cur)
     return True
 
@@ -705,14 +704,9 @@ def _build_pipeline_summary(cur, today, week_start, week_end):
     }
 
 
-def _build_fast_access_items(counts, menu_flags_count, below_margin_count, forecast_due, rd_queue_count, today):
+def _build_fast_access_items(counts, forecast_due, rd_queue_count, today):
     forecasting_sub = 'Due' if forecast_due else 'Sent'
     return [
-        {
-            'title': 'Menu costing',
-            'href': url_for('menu.menu_costing'),
-            'meta': f'{below_margin_count} flagged' if below_margin_count else f'{menu_flags_count} to review' if menu_flags_count else 'Clear',
-        },
         {
             'title': 'Ingredient DB',
             'href': url_for('ingredients.ingredients'),
@@ -735,13 +729,13 @@ def _build_fast_access_items(counts, menu_flags_count, below_margin_count, forec
         },
         {
             'title': 'Daily prep',
-            'href': url_for('prep.prep_index'),
+            'href': url_for('dashboard'),
             'meta': _format_date_short(today),
         },
     ]
 
 
-def _build_command_alerts(menu_items, pipeline_summary, stale_price_count, tap_releases, today):
+def _build_command_alerts(menu_items, stale_price_count, tap_releases, today):
     alerts = []
 
     tap_unpaired = [
@@ -762,28 +756,6 @@ def _build_command_alerts(menu_items, pipeline_summary, stale_price_count, tap_r
             }
         )
 
-    below_margin_items = [item for item in menu_items if item.get('below_margin_threshold')]
-    if below_margin_items:
-        alerts.append(
-            {
-                'priority': 2,
-                'tone': 'warning',
-                'text': f"{len(below_margin_items)} menu item{'s' if len(below_margin_items) != 1 else ''} below {MARGIN_WARNING_THRESHOLD}% margin",
-                'action': 'Review costing and refresh pricing',
-                'href': url_for('menu.menu_costing'),
-            }
-        )
-
-    if pipeline_summary['overdue_requested']:
-        alerts.append(
-            {
-                'priority': 3,
-                'tone': 'amber',
-                'text': f"{pipeline_summary['overdue_requested']} commissary request{'s' if pipeline_summary['overdue_requested'] != 1 else ''} past due",
-                'action': 'Open commissary pipeline',
-                'href': f"{url_for('dashboard')}#commissary-pipeline",
-            }
-        )
 
     if stale_price_count:
         alerts.append(
@@ -815,7 +787,7 @@ def _build_command_alerts(menu_items, pipeline_summary, stale_price_count, tap_r
     return alerts[:5]
 
 
-def _build_sidebar_navigation(menu_flags_count, upcoming_release_count, overdue_requested, below_margin_count, banquet_count, buffet_count):
+def _build_sidebar_navigation(menu_flags_count, upcoming_release_count):
     primary_nav = [
         {
             'label': 'Dashboard',
@@ -843,10 +815,10 @@ def _build_sidebar_navigation(menu_flags_count, upcoming_release_count, overdue_
         },
         {
             'label': 'Forecasting',
-            'sub': 'Commissary feed / outbound pull requests',
+            'sub': 'Weekly forecast',
             'href': url_for('forecasting.forecasting_dashboard', venue_id=BREWPUB_VENUE_ID),
-            'badge_text': '!' if overdue_requested else None,
-            'badge_tone': 'amber' if overdue_requested else 'muted',
+            'badge_text': None,
+            'badge_tone': 'muted',
             'active': False,
         },
         {
@@ -865,39 +837,8 @@ def _build_sidebar_navigation(menu_flags_count, upcoming_release_count, overdue_
             'badge_tone': 'muted',
             'active': False,
         },
-        {
-            'label': 'Costing',
-            'sub': 'Margin checks',
-            'href': url_for('menu.menu_costing'),
-            'badge_text': str(below_margin_count) if below_margin_count else None,
-            'badge_tone': 'warning' if below_margin_count else 'muted',
-            'active': False,
-        },
     ]
-    support_nav = [
-        {
-            'label': 'Banquets',
-            'sub': 'Support view',
-            'href': url_for('banquet.banquet_planner'),
-            'badge_text': str(banquet_count) if banquet_count else None,
-            'badge_tone': 'muted',
-        },
-        {
-            'label': 'Commissary',
-            'sub': 'Pipeline status',
-            'href': url_for('commissary.commissary_planner', day=date.today().isoformat()),
-            'badge_text': None,
-            'badge_tone': 'muted',
-        },
-        {
-            'label': 'Buffets',
-            'sub': 'Support queue',
-            'href': url_for('buffet.buffet_planner'),
-            'badge_text': str(buffet_count) if buffet_count else None,
-            'badge_tone': 'muted',
-        },
-    ]
-    return primary_nav, support_nav
+    return primary_nav, []
 
 
 def build_dashboard_view_model(cur, today, week_start, week_end, unit_system, counts):
@@ -914,29 +855,31 @@ def build_dashboard_view_model(cur, today, week_start, week_end, unit_system, co
         menu_rows = _query_fallback_menu_rows(cur)
 
     menu_items = _build_menu_board_items(cur, menu_rows, tap_pair_map, today, stale_cutoff, unit_system)
-    pipeline_items = _build_pipeline_items(cur)
-    pipeline_summary = _build_pipeline_summary(cur, today, week_start, week_end)
 
     next_tap_release = next((release for release in tap_releases if release.get('release_date') and release['release_date'] >= today), None)
     upcoming_release_count = sum(1 for release in tap_releases if release.get('release_date') and release['release_date'] >= today)
     menu_flags_count = sum(1 for item in menu_items if item.get('status_label') == 'Review' or item.get('needs_costing'))
-    below_margin_count = sum(1 for item in menu_items if item.get('below_margin_threshold'))
     cost_refresh_count = sum(1 for item in menu_items if item.get('cost_refresh_needed'))
     active_specials_count = sum(1 for item in menu_items if item.get('status_label') == 'New')
-    banquet_count = _query_brewpub_window_count(cur, 'banquet_events', week_start, week_end)
-    buffet_count = _query_brewpub_window_count(cur, 'buffet_events', week_start, week_end)
+    below_margin_count = sum(1 for item in menu_items if item.get('below_margin_threshold'))
     rd_queue_items = list_rd_queue_items(cur)
-    forecast_due = pipeline_summary['created_this_week'] == 0
+
+    forecast_due = True
+    if db_table_exists(cur, 'public.forecasting_plans'):
+        cur.execute(
+            """
+            SELECT COUNT(*) AS count FROM forecasting_plans
+            WHERE created_at::date BETWEEN %s AND %s
+              AND venue_id = %s
+            """,
+            (week_start, week_end, BREWPUB_VENUE_ID),
+        )
+        forecast_row = cur.fetchone()
+        forecast_due = (forecast_row['count'] if forecast_row else 0) == 0
+
     tap_program_cards = _build_tap_program_cards(tap_releases, today)
-    command_alerts = _build_command_alerts(menu_items, pipeline_summary, counts['stale_price_count'], tap_releases, today)
-    primary_nav, support_nav = _build_sidebar_navigation(
-        menu_flags_count,
-        upcoming_release_count,
-        pipeline_summary['overdue_requested'],
-        below_margin_count,
-        banquet_count,
-        buffet_count,
-    )
+    command_alerts = _build_command_alerts(menu_items, counts['stale_price_count'], tap_releases, today)
+    primary_nav, support_nav = _build_sidebar_navigation(menu_flags_count, upcoming_release_count)
 
     next_tap_sub = (next_tap_release or {}).get('paired_dish_name') or 'Paired dish needed'
     next_tap_sub_tone = 'warning' if not (next_tap_release or {}).get('paired_dish_name') else 'muted'
@@ -956,12 +899,6 @@ def build_dashboard_view_model(cur, today, week_start, week_end, unit_system, co
             'sub_tone': next_tap_sub_tone,
         },
         {
-            'label': 'Commissary Fulfillment',
-            'value': f"{pipeline_summary['weekly_confirmed']} / {pipeline_summary['weekly_total']}",
-            'sub': f"{pipeline_summary['weekly_pending']} items pending" if pipeline_summary['weekly_pending'] else 'No requests pending',
-            'sub_tone': 'warning' if pipeline_summary['weekly_pending'] else 'muted',
-        },
-        {
             'label': 'Menu Health',
             'value': 'WATCH' if menu_health_watch else 'GOOD',
             'sub': f"{cost_refresh_count} item{'s' if cost_refresh_count != 1 else ''} need cost refresh",
@@ -971,8 +908,6 @@ def build_dashboard_view_model(cur, today, week_start, week_end, unit_system, co
 
     fast_access_items = _build_fast_access_items(
         counts,
-        menu_flags_count,
-        below_margin_count,
         forecast_due,
         len(rd_queue_items),
         today,
@@ -984,19 +919,15 @@ def build_dashboard_view_model(cur, today, week_start, week_end, unit_system, co
         'support_nav': support_nav,
         'stat_cards': stat_cards,
         'menu_board_items': menu_items,
-        'menu_board_action_url': url_for('menu.menu_rollout_new'),
+        'menu_board_action_url': url_for('dashboard'),
         'menu_board_review_count': menu_flags_count,
-        'pipeline_items': pipeline_items,
         'pipeline_action_url': url_for('forecast_send'),
-        'pipeline_summary': pipeline_summary,
         'tap_program_cards': tap_program_cards,
         'tap_program_action_url': f"{url_for('dashboard')}#tap-program",
         'fast_access_items': fast_access_items,
         'command_alerts': command_alerts,
         'rd_queue_count': len(rd_queue_items),
         'forecast_due': forecast_due,
-        'banquet_window_count': banquet_count,
-        'buffet_window_count': buffet_count,
     }
 
 

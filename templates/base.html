@@ -545,14 +545,9 @@
 {% set is_print = 'print' in endpoint %}
 {% set user_is_authenticated = current_user is defined and current_user.is_authenticated %}
 {% set show_global_nav = user_is_authenticated and not is_print %}
-{% set active_nav = 'banquets' if request.endpoint and 'banquet' in request.endpoint else
-                    'buffet' if request.endpoint and 'buffet' in request.endpoint else
-                    'commissary' if request.endpoint and 'commissar' in request.endpoint else
-                    'forecasting' if request.endpoint and 'forecasting' in request.endpoint else
-                    'prep' if request.endpoint and request.endpoint.startswith('prep.') else
+{% set active_nav = 'forecasting' if request.endpoint and 'forecasting' in request.endpoint else
                     'recipes' if request.endpoint and 'recipe' in request.endpoint else
                     'ingredients' if request.endpoint and 'ingredient' in request.endpoint else
-                    'menus' if request.endpoint and ('menu_rollout' in request.endpoint or 'menu_costing' in request.endpoint) else
                     'dashboard' %}
 <body class="min-h-screen font-body antialiased {% if is_print %}fhq-print-mode{% else %}fhq-app-mode{% endif %}">
 
@@ -582,28 +577,10 @@
                 Dashboard
             </a>
 
-            <div class="fhq-sidebar-section">Production</div>
-            <a href="{{ url_for('banquet.banquet_planner') }}" class="fhq-sidebar-link {% if active_nav == 'banquets' %}active{% endif %}">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
-                Banquets
-            </a>
-            <a href="{{ url_for('buffet.buffet_planner') }}" class="fhq-sidebar-link {% if active_nav == 'buffet' %}active{% endif %}">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18M3 12h18M8 18h8M5 3h14a1 1 0 011 1v1H4V4a1 1 0 011-1z"/></svg>
-                Buffets
-            </a>
-            <a href="{{ url_for('commissary.commissary_planner') }}" class="fhq-sidebar-link {% if active_nav == 'commissary' %}active{% endif %}">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16zM3.27 6.96L12 12.01l8.73-5.05M12 22.08V12"/></svg>
-                Commissary
-            </a>
-
             <div class="fhq-sidebar-section">Tools</div>
             <a href="{{ url_for('ingredients.ingredients') }}" class="fhq-sidebar-link {% if active_nav == 'ingredients' %}active{% endif %}">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
                 Ingredients
-            </a>
-            <a href="{{ url_for('menu.menu_rollouts') }}" class="fhq-sidebar-link {% if active_nav == 'menus' %}active{% endif %}">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2M9 14h6M9 18h6M9 10h.01"/></svg>
-                Menus
             </a>
 
             {% if current_user.role == 'admin' %}

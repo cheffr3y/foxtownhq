@@ -609,7 +609,7 @@
                                             {% if item.recipe_id %}
                                             <a href="{{ url_for('recipes.recipe_edit', recipe_id=item.recipe_id) }}" class="action-link">Edit</a>
                                             {% endif %}
-                                            <a href="{{ url_for('menu.menu_costing') }}" class="action-link">Cost</a>
+                                            <a href="{{ url_for('ingredients.ingredients', needs_update='1') }}" class="action-link">Cost</a>
                                             <a href="{{ url_for('dashboard') }}#command-alerts" class="action-link">Flag</a>
                                         </div>
                                     </td>
@@ -625,54 +625,6 @@
                     </div>
                 </section>
 
-                <section class="panel" id="commissary-pipeline">
-                    <div class="panel-head">
-                        <div>
-                            <div class="panel-label">Outbound &rarr; Commissary</div>
-                            <div class="panel-title">Commissary Pipeline</div>
-                        </div>
-                        <a href="{{ pipeline_action_url }}" class="panel-link">Send Forecast &rarr;</a>
-                    </div>
-                    <div class="panel-body">
-                        {% if pipeline_items %}
-                        <table class="ledger">
-                            <thead>
-                                <tr>
-                                    <th>Item</th>
-                                    <th>Qty Needed</th>
-                                    <th>Status</th>
-                                    <th>Due date</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for item in pipeline_items %}
-                                <tr>
-                                    <td>
-                                        <div class="item-name">{{ item.item_name }}</div>
-                                        <div class="item-sub">
-                                            {% if item.requested_by %}Requested by {{ item.requested_by }}{% else %}Brewpub forecast request{% endif %}
-                                            {% if item.notes %} · {{ item.notes }}{% endif %}
-                                        </div>
-                                    </td>
-                                    <td>{{ item.quantity_label }}</td>
-                                    <td>
-                                        <span class="status-inline">
-                                            <span class="status-dot status-dot--{{ item.status_tone }}"></span>
-                                            {{ item.status_label }}
-                                        </span>
-                                    </td>
-                                    <td>{{ item.due_date.strftime('%a, %b %d').replace(' 0', ' ') if item.due_date else 'Date pending' }}</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                        {% else %}
-                        <div class="empty-state">
-                            No outbound requests are in the commissary pipeline yet. <a href="{{ pipeline_action_url }}">Open forecasting</a> to stage this week’s pull.
-                        </div>
-                        {% endif %}
-                    </div>
-                </section>
             </div>
 
             <aside class="brewpub-stack">

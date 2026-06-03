@@ -36,7 +36,7 @@
 
 {% block content %}
 <div class="min-h-screen">
-    {% call page_header('Search', 'Recipes, ingredients, and banquet events in one view.') %}
+    {% call page_header('Search', 'Recipes and ingredients.') %}
     <form method="GET" action="{{ url_for('search') }}" class="w-full sm:w-[420px]">
         <label for="searchQuery" class="sr-only">Search</label>
         <input
@@ -44,7 +44,7 @@
             type="search"
             name="q"
             value="{{ search_query }}"
-            placeholder="Search recipes, ingredients, events..."
+            placeholder="Search recipes and ingredients..."
             class="fhq-input"
             data-shortcut="search"
             autofocus
@@ -57,7 +57,7 @@
         <section class="fhq-card p-4">
             <div class="fhq-section-head mb-0">Search Query</div>
             <div class="query-value">{{ search_query }}</div>
-            <div class="query-meta">{{ recipes|length }} recipes · {{ ingredients|length }} ingredients · {{ events|length }} events</div>
+            <div class="query-meta">{{ recipes|length }} recipes · {{ ingredients|length }} ingredients</div>
         </section>
 
         <section class="results-grid">
@@ -93,26 +93,11 @@
                 {% endif %}
             </section>
 
-            <section class="fhq-card p-4">
-                <h2 class="panel-title">Banquet Events</h2>
-                {% if events %}
-                <div class="result-list">
-                    {% for event in events %}
-                    <a href="{{ url_for('banquet_event_edit', event_id=event.id) }}" class="result-item block">
-                        <div class="result-name">{{ event.name }}</div>
-                        <div class="result-meta">{{ event.event_date.strftime('%b %-d, %Y') if event.event_date else 'No date' }} · {{ event.guests or 0 }} guests · {{ event.venue_name }}</div>
-                    </a>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <p class="empty">No events matched this query.</p>
-                {% endif %}
-            </section>
         </section>
         {% else %}
         <section class="fhq-card empty-card">
             <h2 class="empty-title">Search across Foxtown HQ</h2>
-            <p class="empty-copy">Enter a recipe, ingredient, or event name to start.</p>
+            <p class="empty-copy">Enter a recipe or ingredient name to start.</p>
         </section>
         {% endif %}
     </div>

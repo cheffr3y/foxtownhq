@@ -1,26 +1,17 @@
 import os
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 
 from dotenv import load_dotenv
 from flask import Flask, flash, redirect, render_template, request, url_for
 from flask_login import LoginManager, UserMixin, current_user, login_required, login_user, logout_user
 from werkzeug.security import check_password_hash
 
-from blueprints.banquet import bp as banquet_bp
-from blueprints.buffet import bp as buffet_bp
 from blueprints.forecasting import bp as forecasting_bp
 from blueprints.ingredients import bp as ingredients_bp
-from blueprints.menu import bp as menu_bp
-from blueprints.prep import bp as prep_bp
 from blueprints.recipes import bp as recipes_bp
 from config import PRICE_REFRESH_DAYS
 from db import get_cursor, get_db, init_app as init_db_app
 from helpers.auth import get_user_by_id, get_user_by_username, role_required
-from helpers.banquet import (
-    auto_complete_past_banquet_events,
-    build_banquet_datasets,
-    resolve_banquet_venue,
-)
 from helpers.dashboard import (
     BREWPUB_VENUE_ID,
     build_dashboard_view_model,
@@ -29,7 +20,6 @@ from helpers.dashboard import (
 )
 from helpers.shared import inject_helpers
 from helpers.units import get_unit_system
-from helpers.venues import get_active_venues
 
 load_dotenv()
 
@@ -181,7 +171,6 @@ def search():
     query = (request.args.get('q') or '').strip()
     recipes = []
     ingredients = []
-    events = []
 
     if query:
         like_query = f'%{escape_like(query)}%'
@@ -210,108 +199,11 @@ def search():
             )
             ingredients = cur.fetchall()
 
-            cur.execute(
-                """
-                SELECT
-                    e.id,
-                    e.name,
-                    e.event_date,
-                    e.guest_count AS guests,
-                    e.status,
-                    COALESCE(v.name, e.building, 'Banquet') AS venue_name
-                FROM banquet_events e
-                LEFT JOIN venues v ON v.id = e.venue_id
-                WHERE e.name ILIKE %s ESCAPE '\\'
-                ORDER BY e.event_date DESC NULLS LAST, e.name
-                LIMIT 30
-                """,
-                (like_query,),
-            )
-            events = cur.fetchall()
-
     return render_template(
         'search_results.html',
         search_query=query,
         recipes=recipes,
         ingredients=ingredients,
-        events=events,
-    )
-
-
-@app.route('/production-board')
-@login_required
-@role_required('chef')
-def production_board():
-    today = date.today()
-    forecast_end = today + timedelta(days=2)
-    with get_cursor() as cur:
-        venues = get_active_venues(cur)
-        banquet_venue = resolve_banquet_venue(venues)
-        selected_venue = banquet_venue.get('id') or ''
-
-        auto_complete_past_banquet_events(cur, selected_venue)
-        datasets = build_banquet_datasets(cur, today, forecast_end, selected_venue, get_unit_system())
-        forecast_events = datasets.get('events', [])
-
-    max_line_count = max((int(event.get('line_count') or 0) for event in forecast_events), default=0)
-    max_guest_count = max((int(event.get('guests') or 0) for event in forecast_events), default=0)
-
-    day_columns = []
-    for offset in range(3):
-        day = today + timedelta(days=offset)
-        label = 'Active Today' if offset == 0 else ('Tomorrow' if offset == 1 else 'Day +2')
-        events = [event for event in forecast_events if event.get('event_date') == day]
-
-        enriched_events = []
-        for event in events:
-            guest_count = int(event.get('guests') or 0)
-            line_count = int(event.get('line_count') or 0)
-            progress_percent = 0
-            if max_line_count > 0 and line_count > 0:
-                progress_percent = max(14, min(100, round((line_count / max_line_count) * 100)))
-
-            if guest_count >= 200:
-                volume_tone = 'critical'
-            elif guest_count >= 100:
-                volume_tone = 'high'
-            elif guest_count >= 50:
-                volume_tone = 'medium'
-            else:
-                volume_tone = 'low'
-
-            if max_guest_count > 0 and guest_count > 0:
-                guest_scale = 1 + (guest_count / max_guest_count) * 0.9
-            else:
-                guest_scale = 1
-
-            event_copy = dict(event)
-            event_copy['guest_count'] = guest_count
-            event_copy['line_count'] = line_count
-            event_copy['progress_percent'] = progress_percent
-            event_copy['volume_tone'] = volume_tone
-            event_copy['guest_scale'] = round(guest_scale, 2)
-            event_copy['line_preview'] = (event.get('lines') or [])[:4]
-            event_copy['remaining_line_count'] = max(0, line_count - 4)
-            event_copy['is_large_warning'] = offset == 2 and guest_count >= 100
-            enriched_events.append(event_copy)
-
-        day_columns.append({
-            'offset': offset,
-            'label': label,
-            'date': day,
-            'events': enriched_events,
-            'event_count': len(enriched_events),
-            'guest_total': sum(event.get('guest_count') or 0 for event in enriched_events),
-            'line_total': sum(event.get('line_count') or 0 for event in enriched_events),
-        })
-
-    return render_template(
-        'production_board.html',
-        today=today,
-        current_time=datetime.now(),
-        venue_name=banquet_venue.get('name') or 'Banquets',
-        day_columns=day_columns,
-        last_updated=datetime.now(),
     )
 
 
@@ -341,13 +233,9 @@ def register_blueprint_with_legacy_endpoints(flask_app, blueprint):
         )
 
 
-register_blueprint_with_legacy_endpoints(app, banquet_bp)
-register_blueprint_with_legacy_endpoints(app, buffet_bp)
 register_blueprint_with_legacy_endpoints(app, forecasting_bp)
-register_blueprint_with_legacy_endpoints(app, prep_bp)
 register_blueprint_with_legacy_endpoints(app, recipes_bp)
 register_blueprint_with_legacy_endpoints(app, ingredients_bp)
-register_blueprint_with_legacy_endpoints(app, menu_bp)
 
 
 if __name__ == '__main__':
