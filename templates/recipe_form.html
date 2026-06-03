@@ -6,784 +6,1096 @@
 {% endblock %}
 
 {% block extra_head %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+
 <style>
-@media (min-width: 1024px) {
-  #recipeForm {
-    display: grid;
-    grid-template-columns: minmax(0, 0.88fr) minmax(0, 1fr);
-    gap: 1.5rem;
-    align-items: start;
-  }
-  #recipeForm > * { margin-top: 0 !important; }
-  #recipeForm .rfg-method-col {
-    grid-column: 2;
-    grid-row: 1 / -1;
-  }
+/* ── Reset frame for full-bleed bar ── */
+.fhq-frame { padding: 0 !important; }
+.fhq-main, .fhq-frame { background: #f6f4ee !important; }
+
+/* ── Page root ── */
+.rfg-page {
+  --accent:       #c25e3a;
+  --accent-deep:  #a14a2c;
+  --accent-wash:  #f3e6dd;
+  --paper:        #f6f4ee;
+  --paper-2:      #efece3;
+  --card:         #fdfcf9;
+  --ink:          #20201c;
+  --ink-2:        #6b6a60;
+  --ink-3:        #9b998d;
+  --hair:         #e4e0d4;
+  --hair-2:       #d8d3c4;
+  --sage:         #7d8a6f;
+  --serif:        "Fraunces", Georgia, serif;
+  --sans:         "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--ink);
 }
 
-/* ── Card shell ── */
-.rfg-card {
-  background: var(--surface);
-  border: 1px solid var(--outline-ghost);
-  border-top: 3px solid var(--primary);
-  padding: 1.5rem;
+/* ── Sticky top bar ── */
+.rfg-bar {
+  position: sticky; top: 0; z-index: 30;
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 40px; height: 64px;
+  background: rgba(246,244,238,0.92);
+  backdrop-filter: saturate(160%) blur(10px);
+  border-bottom: 1px solid var(--hair);
 }
-
-/* ── Section meta + heading ── */
-.rfg-meta {
-  font-size: 0.58rem;
-  font-weight: 900;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--primary);
-  margin-bottom: 0.15rem;
+@media (max-width: 700px) { .rfg-bar { padding: 0 20px; gap: 6px; } }
+.rfg-bar-path {
+  font-size: 13px; color: var(--ink-3);
+  display: flex; align-items: center; gap: 8px;
 }
-.rfg-heading {
-  font-size: 0.95rem;
-  font-weight: 800;
-  color: var(--fg);
-  letter-spacing: -0.02em;
-  margin: 0;
-}
-.rfg-heading-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 1.25rem;
-}
-
-/* ── Add / action button ── */
-.rfg-add-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  padding: 0.38rem 0.7rem;
-  font-size: 0.6rem;
-  font-weight: 900;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--primary);
-  border: 1px solid var(--outline-ghost);
-  background: transparent;
-  cursor: pointer;
-  transition: background 0.1s, border-color 0.1s;
+.rfg-bar-path a { color: var(--ink-3); text-decoration: none; }
+.rfg-bar-path a:hover { color: var(--ink-2); }
+.rfg-bar-path b { color: var(--ink-2); font-weight: 500; }
+.rfg-spacer { flex: 1; }
+.rfg-state {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; color: var(--ink-3);
   white-space: nowrap;
-  flex-shrink: 0;
-  margin-top: 0.25rem;
 }
-.rfg-add-btn:hover {
-  background: var(--surface-low);
-  border-color: var(--primary);
-}
-.rfg-add-btn svg { width: 10px; height: 10px; flex-shrink: 0; }
+.rfg-state-pip { width: 6px; height: 6px; border-radius: 50%; background: var(--sage); flex-shrink: 0; }
 
-/* ── Icon delete button ── */
-.rfg-del-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.6rem;
-  height: 1.6rem;
-  padding: 0;
-  background: transparent;
-  border: none;
-  color: var(--outline);
+/* Bar buttons */
+.rfg-btn {
+  font-family: var(--sans); font-size: 13px; font-weight: 500;
+  letter-spacing: 0.01em; border: 1px solid transparent;
+  background: transparent; color: var(--ink-2);
+  padding: 8px 14px; cursor: pointer; transition: all .14s;
+  display: inline-flex; align-items: center; white-space: nowrap;
+  text-decoration: none;
+}
+.rfg-btn:hover { color: var(--ink); background: var(--paper-2); }
+.rfg-btn--ghost { border-color: var(--hair-2); }
+.rfg-btn--ghost:hover { border-color: var(--ink-3); background: transparent; }
+.rfg-btn--solid { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.rfg-btn--solid:hover { background: #000; color: #fff; }
+
+/* ── Two-column layout ── */
+.rfg-wrap {
+  max-width: 1160px; margin: 0 auto;
+  padding: 52px 40px 120px;
+  display: grid;
+  grid-template-columns: 1fr 352px;
+  gap: 0 60px;
+  align-items: start;
+}
+@media (max-width: 1020px) {
+  .rfg-wrap { grid-template-columns: 1fr; gap: 0; }
+  .rfg-aside { position: static !important; }
+}
+@media (max-width: 700px) { .rfg-wrap { padding: 32px 20px 80px; } }
+
+.rfg-main-col { grid-column: 1; }
+.rfg-aside { grid-column: 2; grid-row: 1 / 9; position: sticky; top: 80px; }
+@media (max-width: 1020px) { .rfg-aside { grid-column: 1; grid-row: auto; } }
+
+/* ── Lede ── */
+.rfg-lede { margin-bottom: 40px; max-width: 600px; }
+.rfg-kicker {
+  font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--accent); font-weight: 600;
+}
+.rfg-lede h1 {
+  font-family: var(--serif); font-size: 38px; line-height: 1.05;
+  font-weight: 500; letter-spacing: -0.025em;
+  margin: 10px 0 8px; color: var(--ink);
+}
+.rfg-lede p { font-size: 15px; color: var(--ink-2); max-width: 500px; }
+
+/* ── Sections ── */
+.rfg-sec { margin-top: 56px; }
+.rfg-sec:first-child { margin-top: 0; }
+.rfg-sec-h { display: flex; align-items: baseline; gap: 16px; margin-bottom: 28px; }
+.rfg-sec-no {
+  font-family: var(--serif); font-size: 13px; font-weight: 500;
+  color: var(--accent); font-variant-numeric: oldstyle-nums;
+}
+.rfg-sec-h h2 {
+  font-family: var(--serif); font-size: 22px; font-weight: 500;
+  letter-spacing: -0.02em; color: var(--ink);
+}
+.rfg-sec-note { margin-left: auto; font-size: 12px; color: var(--ink-3); align-self: center; }
+
+/* ── Field grid ── */
+.rfg-row { display: grid; gap: 20px 28px; margin-bottom: 22px; }
+.rfg-c2 { grid-template-columns: 1fr 1fr; }
+.rfg-c3 { grid-template-columns: 1fr 1fr 1fr; }
+@media (max-width: 640px) {
+  .rfg-c2, .rfg-c3 { grid-template-columns: 1fr; }
+}
+.rfg-full { grid-column: 1 / -1; }
+
+.rfg-f { display: flex; flex-direction: column; }
+.rfg-f > label {
+  font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--ink-2); font-weight: 600; margin-bottom: 8px;
+}
+.rfg-opt { text-transform: none; letter-spacing: 0; color: var(--ink-3); font-weight: 400; }
+
+/* ── Underline inputs ── */
+.rfg-inp {
+  font-family: var(--sans); font-size: 15.5px; color: var(--ink);
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 1.5px solid var(--hair-2) !important;
+  padding: 8px 2px !important; width: 100%;
+  transition: border-color .15s;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  -webkit-appearance: none;
+}
+.rfg-inp::placeholder { color: var(--ink-3); }
+.rfg-inp:focus {
+  outline: none !important;
+  border-bottom-color: var(--accent) !important;
+  box-shadow: none !important;
+}
+.rfg-inp[readonly] { color: var(--ink-3); cursor: default; }
+/* Validation highlight added by JS */
+.rfg-inp.border-red-300 { border-bottom-color: #f87171 !important; }
+
+/* Textarea */
+textarea.rfg-inp {
+  border: 1.5px solid var(--hair-2) !important;
+  border-radius: 4px !important;
+  padding: 11px 13px !important;
+  min-height: 92px; resize: vertical;
+  background: var(--card) !important;
+  line-height: 1.55;
+}
+textarea.rfg-inp:focus {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px rgba(194,94,58,0.14) !important;
+}
+
+/* Select chevron */
+select.rfg-inp {
+  appearance: none; -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='7' viewBox='0 0 11 7'%3E%3Cpath d='M1 1l4.5 4.5L10 1' stroke='%239b998d' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 2px center !important;
+  padding-right: 24px !important;
   cursor: pointer;
-  flex-shrink: 0;
-  transition: color 0.12s;
-}
-.rfg-del-btn:hover { color: var(--danger); }
-.rfg-del-btn svg { width: 14px; height: 14px; }
-
-/* ── Method step rows ── */
-#methodStepRows { }
-.rfg-step-row {
-  display: flex;
-  gap: 0.75rem;
-  align-items: flex-start;
-  padding: 0.85rem 0;
-  border-bottom: 1px solid var(--outline-ghost);
-}
-.rfg-step-row:last-child { border-bottom: none; }
-.rfg-step-num {
-  width: 1.55rem;
-  min-width: 1.55rem;
-  height: 1.55rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--primary);
-  color: #f7f7ff;
-  font-size: 0.58rem;
-  font-weight: 900;
-  letter-spacing: 0.04em;
-  flex-shrink: 0;
-  margin-top: 0.44rem;
-  user-select: none;
-}
-.rfg-step-inner { flex: 1; min-width: 0; }
-.rfg-step-header { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem; }
-
-/* ── Data table ── */
-.rfg-tbl { width: 100%; border-collapse: collapse; }
-.rfg-tbl thead th {
-  font-size: 0.58rem;
-  font-weight: 900;
-  letter-spacing: 0.13em;
-  text-transform: uppercase;
-  color: var(--muted);
-  padding: 0 0 0.5rem 0;
-  border-bottom: 2px solid var(--outline-ghost);
-  text-align: left;
-}
-.rfg-tbl thead th + th { padding-left: 0.5rem; }
-.rfg-tbl thead th.th-r { text-align: right; padding-left: 0; }
-.rfg-tbl tbody td {
-  padding: 0.45rem 0 0.45rem 0;
-  border-bottom: 1px solid var(--outline-ghost);
-  vertical-align: middle;
-}
-.rfg-tbl tbody td + td { padding-left: 0.5rem; }
-.rfg-tbl tbody td.td-r { text-align: right; padding-left: 0; }
-.rfg-tbl tbody tr:last-child td { border-bottom: none; }
-
-/* ── Field-group divider inside Recipe Details grid ── */
-.rfg-divider {
-  border: none;
-  border-top: 1px solid var(--outline-ghost);
-  margin: 0.5rem 0 0.25rem;
-  grid-column: 1 / -1;
 }
 
-/* ── Hint text ── */
-.rfg-hint {
-  font-size: 0.7rem;
-  color: var(--muted);
-  margin-top: 0.4rem;
-  line-height: 1.45;
+/* Suffix wrapper (e.g., "days", "min") */
+.rfg-suffix { position: relative; }
+.rfg-suffix-u {
+  position: absolute; right: 2px; bottom: 10px;
+  font-size: 12px; color: var(--ink-3); pointer-events: none;
+}
+.rfg-suffix .rfg-inp { padding-right: 34px !important; }
+
+/* Hint */
+.rfg-hint { font-size: 11.5px; color: var(--ink-3); margin-top: 7px; font-style: italic; }
+
+/* ── Venue chips ── */
+.rfg-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.rfg-chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 13px; padding: 7px 14px;
+  border: 1px solid var(--hair-2); cursor: pointer;
+  user-select: none; transition: all .14s; background: var(--card);
+  font-family: var(--sans); color: var(--ink);
+}
+.rfg-chip:hover { border-color: var(--ink-3); }
+.rfg-chip input[type="checkbox"] { position: absolute; opacity: 0; pointer-events: none; }
+.rfg-chip-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--hair-2); transition: background .14s; }
+.rfg-chip.rfg-chip--on { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.rfg-chip.rfg-chip--on .rfg-chip-dot { background: var(--accent); }
+
+/* ── Ingredient ledger (table styled as hairline ledger) ── */
+.rfg-ledger {
+  width: 100%; border-collapse: collapse;
+  border-top: 1.5px solid var(--ink);
+}
+.rfg-ledger thead th {
+  font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--ink-3); font-weight: 600; font-family: var(--sans);
+  padding: 9px 0; border-bottom: 1px solid var(--hair);
+  text-align: left; background: transparent;
+}
+.rfg-ledger thead th + th { padding-left: 12px; }
+.rfg-ledger thead th.rfg-th-r { text-align: right; }
+.rfg-ledger tbody tr { transition: background .12s; }
+.rfg-ledger tbody tr:hover { background: var(--card); }
+.rfg-ledger tbody td {
+  padding: 4px 0; border-bottom: 1px solid var(--hair);
+  vertical-align: middle; background: transparent;
+}
+.rfg-ledger tbody td + td { padding-left: 12px; }
+.rfg-ledger tbody td.rfg-td-r { text-align: right; }
+/* Inputs in the ledger */
+.rfg-ledger input, .rfg-ledger select {
+  font-family: var(--sans) !important; font-size: 14.5px !important;
+  border: none !important; background: transparent !important;
+  width: 100%; padding: 8px 4px !important; color: var(--ink) !important;
+  border-radius: 0 !important; box-shadow: none !important;
+  -webkit-appearance: none;
+}
+.rfg-ledger input:focus, .rfg-ledger select:focus {
+  outline: none !important;
+  box-shadow: inset 0 -1.5px 0 var(--accent) !important;
+  border: none !important;
+}
+.rfg-ledger .rfg-td-q input { text-align: right; font-variant-numeric: tabular-nums; }
+.rfg-ledger select { appearance: none; color: var(--ink-2) !important; cursor: pointer; }
+.rfg-ledger .rfg-nm { font-weight: 500; }
+/* JS adds border-red-300 for validation — show as inset shadow in ledger */
+.rfg-ledger .border-red-300 { box-shadow: inset 0 -1.5px 0 #f87171 !important; }
+/* Hidden prep-note text input */
+.rfg-ledger .ingredient-prep-note { margin-top: 2px; font-size: 13px !important; }
+
+/* ── Delete button in rows ── */
+.rfg-x {
+  width: 26px; height: 26px;
+  border: none; background: transparent; color: var(--ink-3);
+  cursor: pointer; font-size: 18px; line-height: 1; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.rfg-x:hover { color: var(--accent); }
+.rfg-x svg { width: 14px; height: 14px; }
+
+/* ── Add-row link button ── */
+.rfg-add {
+  display: inline-flex; align-items: center; gap: 8px;
+  margin-top: 16px; font-family: var(--sans); font-size: 13px; font-weight: 500;
+  color: var(--accent); background: transparent; border: none;
+  cursor: pointer; padding: 4px 0;
+}
+.rfg-add:hover { color: var(--accent-deep); }
+.rfg-add-pl {
+  width: 18px; height: 18px; border-radius: 50%;
+  border: 1.5px solid currentColor;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 13px; line-height: 1;
+}
+
+/* ── Method steps ── */
+.rfg-step {
+  display: grid; grid-template-columns: 34px 1fr 28px;
+  gap: 16px; align-items: start;
+  padding: 20px 0; border-bottom: 1px solid var(--hair);
+}
+.rfg-step:first-child { border-top: 1px solid var(--hair); }
+[data-step-num] {
+  font-family: var(--serif); font-size: 22px; font-weight: 500;
+  color: var(--accent); line-height: 1.2;
+  font-variant-numeric: oldstyle-nums; margin-top: 6px;
+}
+.rfg-step-inner { display: flex; flex-direction: column; gap: 12px; }
+.rfg-step-top { display: flex; gap: 16px; align-items: flex-end; }
+.rfg-step-top .rfg-inp:first-child { flex: 1; font-weight: 500; }
+.rfg-step-top .rfg-suffix { width: 90px; }
+.rfg-step-x {
+  border: none; background: transparent; color: var(--ink-3);
+  cursor: pointer; font-size: 18px; align-self: start; padding-top: 8px;
+  line-height: 1;
+}
+.rfg-step-x:hover { color: var(--accent); }
+
+.rfg-add-step {
+  display: inline-flex; align-items: center; gap: 8px;
+  margin-top: 20px; font-family: var(--sans); font-size: 13px; font-weight: 500;
+  color: var(--accent); background: transparent; border: none; cursor: pointer;
+}
+.rfg-add-step:hover { color: var(--accent-deep); }
+
+/* ── Components pair ── */
+.rfg-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+@media (max-width: 700px) { .rfg-pair { grid-template-columns: 1fr; } }
+.rfg-slot label {
+  font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--ink-2); font-weight: 600; display: block; margin-bottom: 10px;
+}
+.rfg-slot .rfg-opt { text-transform: none; letter-spacing: 0; color: var(--ink-3); font-weight: 400; }
+
+/* ── Operations ── */
+.rfg-ops { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+@media (max-width: 700px) { .rfg-ops { grid-template-columns: 1fr; } }
+.rfg-ops-tag {
+  font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase;
+  font-weight: 600; margin-bottom: 10px;
+  display: flex; align-items: center; gap: 8px;
+}
+.rfg-ops-crit .rfg-ops-tag { color: var(--accent); }
+.rfg-ops-crit textarea.rfg-inp {
+  border-color: var(--accent-wash) !important;
+  background: var(--accent-wash) !important;
+}
+.rfg-ops-crit textarea.rfg-inp:focus { border-color: var(--accent) !important; }
+.rfg-ops-stor .rfg-ops-tag { color: var(--sage); }
+
+/* ── Aside preview ── */
+.rfg-aside-label {
+  font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--ink-3); font-weight: 600; margin-bottom: 14px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.rfg-sheet {
+  background: var(--card); border: 1px solid var(--hair);
+  border-radius: 6px; padding: 28px 26px 30px; position: relative;
+}
+.rfg-sheet::before {
+  content: ""; position: absolute; left: 0; top: 0;
+  width: 100%; height: 4px; background: var(--accent);
+  border-radius: 6px 6px 0 0;
+}
+.rfg-sheet-cat {
+  font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--accent); font-weight: 600;
+}
+.rfg-sheet h3 {
+  font-family: var(--serif); font-size: 26px; font-weight: 500;
+  letter-spacing: -0.02em; line-height: 1.1; margin: 8px 0 0; color: var(--ink);
+}
+.rfg-sheet-meta {
+  display: flex; gap: 7px; flex-wrap: wrap;
+  margin-top: 10px; color: var(--ink-2); font-size: 12px;
+}
+.rfg-sheet-meta i { color: var(--hair-2); font-style: normal; }
+.rfg-pvtags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.rfg-pvtags span {
+  font-size: 10.5px; background: var(--paper-2);
+  color: var(--ink-2); padding: 3px 9px;
+}
+.rfg-rule { height: 1px; background: var(--hair); margin: 18px 0; }
+.rfg-pvl {
+  font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--ink-3); font-weight: 600; margin-bottom: 10px;
+}
+.rfg-pvi {
+  display: flex; justify-content: space-between;
+  font-size: 13px; padding: 5px 0;
+}
+.rfg-pvi + .rfg-pvi { border-top: 1px dotted var(--hair); }
+.rfg-pvi .rfg-qn { color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.rfg-pvcrit {
+  font-size: 12px; color: var(--accent-deep);
+  background: var(--accent-wash); padding: 11px 13px;
+  border-radius: 4px; line-height: 1.5;
+}
+.rfg-aside-foot {
+  text-align: center; font-size: 11px;
+  color: var(--ink-3); margin-top: 12px; font-style: italic;
+}
+
+/* ── Weighted group summary ── */
+#weightedGroupSummary {
+  margin-top: 12px; font-size: 12px; color: var(--ink-2);
+}
+
+/* ── Override fhq-app-mode for all inputs within rfg-page ── */
+body.fhq-app-mode .rfg-page :is(input:not([type=checkbox]):not([type=radio]):not([type=hidden]):not([type=range]),select) {
+  border: none !important;
+  border-bottom: 1.5px solid #d8d3c4 !important;
+  background: transparent !important;
+  color: #20201c !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+body.fhq-app-mode .rfg-page textarea {
+  border: 1.5px solid #d8d3c4 !important;
+  background: #fdfcf9 !important;
+  border-radius: 4px !important;
+  box-shadow: none !important;
+}
+body.fhq-app-mode .rfg-page :is(input:not([type=checkbox]):not([type=radio]):not([type=hidden]),select):focus {
+  border-bottom-color: #c25e3a !important;
+  border-bottom-width: 1.5px !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+body.fhq-app-mode .rfg-page textarea:focus {
+  border-color: #c25e3a !important;
+  box-shadow: 0 0 0 3px rgba(194,94,58,0.14) !important;
+  outline: none !important;
+}
+/* Ledger inputs use inset shadow instead of border-bottom */
+body.fhq-app-mode .rfg-page .rfg-ledger :is(input,select) {
+  border-bottom: none !important;
+}
+body.fhq-app-mode .rfg-page .rfg-ledger :is(input,select):focus {
+  border: none !important;
+  box-shadow: inset 0 -1.5px 0 #c25e3a !important;
+}
+/* Readonly state */
+body.fhq-app-mode .rfg-page :is(input,select)[readonly] {
+  color: #9b998d !important;
+}
+/* Ops critical textarea */
+body.fhq-app-mode .rfg-page .rfg-ops-crit textarea {
+  border-color: #f3e6dd !important;
+  background: #f3e6dd !important;
+}
+body.fhq-app-mode .rfg-page .rfg-ops-crit textarea:focus {
+  border-color: #c25e3a !important;
 }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="min-h-screen">
-    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
-        {% call page_header(('Edit Recipe' if mode == 'edit' else 'New Recipe')) %}
-        <a href="{{ url_for('recipes') }}" class="fhq-btn fhq-btn--ghost">Cancel</a>
-        <button form="recipeForm" class="fhq-btn fhq-btn--primary">{% if mode == 'edit' %}Save Changes{% else %}Create Recipe{% endif %}</button>
-        {% endcall %}
-        {{ tab_bar([
-            {'id': 'all', 'label': 'All Recipes', 'url': url_for('recipes')},
-        ], 'all') }}
+<div class="rfg-page">
+
+  <!-- ── Sticky bar ── -->
+  <div class="rfg-bar">
+    <div class="rfg-bar-path">
+      <a href="{{ url_for('recipes.recipes') }}">Recipes</a>
+      <span>›</span>
+      <b>{{ recipe.name or 'New Recipe' }}</b>
     </div>
+    <div class="rfg-spacer"></div>
+    <div class="rfg-state">
+      <span class="rfg-state-pip"></span>
+      {% if mode == 'edit' %}Editing{% else %}New recipe{% endif %}
+    </div>
+    <a href="{{ url_for('recipes.recipes') }}" class="rfg-btn">Discard</a>
+    <button form="recipeForm" name="_action" value="draft" class="rfg-btn rfg-btn--ghost">Save draft</button>
+    <button form="recipeForm" class="rfg-btn rfg-btn--solid">
+      {% if mode == 'edit' %}Save Changes{% else %}Publish recipe{% endif %}
+    </button>
+  </div>
 
-    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <form id="recipeForm" method="POST" class="space-y-6">
+  <!-- ── Two-column wrap ── -->
+  <div class="rfg-wrap">
 
-            <!-- ── Recipe Details ── -->
-            <div class="rfg-card">
-                <div style="margin-bottom:1.25rem">
-                    <div class="rfg-meta">Recipe</div>
-                    <h2 class="rfg-heading">Details</h2>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-stone-700 mb-1">Name</label>
-                        <input type="text" name="name" value="{{ recipe.name }}" required
-                               class="w-full px-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-stone-700 mb-1">Category</label>
-                        <input type="text" name="category" value="{{ recipe.category or '' }}"
-                               class="w-full px-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none">
-                    </div>
+    <!-- Main column -->
+    <div class="rfg-main-col">
 
-                    <hr class="rfg-divider">
+      <!-- Lede -->
+      <div class="rfg-lede">
+        <div class="rfg-kicker">Recipe Editor</div>
+        <h1>{{ recipe.name or 'New Recipe' }}</h1>
+        <p>Compose the master sheet. Enter single base quantities — scaling is handled downstream.</p>
+      </div>
 
-                    <div class="md:col-span-2">
-                        <label class="block text-sm font-medium text-stone-700 mb-2">Venues</label>
-                        {% if venues %}
-                        <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
-                            {% for venue in venues %}
-                            <label class="inline-flex items-center gap-2 text-sm text-stone-700">
-                                <input type="checkbox" name="recipe_venue_ids[]" value="{{ venue.id }}"
-                                       {% if selected_venue_ids and venue.id in selected_venue_ids %}checked{% endif %}
-                                       class="rounded border-stone-300 text-foxtown-ember focus:ring-foxtown-ember">
-                                <span>{{ venue.name }}</span>
-                            </label>
-                            {% endfor %}
-                        </div>
-                        <p class="rfg-hint">Leave blank to make this recipe available for all venues.</p>
-                        {% else %}
-                        <p class="text-xs text-amber-700">Venue mapping unavailable until venue migrations are applied.</p>
-                        {% endif %}
-                    </div>
+      <form id="recipeForm" method="POST">
 
-                    <hr class="rfg-divider">
+        <!-- ── 01 Details ── -->
+        <section class="rfg-sec">
+          <div class="rfg-sec-h">
+            <span class="rfg-sec-no">01</span>
+            <h2>Details</h2>
+            <span class="rfg-sec-note">Identity &amp; routing</span>
+          </div>
 
-                    <div>
-                        <label class="block text-sm font-medium text-stone-700 mb-1">Recipe Type</label>
-                        <select name="recipe_type"
-                                class="w-full px-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none">
-                            <option value="">Select type...</option>
-                            {% for value, label in recipe_type_choices %}
-                                <option value="{{ value }}" {% if recipe.recipe_type == value %}selected{% endif %}>{{ label }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-stone-700 mb-1">Menu Descriptor (RM)</label>
-                        <input type="text" name="menu_descriptor" value="{{ recipe.menu_descriptor or '' }}"
-                               placeholder="Shown on rollouts (optional)"
-                               class="w-full px-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-stone-700 mb-1">Yield Quantity</label>
-                        <input type="number" step="0.01" name="yield_qty" value="{{ recipe.yield_qty or '' }}"
-                               class="w-full px-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-stone-700 mb-1">Yield Unit</label>
-                        <input type="text" name="yield_unit" value="{{ recipe.yield_unit or '' }}"
-                            placeholder="fl oz, oz, each"
-                            list="unitOptions"
-                            class="w-full px-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none">
-                    </div>
-
-                    <hr class="rfg-divider">
-
-                    <div>
-                        <label class="block text-sm font-medium text-stone-700 mb-1">Source Venue</label>
-                        <input type="text" name="source_venue" value="{{ recipe.source_venue or '' }}"
-                               placeholder="Original venue or service context"
-                               class="w-full px-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-stone-700 mb-1">Station</label>
-                        <input type="text" name="station" value="{{ recipe.station or '' }}"
-                               placeholder="Saucier, Garde Manger, Entree, etc."
-                               class="w-full px-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-stone-700 mb-1">Equipment</label>
-                        <input type="text" name="equipment" value="{{ recipe.equipment or '' }}"
-                               placeholder="Tilt skillet, immersion blender, CVap, etc."
-                               class="w-full px-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-stone-700 mb-1">Prep Time (minutes)</label>
-                        <input type="number" min="0" step="1" name="prep_time_minutes" value="{{ '' if recipe.prep_time_minutes is none else recipe.prep_time_minutes }}"
-                               placeholder="45"
-                               class="w-full px-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-stone-700 mb-1">Shelf Life (days)</label>
-                        <input type="number" min="0" step="1" name="shelf_life_days" value="{{ '' if recipe.shelf_life_days is none else recipe.shelf_life_days }}"
-                               placeholder="5"
-                               class="w-full px-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none">
-                    </div>
-                </div>
+          <div class="rfg-row rfg-c2">
+            <div class="rfg-f">
+              <label>Recipe name</label>
+              <input class="rfg-inp" type="text" name="name" value="{{ recipe.name }}" required>
             </div>
+            <div class="rfg-f">
+              <label>Category</label>
+              <input class="rfg-inp" type="text" name="category" value="{{ recipe.category or '' }}">
+            </div>
+          </div>
 
-            <!-- ── Method Steps ── -->
-            <div class="rfg-card rfg-method-col">
-                <div class="rfg-heading-row">
-                    <div>
-                        <div class="rfg-meta">Preparation</div>
-                        <h2 class="rfg-heading">Method Steps</h2>
-                    </div>
-                    <button type="button" id="addMethodStepRow" class="rfg-add-btn">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
-                        Add Step
-                    </button>
+          <div class="rfg-f rfg-full" style="margin-bottom:22px;">
+            <label>Served at <span class="rfg-opt">— leave all off to publish everywhere</span></label>
+            {% if venues %}
+            <div class="rfg-chips">
+              {% for venue in venues %}
+              <label class="rfg-chip {% if selected_venue_ids and venue.id in selected_venue_ids %}rfg-chip--on{% endif %}">
+                <input type="checkbox" name="recipe_venue_ids[]" value="{{ venue.id }}"
+                       {% if selected_venue_ids and venue.id in selected_venue_ids %}checked{% endif %}>
+                <span class="rfg-chip-dot"></span>
+                {{ venue.name }}
+              </label>
+              {% endfor %}
+            </div>
+            <p class="rfg-hint">Leave blank to make this recipe available for all venues.</p>
+            {% else %}
+            <p class="rfg-hint" style="color:var(--accent);">Venue mapping unavailable until venue migrations are applied.</p>
+            {% endif %}
+          </div>
+
+          <div class="rfg-row rfg-c2">
+            <div class="rfg-f">
+              <label>Recipe type</label>
+              <select class="rfg-inp" name="recipe_type">
+                <option value="">Select type…</option>
+                {% for value, label in recipe_type_choices %}
+                  <option value="{{ value }}" {% if recipe.recipe_type == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="rfg-f">
+              <label>Menu descriptor <span class="rfg-opt">— optional, shown on rollouts</span></label>
+              <input class="rfg-inp" type="text" name="menu_descriptor" value="{{ recipe.menu_descriptor or '' }}"
+                     placeholder="e.g. Stone-baked Idaho, cultured butter">
+            </div>
+          </div>
+
+          <div class="rfg-row rfg-c3">
+            <div class="rfg-f">
+              <label>Yield qty</label>
+              <input class="rfg-inp" type="number" step="0.01" name="yield_qty" value="{{ recipe.yield_qty or '' }}">
+            </div>
+            <div class="rfg-f">
+              <label>Yield unit</label>
+              <input class="rfg-inp" type="text" name="yield_unit" value="{{ recipe.yield_unit or '' }}"
+                     placeholder="fl oz, oz, each" list="unitOptions">
+            </div>
+            <div class="rfg-f">
+              <label>Shelf life</label>
+              <div class="rfg-suffix">
+                <input class="rfg-inp" type="number" min="0" step="1" name="shelf_life_days"
+                       value="{{ '' if recipe.shelf_life_days is none else recipe.shelf_life_days }}"
+                       placeholder="5">
+                <span class="rfg-suffix-u">days</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="rfg-row rfg-c3">
+            <div class="rfg-f">
+              <label>Source venue <span class="rfg-opt">— optional</span></label>
+              <input class="rfg-inp" type="text" name="source_venue" value="{{ recipe.source_venue or '' }}"
+                     placeholder="Original service">
+            </div>
+            <div class="rfg-f">
+              <label>Station</label>
+              <input class="rfg-inp" type="text" name="station" value="{{ recipe.station or '' }}"
+                     placeholder="Garde Manger">
+            </div>
+            <div class="rfg-f">
+              <label>Prep time</label>
+              <div class="rfg-suffix">
+                <input class="rfg-inp" type="number" min="0" step="1" name="prep_time_minutes"
+                       value="{{ '' if recipe.prep_time_minutes is none else recipe.prep_time_minutes }}"
+                       placeholder="45">
+                <span class="rfg-suffix-u">min</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="rfg-row">
+            <div class="rfg-f rfg-full">
+              <label>Equipment</label>
+              <input class="rfg-inp" type="text" name="equipment" value="{{ recipe.equipment or '' }}"
+                     placeholder="Tilt skillet, immersion blender, CVap">
+            </div>
+          </div>
+        </section>
+
+        <!-- ── 02 The build (Ingredients) ── -->
+        <section class="rfg-sec">
+          <div class="rfg-sec-h">
+            <span class="rfg-sec-no">02</span>
+            <h2>The build</h2>
+            <span class="rfg-sec-note" id="icount">
+              {{ ingredient_items|length if ingredient_items else 1 }} ingredient{{ 's' if (ingredient_items|length if ingredient_items else 1) != 1 else '' }}
+            </span>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="rfg-ledger">
+              <thead>
+                <tr>
+                  <th>Ingredient</th>
+                  <th class="rfg-th-r" style="width:88px;">Qty</th>
+                  <th style="width:88px;">Unit</th>
+                  <th style="width:130px;">Prep form</th>
+                  <th style="width:32px;"></th>
+                </tr>
+              </thead>
+              <tbody id="ingredientRows">
+                {% if ingredient_items %}
+                  {% for item in ingredient_items %}
+                  <tr>
+                    <td>
+                      <input type="text" name="ingredient_name[]" value="{{ item.item_name }}"
+                             list="ingredientOptions"
+                             class="ingredient-autocomplete rfg-nm"
+                             placeholder="Start typing ingredient…">
+                      <input type="hidden" name="ingredient_id[]" value="{{ item.item_id }}" class="ingredient-id">
+                    </td>
+                    <td class="rfg-td-q" style="width:88px;">
+                      <input type="number" step="0.01" name="ingredient_qty[]" value="{{ item.quantity }}">
+                    </td>
+                    <td style="width:88px;">
+                      <input type="text" name="ingredient_unit[]" value="{{ item.unit or '' }}"
+                             list="unitOptions" class="ingredient-unit">
+                    </td>
+                    <td style="width:130px;">
+                      {% set prep_value = item.prep_note or '' %}
+                      {% set prep_is_known = prep_value in prep_note_options %}
+                      <select class="ingredient-prep-select">
+                        <option value="">No prep note</option>
+                        {% for option in prep_note_options %}
+                        <option value="{{ option }}" {% if prep_value == option %}selected{% endif %}>{{ option }}</option>
+                        {% endfor %}
+                        <option value="__other__" {% if prep_value and not prep_is_known %}selected{% endif %}>Other…</option>
+                      </select>
+                      <input type="text" name="prep_note[]" value="{{ prep_value }}"
+                             class="ingredient-prep-note {% if not prep_value or prep_is_known %}hidden{% endif %}"
+                             placeholder="Describe prep form">
+                    </td>
+                    <td class="rfg-td-r" style="width:32px;">
+                      <button type="button" class="remove-row rfg-del-btn rfg-x" title="Remove">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                      </button>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                {% else %}
+                  <tr>
+                    <td>
+                      <input type="text" name="ingredient_name[]" list="ingredientOptions"
+                             class="ingredient-autocomplete rfg-nm"
+                             placeholder="Start typing ingredient…">
+                      <input type="hidden" name="ingredient_id[]" value="" class="ingredient-id">
+                    </td>
+                    <td class="rfg-td-q" style="width:88px;">
+                      <input type="number" step="0.01" name="ingredient_qty[]">
+                    </td>
+                    <td style="width:88px;">
+                      <input type="text" name="ingredient_unit[]" list="unitOptions" class="ingredient-unit">
+                    </td>
+                    <td style="width:130px;">
+                      <select class="ingredient-prep-select">
+                        <option value="" selected>No prep note</option>
+                        {% for option in prep_note_options %}
+                        <option value="{{ option }}">{{ option }}</option>
+                        {% endfor %}
+                        <option value="__other__">Other…</option>
+                      </select>
+                      <input type="text" name="prep_note[]" value=""
+                             class="ingredient-prep-note hidden"
+                             placeholder="Describe prep form">
+                    </td>
+                    <td class="rfg-td-r" style="width:32px;">
+                      <button type="button" class="remove-row rfg-del-btn rfg-x" title="Remove">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                      </button>
+                    </td>
+                  </tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+          <button type="button" id="addIngredientRow" class="rfg-add">
+            <span class="rfg-add-pl">+</span> Add ingredient
+          </button>
+        </section>
+
+        <!-- ── 03 Method ── -->
+        <section class="rfg-sec">
+          <div class="rfg-sec-h">
+            <span class="rfg-sec-no">03</span>
+            <h2>Method</h2>
+            <span class="rfg-sec-note">Title · minutes · instruction</span>
+          </div>
+
+          <div id="methodStepRows">
+            {% for step in (method_steps if method_steps else [{'title': '', 'duration_text': '', 'body': ''}]) %}
+            <div class="method-step-row rfg-step">
+              <div data-step-num style="font-family:var(--serif);font-size:22px;font-weight:500;color:var(--accent);line-height:1.2;font-variant-numeric:oldstyle-nums;margin-top:6px;">{{ '%02d' % loop.index }}</div>
+              <div class="rfg-step-inner">
+                <div class="rfg-step-top">
+                  <input class="rfg-inp" type="text" name="step_title[]" value="{{ step.title or '' }}"
+                         placeholder="Step title — e.g. Wash &amp; score">
+                  <div class="rfg-suffix">
+                    <input class="rfg-inp" type="text" name="step_duration[]" value="{{ step.duration_text or '' }}"
+                           placeholder="5">
+                    <span class="rfg-suffix-u">min</span>
+                  </div>
                 </div>
-                <div id="methodStepRows">
-                    {% for step in (method_steps if method_steps else [{'title': '', 'duration_text': '', 'body': ''}]) %}
-                    <div class="method-step-row rfg-step-row">
-                        <div class="rfg-step-num" data-step-num>{{ '%02d' % loop.index }}</div>
-                        <div class="rfg-step-inner">
-                            <div class="rfg-step-header">
-                                <input type="text" name="step_title[]" value="{{ step.title or '' }}"
-                                       class="flex-1 px-3 py-2 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none text-sm"
-                                       placeholder="Step title (e.g. Wash potatoes)">
-                                <input type="text" name="step_duration[]" value="{{ step.duration_text or '' }}"
-                                       class="w-20 px-3 py-2 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none text-sm"
-                                       placeholder="5 min">
-                                <button type="button" class="remove-method-step rfg-del-btn" title="Remove step">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                                </button>
-                            </div>
-                            <textarea name="step_body[]" rows="2"
-                                      class="w-full px-3 py-2 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none text-sm resize-y"
-                                      placeholder="Describe what to do...">{{ step.body or '' }}</textarea>
-                        </div>
-                    </div>
+                <textarea class="rfg-inp" name="step_body[]"
+                          placeholder="Describe the action…" style="min-height:74px;">{{ step.body or '' }}</textarea>
+              </div>
+              <button type="button" class="remove-method-step rfg-step-x" title="Remove step">×</button>
+            </div>
+            {% endfor %}
+          </div>
+          <button type="button" id="addMethodStepRow" class="rfg-add-step rfg-add">
+            <span class="rfg-add-pl">+</span> Add step
+          </button>
+        </section>
+
+        <!-- ── 04 Components & choices ── -->
+        <section class="rfg-sec">
+          <div class="rfg-sec-h">
+            <span class="rfg-sec-no">04</span>
+            <h2>Components &amp; choices</h2>
+            <span class="rfg-sec-note">Linked recipes · RM averages</span>
+          </div>
+
+          <!-- Linked Recipes -->
+          <div class="rfg-slot" style="margin-bottom:32px;">
+            <label>Linked recipes</label>
+            <div class="overflow-x-auto">
+              <table class="rfg-ledger">
+                <thead>
+                  <tr>
+                    <th>Recipe</th>
+                    <th style="width:88px;">Qty</th>
+                    <th style="width:88px;">Unit</th>
+                    <th style="width:32px;"></th>
+                  </tr>
+                </thead>
+                <tbody id="subRecipeRows">
+                  {% if subrecipe_items %}
+                    {% for item in subrecipe_items %}
+                    <tr>
+                      <td>
+                        <input type="text" name="sub_recipe_name[]" value="{{ item.item_name }}"
+                               list="subRecipeOptions"
+                               class="subrecipe-autocomplete rfg-nm"
+                               placeholder="Start typing recipe name…">
+                        <input type="hidden" name="sub_recipe_id[]" value="{{ item.item_id }}" class="subrecipe-id">
+                      </td>
+                      <td style="width:88px;">
+                        <input type="number" step="0.01" name="sub_recipe_qty[]" value="{{ item.quantity }}">
+                      </td>
+                      <td style="width:88px;">
+                        <input type="text" name="sub_recipe_unit[]" value="{{ item.unit or '' }}"
+                               list="unitOptions" class="subrecipe-unit">
+                      </td>
+                      <td class="rfg-td-r" style="width:32px;">
+                        <button type="button" class="remove-row rfg-del-btn rfg-x" title="Remove">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                        </button>
+                      </td>
+                    </tr>
                     {% endfor %}
-                </div>
+                  {% else %}
+                    <tr>
+                      <td>
+                        <input type="text" name="sub_recipe_name[]" list="subRecipeOptions"
+                               class="subrecipe-autocomplete rfg-nm"
+                               placeholder="Start typing recipe name…">
+                        <input type="hidden" name="sub_recipe_id[]" value="" class="subrecipe-id">
+                      </td>
+                      <td style="width:88px;">
+                        <input type="number" step="0.01" name="sub_recipe_qty[]">
+                      </td>
+                      <td style="width:88px;">
+                        <input type="text" name="sub_recipe_unit[]" list="unitOptions" class="subrecipe-unit">
+                      </td>
+                      <td class="rfg-td-r" style="width:32px;">
+                        <button type="button" class="remove-row rfg-del-btn rfg-x" title="Remove">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                        </button>
+                      </td>
+                    </tr>
+                  {% endif %}
+                </tbody>
+              </table>
             </div>
+            <button type="button" id="addSubRecipeRow" class="rfg-add">
+              <span class="rfg-add-pl">+</span> Add linked recipe
+            </button>
+          </div>
 
-            <!-- ── Operational Metadata ── -->
-            <div class="rfg-card">
-                <div style="margin-bottom:1.25rem">
-                    <div class="rfg-meta">Operations</div>
-                    <h2 class="rfg-heading">Metadata</h2>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-stone-700 mb-1">Critical Steps</label>
-                        <textarea name="critical_steps" rows="6"
-                                  class="w-full px-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none"
-                                  placeholder="One line per critical control, hold point, or risk note.">{{ recipe.critical_steps or '' }}</textarea>
-                        <p class="rfg-hint">Renders as highlighted operational alerts on the recipe master sheet.</p>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-stone-700 mb-1">Storage Instructions</label>
-                        <textarea name="storage_instructions" rows="6"
-                                  class="w-full px-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none"
-                                  placeholder="Container, temperature, labeling, walk-in location, hold notes...">{{ recipe.storage_instructions or '' }}</textarea>
-                        <p class="rfg-hint">Keep concise and operational — shown in the lower-right handling panel.</p>
-                    </div>
-                </div>
+          <!-- Choice Groups (menu-only) -->
+          <div id="weightedOptionsSection" class="rfg-slot {% if recipe.recipe_type != 'menu' %}hidden{% endif %}">
+            <label>Choice groups <span class="rfg-opt">(must total 100%)</span></label>
+            <p class="rfg-hint" style="margin-bottom:12px;">Use for averages like dressing choice, protein mix, or filling sets.</p>
+            <div class="overflow-x-auto">
+              <table class="rfg-ledger">
+                <thead>
+                  <tr>
+                    <th style="width:120px;">Group name</th>
+                    <th>Recipe / Ingredient</th>
+                    <th style="width:72px;">Qty</th>
+                    <th style="width:80px;">Unit</th>
+                    <th style="width:80px;">Weight %</th>
+                    <th style="width:32px;"></th>
+                  </tr>
+                </thead>
+                <tbody id="weightedOptionRows">
+                  {% if option_items %}
+                    {% for option in option_items %}
+                    <tr class="weighted-option-row">
+                      <td style="width:120px;">
+                        <input type="text" name="option_group_name[]"
+                               value="{{ option.group_name or '' }}"
+                               placeholder="Dressing Choice"
+                               class="weighted-group-name">
+                      </td>
+                      <td>
+                        <input type="hidden" name="option_item_type[]" value="{{ option.item_type or 'recipe' }}">
+                        <input type="text" name="option_item_name[]"
+                               value="{{ option.display_label or option.item_name or '' }}"
+                               list="weightedOptionSources"
+                               class="weighted-option-autocomplete"
+                               placeholder="Recipe or ingredient…">
+                        <input type="hidden" name="option_item_id[]" value="{{ option.item_id or '' }}" class="weighted-item-id">
+                      </td>
+                      <td style="width:72px;">
+                        <input type="number" step="any" min="0.0001" name="option_qty[]"
+                               value="{{ option.quantity or '' }}">
+                      </td>
+                      <td style="width:80px;">
+                        <input type="text" name="option_unit[]" value="{{ option.unit or '' }}"
+                               list="unitOptions" class="weighted-option-unit">
+                      </td>
+                      <td style="width:80px;">
+                        <input type="number" step="0.01" min="0" max="100" name="option_weight[]"
+                               value="{{ option.weight_percent if option.weight_percent is not none else '' }}"
+                               class="weighted-option-weight"
+                               placeholder="70">
+                      </td>
+                      <td class="rfg-td-r" style="width:32px;">
+                        <button type="button" class="remove-row rfg-del-btn rfg-x" title="Remove">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                        </button>
+                      </td>
+                    </tr>
+                    {% endfor %}
+                  {% else %}
+                    <tr class="weighted-option-row">
+                      <td style="width:120px;">
+                        <input type="text" name="option_group_name[]"
+                               placeholder="Dressing Choice"
+                               class="weighted-group-name">
+                      </td>
+                      <td>
+                        <input type="hidden" name="option_item_type[]" value="recipe">
+                        <input type="text" name="option_item_name[]"
+                               list="weightedOptionSources"
+                               class="weighted-option-autocomplete"
+                               placeholder="Recipe or ingredient…">
+                        <input type="hidden" name="option_item_id[]" value="" class="weighted-item-id">
+                      </td>
+                      <td style="width:72px;">
+                        <input type="number" step="any" min="0.0001" name="option_qty[]">
+                      </td>
+                      <td style="width:80px;">
+                        <input type="text" name="option_unit[]" list="unitOptions" class="weighted-option-unit">
+                      </td>
+                      <td style="width:80px;">
+                        <input type="number" step="0.01" min="0" max="100" name="option_weight[]"
+                               class="weighted-option-weight" placeholder="70">
+                      </td>
+                      <td class="rfg-td-r" style="width:32px;">
+                        <button type="button" class="remove-row rfg-del-btn rfg-x" title="Remove">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                        </button>
+                      </td>
+                    </tr>
+                  {% endif %}
+                </tbody>
+              </table>
             </div>
+            <button type="button" id="addWeightedOptionRow" class="rfg-add">
+              <span class="rfg-add-pl">+</span> Add choice
+            </button>
+            <div id="weightedGroupSummary"></div>
+          </div>
+        </section>
 
-            <!-- ── Ingredients ── -->
-            <div class="rfg-card">
-                <div class="rfg-heading-row">
-                    <div>
-                        <div class="rfg-meta">Build</div>
-                        <h2 class="rfg-heading">Ingredients</h2>
-                    </div>
-                    <button type="button" id="addIngredientRow" class="rfg-add-btn">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
-                        Add Ingredient
-                    </button>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="rfg-tbl">
-                        <thead>
-                            <tr>
-                                <th>Ingredient</th>
-                                <th>Quantity</th>
-                                <th>Unit</th>
-                                <th>Prep Form</th>
-                                <th class="th-r">Remove</th>
-                            </tr>
-                        </thead>
-                        <tbody id="ingredientRows">
-                            {% if ingredient_items %}
-                                {% for item in ingredient_items %}
-                                <tr>
-                                    <td>
-                                        <input type="text" name="ingredient_name[]" value="{{ item.item_name }}"
-                                               list="ingredientOptions"
-                                               class="ingredient-autocomplete w-full border border-stone-300 rounded-xl px-3 py-2"
-                                               placeholder="Start typing ingredient…">
-                                        <input type="hidden" name="ingredient_id[]" value="{{ item.item_id }}" class="ingredient-id">
-                                    </td>
-                                    <td>
-                                        <input type="number" step="0.01" name="ingredient_qty[]" value="{{ item.quantity }}"
-                                               class="w-full border border-stone-300 rounded-xl px-3 py-2" style="min-width:5rem">
-                                    </td>
-                                    <td>
-                                        <input type="text" name="ingredient_unit[]" value="{{ item.unit or '' }}"
-                                               list="unitOptions"
-                                               class="ingredient-unit w-full border border-stone-300 rounded-xl px-3 py-2" style="min-width:5rem">
-                                    </td>
-                                    <td>
-                                        {% set prep_value = item.prep_note or '' %}
-                                        {% set prep_is_known = prep_value in prep_note_options %}
-                                        <select class="ingredient-prep-select w-full border border-stone-300 rounded-xl px-3 py-2">
-                                            <option value="">No prep note</option>
-                                            {% for option in prep_note_options %}
-                                            <option value="{{ option }}" {% if prep_value == option %}selected{% endif %}>{{ option }}</option>
-                                            {% endfor %}
-                                            <option value="__other__" {% if prep_value and not prep_is_known %}selected{% endif %}>Other (free text)</option>
-                                        </select>
-                                        <input type="text" name="prep_note[]" value="{{ prep_value }}"
-                                               class="ingredient-prep-note mt-1 w-full border border-stone-300 rounded-xl px-3 py-2 {% if not prep_value or prep_is_known %}hidden{% endif %}"
-                                               placeholder="Describe prep form">
-                                    </td>
-                                    <td class="td-r">
-                                        <button type="button" class="remove-row rfg-del-btn" title="Remove" style="margin-left:auto">
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                                        </button>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            {% else %}
-                                <tr>
-                                    <td>
-                                        <input type="text" name="ingredient_name[]" list="ingredientOptions"
-                                               class="ingredient-autocomplete w-full border border-stone-300 rounded-xl px-3 py-2"
-                                               placeholder="Start typing ingredient…">
-                                        <input type="hidden" name="ingredient_id[]" value="" class="ingredient-id">
-                                    </td>
-                                    <td>
-                                        <input type="number" step="0.01" name="ingredient_qty[]"
-                                               class="w-full border border-stone-300 rounded-xl px-3 py-2" style="min-width:5rem">
-                                    </td>
-                                    <td>
-                                        <input type="text" name="ingredient_unit[]"
-                                               list="unitOptions"
-                                               class="ingredient-unit w-full border border-stone-300 rounded-xl px-3 py-2" style="min-width:5rem">
-                                    </td>
-                                    <td>
-                                        <select class="ingredient-prep-select w-full border border-stone-300 rounded-xl px-3 py-2">
-                                            <option value="" selected>No prep note</option>
-                                            {% for option in prep_note_options %}
-                                            <option value="{{ option }}">{{ option }}</option>
-                                            {% endfor %}
-                                            <option value="__other__">Other (free text)</option>
-                                        </select>
-                                        <input type="text" name="prep_note[]" value=""
-                                               class="ingredient-prep-note mt-1 hidden w-full border border-stone-300 rounded-xl px-3 py-2"
-                                               placeholder="Describe prep form">
-                                    </td>
-                                    <td class="td-r">
-                                        <button type="button" class="remove-row rfg-del-btn" title="Remove" style="margin-left:auto">
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                                        </button>
-                                    </td>
-                                </tr>
-                            {% endif %}
-                        </tbody>
-                    </table>
-                </div>
+        <!-- ── 05 Handling ── -->
+        <section class="rfg-sec">
+          <div class="rfg-sec-h">
+            <span class="rfg-sec-no">05</span>
+            <h2>Handling</h2>
+            <span class="rfg-sec-note">Prints on the master sheet</span>
+          </div>
+          <div class="rfg-ops">
+            <div class="rfg-ops-crit">
+              <div class="rfg-ops-tag">⚠ Critical steps</div>
+              <textarea class="rfg-inp" name="critical_steps" rows="6"
+                        placeholder="One line per critical control, hold point, or risk note.">{{ recipe.critical_steps or '' }}</textarea>
+              <p class="rfg-hint">Renders as highlighted alerts on the line.</p>
             </div>
+            <div class="rfg-ops-stor">
+              <div class="rfg-ops-tag">◷ Storage</div>
+              <textarea class="rfg-inp" name="storage_instructions" rows="6"
+                        placeholder="Container, temp, labeling, walk-in location, hold notes.">{{ recipe.storage_instructions or '' }}</textarea>
+              <p class="rfg-hint">Shown in the lower-right handling panel.</p>
+            </div>
+          </div>
+        </section>
 
-            <!-- ── Linked Recipes ── -->
-            <div class="rfg-card">
-                <div class="rfg-heading-row">
-                    <div>
-                        <div class="rfg-meta">Components</div>
-                        <h2 class="rfg-heading">Linked Recipes</h2>
-                        <p class="rfg-hint" style="margin-top:0.2rem">Use plated or batch recipes as components inside another recipe.</p>
-                    </div>
-                    <button type="button" id="addSubRecipeRow" class="rfg-add-btn">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
-                        Add Linked Recipe
-                    </button>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="rfg-tbl">
-                        <thead>
-                            <tr>
-                                <th>Recipe</th>
-                                <th>Quantity</th>
-                                <th>Unit</th>
-                                <th class="th-r">Remove</th>
-                            </tr>
-                        </thead>
-                        <tbody id="subRecipeRows">
-                            {% if subrecipe_items %}
-                                {% for item in subrecipe_items %}
-                                <tr>
-                                    <td>
-                                        <input type="text" name="sub_recipe_name[]"
-                                               value="{{ item.item_name }}"
-                                               list="subRecipeOptions"
-                                               class="subrecipe-autocomplete w-full border border-stone-300 rounded-xl px-3 py-2"
-                                               placeholder="Start typing recipe name…">
-                                        <input type="hidden" name="sub_recipe_id[]" value="{{ item.item_id }}" class="subrecipe-id">
-                                    </td>
-                                    <td>
-                                        <input type="number" step="0.01" name="sub_recipe_qty[]" value="{{ item.quantity }}"
-                                               class="w-full border border-stone-300 rounded-xl px-3 py-2" style="min-width:5rem">
-                                    </td>
-                                    <td>
-                                        <input type="text" name="sub_recipe_unit[]" value="{{ item.unit or '' }}"
-                                               list="unitOptions"
-                                               class="subrecipe-unit w-full border border-stone-300 rounded-xl px-3 py-2" style="min-width:5rem">
-                                    </td>
-                                    <td class="td-r">
-                                        <button type="button" class="remove-row rfg-del-btn" title="Remove" style="margin-left:auto">
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                                        </button>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            {% else %}
-                                <tr>
-                                    <td>
-                                        <input type="text" name="sub_recipe_name[]"
-                                               list="subRecipeOptions"
-                                               class="subrecipe-autocomplete w-full border border-stone-300 rounded-xl px-3 py-2"
-                                               placeholder="Start typing recipe name…">
-                                        <input type="hidden" name="sub_recipe_id[]" value="" class="subrecipe-id">
-                                    </td>
-                                    <td>
-                                        <input type="number" step="0.01" name="sub_recipe_qty[]"
-                                               class="w-full border border-stone-300 rounded-xl px-3 py-2" style="min-width:5rem">
-                                    </td>
-                                    <td>
-                                        <input type="text" name="sub_recipe_unit[]"
-                                               list="unitOptions"
-                                               class="subrecipe-unit w-full border border-stone-300 rounded-xl px-3 py-2" style="min-width:5rem">
-                                    </td>
-                                    <td class="td-r">
-                                        <button type="button" class="remove-row rfg-del-btn" title="Remove" style="margin-left:auto">
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                                        </button>
-                                    </td>
-                                </tr>
-                            {% endif %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+      </form>
+    </div><!-- /.rfg-main-col -->
 
-            <!-- ── Choice Groups (menu-only) ── -->
-            <div id="weightedOptionsSection" class="rfg-card {% if recipe.recipe_type != 'menu' %}hidden{% endif %}">
-                <div class="rfg-heading-row">
-                    <div>
-                        <div class="rfg-meta">Menu</div>
-                        <h2 class="rfg-heading">Choice Groups (RM Averages)</h2>
-                        <p class="rfg-hint" style="margin-top:0.2rem">Use for averages like dressing choice, protein mix, or filling sets. Each group must total 100%.</p>
-                    </div>
-                    <button type="button" id="addWeightedOptionRow" class="rfg-add-btn">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
-                        Add Choice
-                    </button>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="rfg-tbl">
-                        <thead>
-                            <tr>
-                                <th>Group Name</th>
-                                <th>Recipe / Ingredient</th>
-                                <th>Qty</th>
-                                <th>Unit</th>
-                                <th>Weight %</th>
-                                <th class="th-r">Remove</th>
-                            </tr>
-                        </thead>
-                        <tbody id="weightedOptionRows">
-                            {% if option_items %}
-                                {% for option in option_items %}
-                                <tr class="weighted-option-row">
-                                    <td>
-                                        <input type="text" name="option_group_name[]"
-                                               value="{{ option.group_name or '' }}"
-                                               placeholder="Dressing Choice"
-                                               class="weighted-group-name w-full border border-stone-300 rounded-xl px-3 py-2">
-                                    </td>
-                                    <td>
-                                        <input type="hidden" name="option_item_type[]" value="{{ option.item_type or 'recipe' }}">
-                                        <input type="text" name="option_item_name[]"
-                                               value="{{ option.display_label or option.item_name or '' }}"
-                                               list="weightedOptionSources"
-                                               class="weighted-option-autocomplete w-full border border-stone-300 rounded-xl px-3 py-2"
-                                               placeholder="Recipe or ingredient…">
-                                        <input type="hidden" name="option_item_id[]" value="{{ option.item_id or '' }}" class="weighted-item-id">
-                                    </td>
-                                    <td>
-                                        <input type="number" step="any" min="0.0001" name="option_qty[]"
-                                               value="{{ option.quantity or '' }}"
-                                               class="w-full border border-stone-300 rounded-xl px-3 py-2" style="min-width:5rem">
-                                    </td>
-                                    <td>
-                                        <input type="text" name="option_unit[]"
-                                               value="{{ option.unit or '' }}"
-                                               list="unitOptions"
-                                               class="weighted-option-unit w-full border border-stone-300 rounded-xl px-3 py-2" style="min-width:5rem">
-                                    </td>
-                                    <td>
-                                        <input type="number" step="0.01" min="0" max="100" name="option_weight[]"
-                                               value="{{ option.weight_percent if option.weight_percent is not none else '' }}"
-                                               class="weighted-option-weight w-full border border-stone-300 rounded-xl px-3 py-2"
-                                               placeholder="e.g. 70" style="min-width:5rem">
-                                    </td>
-                                    <td class="td-r">
-                                        <button type="button" class="remove-row rfg-del-btn" title="Remove" style="margin-left:auto">
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                                        </button>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            {% else %}
-                                <tr class="weighted-option-row">
-                                    <td>
-                                        <input type="text" name="option_group_name[]"
-                                               placeholder="Dressing Choice"
-                                               class="weighted-group-name w-full border border-stone-300 rounded-xl px-3 py-2">
-                                    </td>
-                                    <td>
-                                        <input type="hidden" name="option_item_type[]" value="recipe">
-                                        <input type="text" name="option_item_name[]"
-                                               list="weightedOptionSources"
-                                               class="weighted-option-autocomplete w-full border border-stone-300 rounded-xl px-3 py-2"
-                                               placeholder="Recipe or ingredient…">
-                                        <input type="hidden" name="option_item_id[]" value="" class="weighted-item-id">
-                                    </td>
-                                    <td>
-                                        <input type="number" step="any" min="0.0001" name="option_qty[]"
-                                               class="w-full border border-stone-300 rounded-xl px-3 py-2" style="min-width:5rem">
-                                    </td>
-                                    <td>
-                                        <input type="text" name="option_unit[]"
-                                               list="unitOptions"
-                                               class="weighted-option-unit w-full border border-stone-300 rounded-xl px-3 py-2" style="min-width:5rem">
-                                    </td>
-                                    <td>
-                                        <input type="number" step="0.01" min="0" max="100" name="option_weight[]"
-                                               class="weighted-option-weight w-full border border-stone-300 rounded-xl px-3 py-2"
-                                               placeholder="e.g. 70" style="min-width:5rem">
-                                    </td>
-                                    <td class="td-r">
-                                        <button type="button" class="remove-row rfg-del-btn" title="Remove" style="margin-left:auto">
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                                        </button>
-                                    </td>
-                                </tr>
-                            {% endif %}
-                        </tbody>
-                    </table>
-                </div>
-                <div id="weightedGroupSummary" class="mt-3 text-xs text-stone-600"></div>
-            </div>
-        </form>
-    </div>
-</div>
+    <!-- ── Aside preview ── -->
+    <aside class="rfg-aside">
+      <div class="rfg-aside-label">
+        <span>Master sheet preview</span>
+        <button type="button" onclick="window.print()" class="rfg-btn rfg-btn--ghost" style="padding:5px 10px;font-size:11px;">Print</button>
+      </div>
+      <div class="rfg-sheet">
+        <div class="rfg-sheet-cat">{{ recipe.category or '—' }}</div>
+        <h3>{{ recipe.name or 'Untitled Recipe' }}</h3>
+        <div class="rfg-sheet-meta">
+          {% if recipe.yield_qty %}Yields {{ recipe.yield_qty }} {{ recipe.yield_unit or '' }}{% endif %}
+          {% if recipe.prep_time_minutes %}<i>·</i> {{ recipe.prep_time_minutes }} min{% endif %}
+          {% if recipe.shelf_life_days %}<i>·</i> {{ recipe.shelf_life_days }} day shelf{% endif %}
+        </div>
+        {% if selected_venue_ids %}
+        <div class="rfg-pvtags">
+          {% for venue in venues if venue.id in selected_venue_ids %}
+          <span>{{ venue.name }}</span>
+          {% endfor %}
+        </div>
+        {% endif %}
+        {% if ingredient_items %}
+        <div class="rfg-rule"></div>
+        <div class="rfg-pvl">The build</div>
+        {% for item in ingredient_items %}
+        <div class="rfg-pvi">
+          <span>{{ item.item_name }}</span>
+          <span class="rfg-qn">{{ '%.2f'|format(item.quantity|float) }} {{ item.unit or '' }}</span>
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% if recipe.critical_steps %}
+        <div class="rfg-rule"></div>
+        <div class="rfg-pvl">Critical</div>
+        <div class="rfg-pvcrit">{{ recipe.critical_steps }}</div>
+        {% endif %}
+      </div>
+      <div class="rfg-aside-foot">Mirrors the printed cook sheet</div>
+    </aside>
+
+  </div><!-- /.rfg-wrap -->
+</div><!-- /.rfg-page -->
+
+<!-- ── Chip toggle behaviour ── -->
+<script>
+document.querySelectorAll('.rfg-chip').forEach(function(chip) {
+  chip.addEventListener('click', function() {
+    var cb = chip.querySelector('input[type="checkbox"]');
+    if (cb) {
+      cb.checked = !cb.checked;
+      chip.classList.toggle('rfg-chip--on', cb.checked);
+    }
+  });
+});
+</script>
 
 <!-- ── Templates ── -->
 
 <template id="methodStepRowTemplate">
-    <div class="method-step-row rfg-step-row">
-        <div class="rfg-step-num" data-step-num>—</div>
-        <div class="rfg-step-inner">
-            <div class="rfg-step-header">
-                <input type="text" name="step_title[]" value=""
-                       class="flex-1 px-3 py-2 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none text-sm"
-                       placeholder="Step title (e.g. Wash potatoes)">
-                <input type="text" name="step_duration[]" value=""
-                       class="w-20 px-3 py-2 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none text-sm"
-                       placeholder="5 min">
-                <button type="button" class="remove-method-step rfg-del-btn" title="Remove step">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                </button>
-            </div>
-            <textarea name="step_body[]" rows="2"
-                      class="w-full px-3 py-2 border border-stone-300 rounded-xl focus:ring-2 focus:ring-foxtown-ember focus:border-transparent outline-none text-sm resize-y"
-                      placeholder="Describe what to do..."></textarea>
+  <div class="method-step-row rfg-step">
+    <div data-step-num style="font-family:var(--serif,Georgia,serif);font-size:22px;font-weight:500;color:var(--accent,#c25e3a);line-height:1.2;font-variant-numeric:oldstyle-nums;margin-top:6px;">—</div>
+    <div class="rfg-step-inner">
+      <div class="rfg-step-top">
+        <input class="rfg-inp" type="text" name="step_title[]" value="" placeholder="Step title — e.g. Wash &amp; score">
+        <div class="rfg-suffix">
+          <input class="rfg-inp" type="text" name="step_duration[]" value="" placeholder="5">
+          <span class="rfg-suffix-u">min</span>
         </div>
+      </div>
+      <textarea class="rfg-inp" name="step_body[]" placeholder="Describe the action…" style="min-height:74px;"></textarea>
     </div>
+    <button type="button" class="remove-method-step rfg-step-x" title="Remove step">×</button>
+  </div>
 </template>
 
 <template id="ingredientRowTemplate">
-    <tr>
-        <td>
-            <input type="text" name="ingredient_name[]" list="ingredientOptions"
-                   class="ingredient-autocomplete w-full border border-stone-300 rounded-xl px-3 py-2"
-                   placeholder="Start typing ingredient…">
-            <input type="hidden" name="ingredient_id[]" value="" class="ingredient-id">
-        </td>
-        <td>
-            <input type="number" step="0.01" name="ingredient_qty[]"
-                   class="w-full border border-stone-300 rounded-xl px-3 py-2" style="min-width:5rem">
-        </td>
-        <td>
-            <input type="text" name="ingredient_unit[]"
-                   list="unitOptions"
-                   class="ingredient-unit w-full border border-stone-300 rounded-xl px-3 py-2" style="min-width:5rem">
-        </td>
-        <td>
-            <select class="ingredient-prep-select w-full border border-stone-300 rounded-xl px-3 py-2">
-                <option value="" selected>No prep note</option>
-                {% for option in prep_note_options %}
-                <option value="{{ option }}">{{ option }}</option>
-                {% endfor %}
-                <option value="__other__">Other (free text)</option>
-            </select>
-            <input type="text" name="prep_note[]" value=""
-                   class="ingredient-prep-note mt-1 hidden w-full border border-stone-300 rounded-xl px-3 py-2"
-                   placeholder="Describe prep form">
-        </td>
-        <td class="td-r">
-            <button type="button" class="remove-row rfg-del-btn" title="Remove" style="margin-left:auto">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-            </button>
-        </td>
-    </tr>
+  <tr>
+    <td>
+      <input type="text" name="ingredient_name[]" list="ingredientOptions"
+             class="ingredient-autocomplete rfg-nm"
+             placeholder="Start typing ingredient…">
+      <input type="hidden" name="ingredient_id[]" value="" class="ingredient-id">
+    </td>
+    <td class="rfg-td-q" style="width:88px;">
+      <input type="number" step="0.01" name="ingredient_qty[]">
+    </td>
+    <td style="width:88px;">
+      <input type="text" name="ingredient_unit[]" list="unitOptions" class="ingredient-unit">
+    </td>
+    <td style="width:130px;">
+      <select class="ingredient-prep-select">
+        <option value="" selected>No prep note</option>
+        {% for option in prep_note_options %}
+        <option value="{{ option }}">{{ option }}</option>
+        {% endfor %}
+        <option value="__other__">Other…</option>
+      </select>
+      <input type="text" name="prep_note[]" value=""
+             class="ingredient-prep-note hidden"
+             placeholder="Describe prep form">
+    </td>
+    <td class="rfg-td-r" style="width:32px;">
+      <button type="button" class="remove-row rfg-del-btn rfg-x" title="Remove">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </td>
+  </tr>
 </template>
 
 <datalist id="ingredientOptions">
-    {% for ing in ingredients %}
-        <option value="{{ ing.name }}" data-id="{{ ing.id }}" data-unit="{{ ing.unit or '' }}"></option>
-    {% endfor %}
+  {% for ing in ingredients %}
+    <option value="{{ ing.name }}" data-id="{{ ing.id }}" data-unit="{{ ing.unit or '' }}"></option>
+  {% endfor %}
 </datalist>
 
 <datalist id="subRecipeOptions">
-    {% for rec in recipes %}
-        <option value="{{ rec.name }}" data-id="{{ rec.id }}" data-unit="{{ rec.yield_unit or '' }}"
-                label="{{ recipe_picker_labels.get(rec.id, rec.name) }}"></option>
-    {% endfor %}
+  {% for rec in recipes %}
+    <option value="{{ rec.name }}" data-id="{{ rec.id }}" data-unit="{{ rec.yield_unit or '' }}"
+            label="{{ recipe_picker_labels.get(rec.id, rec.name) }}"></option>
+  {% endfor %}
 </datalist>
 
 <datalist id="weightedOptionSources">
-    {% for option in weighted_option_sources %}
-        <option value="{{ option.display_label }}" data-id="{{ option.item_id }}" data-type="{{ option.item_type }}" data-unit="{{ option.default_unit or '' }}"></option>
-    {% endfor %}
+  {% for option in weighted_option_sources %}
+    <option value="{{ option.display_label }}" data-id="{{ option.item_id }}" data-type="{{ option.item_type }}" data-unit="{{ option.default_unit or '' }}"></option>
+  {% endfor %}
 </datalist>
 
 <template id="subRecipeRowTemplate">
-    <tr>
-        <td>
-            <input type="text" name="sub_recipe_name[]" list="subRecipeOptions"
-                   class="subrecipe-autocomplete w-full border border-stone-300 rounded-xl px-3 py-2"
-                   placeholder="Start typing recipe name…">
-            <input type="hidden" name="sub_recipe_id[]" value="" class="subrecipe-id">
-        </td>
-        <td>
-            <input type="number" step="0.01" name="sub_recipe_qty[]"
-                   class="w-full border border-stone-300 rounded-xl px-3 py-2" style="min-width:5rem">
-        </td>
-        <td>
-            <input type="text" name="sub_recipe_unit[]"
-                   list="unitOptions"
-                   class="subrecipe-unit w-full border border-stone-300 rounded-xl px-3 py-2" style="min-width:5rem">
-        </td>
-        <td class="td-r">
-            <button type="button" class="remove-row rfg-del-btn" title="Remove" style="margin-left:auto">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-            </button>
-        </td>
-    </tr>
+  <tr>
+    <td>
+      <input type="text" name="sub_recipe_name[]" list="subRecipeOptions"
+             class="subrecipe-autocomplete rfg-nm"
+             placeholder="Start typing recipe name…">
+      <input type="hidden" name="sub_recipe_id[]" value="" class="subrecipe-id">
+    </td>
+    <td style="width:88px;">
+      <input type="number" step="0.01" name="sub_recipe_qty[]">
+    </td>
+    <td style="width:88px;">
+      <input type="text" name="sub_recipe_unit[]" list="unitOptions" class="subrecipe-unit">
+    </td>
+    <td class="rfg-td-r" style="width:32px;">
+      <button type="button" class="remove-row rfg-del-btn rfg-x" title="Remove">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </td>
+  </tr>
 </template>
 
 <template id="weightedOptionRowTemplate">
-    <tr class="weighted-option-row">
-        <td>
-            <input type="text" name="option_group_name[]"
-                   placeholder="Dressing Choice"
-                   class="weighted-group-name w-full border border-stone-300 rounded-xl px-3 py-2">
-        </td>
-        <td>
-            <input type="hidden" name="option_item_type[]" value="recipe">
-            <input type="text" name="option_item_name[]" list="weightedOptionSources"
-                   class="weighted-option-autocomplete w-full border border-stone-300 rounded-xl px-3 py-2"
-                   placeholder="Recipe or ingredient…">
-            <input type="hidden" name="option_item_id[]" value="" class="weighted-item-id">
-        </td>
-        <td>
-            <input type="number" step="any" min="0.0001" name="option_qty[]"
-                   class="w-full border border-stone-300 rounded-xl px-3 py-2" style="min-width:5rem">
-        </td>
-        <td>
-            <input type="text" name="option_unit[]" list="unitOptions"
-                   class="weighted-option-unit w-full border border-stone-300 rounded-xl px-3 py-2" style="min-width:5rem">
-        </td>
-        <td>
-            <input type="number" step="0.01" min="0" max="100" name="option_weight[]"
-                   class="weighted-option-weight w-full border border-stone-300 rounded-xl px-3 py-2"
-                   placeholder="e.g. 70" style="min-width:5rem">
-        </td>
-        <td class="td-r">
-            <button type="button" class="remove-row rfg-del-btn" title="Remove" style="margin-left:auto">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-            </button>
-        </td>
-    </tr>
+  <tr class="weighted-option-row">
+    <td style="width:120px;">
+      <input type="text" name="option_group_name[]" placeholder="Dressing Choice" class="weighted-group-name">
+    </td>
+    <td>
+      <input type="hidden" name="option_item_type[]" value="recipe">
+      <input type="text" name="option_item_name[]" list="weightedOptionSources"
+             class="weighted-option-autocomplete" placeholder="Recipe or ingredient…">
+      <input type="hidden" name="option_item_id[]" value="" class="weighted-item-id">
+    </td>
+    <td style="width:72px;">
+      <input type="number" step="any" min="0.0001" name="option_qty[]">
+    </td>
+    <td style="width:80px;">
+      <input type="text" name="option_unit[]" list="unitOptions" class="weighted-option-unit">
+    </td>
+    <td style="width:80px;">
+      <input type="number" step="0.01" min="0" max="100" name="option_weight[]"
+             class="weighted-option-weight" placeholder="70">
+    </td>
+    <td class="rfg-td-r" style="width:32px;">
+      <button type="button" class="remove-row rfg-del-btn rfg-x" title="Remove">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </td>
+  </tr>
 </template>
 
 <script>
