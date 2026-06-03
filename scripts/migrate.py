@@ -535,6 +535,16 @@ MIGRATIONS = [
     """,
     "CREATE INDEX IF NOT EXISTS idx_users_username ON users (username)",
     "CREATE INDEX IF NOT EXISTS idx_users_role ON users (role)",
+    # Drop commissary tables — all data intentionally removed
+    "DROP TABLE IF EXISTS commissary_transfer_lines CASCADE",
+    "DROP TABLE IF EXISTS commissary_transfers CASCADE",
+    "DROP TABLE IF EXISTS commissary_order_lines CASCADE",
+    "DROP TABLE IF EXISTS commissary_production_logs CASCADE",
+    "DROP TABLE IF EXISTS commissary_standing_items CASCADE",
+    "DROP TABLE IF EXISTS commissary_orders CASCADE",
+    "DROP TABLE IF EXISTS commissary_pipeline CASCADE",
+    "DROP TABLE IF EXISTS outlet_order_items CASCADE",
+    "DROP TABLE IF EXISTS outlet_orders CASCADE",
 ]
 
 

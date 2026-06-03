@@ -8,7 +8,6 @@ from werkzeug.security import check_password_hash
 
 from blueprints.banquet import bp as banquet_bp
 from blueprints.buffet import bp as buffet_bp
-from blueprints.commissary import bp as commissary_bp
 from blueprints.forecasting import bp as forecasting_bp
 from blueprints.ingredients import bp as ingredients_bp
 from blueprints.menu import bp as menu_bp
@@ -344,7 +343,6 @@ def register_blueprint_with_legacy_endpoints(flask_app, blueprint):
 
 register_blueprint_with_legacy_endpoints(app, banquet_bp)
 register_blueprint_with_legacy_endpoints(app, buffet_bp)
-register_blueprint_with_legacy_endpoints(app, commissary_bp)
 register_blueprint_with_legacy_endpoints(app, forecasting_bp)
 register_blueprint_with_legacy_endpoints(app, prep_bp)
 register_blueprint_with_legacy_endpoints(app, recipes_bp)
