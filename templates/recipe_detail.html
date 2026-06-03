@@ -146,6 +146,14 @@
             <button type="button" id="collapseSubrecipesButton" class="rm-btn rm-btn--ghost">Collapse Subs</button>
             <button type="button" id="expandSubrecipesButton" class="rm-btn rm-btn--ghost">Expand Subs</button>
             <button type="button" id="recipeExportButton" onclick="exportRecipePdf()" class="rm-btn rm-btn--ghost">Print / Save PDF</button>
+            <div style="display:flex;align-items:center;gap:0.35rem;">
+                <input type="number" id="buildCardTargetQty" step="any" min="0.001"
+                       placeholder="{{ recipe.yield_qty or '' }}"
+                       title="Target batch qty (leave blank for base yield)"
+                       style="width:72px;height:2.7rem;padding:0 0.5rem;border:1px solid #717c82;background:#fff;color:#2a3439;font-size:0.72rem;font-weight:700;border-radius:0;">
+                <span style="font-size:0.7rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#566166;">{{ recipe.yield_unit or '' }}</span>
+                <button type="button" onclick="openBuildCard()" class="rm-btn rm-btn--ghost">Print Build Card</button>
+            </div>
             <form method="POST" action="{{ url_for('recipe_clone', recipe_id=recipe.id) }}"><button type="submit" class="rm-btn rm-btn--ghost">Clone</button></form>
             <form method="POST" action="{{ url_for('recipe_delete', recipe_id=recipe.id) }}" onsubmit="return confirm('Delete ' + {{ recipe.name|tojson }} + '? This cannot be undone.')">
                 <button type="submit" class="rm-btn rm-btn--danger">Delete</button>
@@ -1114,6 +1122,13 @@
 </style>
 
 <script>
+function openBuildCard() {
+    const qty = (document.getElementById('buildCardTargetQty').value || '').trim();
+    let url = {{ url_for('recipe_buildcard', recipe_id=recipe.id) | tojson }};
+    if (qty) url += '?target_qty=' + encodeURIComponent(qty);
+    window.open(url, '_blank', 'noopener,noreferrer');
+}
+
 function exportRecipePdf() {
     const printUrl = {{ url_for('recipe_print', recipe_id=recipe.id) | tojson }};
     const popup = window.open(printUrl, '_blank', 'noopener,noreferrer');

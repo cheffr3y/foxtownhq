@@ -5,6 +5,26 @@
 {% if mode == 'edit' %}Edit Recipe{% else %}New Recipe{% endif %} - Foxtown HQ
 {% endblock %}
 
+{% block extra_head %}
+<style>
+@media (min-width: 1024px) {
+  #recipeForm {
+    display: grid;
+    grid-template-columns: minmax(0, 0.88fr) minmax(0, 1fr);
+    gap: 1.5rem;
+    align-items: start;
+  }
+  #recipeForm > * {
+    margin-top: 0 !important;
+  }
+  #recipeForm .rfg-method-col {
+    grid-column: 2;
+    grid-row: 1 / -1;
+  }
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="min-h-screen">
     <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
@@ -114,7 +134,7 @@
             </div>
 
             <!-- Method Steps -->
-            <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-6">
+            <div class="bg-white rounded-2xl shadow-soft border border-stone-200 p-6 rfg-method-col">
                 <div class="flex items-center justify-between mb-4">
                     <h2 class="text-xl font-display text-foxtown-ink">Method Steps</h2>
                     <button type="button" id="addMethodStepRow"

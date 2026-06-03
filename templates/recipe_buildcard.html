@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ recipe.name }} — Kitchen Build Card</title>
+<style>
+  :root {
+    --ink: #1a1a1a;
+    --ink-soft: #444;
+    --line: #c9c9c9;
+    --line-strong: #1a1a1a;
+    --accent: #b3321a;
+    --alert-bg: #fbeeec;
+    --shade: #f4f2ee;
+    --paper: #ffffff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    background: #6b6b6b;
+    color: var(--ink);
+    padding: 20px;
+  }
+
+  .sheet {
+    width: 10.2in;
+    min-height: 7.7in;
+    background: var(--paper);
+    padding: 0.35in 0.4in;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* HEADER */
+  .head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    border-bottom: 3px solid var(--line-strong);
+    padding-bottom: 10px;
+  }
+  .head-left .kicker {
+    font-size: 9px;
+    letter-spacing: 2.5px;
+    font-weight: 700;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+  .head-left h1 {
+    font-size: 34px;
+    line-height: .95;
+    font-weight: 800;
+    letter-spacing: -.5px;
+    text-transform: uppercase;
+    margin-top: 3px;
+  }
+  .head-left .descriptor {
+    font-size: 11px;
+    color: var(--ink-soft);
+    font-style: italic;
+    margin-top: 5px;
+  }
+  .head-right { text-align: right; }
+  .head-right .station-tag {
+    display: inline-block;
+    background: var(--line-strong);
+    color: #fff;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    padding: 4px 10px;
+    text-transform: uppercase;
+    font-size: 11px;
+  }
+
+  /* META STRIP */
+  .meta {
+    display: flex;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 12px;
+  }
+  .meta .cell {
+    flex: 1;
+    padding: 8px 12px;
+    border-right: 1px solid var(--line);
+  }
+  .meta .cell:first-child { padding-left: 0; }
+  .meta .cell:last-child { border-right: none; }
+  .meta .label {
+    font-size: 8px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    font-weight: 700;
+  }
+  .meta .value {
+    font-size: 15px;
+    font-weight: 700;
+    margin-top: 2px;
+  }
+  .meta .sub-value {
+    font-size: 9px;
+    color: var(--ink-soft);
+    margin-top: 2px;
+    font-style: italic;
+  }
+
+  /* BODY */
+  .body { display: flex; gap: 24px; flex: 1; }
+  .col-left { width: 38%; }
+  .col-right { width: 62%; }
+
+  .section-title {
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-weight: 800;
+    color: var(--ink);
+    border-bottom: 2px solid var(--line-strong);
+    padding-bottom: 4px;
+    margin-bottom: 8px;
+  }
+
+  /* INGREDIENTS TABLE */
+  table.ingredients { width: 100%; border-collapse: collapse; }
+  table.ingredients th {
+    font-size: 8px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    text-align: left;
+    padding: 3px 6px;
+    border-bottom: 1px solid var(--line);
+  }
+  table.ingredients td {
+    font-size: 12.5px;
+    padding: 5px 6px;
+    vertical-align: top;
+    border-bottom: 1px solid var(--line);
+  }
+  table.ingredients tr:nth-child(even) td { background: var(--shade); }
+  table.ingredients .qty { font-weight: 800; white-space: nowrap; width: 1%; }
+  table.ingredients .ing { font-weight: 600; }
+  table.ingredients .note { font-size: 10.5px; color: var(--ink-soft); font-style: italic; }
+  table.ingredients .sub-badge {
+    display: inline-block;
+    background: var(--line-strong);
+    color: #fff;
+    font-size: 8px;
+    font-weight: 700;
+    padding: 1px 4px;
+    letter-spacing: .5px;
+    text-transform: uppercase;
+  }
+
+  /* CRITICAL STEPS */
+  .alert {
+    background: var(--alert-bg);
+    border-left: 4px solid var(--accent);
+    padding: 8px 12px;
+    margin-top: 14px;
+  }
+  .alert .section-title {
+    border: none;
+    color: var(--accent);
+    margin-bottom: 4px;
+    padding-bottom: 0;
+  }
+  .alert ul { list-style: none; }
+  .alert li {
+    font-size: 11px;
+    padding: 2px 0 2px 14px;
+    position: relative;
+    line-height: 1.3;
+  }
+  .alert li::before {
+    content: "!";
+    position: absolute;
+    left: 0;
+    font-weight: 800;
+    color: var(--accent);
+  }
+
+  /* STORAGE */
+  .storage { margin-top: 14px; }
+  .storage .body-text {
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--ink-soft);
+  }
+
+  /* METHOD STEPS */
+  ol.steps { list-style: none; counter-reset: step; }
+  ol.steps li {
+    counter-increment: step;
+    position: relative;
+    padding: 7px 0 7px 38px;
+    border-bottom: 1px solid var(--line);
+    min-height: 28px;
+  }
+  ol.steps li::before {
+    content: counter(step, decimal-leading-zero);
+    position: absolute;
+    left: 0;
+    top: 7px;
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--accent);
+    width: 28px;
+  }
+  ol.steps .step-title {
+    font-size: 13px;
+    font-weight: 700;
+    display: block;
+  }
+  ol.steps .step-time {
+    font-weight: 800;
+    color: var(--ink-soft);
+    font-size: 11px;
+  }
+  ol.steps .step-text {
+    font-size: 12px;
+    color: var(--ink-soft);
+    line-height: 1.35;
+    margin-top: 1px;
+    display: block;
+    white-space: pre-line;
+  }
+  ol.steps .step-text--solo {
+    font-size: 13px;
+    color: var(--ink);
+    font-weight: 500;
+  }
+  .no-content {
+    font-size: 11px;
+    color: var(--ink-soft);
+    font-style: italic;
+    padding: 8px 0;
+  }
+
+  /* FOOTER */
+  .foot {
+    margin-top: 14px;
+    border-top: 1px solid var(--line);
+    padding-top: 6px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 8px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+
+  /* PRINT */
+  @page { size: letter landscape; margin: 0.4in; }
+  @media print {
+    html, body { background: #fff !important; padding: 0 !important; }
+    .sheet {
+      width: 100%;
+      min-height: auto;
+      padding: 0;
+      margin: 0;
+    }
+  }
+</style>
+</head>
+<body>
+
+{% macro fmt(n) -%}
+{%- if n is none or n == '' -%}—
+{%- elif (n | float) % 1 == 0 -%}{{ n | float | int }}
+{%- else -%}{{ n | float | round(3) }}{%- endif -%}
+{%- endmacro %}
+
+<div class="sheet">
+
+  <!-- HEADER -->
+  <div class="head">
+    <div class="head-left">
+      <div class="kicker">Foxtown Brewing &middot; Kitchen Build Card</div>
+      <h1>{{ recipe.name }}</h1>
+      {% if recipe.menu_descriptor %}
+      <div class="descriptor">{{ recipe.menu_descriptor }}</div>
+      {% endif %}
+    </div>
+    <div class="head-right">
+      {% if recipe.station %}
+      <span class="station-tag">{{ recipe.station }}</span>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- META STRIP -->
+  <div class="meta">
+    <div class="cell">
+      <div class="label">Yield</div>
+      <div class="value">
+        {% if target_qty is not none %}
+          {{ fmt(target_qty) }} {{ recipe.yield_unit or '' }}
+          <div class="sub-value">base: {{ recipe.yield_qty }} {{ recipe.yield_unit or '' }} &middot; &times;{{ "%.2f"|format(scale_factor) }}</div>
+        {% else %}
+          {{ recipe.yield_qty or '&mdash;' }} {{ recipe.yield_unit or '' }}
+        {% endif %}
+      </div>
+    </div>
+    <div class="cell">
+      <div class="label">Prep Time</div>
+      <div class="value">
+        {% if recipe.prep_time_minutes is not none %}
+          {% set mins = recipe.prep_time_minutes | int %}
+          {% if mins >= 60 %}
+            {{ mins // 60 }} hr{% if mins % 60 %} {{ mins % 60 }} min{% endif %}
+          {% else %}
+            {{ mins }} min
+          {% endif %}
+        {% else %}&mdash;{% endif %}
+      </div>
+    </div>
+    <div class="cell">
+      <div class="label">Shelf Life</div>
+      <div class="value">
+        {% if recipe.shelf_life_days is not none %}
+          {{ recipe.shelf_life_days }} day{{ 's' if recipe.shelf_life_days | int != 1 else '' }}
+        {% else %}&mdash;{% endif %}
+      </div>
+    </div>
+    <div class="cell">
+      <div class="label">Equipment</div>
+      <div class="value">{{ recipe.equipment or '&mdash;' }}</div>
+    </div>
+  </div>
+
+  <!-- BODY -->
+  <div class="body">
+
+    <!-- LEFT COLUMN -->
+    <div class="col-left">
+      <div class="section-title">Ingredients</div>
+      <table class="ingredients">
+        <thead>
+          <tr>
+            <th>Qty</th>
+            <th>Ingredient</th>
+            <th>Prep</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% set ns = namespace(has_rows=false) %}
+          {% for item in components if item.type in ('ingredient', 'recipe') %}
+            {% set ns.has_rows = true %}
+            <tr>
+              <td class="qty">{{ fmt(item.display_quantity) }}&nbsp;{{ item.display_unit or item.unit or '' }}</td>
+              <td class="ing">{{ item.item_name }}</td>
+              <td class="note">
+                {% if item.type == 'recipe' %}
+                  <span class="sub-badge">Sub</span>
+                {% elif item.prep_note %}
+                  {{ item.prep_note }}
+                {% else %}
+                  &mdash;
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+          {% if not ns.has_rows %}
+          <tr><td colspan="3" class="note" style="padding:8px 6px;">No ingredients recorded.</td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+
+      {% if critical_steps_list %}
+      <div class="alert">
+        <div class="section-title">Critical Steps</div>
+        <ul>
+          {% for step in critical_steps_list %}
+          <li>{{ step }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+
+      {% if storage_lines %}
+      <div class="storage">
+        <div class="section-title">Storage &amp; Handling</div>
+        <div class="body-text">
+          {% for line in storage_lines %}{{ line }}{% if not loop.last %}<br>{% endif %}{% endfor %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div class="col-right">
+      <div class="section-title">Method</div>
+      {% if instruction_steps %}
+      <ol class="steps">
+        {% for step in instruction_steps %}
+        <li>
+          {% if step.title %}
+          <span class="step-title">{{ step.title }}{% if step.duration_text %} <span class="step-time">({{ step.duration_text }})</span>{% endif %}</span>
+          {% endif %}
+          {% if step.body %}
+          <span class="step-text{% if not step.title %} step-text--solo{% endif %}">{{ step.body }}</span>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ol>
+      {% else %}
+      <p class="no-content">No method steps have been added to this recipe yet.</p>
+      {% endif %}
+    </div>
+
+  </div>
+
+  <!-- FOOTER -->
+  <div class="foot">
+    <span>Foxtown Brewing &middot; Kitchen Build Card</span>
+    <span>{{ recipe.category or '' }}</span>
+  </div>
+
+</div>
+
+<script>
+window.addEventListener('load', function () {
+  setTimeout(function () { window.print(); }, 250);
+  window.addEventListener('afterprint', function () { window.close(); }, { once: true });
+});
+</script>
+</body>
+</html>
