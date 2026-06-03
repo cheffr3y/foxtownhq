@@ -159,6 +159,27 @@ def _get_recipe_detail_context(recipe_id):
             unit_system
         )
 
+        method_steps_raw = []
+        if db_table_exists(cur, 'public.recipe_method_steps'):
+            cur.execute("""
+                SELECT title, duration_text, body
+                FROM recipe_method_steps
+                WHERE recipe_id = %s
+                ORDER BY sort_order, id
+            """, (recipe_id,))
+            method_steps_raw = [dict(row) for row in cur.fetchall()]
+
+        if method_steps_raw:
+            instruction_steps = [
+                {'title': s.get('title') or '', 'duration_text': s.get('duration_text') or '', 'body': s.get('body') or ''}
+                for s in method_steps_raw
+            ]
+        else:
+            instruction_steps = [
+                {'title': '', 'duration_text': '', 'body': s}
+                for s in split_instruction_steps(recipe.get('instructions'))
+            ]
+
         return {
             'recipe': recipe,
             'recipe_venues': recipe_venues,
@@ -170,7 +191,7 @@ def _get_recipe_detail_context(recipe_id):
             'base_total_cost': base_total_cost,
             'q_factor_percent': RECIPE_Q_FACTOR_PERCENT,
             'q_factor_amount': q_factor_amount,
-            'instruction_steps': split_instruction_steps(recipe.get('instructions')),
+            'instruction_steps': instruction_steps,
             'critical_steps_list': split_instruction_steps(recipe.get('critical_steps')),
             'storage_lines': split_instruction_steps(recipe.get('storage_instructions')),
         }
@@ -343,6 +364,7 @@ def recipe_new():
     conn = get_db()
     option_items_input = []
     selected_venue_ids = []
+    method_steps = []
     with get_cursor() as cur:
         ensure_recipe_metadata_columns(cur)
         ensure_prep_schema(cur)
@@ -356,6 +378,9 @@ def recipe_new():
             yield_unit = normalize_unit(yield_unit) or yield_unit
             instructions = (request.form.get('instructions') or '').strip()
             menu_descriptor = (request.form.get('menu_descriptor') or '').strip()
+            step_titles = request.form.getlist('step_title[]')
+            step_durations = request.form.getlist('step_duration[]')
+            step_bodies = request.form.getlist('step_body[]')
             source_venue = (request.form.get('source_venue') or '').strip()
             equipment = (request.form.get('equipment') or '').strip()
             station = (request.form.get('station') or '').strip()
@@ -542,12 +567,32 @@ def recipe_new():
                             option['weight_percent']
                         ))
 
+                    if db_table_exists(cur, 'public.recipe_method_steps'):
+                        for idx, body in enumerate(step_bodies):
+                            body = (body or '').strip()
+                            if not body:
+                                continue
+                            title = (step_titles[idx] if idx < len(step_titles) else '').strip()
+                            duration = (step_durations[idx] if idx < len(step_durations) else '').strip()
+                            cur.execute("""
+                                INSERT INTO recipe_method_steps (recipe_id, sort_order, title, duration_text, body)
+                                VALUES (%s, %s, %s, %s, %s)
+                            """, (recipe_id, idx, title or None, duration or None, body))
+
                     conn.commit()
                     flash('Recipe created', 'success')
                     return redirect(url_for('recipe_detail', recipe_id=recipe_id))
                 except Exception:
                     conn.rollback()
                     flash('Error creating recipe', 'error')
+
+            if errors or request.method == 'POST':
+                method_steps = [
+                    {'title': (step_titles[i] if i < len(step_titles) else ''),
+                     'duration_text': (step_durations[i] if i < len(step_durations) else ''),
+                     'body': step_bodies[i]}
+                    for i in range(len(step_bodies))
+                ]
 
         # GET or validation error fallback
         cur.execute("SELECT id, name, unit, category FROM ingredients ORDER BY name")
@@ -598,7 +643,8 @@ def recipe_new():
         ingredient_items=[],
         subrecipe_items=[],
         prep_note_options=PREP_NOTE_OPTIONS,
-        option_items=_prepare_option_items_for_form(option_items_input, option_label_map)
+        option_items=_prepare_option_items_for_form(option_items_input, option_label_map),
+        method_steps=method_steps,
     )
 
 @bp.route('/recipes/<recipe_id>/edit', methods=['GET', 'POST'])
@@ -634,6 +680,9 @@ def recipe_edit(recipe_id):
             recipe_type = infer_recipe_type(name, request.form.get('recipe_type'))
             prep_time_minutes = _parse_optional_int(request.form.get('prep_time_minutes'), 'Prep time', errors)
             shelf_life_days = _parse_optional_int(request.form.get('shelf_life_days'), 'Shelf life', errors)
+            step_titles = request.form.getlist('step_title[]')
+            step_durations = request.form.getlist('step_duration[]')
+            step_bodies = request.form.getlist('step_body[]')
             if recipe_type == 'menu':
                 yield_qty = '1'
                 yield_unit = 'serving'
@@ -809,6 +858,23 @@ def recipe_edit(recipe_id):
                             option['weight_percent']
                         ))
 
+                    if db_table_exists(cur, 'public.recipe_method_steps'):
+                        cur.execute("DELETE FROM recipe_method_steps WHERE recipe_id = %s", (recipe_id,))
+                        has_steps = False
+                        for idx, body in enumerate(step_bodies):
+                            body = (body or '').strip()
+                            if not body:
+                                continue
+                            title = (step_titles[idx] if idx < len(step_titles) else '').strip()
+                            duration = (step_durations[idx] if idx < len(step_durations) else '').strip()
+                            cur.execute("""
+                                INSERT INTO recipe_method_steps (recipe_id, sort_order, title, duration_text, body)
+                                VALUES (%s, %s, %s, %s, %s)
+                            """, (recipe_id, idx, title or None, duration or None, body))
+                            has_steps = True
+                        if has_steps:
+                            cur.execute("UPDATE recipes SET instructions = NULL WHERE id = %s", (recipe_id,))
+
                     conn.commit()
                     flash('Recipe updated', 'success')
                     return redirect(url_for('recipe_detail', recipe_id=recipe_id))
@@ -821,6 +887,12 @@ def recipe_edit(recipe_id):
         ingredient_items = [c for c in components if c.get('type') == 'ingredient']
         subrecipe_items = [c for c in components if c.get('type') == 'recipe']
         if request.method == 'POST':
+            method_steps = [
+                {'title': (step_titles[i] if i < len(step_titles) else ''),
+                 'duration_text': (step_durations[i] if i < len(step_durations) else ''),
+                 'body': step_bodies[i]}
+                for i in range(len(step_bodies))
+            ]
             option_items = []
             max_options = max(
                 len(option_group_names),
@@ -853,6 +925,18 @@ def recipe_edit(recipe_id):
                 })
         else:
             option_items = get_recipe_weighted_options(cur, recipe_id)
+            method_steps = []
+            if db_table_exists(cur, 'public.recipe_method_steps'):
+                cur.execute("""
+                    SELECT title, duration_text, body
+                    FROM recipe_method_steps
+                    WHERE recipe_id = %s
+                    ORDER BY sort_order, id
+                """, (recipe_id,))
+                method_steps = [dict(row) for row in cur.fetchall()]
+            if not method_steps and recipe.get('instructions'):
+                parsed = split_instruction_steps(recipe.get('instructions'))
+                method_steps = [{'title': '', 'duration_text': '', 'body': s} for s in parsed]
 
         cur.execute("SELECT id, name, unit, category FROM ingredients ORDER BY name")
         ingredients_list = cur.fetchall()
@@ -889,7 +973,8 @@ def recipe_edit(recipe_id):
         ingredient_items=ingredient_items,
         subrecipe_items=subrecipe_items,
         prep_note_options=PREP_NOTE_OPTIONS,
-        option_items=_prepare_option_items_for_form(option_items, option_label_map)
+        option_items=_prepare_option_items_for_form(option_items, option_label_map),
+        method_steps=method_steps,
     )
 
 @bp.route('/recipe-generator', methods=['GET', 'POST'])

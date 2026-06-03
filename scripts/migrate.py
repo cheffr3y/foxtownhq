@@ -535,6 +535,18 @@ MIGRATIONS = [
     """,
     "CREATE INDEX IF NOT EXISTS idx_users_username ON users (username)",
     "CREATE INDEX IF NOT EXISTS idx_users_role ON users (role)",
+    "ALTER TABLE recipe_ingredients ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0",
+    """
+    CREATE TABLE IF NOT EXISTS recipe_method_steps (
+        id BIGSERIAL PRIMARY KEY,
+        recipe_id TEXT NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        title TEXT,
+        duration_text TEXT,
+        body TEXT NOT NULL DEFAULT ''
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_recipe_method_steps_recipe_id ON recipe_method_steps (recipe_id, sort_order)",
     # Drop commissary tables — all data intentionally removed
     "DROP TABLE IF EXISTS commissary_transfer_lines CASCADE",
     "DROP TABLE IF EXISTS commissary_transfers CASCADE",

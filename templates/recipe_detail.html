@@ -310,15 +310,15 @@
                 {% for step in instruction_steps %}
                 <div class="rm-timeline-row">
                     <div class="rm-timeline-index">{{ '%02d'|format(loop.index) }}</div>
-                    <div class="rm-timeline-copy">{{ step }}</div>
+                    <div class="rm-timeline-copy">
+                        {% if step.title %}
+                        <div class="rm-step-title">{{ step.title }}{% if step.duration_text %} <span class="rm-step-dur">({{ step.duration_text }})</span>{% endif %}</div>
+                        {% endif %}
+                        {% if step.body %}<div class="rm-step-body{% if not step.title %} rm-step-body--solo{% endif %}">{{ step.body }}</div>{% endif %}
+                    </div>
                 </div>
                 {% endfor %}
             </div>
-        </section>
-        {% elif recipe.instructions %}
-        <section class="rm-timeline">
-            <div class="rm-section-title">Instructions</div>
-            <div class="rm-freeform-copy">{{ recipe.instructions }}</div>
         </section>
         {% endif %}
     </div>
@@ -819,6 +819,26 @@
 }
 .rm-timeline-row:last-child .rm-timeline-copy {
     padding-bottom: 0;
+}
+.rm-step-title {
+    font-weight: 700;
+    color: #2a3439;
+    margin-bottom: 0.15rem;
+    white-space: normal;
+}
+.rm-step-dur {
+    font-weight: 400;
+    color: #717c82;
+    font-size: 0.85em;
+}
+.rm-step-body {
+    font-size: 0.85rem;
+    line-height: 1.6;
+    color: #566166;
+    white-space: pre-line;
+}
+.rm-step-body--solo {
+    color: #2a3439;
 }
 .rm-hero,
 .rm-stat-grid,
