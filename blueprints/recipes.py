@@ -1093,6 +1093,49 @@ def recipe_print(recipe_id):
     return render_template('recipe_detail.html', auto_print=True, **context)
 
 
+@bp.route('/recipes/<recipe_id>/buildcard')
+@login_required
+def recipe_buildcard(recipe_id):
+    context = _get_recipe_detail_context(recipe_id)
+    if not context:
+        flash('Recipe not found', 'error')
+        return redirect(url_for('recipes'))
+
+    target_qty_raw = (request.args.get('target_qty') or '').strip()
+    scale_factor = None
+    target_qty_display = None
+
+    if target_qty_raw:
+        try:
+            target_qty = float(target_qty_raw)
+            base_qty = float(context['recipe'].get('yield_qty') or 0)
+            if base_qty > 0 and target_qty > 0:
+                scale_factor = target_qty / base_qty
+                target_qty_display = target_qty
+        except (TypeError, ValueError):
+            pass
+
+    if scale_factor is not None and scale_factor != 1:
+        def _scale_items(items):
+            for item in items:
+                raw = item.get('display_quantity')
+                if raw is not None:
+                    try:
+                        item['display_quantity'] = round(float(raw) * scale_factor, 4)
+                    except (TypeError, ValueError):
+                        pass
+                if item.get('children'):
+                    _scale_items(item['children'])
+        _scale_items(context['components'])
+
+    return render_template(
+        'recipe_buildcard.html',
+        scale_factor=scale_factor,
+        target_qty=target_qty_display,
+        **context,
+    )
+
+
 @bp.route('/api/recipes/search')
 @login_required
 def api_recipes_search():
