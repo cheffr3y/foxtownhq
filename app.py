@@ -45,6 +45,15 @@ app.config['SECRET_KEY'] = secret_key
 init_db_app(app)
 app.context_processor(inject_helpers)
 
+# Run schema migrations automatically at startup so the app never starts
+# with a stale schema regardless of how gunicorn is invoked.
+try:
+    import scripts.migrate as _migrate
+    _migrate.main()
+except Exception as _e:
+    import logging
+    logging.getLogger(__name__).error("Startup migration failed: %s", _e)
+
 
 class User(UserMixin):
     def __init__(self, id, username, role='cook'):
@@ -60,11 +69,14 @@ login_manager.login_view = 'login'
 
 @login_manager.user_loader
 def load_user(user_id):
-    with get_cursor() as cur:
-        row = get_user_by_id(cur, user_id)
-    if not row or not row.get('active'):
+    try:
+        with get_cursor() as cur:
+            row = get_user_by_id(cur, user_id)
+        if not row or not row.get('active'):
+            return None
+        return User(row['id'], row['username'], row['role'])
+    except Exception:
         return None
-    return User(row['id'], row['username'], row['role'])
 
 
 @app.route('/')
