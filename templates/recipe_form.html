@@ -301,7 +301,7 @@
                 <div id="methodStepRows">
                     {% for step in (method_steps if method_steps else [{'title': '', 'duration_text': '', 'body': ''}]) %}
                     <div class="method-step-row rfg-step-row">
-                        <div class="rfg-step-num" data-step-num>{{ loop.index0 + 1 | string | rjust(2, '0') }}</div>
+                        <div class="rfg-step-num" data-step-num>{{ '%02d' % loop.index }}</div>
                         <div class="rfg-step-inner">
                             <div class="rfg-step-header">
                                 <input type="text" name="step_title[]" value="{{ step.title or '' }}"
