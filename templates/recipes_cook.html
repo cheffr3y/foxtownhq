@@ -1,0 +1,60 @@
+{% extends "base_cook.html" %}
+
+{% block title %}Recipes – Foxtown HQ{% endblock %}
+
+{% block content %}
+<form method="GET" action="{{ url_for('recipes.recipes') }}" class="cook-search-wrap">
+    <input
+        type="text"
+        name="q"
+        value="{{ search_query }}"
+        placeholder="Search recipes…"
+        class="cook-search"
+        autocomplete="off"
+        autocorrect="off"
+        spellcheck="false"
+        autofocus
+    >
+</form>
+
+<form method="GET" action="{{ url_for('recipes.recipes') }}" id="filterForm">
+    <input type="hidden" name="q" value="{{ search_query }}">
+    <div class="cook-filters">
+        <button type="submit" name="recipe_type" value=""
+            class="cook-filter {% if not selected_recipe_type %}active{% endif %}">All</button>
+        {% for value, label in recipe_type_choices %}
+        <button type="submit" name="recipe_type" value="{{ value }}"
+            class="cook-filter {% if selected_recipe_type == value %}active{% endif %}">{{ label }}</button>
+        {% endfor %}
+    </div>
+</form>
+
+{% if recipes %}
+    {% for recipe in recipes %}
+    <a href="{{ url_for('recipes.recipe_detail', recipe_id=recipe.id) }}" class="cook-card">
+        <div class="cook-card-name">{{ recipe.name }}</div>
+        <div class="cook-card-meta">
+            {% if recipe.recipe_type == 'menu' %}
+            <span class="cook-tag"><i></i>Plated</span>
+            {% elif recipe.recipe_type == 'batch' %}
+            <span class="cook-tag"><i></i>Batch</span>
+            {% endif %}
+            {% if recipe.category %}
+            <span>{{ recipe.category }}</span>
+            {% endif %}
+            {% if recipe.station %}
+            <span>· {{ recipe.station }}</span>
+            {% endif %}
+        </div>
+    </a>
+    {% endfor %}
+{% else %}
+<div class="cook-empty">
+    {% if search_query or selected_recipe_type %}
+    No recipes match. <a href="{{ url_for('recipes.recipes') }}" style="color:var(--ember)">Clear filters</a>
+    {% else %}
+    No recipes yet.
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

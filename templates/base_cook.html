@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>{% block title %}Foxtown HQ{% endblock %}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        foxtown: {
+                            bg: '#F7F9FB', surface: '#FFFFFF', panel: '#F0F4F7',
+                            border: '#A9B4B9', text: '#2A3439', muted: '#566166',
+                            subtle: '#717C82', primary: '#565E74', ember: '#C0612B'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+                        body: ['Inter', 'system-ui', '-apple-system', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        :root {
+            color-scheme: light;
+            --bg: #f7f9fb; --surface: #ffffff; --surface-low: #f0f4f7;
+            --surface-high: #e8eff3; --surface-top: #d9e4ea;
+            --fg: #2a3439; --muted: #566166; --outline: #717c82;
+            --primary: #565e74; --primary-dim: #4a5268;
+            --danger: #c00815; --ember: #C0612B;
+        }
+        html, body { min-height: 100%; margin: 0; }
+        body {
+            background: var(--bg);
+            color: var(--fg);
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        a { color: inherit; text-decoration: none; }
+        /* Cook top bar */
+        .cook-bar {
+            position: sticky; top: 0; z-index: 40;
+            height: 3rem;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 1rem;
+            background: #2a3439;
+            color: #f7f9fb;
+        }
+        .cook-bar-brand {
+            display: flex; align-items: center; gap: 0.55rem;
+            font-size: 0.78rem; font-weight: 800; letter-spacing: 0.06em;
+            text-transform: uppercase; color: #f7f9fb;
+        }
+        .cook-bar-mark {
+            width: 1.75rem; height: 1.75rem;
+            display: flex; align-items: center; justify-content: center;
+            background: var(--ember); color: #fff;
+            font-size: 0.88rem; font-weight: 900;
+        }
+        .cook-bar-sign-out {
+            font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em;
+            text-transform: uppercase; color: #a9b4b9;
+            padding: 0.4rem 0;
+        }
+        .cook-bar-sign-out:hover { color: #f7f9fb; }
+        /* Cook content */
+        .cook-body { padding: 1rem 1rem 4rem; max-width: 36rem; margin: 0 auto; }
+        @media (min-width: 640px) { .cook-body { padding: 1.5rem 1.5rem 4rem; } }
+        /* Recipe card */
+        .cook-card {
+            display: block;
+            padding: 1rem;
+            background: var(--surface);
+            border: 1px solid #D9E4EA;
+            border-bottom: 2px solid #A9B4B9;
+            margin-bottom: 0.6rem;
+        }
+        .cook-card:active { background: var(--surface-low); }
+        .cook-card-name {
+            font-size: 1rem; font-weight: 800; color: var(--fg);
+            line-height: 1.3;
+        }
+        .cook-card-meta {
+            margin-top: 0.25rem;
+            font-size: 0.75rem; color: var(--muted);
+            display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;
+        }
+        .cook-tag {
+            display: inline-flex; align-items: center; gap: 0.25rem;
+            font-size: 0.65rem; font-weight: 800; letter-spacing: 0.06em;
+            text-transform: uppercase; color: var(--ember);
+        }
+        .cook-tag i {
+            width: 0.35rem; height: 0.35rem; border-radius: 999px;
+            display: inline-block; background: var(--ember);
+        }
+        /* Search */
+        .cook-search-wrap { margin-bottom: 1rem; }
+        .cook-search {
+            display: block; width: 100%; box-sizing: border-box;
+            padding: 0.8rem 1rem;
+            font-size: 1rem; font-weight: 500;
+            border: none; border-bottom: 2px solid var(--fg);
+            background: var(--surface);
+            color: var(--fg);
+            outline: none;
+        }
+        .cook-search::placeholder { color: var(--muted); }
+        .cook-search:focus { border-color: var(--ember); }
+        /* Filter row */
+        .cook-filters { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+        .cook-filter {
+            padding: 0.4rem 0.75rem;
+            font-size: 0.7rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+            border: 1px solid var(--outline); background: var(--surface); color: var(--muted);
+        }
+        .cook-filter.active { background: var(--fg); color: #f7f9fb; border-color: var(--fg); }
+        /* Empty state */
+        .cook-empty { padding: 3rem 1rem; text-align: center; color: var(--muted); font-size: 0.9rem; }
+        /* Back bar on detail */
+        .cook-back-bar {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0.65rem 0; margin-bottom: 1rem;
+            border-bottom: 1px solid #D9E4EA;
+        }
+        .cook-back-link {
+            display: flex; align-items: center; gap: 0.4rem;
+            font-size: 0.75rem; font-weight: 700; letter-spacing: 0.05em;
+            text-transform: uppercase; color: var(--muted);
+        }
+        .cook-back-link:hover { color: var(--fg); }
+        .cook-print-btn {
+            padding: 0.45rem 0.9rem;
+            font-size: 0.7rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
+            background: var(--fg); color: #f7f9fb; border: none; cursor: pointer;
+        }
+        .cook-print-btn:active { background: #1a2024; }
+        @media print {
+            .cook-bar, .cook-back-bar { display: none !important; }
+            .cook-body { padding: 0 !important; max-width: none !important; }
+        }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+{% set user_is_authenticated = current_user is defined and current_user.is_authenticated %}
+{% if user_is_authenticated %}
+<header class="cook-bar">
+    <a href="{{ url_for('recipes.recipes') }}" class="cook-bar-brand">
+        <div class="cook-bar-mark">F</div>
+        Foxtown HQ
+    </a>
+    <a href="{{ url_for('logout') }}" class="cook-bar-sign-out">Sign Out</a>
+</header>
+{% endif %}
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+<div style="padding:0.5rem 1rem;">
+    {% for category, message in messages %}
+    <div style="padding:0.6rem 0.9rem;margin-bottom:0.4rem;font-size:0.82rem;font-weight:600;
+        background:{% if category=='error' %}#fff1f1{% elif category=='success' %}#eef5ef{% else %}#f0f4f7{% endif %};
+        border-left:3px solid {% if category=='error' %}#c00815{% elif category=='success' %}#36593d{% else %}#717c82{% endif %};">
+        {{ message }}
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endwith %}
+
+<main class="cook-body">
+    {% block content %}{% endblock %}
+</main>
+</body>
+</html>

@@ -1,4 +1,5 @@
-{% extends "base.html" %}
+{% set is_cook = current_user is defined and current_user.is_authenticated and current_user.role == 'cook' %}
+{% extends "base_cook.html" if is_cook else "base.html" %}
 
 {% block title %}{{ recipe.name }} - Foxtown HQ{% endblock %}
 
@@ -31,7 +32,8 @@
 {% endif %}
 {% set default_descriptor_copy = 'Operational recipe sheet with component yields and sub-recipe rollups.' if auto_print else 'Operational recipe sheet with live component costing and sub-recipe rollups.' %}
 {% set descriptor_copy = recipe.menu_descriptor or default_descriptor_copy %}
-{% set ledger_colspan = 5 if not auto_print else 2 %}
+{% set show_costs = not auto_print and not is_cook %}
+{% set ledger_colspan = 5 if show_costs else 2 %}
 
 {% macro render_component_rows(items, depth=0, parent_key='') -%}
     {% for item in items %}
@@ -101,21 +103,21 @@
         <div class="rm-ledger-subline">{{ item.scaled_quantity_display }} {{ item.unit or '' }}</div>
         {% endif %}
     </td>
-    {% if not auto_print %}
+    {% if show_costs %}
     <td class="rm-ledger-cell rm-ledger-cell--prep">
         {% if item.type == 'ingredient' and item.prep_note %}
         <span class="badge-prep">{{ item.prep_note }}</span>
         {% endif %}
     </td>
     {% endif %}
-    {% if not auto_print %}
+    {% if show_costs %}
     <td class="rm-ledger-cell rm-ledger-cell--unitcost">{{ unit_cost }}</td>
     <td class="rm-ledger-cell rm-ledger-cell--extension">{{ extension_cost }}</td>
     {% endif %}
 </tr>
-        {% if item.children and not auto_print %}
+        {% if item.children and show_costs %}
             {{ render_component_rows(item.children, depth + 1, item_key ~ '-') }}
-        {% elif item.type == 'recipe' and not auto_print %}
+        {% elif item.type == 'recipe' and show_costs %}
 <tr class="rm-ledger-note-row" data-node-key="{{ item_key }}-note" data-depth="{{ depth + 1 }}">
     <td class="rm-ledger-note" colspan="{{ ledger_colspan }}" style="padding-left: calc(3.6rem + {{ depth }} * 1.2rem);">No nested ingredient rows are linked under this sub-recipe yet.</td>
 </tr>
@@ -125,6 +127,15 @@
 
 <div class="rm-shell">
     {% if not auto_print %}
+    {% if is_cook %}
+    <div class="cook-back-bar no-print">
+        <a href="{{ url_for('recipes.recipes') }}" class="cook-back-link">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg>
+            All Recipes
+        </a>
+        <button type="button" class="cook-print-btn" onclick="exportRecipePdf()">Print / PDF</button>
+    </div>
+    {% else %}
     <div class="rm-toolbar no-print">
         <div class="rm-toolbar-copy">
             <div class="rm-toolbar-kicker">Recipe Master</div>
@@ -142,6 +153,7 @@
             <a href="{{ url_for('recipe_edit', recipe_id=recipe.id) }}" class="rm-btn rm-btn--primary">Edit Recipe</a>
         </div>
     </div>
+    {% endif %}
     {% endif %}
 
     <div class="rm-sheet">
@@ -179,12 +191,12 @@
             </div>
         </section>
 
-        <section class="rm-stat-grid {% if auto_print %}rm-stat-grid--ops-only{% endif %}">
+        <section class="rm-stat-grid {% if not show_costs %}rm-stat-grid--ops-only{% endif %}">
             <div class="rm-stat-card">
                 <div class="rm-stat-label">Yield</div>
                 <div class="rm-stat-value">{{ yield_display.quantity }} {{ yield_display.unit }}</div>
             </div>
-            {% if not auto_print %}
+            {% if show_costs %}
             <div class="rm-stat-card">
                 <div class="rm-stat-label">Estimated Total Cost</div>
                 <div class="rm-stat-value">{% if total_cost is not none %}${{ "%.2f"|format(total_cost) }}{% else %}N/A{% endif %}</div>
@@ -201,13 +213,13 @@
         </section>
 
         <section class="rm-ledger">
-            <div class="rm-ledger-header {% if auto_print %}rm-ledger-header--ops-only{% endif %}">
+            <div class="rm-ledger-header {% if not show_costs %}rm-ledger-header--ops-only{% endif %}">
                 <div class="rm-ledger-heading">Ingredient / Sub-Recipe</div>
                 <div class="rm-ledger-heading rm-ledger-heading--right">Qty / Unit</div>
-                {% if not auto_print %}
+                {% if show_costs %}
                 <div class="rm-ledger-heading rm-ledger-heading--right">Prep Form</div>
                 {% endif %}
-                {% if not auto_print %}
+                {% if show_costs %}
                 <div class="rm-ledger-heading rm-ledger-heading--right">Unit Cost</div>
                 <div class="rm-ledger-heading rm-ledger-heading--right">Extension</div>
                 {% endif %}
@@ -221,7 +233,7 @@
             {% else %}
             <div class="rm-empty">No ingredients or linked sub-recipes have been added yet.</div>
             {% endif %}
-            {% if not auto_print %}
+            {% if show_costs %}
             <div class="rm-ledger-total">
                 <span>Total Rollup</span>
                 <span>{% if total_cost is not none %}${{ "%.2f"|format(total_cost) }}{% else %}N/A{% endif %}</span>

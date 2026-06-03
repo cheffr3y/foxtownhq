@@ -1,7 +1,7 @@
 from config import RECIPE_Q_FACTOR_PERCENT
 from db import get_cursor, get_db
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
-from flask_login import login_required
+from flask_login import current_user, login_required
 from helpers.auth import role_required
 from helpers.db_helpers import db_table_exists, ensure_recipe_metadata_columns
 from helpers.forecasting import sync_forecasting_menu_items_for_recipe
@@ -279,6 +279,17 @@ def recipes():
             ))
 
         recipes_list = cur.fetchall()
+
+    recipe_type_choices = [('menu', 'Plated'), ('batch', 'Batch')]
+    if current_user.role == 'cook':
+        return render_template(
+            'recipes_cook.html',
+            recipes=recipes_list,
+            search_query=search_query,
+            selected_recipe_type=selected_recipe_type or '',
+            recipe_type_choices=recipe_type_choices,
+        )
+
     menu_count = sum(1 for row in recipes_list if row.get('recipe_type') == 'menu')
     batch_count = sum(1 for row in recipes_list if row.get('recipe_type') == 'batch')
     active_filter_count = sum(1 for value in [
