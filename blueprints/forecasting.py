@@ -34,11 +34,17 @@ from helpers.forecasting import (
     summarize_forecasting_items,
     submit_forecasting_plan_to_commissary,
 )
+from helpers.auth import require_role
 from helpers.menu import clean_menu_text
 from helpers.shared import generate_id, handle_route_error
 from helpers.venues import get_active_venues
 
 bp = Blueprint('forecasting', __name__)
+
+
+@bp.before_request
+def _require_chef():
+    return require_role('chef')
 
 
 @bp.errorhandler(Exception)

@@ -4,6 +4,7 @@ from config import PRICE_REFRESH_DAYS
 from db import get_cursor, get_db
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import login_required
+from helpers.auth import require_role
 from helpers.shared import generate_id, handle_route_error, to_float
 from helpers.units import normalize_unit
 
@@ -12,6 +13,11 @@ bp = Blueprint('ingredients', __name__)
 
 def escape_like(value):
     return value.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
+
+
+@bp.before_request
+def _require_chef():
+    return require_role('chef')
 
 
 @bp.errorhandler(Exception)

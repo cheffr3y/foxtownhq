@@ -5,6 +5,7 @@ from config import DEFAULT_Q_FACTOR_PERCENT, DEFAULT_TARGET_FOOD_COST_PERCENT
 from db import get_cursor, get_db
 from flask import Blueprint, flash, redirect, render_template, request, send_file, url_for
 from flask_login import login_required
+from helpers.auth import require_role
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from helpers.formatting import (
@@ -25,6 +26,12 @@ from helpers.shared import generate_id, handle_route_error, to_float
 from helpers.units import get_unit_system, summarize_yield_pricing
 
 bp = Blueprint('menu', __name__)
+
+
+@bp.before_request
+def _require_chef():
+    return require_role('chef')
+
 
 @bp.errorhandler(Exception)
 def handle_menu_error(error):

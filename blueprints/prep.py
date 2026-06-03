@@ -2,10 +2,16 @@ from db import get_cursor, get_db
 from flask import Blueprint, render_template
 from flask_login import login_required
 
+from helpers.auth import require_role
 from helpers.prep_helpers import ensure_prep_schema, get_prep_aggregation
 from helpers.shared import handle_route_error
 
 bp = Blueprint('prep', __name__, url_prefix='/prep')
+
+
+@bp.before_request
+def _require_chef():
+    return require_role('chef')
 
 
 @bp.errorhandler(Exception)

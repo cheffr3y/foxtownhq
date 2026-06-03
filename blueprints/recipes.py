@@ -2,6 +2,7 @@ from config import RECIPE_Q_FACTOR_PERCENT
 from db import get_cursor, get_db
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import login_required
+from helpers.auth import role_required
 from helpers.db_helpers import db_table_exists, ensure_recipe_metadata_columns
 from helpers.forecasting import sync_forecasting_menu_items_for_recipe
 from helpers.formatting import split_instruction_steps
@@ -326,6 +327,7 @@ def recipes():
 
 @bp.route('/recipes/new', methods=['GET', 'POST'])
 @login_required
+@role_required('chef')
 def recipe_new():
     conn = get_db()
     option_items_input = []
@@ -590,6 +592,7 @@ def recipe_new():
 
 @bp.route('/recipes/<recipe_id>/edit', methods=['GET', 'POST'])
 @login_required
+@role_required('chef')
 def recipe_edit(recipe_id):
     conn = get_db()
     with get_cursor() as cur:
@@ -880,12 +883,14 @@ def recipe_edit(recipe_id):
 
 @bp.route('/recipe-generator', methods=['GET', 'POST'])
 @login_required
+@role_required('chef')
 def recipe_generator():
     flash('Recipe Generator has been merged into New Recipe.', 'info')
     return redirect(url_for('recipe_new'))
 
 @bp.route('/recipes/<recipe_id>/clone', methods=['POST'])
 @login_required
+@role_required('chef')
 def recipe_clone(recipe_id):
     conn = get_db()
     with get_cursor() as cur:
@@ -913,6 +918,7 @@ def recipe_clone(recipe_id):
 
 @bp.route('/recipes/<recipe_id>/delete', methods=['POST'])
 @login_required
+@role_required('admin')
 def recipe_delete(recipe_id):
     conn = get_db()
     with get_cursor() as cur:

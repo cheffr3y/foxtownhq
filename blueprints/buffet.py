@@ -9,6 +9,7 @@ from html import escape
 from db import get_cursor, get_db
 from flask import Blueprint, Response, flash, redirect, render_template, request, url_for
 from flask_login import login_required
+from helpers.auth import require_role
 from helpers.db_helpers import db_column_exists, db_table_exists
 from helpers.formatting import flatten_components_for_pdf, make_safe_filename, split_instruction_steps
 from helpers.menu import clean_menu_text
@@ -29,6 +30,11 @@ from reportlab.pdfgen import canvas
 from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 bp = Blueprint('buffet', __name__)
+
+
+@bp.before_request
+def _require_chef():
+    return require_role('chef')
 
 
 @bp.errorhandler(Exception)

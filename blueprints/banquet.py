@@ -7,6 +7,7 @@ from io import BytesIO
 from db import get_cursor, get_db
 from flask import Blueprint, Response, flash, jsonify, redirect, render_template, request, send_file, url_for
 from flask_login import login_required
+from helpers.auth import require_role
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill
 from reportlab.lib import colors
@@ -67,6 +68,12 @@ from helpers.units import format_number, get_unit_system, normalize_count_unit
 from helpers.venues import get_active_venues, get_component_recipes_for_venue, get_plated_recipes_for_venue
 
 bp = Blueprint('banquet', __name__)
+
+
+@bp.before_request
+def _require_chef():
+    return require_role('chef')
+
 
 @bp.errorhandler(Exception)
 def handle_banquet_error(error):
