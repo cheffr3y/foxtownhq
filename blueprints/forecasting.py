@@ -4,8 +4,6 @@ from db import get_cursor, get_db
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
-from helpers.commissary import ensure_commissary_tables
-from helpers.db_helpers import db_table_exists
 from helpers.forecasting import (
     FORECASTING_DAY_FIELDS,
     build_forecasting_sales_mix_par_preview,
@@ -32,7 +30,6 @@ from helpers.forecasting import (
     save_forecasting_sales_mix_mappings,
     search_forecasting_recipes,
     summarize_forecasting_items,
-    submit_forecasting_plan_to_commissary,
 )
 from helpers.auth import require_role
 from helpers.menu import clean_menu_text
@@ -201,33 +198,6 @@ def _build_sales_mix_handoff_status(cur, selected_venue, week_start, week_end):
         status['plan_line_count'] = len(lines)
         status['plan_total_qty'] = sum(float(line.get('total_qty') or 0) for line in lines)
 
-    if (
-        venue_name
-        and db_table_exists(cur, 'public.commissary_orders')
-        and db_table_exists(cur, 'public.commissary_order_lines')
-    ):
-        cur.execute(
-            """
-            SELECT
-                o.id,
-                o.needed_date,
-                COUNT(line.id) AS line_count
-            FROM commissary_orders o
-            LEFT JOIN commissary_order_lines line ON line.order_id = o.id
-            WHERE o.source = 'forecast'
-              AND o.outlet = %s
-              AND o.needed_date BETWEEN %s AND %s
-              AND COALESCE(NULLIF(TRIM(o.status), ''), 'draft') <> 'cancelled'
-            GROUP BY o.id, o.needed_date
-            ORDER BY o.needed_date, o.created_at
-            """,
-            (venue_name, week_start, week_end),
-        )
-        orders = [dict(row) for row in cur.fetchall()]
-        status['order_count'] = len(orders)
-        status['order_line_count'] = sum(int(order.get('line_count') or 0) for order in orders)
-        status['order_dates'] = [order.get('needed_date') for order in orders if order.get('needed_date')]
-
     return status
 
 
@@ -296,7 +266,6 @@ def forecasting_plan():
     conn = get_db()
     with get_cursor() as cur:
         ensure_forecasting_schema(cur)
-        ensure_commissary_tables(cur)
         conn.commit()
 
         venues = [dict(row) for row in get_active_venues(cur)]
@@ -339,44 +308,28 @@ def forecasting_plan():
                             plan = get_or_create_forecasting_plan(cur, selected_venue_id, week_start, created_by=created_by)
                         save_forecasting_plan_lines(cur, plan['id'], rows, notes=notes)
                         if intent == 'submit':
-                            plan = {
-                                **plan,
-                                'notes': notes,
-                                'status': normalize_forecasting_plan_status(plan.get('status')),
-                            }
-                            result = submit_forecasting_plan_to_commissary(
-                                cur,
-                                plan,
-                                venue_name=selected_venue_name,
-                                submitted_by=created_by,
+                            cur.execute(
+                                """
+                                UPDATE forecasting_plans
+                                SET status = 'submitted',
+                                    submitted_at = CURRENT_TIMESTAMP,
+                                    updated_at = CURRENT_TIMESTAMP
+                                WHERE id = %s
+                                """,
+                                (plan['id'],),
                             )
-                            if not result.get('ok'):
-                                conn.rollback()
-                                flash(result.get('message') or 'Could not submit forecast.', 'error')
-                            else:
-                                conn.commit()
-                                flash(
-                                    f"Forecast submitted: {result.get('order_count', 0)} commissary orders "
-                                    f"and {result.get('line_count', 0)} line items created.",
-                                    'success',
-                                )
-                                return redirect(
-                                    url_for(
-                                        'commissary.commissary_review',
-                                        week_start=week_start.isoformat(),
-                                        outlet=selected_venue_name,
-                                    )
-                                )
+                            conn.commit()
+                            flash('Forecast submitted.', 'success')
                         else:
                             conn.commit()
-                            flash('Review draft saved. It is still not in Commissary. Use Finish Review: Send to Commissary when it is ready.', 'success')
-                            return redirect(
-                                url_for(
-                                    'forecasting.forecasting_plan',
-                                    venue_id=selected_venue_id,
-                                    week_start=week_start.isoformat(),
-                                )
+                            flash('Draft saved.', 'success')
+                        return redirect(
+                            url_for(
+                                'forecasting.forecasting_plan',
+                                venue_id=selected_venue_id,
+                                week_start=week_start.isoformat(),
                             )
+                        )
                     except Exception:
                         conn.rollback()
                         raise
@@ -429,7 +382,6 @@ def forecasting_sales_mix():
     conn = get_db()
     with get_cursor() as cur:
         ensure_forecasting_schema(cur)
-        ensure_commissary_tables(cur)
         conn.commit()
 
         venues = [dict(row) for row in get_active_venues(cur)]
