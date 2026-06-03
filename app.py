@@ -16,7 +16,7 @@ from blueprints.prep import bp as prep_bp
 from blueprints.recipes import bp as recipes_bp
 from config import PRICE_REFRESH_DAYS
 from db import get_cursor, get_db, init_app as init_db_app
-from helpers.auth import get_admin_config
+from helpers.auth import get_user_by_id, get_user_by_username, role_required
 from helpers.banquet import (
     auto_complete_past_banquet_events,
     build_banquet_datasets,
@@ -47,9 +47,10 @@ app.context_processor(inject_helpers)
 
 
 class User(UserMixin):
-    def __init__(self, id, username):
+    def __init__(self, id, username, role='cook'):
         self.id = id
         self.username = username
+        self.role = role
 
 
 login_manager = LoginManager()
@@ -59,37 +60,40 @@ login_manager.login_view = 'login'
 
 @login_manager.user_loader
 def load_user(user_id):
-    config = get_admin_config()
-    username = config['username'] if config else 'admin'
-    return User(user_id, username)
+    with get_cursor() as cur:
+        row = get_user_by_id(cur, user_id)
+    if not row or not row.get('active'):
+        return None
+    return User(row['id'], row['username'], row['role'])
 
 
 @app.route('/')
 def index():
     if current_user.is_authenticated:
+        if current_user.role == 'cook':
+            return redirect(url_for('recipes.recipes'))
         return redirect(url_for('dashboard'))
     return redirect(url_for('login'))
 
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    from flask import request
-
     if request.method == 'POST':
-        config = get_admin_config()
-        if not config:
-            flash('Admin credentials are not configured yet.', 'error')
-            return render_template('login.html')
+        username = (request.form.get('username') or '').strip()
+        password = request.form.get('password') or ''
 
-        username = request.form.get('username')
-        password = request.form.get('password')
+        row = None
+        try:
+            with get_cursor() as cur:
+                row = get_user_by_username(cur, username)
+        except Exception:
+            pass
 
-        is_user_match = username == config['username']
-        is_pass_match = check_password_hash(config['password_hash'], password or '')
-
-        if is_user_match and is_pass_match:
-            user = User('1', username)
+        if row and row.get('active') and check_password_hash(row['password_hash'], password):
+            user = User(row['id'], row['username'], row['role'])
             login_user(user)
+            if user.role == 'cook':
+                return redirect(url_for('recipes.recipes'))
             return redirect(url_for('dashboard'))
 
         flash('Invalid credentials', 'error')
@@ -106,6 +110,7 @@ def logout():
 
 @app.route('/dashboard')
 @login_required
+@role_required('chef')
 def dashboard():
     today = date.today()
     week_start = today - timedelta(days=today.weekday())
@@ -137,6 +142,7 @@ def dashboard():
 
 @app.route('/recipes/rd-queue')
 @login_required
+@role_required('chef')
 def rd_queue():
     with get_cursor() as cur:
         rd_queue_items = list_rd_queue_items(cur)
@@ -156,6 +162,7 @@ def forecast_send():
 
 @app.route('/search')
 @login_required
+@role_required('chef')
 def search():
     def escape_like(value):
         return value.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
@@ -222,6 +229,7 @@ def search():
 
 @app.route('/production-board')
 @login_required
+@role_required('chef')
 def production_board():
     today = date.today()
     forecast_end = today + timedelta(days=2)

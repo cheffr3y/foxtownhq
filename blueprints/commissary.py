@@ -5,6 +5,7 @@ from datetime import date, datetime, timedelta
 from db import get_cursor, get_db
 from flask import Blueprint, Response, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
+from helpers.auth import require_role
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import ParagraphStyle
@@ -34,6 +35,11 @@ from helpers.shared import generate_id, handle_route_error, to_float
 from helpers.units import format_number, get_unit_system, preferred_order_quantity, smart_quantity
 
 bp = Blueprint('commissary', __name__)
+
+
+@bp.before_request
+def _require_chef():
+    return require_role('chef')
 
 
 @bp.errorhandler(Exception)

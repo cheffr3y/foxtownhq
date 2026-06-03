@@ -2,6 +2,7 @@
 import hashlib
 import os
 import sys
+import uuid
 
 import psycopg2
 from dotenv import load_dotenv
@@ -522,7 +523,43 @@ MIGRATIONS = [
         )
     """,
     "CREATE INDEX IF NOT EXISTS idx_forecasting_sales_mix_mappings_menu_item ON forecasting_sales_mix_mappings (menu_item_id)",
+    """
+    CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        username TEXT NOT NULL UNIQUE,
+        password_hash TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'cook',
+        active BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_users_username ON users (username)",
+    "CREATE INDEX IF NOT EXISTS idx_users_role ON users (role)",
 ]
+
+
+def _bootstrap_admin(cur):
+    """Seed the first admin user from env vars if the users table is empty."""
+    username = os.getenv("ADMIN_USERNAME")
+    password_hash = os.getenv("ADMIN_PASSWORD_HASH")
+    if not username or not password_hash:
+        print("Note: ADMIN_USERNAME or ADMIN_PASSWORD_HASH not set — skipping admin bootstrap.")
+        return
+    cur.execute("SELECT COUNT(*) FROM users")
+    row = cur.fetchone()
+    count = row[0] if row else 0
+    if count > 0:
+        return
+    user_id = f"usr_{uuid.uuid4().hex[:12]}"
+    cur.execute(
+        """
+        INSERT INTO users (id, username, password_hash, role, active)
+        VALUES (%s, %s, %s, 'admin', TRUE)
+        ON CONFLICT (username) DO NOTHING
+        """,
+        (user_id, username, password_hash),
+    )
+    print(f"Bootstrapped admin user: {username}")
 
 
 def migration_key(index, statement):
@@ -576,6 +613,8 @@ def main():
                         (key,),
                     )
                     applied_now += 1
+
+                _bootstrap_admin(cur)
 
         print(
             f"Migrations complete. Applied {applied_now}, skipped {skipped}, total tracked {len(MIGRATIONS)}."
