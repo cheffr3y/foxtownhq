@@ -109,20 +109,19 @@
             --danger-soft: #fff1f1;
             --success: #36593d;
             --success-soft: #eef5ef;
+            --ember: #C0612B;
+            --sidebar-bg: #2a3439;
+            --sidebar-w: 13rem;
         }
         html, body { min-height: 100%; }
         body {
             margin: 0;
-            background:
-                linear-gradient(180deg, rgba(217, 228, 234, 0.45), rgba(217, 228, 234, 0) 11rem),
-                var(--bg);
+            background: var(--bg);
             color: var(--fg);
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
             -webkit-font-smoothing: antialiased;
         }
-        a {
-            color: inherit;
-        }
+        a { color: inherit; }
         .fhq-btn:focus-visible,
         .fhq-input:focus-visible,
         .fhq-input-legacy:focus-visible,
@@ -154,28 +153,20 @@
             border-color: var(--primary);
             border-bottom-width: 2px;
         }
-        .fhq-btn--primary:hover {
-            background: linear-gradient(180deg, var(--primary-dim), #3e4659);
-        }
+        .fhq-btn--primary:hover { background: linear-gradient(180deg, var(--primary-dim), #3e4659); }
         .fhq-btn--outline {
             background: var(--surface-high);
             color: var(--fg);
             border-color: var(--outline-ghost);
             border-bottom-color: var(--outline);
         }
-        .fhq-btn--outline:hover {
-            background: var(--surface-top);
-            border-color: var(--outline);
-        }
+        .fhq-btn--outline:hover { background: var(--surface-top); border-color: var(--outline); }
         .fhq-btn--ghost {
             background: transparent;
             color: var(--primary);
             border-color: transparent;
         }
-        .fhq-btn--ghost:hover {
-            background: var(--surface-low);
-            color: var(--primary-dim);
-        }
+        .fhq-btn--ghost:hover { background: var(--surface-low); color: var(--primary-dim); }
         .fhq-input, .fhq-input-legacy {
             width: 100%;
             min-height: 42px;
@@ -205,10 +196,7 @@
             background-repeat: no-repeat;
             appearance: none;
         }
-        textarea.fhq-input {
-            padding-left: 0.15rem;
-            padding-right: 0.15rem;
-        }
+        textarea.fhq-input { padding-left: 0.15rem; padding-right: 0.15rem; }
         .fhq-card {
             background: var(--surface);
             border: 1px solid var(--outline-ghost);
@@ -235,27 +223,11 @@
             text-transform: uppercase;
             letter-spacing: 0.08em;
         }
-        .fhq-pill--confirmed {
-            background: var(--success-soft);
-            color: var(--success);
-            border-color: rgba(54, 89, 61, 0.25);
-        }
+        .fhq-pill--confirmed { background: var(--success-soft); color: var(--success); border-color: rgba(54,89,61,0.25); }
         .fhq-pill--tentative,
-        .fhq-pill--pending {
-            background: var(--primary-soft);
-            color: var(--primary-dim);
-            border-color: rgba(86, 94, 116, 0.2);
-        }
-        .fhq-pill--in-progress {
-            background: var(--surface-top);
-            color: var(--primary-dim);
-            border-color: rgba(86, 94, 116, 0.18);
-        }
-        .fhq-table {
-            width: 100%;
-            border-collapse: separate;
-            border-spacing: 0;
-        }
+        .fhq-pill--pending { background: var(--primary-soft); color: var(--primary-dim); border-color: rgba(86,94,116,0.2); }
+        .fhq-pill--in-progress { background: var(--surface-top); color: var(--primary-dim); border-color: rgba(86,94,116,0.18); }
+        .fhq-table { width: 100%; border-collapse: separate; border-spacing: 0; }
         .fhq-table th {
             text-align: left;
             padding: 0.55rem 0.9rem;
@@ -269,23 +241,12 @@
         .fhq-table td {
             padding: 0.55rem 0.9rem;
             font-size: 0.84rem;
-            border-bottom: 1px solid rgba(169, 180, 185, 0.12);
+            border-bottom: 1px solid rgba(169,180,185,0.12);
         }
-        .fhq-table tbody tr:nth-child(even) td {
-            background: var(--surface-low);
-        }
-        .fhq-table tbody tr:hover td {
-            background: var(--surface-high);
-        }
-        .fhq-table tbody tr:last-child td {
-            border-bottom: none;
-        }
-        .fhq-tabs {
-            display: flex;
-            gap: 0.2rem;
-            margin-bottom: 1.25rem;
-            overflow-x: auto;
-        }
+        .fhq-table tbody tr:nth-child(even) td { background: var(--surface-low); }
+        .fhq-table tbody tr:hover td { background: var(--surface-high); }
+        .fhq-table tbody tr:last-child td { border-bottom: none; }
+        .fhq-tabs { display: flex; gap: 0.2rem; margin-bottom: 1.25rem; overflow-x: auto; }
         .fhq-tab {
             padding: 0.65rem 0.85rem;
             border: none;
@@ -299,11 +260,7 @@
             letter-spacing: 0.08em;
             text-transform: uppercase;
         }
-        .fhq-tab--active {
-            background: var(--surface-top);
-            color: var(--fg);
-            border-bottom-color: var(--primary);
-        }
+        .fhq-tab--active { background: var(--surface-top); color: var(--fg); border-bottom-color: var(--primary); }
         .fhq-alert {
             display: inline-flex;
             align-items: center;
@@ -314,209 +271,184 @@
             font-size: 0.8rem;
             font-weight: 600;
         }
-        .fhq-alert--amber {
-            background: var(--primary-soft);
-            border-color: rgba(86, 94, 116, 0.2);
-            color: var(--primary-dim);
+        .fhq-alert--amber { background: var(--primary-soft); border-color: rgba(86,94,116,0.2); color: var(--primary-dim); }
+        .fhq-alert--red { background: var(--danger-soft); border-color: rgba(192,8,21,0.18); color: var(--danger); }
+        .fhq-flash {
+            border: 1px solid transparent;
+            padding: 0.8rem 0.95rem;
+            font-size: 0.8rem;
+            font-weight: 700;
         }
-        .fhq-alert--red {
-            background: var(--danger-soft);
-            border-color: rgba(192, 8, 21, 0.18);
-            color: var(--danger);
-        }
-        .fhq-topbar {
-            position: sticky;
-            top: 0;
+        .fhq-flash--success { background: var(--success-soft); color: var(--success); border-color: rgba(54,89,61,0.25); }
+        .fhq-flash--error { background: var(--danger-soft); color: var(--danger); border-color: rgba(192,8,21,0.18); }
+        .fhq-flash--info { background: var(--primary-soft); color: var(--primary-dim); border-color: rgba(86,94,116,0.2); }
+
+        /* ── Sidebar layout ── */
+        .fhq-layout { display: flex; min-height: 100vh; }
+        .fhq-sidebar {
+            width: var(--sidebar-w);
+            flex-shrink: 0;
+            position: fixed;
+            inset: 0 auto 0 0;
             z-index: 50;
-            background: rgba(247, 249, 251, 0.94);
-            backdrop-filter: blur(12px);
-            border-bottom: 2px solid var(--surface-top);
+            background: var(--sidebar-bg);
+            color: #e8eff3;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255,255,255,0.1) transparent;
         }
-        .fhq-topbar-inner {
-            max-width: 96rem;
+        .fhq-main { flex: 1; min-width: 0; margin-left: var(--sidebar-w); }
+        .fhq-frame {
+            max-width: 80rem;
             margin: 0 auto;
-            padding: 0.75rem 1rem;
+            padding: 1.5rem 1.25rem 3rem;
+        }
+
+        /* Sidebar brand */
+        .fhq-sidebar-brand {
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            gap: 1rem;
-        }
-        .fhq-brand {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.8rem;
+            gap: 0.65rem;
+            padding: 1.1rem 1rem;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
             text-decoration: none;
-            color: var(--fg);
-            min-width: 0;
-        }
-        .fhq-brand-mark {
-            width: 2rem;
-            height: 2rem;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            background: linear-gradient(180deg, var(--primary), var(--primary-dim));
-            color: #f7f7ff;
-            font-size: 0.92rem;
-            font-weight: 900;
-            letter-spacing: 0.08em;
-            border-bottom: 2px solid var(--primary-dim);
+            color: #f7f9fb;
             flex-shrink: 0;
         }
-        .fhq-brand-title {
-            font-size: 0.86rem;
-            font-weight: 900;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            line-height: 1;
-        }
-        .fhq-brand-subtitle {
-            font-size: 0.63rem;
-            text-transform: uppercase;
-            letter-spacing: 0.12em;
-            color: var(--muted);
-            margin-top: 0.18rem;
-        }
-        .top-nav-link {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.45rem;
-            min-height: 36px;
-            padding: 0 0.72rem;
-            font-size: 0.67rem;
-            font-weight: 800;
-            color: var(--muted);
-            text-decoration: none;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            border-bottom: 2px solid transparent;
-        }
-        .top-nav-link:hover {
-            color: var(--fg);
-            background: var(--surface-low);
-        }
-        .top-nav-link.active {
-            color: var(--fg);
-            background: var(--surface-high);
-            border-bottom-color: var(--primary);
-        }
-        .fhq-search-trigger {
-            min-height: 36px;
-            padding: 0 0.72rem;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.55rem;
-            background: var(--surface);
-            border: 1px solid var(--outline-ghost);
-            color: var(--muted);
-            font-size: 0.68rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            cursor: pointer;
-        }
-        .fhq-search-trigger:hover {
-            color: var(--fg);
-            border-color: var(--outline);
-            background: var(--surface-low);
-        }
-        .fhq-search-trigger kbd {
-            padding: 0.15rem 0.3rem;
-            border: 1px solid var(--outline-ghost);
-            background: var(--surface-low);
-            color: var(--fg);
-            font-size: 0.62rem;
-            line-height: 1;
-            font-family: inherit;
-        }
-        .fhq-avatar {
-            width: 2rem;
-            height: 2rem;
-            display: inline-flex;
+        .fhq-sidebar-brand:hover { background: rgba(255,255,255,0.04); }
+        .fhq-sidebar-mark {
+            width: 1.85rem;
+            height: 1.85rem;
+            display: flex;
             align-items: center;
             justify-content: center;
-            background: var(--surface);
-            color: var(--fg);
-            border: 1px solid var(--outline-ghost);
+            background: var(--ember);
+            color: #fff;
+            font-size: 0.9rem;
+            font-weight: 900;
+            flex-shrink: 0;
+        }
+        .fhq-sidebar-brand-text {
             font-size: 0.72rem;
             font-weight: 900;
-            cursor: pointer;
-        }
-        .fhq-dropdown {
-            position: absolute;
-            right: 0;
-            top: 2.35rem;
-            min-width: 9rem;
-            background: var(--surface);
-            border: 1px solid var(--outline-ghost);
-            overflow: hidden;
-            z-index: 60;
-        }
-        .fhq-dropdown a {
-            display: block;
-            padding: 0.7rem 0.9rem;
-            font-size: 0.75rem;
-            font-weight: 700;
-            color: var(--fg);
-            text-decoration: none;
+            letter-spacing: 0.09em;
             text-transform: uppercase;
+            line-height: 1.2;
+        }
+
+        /* Sidebar nav */
+        .fhq-sidebar-nav {
+            flex: 1;
+            padding: 0.5rem 0 0.75rem;
+            display: flex;
+            flex-direction: column;
+        }
+        .fhq-sidebar-section {
+            padding: 0.85rem 1rem 0.25rem;
+            font-size: 0.57rem;
+            font-weight: 900;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.3);
+        }
+        .fhq-sidebar-link {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            padding: 0.55rem 1rem;
+            font-size: 0.76rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            color: rgba(255,255,255,0.6);
+            text-decoration: none;
+            transition: background 0.1s, color 0.1s;
+            border-left: 2px solid transparent;
+        }
+        .fhq-sidebar-link:hover {
+            background: rgba(255,255,255,0.07);
+            color: #f7f9fb;
+        }
+        .fhq-sidebar-link.active {
+            background: rgba(255,255,255,0.1);
+            color: #f7f9fb;
+            border-left-color: var(--ember);
+        }
+        .fhq-sidebar-link svg { flex-shrink: 0; opacity: 0.7; }
+        .fhq-sidebar-link.active svg,
+        .fhq-sidebar-link:hover svg { opacity: 1; }
+        .fhq-sidebar-link--dim {
+            opacity: 0.38;
+            cursor: default;
+            pointer-events: none;
+        }
+
+        /* Sidebar footer */
+        .fhq-sidebar-foot {
+            padding: 0.85rem 1rem;
+            border-top: 1px solid rgba(255,255,255,0.08);
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            flex-shrink: 0;
+        }
+        .fhq-sidebar-user {
+            font-size: 0.67rem;
+            font-weight: 800;
+            letter-spacing: 0.07em;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.45);
+        }
+        .fhq-sidebar-signout {
+            font-size: 0.67rem;
+            font-weight: 700;
             letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.38);
+            text-decoration: none;
         }
-        .fhq-dropdown a:hover {
-            background: var(--surface-low);
+        .fhq-sidebar-signout:hover { color: #f7f9fb; }
+
+        /* Mobile hamburger */
+        .fhq-sidebar-hamburger {
+            display: none;
+            background: none;
+            border: none;
+            color: rgba(255,255,255,0.7);
+            cursor: pointer;
+            padding: 0.55rem;
+            margin-left: auto;
+            flex-shrink: 0;
         }
-        .fhq-frame {
-            max-width: 96rem;
-            margin: 0 auto;
-            padding: 1.5rem 1rem 2.5rem;
-        }
-        body.fhq-app-mode :is(.rounded, .rounded-sm, .rounded-md, .rounded-lg, .rounded-xl, .rounded-2xl, .rounded-3xl, .rounded-full) {
-            border-radius: 0 !important;
-        }
-        body.fhq-app-mode :is(.shadow-sm, .shadow, .shadow-md, .shadow-lg, .shadow-xl, .shadow-2xl, .shadow-soft, .shadow-lift) {
-            box-shadow: none !important;
-        }
+        .fhq-sidebar-hamburger:hover { color: #f7f9fb; }
+
+        /* App-mode overrides (Tailwind resets) */
+        body.fhq-app-mode :is(.rounded,.rounded-sm,.rounded-md,.rounded-lg,.rounded-xl,.rounded-2xl,.rounded-3xl,.rounded-full) { border-radius: 0 !important; }
+        body.fhq-app-mode :is(.shadow-sm,.shadow,.shadow-md,.shadow-lg,.shadow-xl,.shadow-2xl,.shadow-soft,.shadow-lift) { box-shadow: none !important; }
         body.fhq-app-mode .text-foxtown-ink,
-        body.fhq-app-mode .text-foxtown-text {
-            color: var(--fg) !important;
-        }
-        body.fhq-app-mode .text-foxtown-muted {
-            color: var(--muted) !important;
-        }
+        body.fhq-app-mode .text-foxtown-text { color: var(--fg) !important; }
+        body.fhq-app-mode .text-foxtown-muted { color: var(--muted) !important; }
         body.fhq-app-mode .text-foxtown-ember,
         body.fhq-app-mode .roll-open,
-        body.fhq-app-mode .db-panel-link {
-            color: var(--primary) !important;
-        }
+        body.fhq-app-mode .db-panel-link { color: var(--primary) !important; }
         body.fhq-app-mode .hover\:text-orange-700:hover,
         body.fhq-app-mode .hover\:text-foxtown-ember:hover,
-        body.fhq-app-mode .roll-open:hover {
-            color: var(--primary-dim) !important;
-        }
-        body.fhq-app-mode .bg-white {
-            background: var(--surface) !important;
-        }
+        body.fhq-app-mode .roll-open:hover { color: var(--primary-dim) !important; }
+        body.fhq-app-mode .bg-white { background: var(--surface) !important; }
         body.fhq-app-mode .bg-stone-50,
         body.fhq-app-mode .bg-stone-50\/60,
         body.fhq-app-mode .bg-stone-100,
         body.fhq-app-mode .bg-orange-50,
-        body.fhq-app-mode .bg-amber-50 {
-            background: var(--surface-low) !important;
-        }
+        body.fhq-app-mode .bg-amber-50 { background: var(--surface-low) !important; }
         body.fhq-app-mode .bg-stone-200,
-        body.fhq-app-mode .bg-stone-300 {
-            background: var(--surface-top) !important;
-        }
+        body.fhq-app-mode .bg-stone-300 { background: var(--surface-top) !important; }
         body.fhq-app-mode .border-stone-200,
         body.fhq-app-mode .border-stone-300,
         body.fhq-app-mode .border-white\/8,
         body.fhq-app-mode .border-white\/10,
-        body.fhq-app-mode .border-white\/12 {
-            border-color: var(--outline-ghost) !important;
-        }
-        body.fhq-app-mode .border-dashed {
-            border-color: rgba(169, 180, 185, 0.55) !important;
-        }
+        body.fhq-app-mode .border-white\/12 { border-color: var(--outline-ghost) !important; }
+        body.fhq-app-mode .border-dashed { border-color: rgba(169,180,185,0.55) !important; }
         body.fhq-app-mode .text-stone-500,
         body.fhq-app-mode .text-stone-600,
         body.fhq-app-mode .text-stone-700,
@@ -527,13 +459,9 @@
         body.fhq-app-mode .text-white\/48,
         body.fhq-app-mode .text-white\/52,
         body.fhq-app-mode .text-white\/55,
-        body.fhq-app-mode .text-white\/70 {
-            color: var(--muted) !important;
-        }
+        body.fhq-app-mode .text-white\/70 { color: var(--muted) !important; }
         body.fhq-app-mode .text-white,
-        body.fhq-app-mode .text-stone-900 {
-            color: var(--fg) !important;
-        }
+        body.fhq-app-mode .text-stone-900 { color: var(--fg) !important; }
         body.fhq-app-mode .bg-foxtown-ember,
         body.fhq-app-mode .bg-stone-800,
         body.fhq-app-mode .bg-stone-900 {
@@ -544,79 +472,71 @@
         }
         body.fhq-app-mode .hover\:bg-orange-700:hover,
         body.fhq-app-mode .hover\:bg-stone-900:hover,
-        body.fhq-app-mode .hover\:bg-stone-300:hover {
-            background: linear-gradient(180deg, var(--primary-dim), #3e4659) !important;
-        }
-        body.fhq-app-mode :is(a, button, summary).border-stone-300,
-        body.fhq-app-mode :is(a, button).bg-stone-200,
-        body.fhq-app-mode :is(a, button).bg-white {
-            border-color: var(--outline-ghost) !important;
-        }
-        body.fhq-app-mode :is(input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="range"]), select, textarea) {
-            border-radius: 0 !important;
-            box-shadow: none !important;
-        }
-        body.fhq-app-mode :is(input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="range"]), select, textarea):not(.fhq-input):not(.fhq-input-legacy) {
+        body.fhq-app-mode .hover\:bg-stone-300:hover { background: linear-gradient(180deg, var(--primary-dim), #3e4659) !important; }
+        body.fhq-app-mode :is(a,button,summary).border-stone-300,
+        body.fhq-app-mode :is(a,button).bg-stone-200,
+        body.fhq-app-mode :is(a,button).bg-white { border-color: var(--outline-ghost) !important; }
+        body.fhq-app-mode :is(input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="range"]),select,textarea) { border-radius: 0 !important; box-shadow: none !important; }
+        body.fhq-app-mode :is(input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="range"]),select,textarea):not(.fhq-input):not(.fhq-input-legacy) {
             background: var(--surface) !important;
             color: var(--fg) !important;
             border: 1px solid var(--outline-ghost) !important;
             border-bottom: 1px solid var(--outline) !important;
         }
-        body.fhq-app-mode :is(input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="range"]), select, textarea):focus {
+        body.fhq-app-mode :is(input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="range"]),select,textarea):focus {
             outline: none !important;
             border-color: var(--primary) !important;
             border-bottom-width: 2px !important;
             box-shadow: none !important;
         }
-        body.fhq-app-mode :is(input, select, textarea)[readonly] {
-            background: var(--surface-low) !important;
-            color: var(--muted) !important;
-        }
+        body.fhq-app-mode :is(input,select,textarea)[readonly] { background: var(--surface-low) !important; color: var(--muted) !important; }
         body.fhq-app-mode .inline-flex.items-center.rounded-full,
         body.fhq-app-mode .status-pill,
         body.fhq-app-mode .warning-ribbon,
-        body.fhq-app-mode .menu-chip {
-            border-radius: 0 !important;
-        }
-        .fhq-flash {
-            border: 1px solid transparent;
-            padding: 0.8rem 0.95rem;
-            font-size: 0.8rem;
-            font-weight: 700;
-        }
-        .fhq-flash--success {
-            background: var(--success-soft);
-            color: var(--success);
-            border-color: rgba(54, 89, 61, 0.25);
-        }
-        .fhq-flash--error {
-            background: var(--danger-soft);
-            color: var(--danger);
-            border-color: rgba(192, 8, 21, 0.18);
-        }
-        .fhq-flash--info {
-            background: var(--primary-soft);
-            color: var(--primary-dim);
-            border-color: rgba(86, 94, 116, 0.2);
-        }
-        @media (max-width: 1023px) {
-            .fhq-topbar-inner {
-                padding-top: 0.7rem;
-                padding-bottom: 0.7rem;
+        body.fhq-app-mode .menu-chip { border-radius: 0 !important; }
+
+        /* Mobile: sidebar becomes sticky top bar */
+        @media (max-width: 900px) {
+            .fhq-sidebar {
+                width: 100%;
+                height: auto;
+                position: sticky;
+                top: 0;
+                flex-direction: row;
+                align-items: center;
+                flex-wrap: wrap;
+                overflow-y: visible;
             }
-            .fhq-brand-subtitle,
-            .top-nav-link span {
+            .fhq-sidebar-brand {
+                flex: 1;
+                border-bottom: none;
+                padding: 0.65rem 1rem;
+            }
+            .fhq-sidebar-hamburger { display: flex; }
+            .fhq-sidebar-nav,
+            .fhq-sidebar-foot {
                 display: none;
+                width: 100%;
+                background: var(--sidebar-bg);
             }
+            .fhq-sidebar.open .fhq-sidebar-nav { display: flex; }
+            .fhq-sidebar.open .fhq-sidebar-foot {
+                display: flex;
+                flex-direction: row;
+                align-items: center;
+                justify-content: space-between;
+                padding: 0.65rem 1rem;
+                border-top: 1px solid rgba(255,255,255,0.08);
+            }
+            .fhq-main { margin-left: 0; }
+            .fhq-frame { padding: 1rem 0.9rem 2rem; }
         }
-        @media (max-width: 767px) {
-            .fhq-frame {
-                padding: 1rem 0.9rem 2rem;
-            }
-            .fhq-search-trigger span,
-            .fhq-search-trigger kbd {
-                display: none;
-            }
+
+        @media print {
+            .fhq-sidebar { display: none !important; }
+            .fhq-main { margin-left: 0 !important; }
+            .fhq-layout { display: block; }
+            .fhq-frame { padding: 0 !important; max-width: none !important; }
         }
     </style>
     {% block extra_head %}{% endblock %}
@@ -625,15 +545,6 @@
 {% set is_print = 'print' in endpoint %}
 {% set user_is_authenticated = current_user is defined and current_user.is_authenticated %}
 {% set show_global_nav = user_is_authenticated and not is_print %}
-{% set nav_dashboard_url = url_for('dashboard') %}
-{% set nav_banquet_url = url_for('banquet.banquet_planner') %}
-{% set nav_buffet_url = url_for('buffet.buffet_planner') %}
-{% set nav_commissary_url = url_for('commissary.commissary_planner') %}
-{% set nav_forecasting_url = url_for('forecasting.forecasting_dashboard') %}
-{% set nav_prep_url = url_for('prep.prep_index') %}
-{% set nav_recipes_url = url_for('recipes.recipes') %}
-{% set nav_ingredients_url = url_for('ingredients.ingredients') %}
-{% set nav_menus_url = url_for('menu.menu_rollouts') %}
 {% set active_nav = 'banquets' if request.endpoint and 'banquet' in request.endpoint else
                     'buffet' if request.endpoint and 'buffet' in request.endpoint else
                     'commissary' if request.endpoint and 'commissar' in request.endpoint else
@@ -642,198 +553,207 @@
                     'recipes' if request.endpoint and 'recipe' in request.endpoint else
                     'ingredients' if request.endpoint and 'ingredient' in request.endpoint else
                     'menus' if request.endpoint and ('menu_rollout' in request.endpoint or 'menu_costing' in request.endpoint) else
-                    'home' %}
+                    'dashboard' %}
 <body class="min-h-screen font-body antialiased {% if is_print %}fhq-print-mode{% else %}fhq-app-mode{% endif %}">
-    {% if show_global_nav %}
-    <nav class="fhq-topbar">
-        <div class="fhq-topbar-inner">
-            <div class="flex items-center gap-4 min-w-0">
-                <a href="{{ nav_dashboard_url }}" class="fhq-brand shrink-0">
-                    <div class="fhq-brand-mark">F</div>
-                    <div class="min-w-0">
-                        <div class="fhq-brand-title">Foxtown HQ</div>
-                        <div class="fhq-brand-subtitle">Kitchen Back Office</div>
-                    </div>
-                </a>
-                <div class="hidden lg:flex items-center gap-1 min-w-0 overflow-x-auto">
-                    <a href="{{ nav_dashboard_url }}" class="top-nav-link {% if active_nav == 'home' %}active{% endif %}"><svg class="w-[16px] h-[16px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12l9-9 9 9M5 10v10a1 1 0 001 1h3a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1h3a1 1 0 001-1V10"/></svg><span>Dashboard</span></a>
-                    <a href="{{ nav_banquet_url }}" class="top-nav-link {% if active_nav == 'banquets' %}active{% endif %}"><svg class="w-[16px] h-[16px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg><span>Banquets</span></a>
-                    <a href="{{ nav_buffet_url }}" class="top-nav-link {% if active_nav == 'buffet' %}active{% endif %}"><svg class="w-[16px] h-[16px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18M3 12h18M8 18h8M5 3h14a1 1 0 011 1v1H4V4a1 1 0 011-1z"/></svg><span>Buffets</span></a>
-                    <a href="{{ nav_commissary_url }}" class="top-nav-link {% if active_nav == 'commissary' %}active{% endif %}"><svg class="w-[16px] h-[16px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16zM3.27 6.96L12 12.01l8.73-5.05M12 22.08V12"/></svg><span>Commissary</span></a>
-                    <a href="{{ nav_forecasting_url }}" class="top-nav-link {% if active_nav == 'forecasting' %}active{% endif %}"><svg class="w-[16px] h-[16px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 17l4-4 4 4 4-6 4 3M3 21h18"/></svg><span>Forecasting</span></a>
-                    <a href="{{ nav_prep_url }}" class="top-nav-link {% if active_nav == 'prep' %}active{% endif %}"><svg class="w-[16px] h-[16px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M4 12h10M4 18h7"/></svg><span>Prep</span></a>
-                    <a href="{{ nav_recipes_url }}" class="top-nav-link {% if active_nav == 'recipes' %}active{% endif %}"><svg class="w-[16px] h-[16px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19.5A2.5 2.5 0 016.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg><span>Recipes</span></a>
-                    <a href="{{ nav_ingredients_url }}" class="top-nav-link {% if active_nav == 'ingredients' %}active{% endif %}"><svg class="w-[16px] h-[16px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg><span>Ingredients</span></a>
-                    <a href="{{ nav_menus_url }}" class="top-nav-link {% if active_nav == 'menus' %}active{% endif %}"><svg class="w-[16px] h-[16px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2M9 14h6M9 18h6M9 10h.01"/></svg><span>Menus</span></a>
-                </div>
-            </div>
-            <div class="flex items-center gap-2 shrink-0">
-                <button id="globalSearchTrigger" type="button" aria-label="Open search" class="fhq-search-trigger">
-                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
-                    <span>Search</span>
-                    <kbd>⌘K</kbd>
-                </button>
-                <div class="relative" id="userMenu">
-                    <button type="button" class="fhq-avatar" onclick="document.getElementById('userDropdown').classList.toggle('hidden')">
-                        {{ (current_user.username[:1] if current_user and current_user.username else 'U')|upper }}
-                    </button>
-                    <div id="userDropdown" class="hidden fhq-dropdown">
-                        <a href="{{ url_for('logout') }}">Sign Out</a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </nav>
-    {% endif %}
 
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages and show_global_nav %}
-        <div class="fhq-frame" style="padding-bottom:0;">
-            <div class="space-y-2">
-                {% for category, message in messages %}
+{% if show_global_nav %}
+<div class="fhq-layout">
+    <aside class="fhq-sidebar" id="fhqSidebar">
+        <a href="{{ url_for('dashboard') }}" class="fhq-sidebar-brand">
+            <div class="fhq-sidebar-mark">F</div>
+            <span class="fhq-sidebar-brand-text">Foxtown HQ</span>
+        </a>
+        <button type="button" class="fhq-sidebar-hamburger" aria-label="Toggle navigation"
+                onclick="document.getElementById('fhqSidebar').classList.toggle('open')">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+        </button>
+        <nav class="fhq-sidebar-nav">
+            <div class="fhq-sidebar-section">Primary</div>
+            <a href="{{ url_for('recipes.recipes') }}" class="fhq-sidebar-link {% if active_nav == 'recipes' %}active{% endif %}">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19.5A2.5 2.5 0 016.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+                Recipes
+            </a>
+            <a href="{{ url_for('forecasting.forecasting_dashboard') }}" class="fhq-sidebar-link {% if active_nav == 'forecasting' %}active{% endif %}">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 17l4-4 4 4 4-6 4 3M3 21h18"/></svg>
+                Forecasting
+            </a>
+            <a href="{{ url_for('dashboard') }}" class="fhq-sidebar-link {% if active_nav == 'dashboard' %}active{% endif %}">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12l9-9 9 9M5 10v10a1 1 0 001 1h3a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1h3a1 1 0 001-1V10"/></svg>
+                Dashboard
+            </a>
+
+            <div class="fhq-sidebar-section">Production</div>
+            <a href="{{ url_for('banquet.banquet_planner') }}" class="fhq-sidebar-link {% if active_nav == 'banquets' %}active{% endif %}">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+                Banquets
+            </a>
+            <a href="{{ url_for('buffet.buffet_planner') }}" class="fhq-sidebar-link {% if active_nav == 'buffet' %}active{% endif %}">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18M3 12h18M8 18h8M5 3h14a1 1 0 011 1v1H4V4a1 1 0 011-1z"/></svg>
+                Buffets
+            </a>
+            <a href="{{ url_for('commissary.commissary_planner') }}" class="fhq-sidebar-link {% if active_nav == 'commissary' %}active{% endif %}">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16zM3.27 6.96L12 12.01l8.73-5.05M12 22.08V12"/></svg>
+                Commissary
+            </a>
+
+            <div class="fhq-sidebar-section">Tools</div>
+            <a href="{{ url_for('ingredients.ingredients') }}" class="fhq-sidebar-link {% if active_nav == 'ingredients' %}active{% endif %}">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                Ingredients
+            </a>
+            <a href="{{ url_for('menu.menu_rollouts') }}" class="fhq-sidebar-link {% if active_nav == 'menus' %}active{% endif %}">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2M9 14h6M9 18h6M9 10h.01"/></svg>
+                Menus
+            </a>
+
+            {% if current_user.role == 'admin' %}
+            <div class="fhq-sidebar-section">Admin</div>
+            <span class="fhq-sidebar-link fhq-sidebar-link--dim">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8"/></svg>
+                Users
+            </span>
+            {% endif %}
+        </nav>
+        <div class="fhq-sidebar-foot">
+            <div class="fhq-sidebar-user">{{ current_user.username }}</div>
+            <a href="{{ url_for('logout') }}" class="fhq-sidebar-signout">Sign Out</a>
+        </div>
+    </aside>
+
+    <div class="fhq-main">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div style="padding: 0.75rem 1.25rem 0;">
+                <div class="space-y-2">
+                    {% for category, message in messages %}
                     <div class="fhq-flash {% if category == 'success' %}fhq-flash--success{% elif category == 'error' %}fhq-flash--error{% else %}fhq-flash--info{% endif %}">
                         {{ message }}
                     </div>
-                {% endfor %}
+                    {% endfor %}
+                </div>
             </div>
+            {% endif %}
+        {% endwith %}
+        <div class="fhq-frame">
+            {% block content %}{% endblock %}
+        </div>
+    </div><!-- .fhq-main -->
+</div><!-- .fhq-layout -->
+
+{% else %}
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div style="padding: 0.5rem 1rem;">
+            {% for category, message in messages %}
+            <div class="fhq-flash {% if category == 'success' %}fhq-flash--success{% elif category == 'error' %}fhq-flash--error{% else %}fhq-flash--info{% endif %}">
+                {{ message }}
+            </div>
+            {% endfor %}
         </div>
         {% endif %}
     {% endwith %}
+    <div class="fhq-frame">
+        {% block content %}{% endblock %}
+    </div>
+{% endif %}
 
-    {% if show_global_nav %}<div class="fhq-frame">{% endif %}
-    {% block content %}{% endblock %}
-    {% if show_global_nav %}</div>{% endif %}
-    <script>
-        (function () {
-            document.addEventListener('submit', (event) => {
-                const form = event.target;
-                if (!(form instanceof HTMLFormElement)) return;
-                if (form.dataset.fhqSubmitting === '1') {
-                    event.preventDefault();
-                    return;
-                }
-                const submitter = event.submitter || form.querySelector('button[type="submit"], input[type="submit"]');
-                if (!submitter) return;
-                form.dataset.fhqSubmitting = '1';
-                submitter.disabled = true;
-                submitter.setAttribute('aria-busy', 'true');
-                const loadingText = submitter.getAttribute('data-loading-text') || 'Saving...';
-                if (submitter.tagName === 'INPUT') {
-                    submitter.value = loadingText;
-                } else {
-                    submitter.textContent = loadingText;
-                }
-            });
+<script>
+    (function () {
+        document.addEventListener('submit', (event) => {
+            const form = event.target;
+            if (!(form instanceof HTMLFormElement)) return;
+            if (form.dataset.fhqSubmitting === '1') { event.preventDefault(); return; }
+            const submitter = event.submitter || form.querySelector('button[type="submit"], input[type="submit"]');
+            if (!submitter) return;
+            form.dataset.fhqSubmitting = '1';
+            submitter.disabled = true;
+            submitter.setAttribute('aria-busy', 'true');
+            const loadingText = submitter.getAttribute('data-loading-text') || 'Saving...';
+            if (submitter.tagName === 'INPUT') { submitter.value = loadingText; }
+            else { submitter.textContent = loadingText; }
+        });
 
-            const isTypingContext = (target) => {
-                if (!(target instanceof HTMLElement)) return false;
-                if (target.isContentEditable) return true;
-                return !!target.closest('input, textarea, select, [contenteditable="true"]');
-            };
+        const isTypingContext = (target) => {
+            if (!(target instanceof HTMLElement)) return false;
+            if (target.isContentEditable) return true;
+            return !!target.closest('input, textarea, select, [contenteditable="true"]');
+        };
 
-            const findPrimaryNewAction = () => {
-                const explicit = document.querySelector('[data-shortcut="new"]');
-                if (explicit instanceof HTMLElement) return explicit;
-                const actions = Array.from(document.querySelectorAll('a[href], button, input[type="button"], input[type="submit"]'));
-                return actions.find((el) => {
-                    if (!(el instanceof HTMLElement)) return false;
-                    if (el.hasAttribute('disabled')) return false;
-                    if (el.offsetParent === null) return false;
-                    const text = (el.textContent || el.getAttribute('value') || '').trim();
-                    return /^(\+\s*)?new\b/i.test(text);
-                }) || null;
-            };
+        const findPrimaryNewAction = () => {
+            const explicit = document.querySelector('[data-shortcut="new"]');
+            if (explicit instanceof HTMLElement) return explicit;
+            const actions = Array.from(document.querySelectorAll('a[href], button, input[type="button"], input[type="submit"]'));
+            return actions.find((el) => {
+                if (!(el instanceof HTMLElement)) return false;
+                if (el.hasAttribute('disabled')) return false;
+                if (el.offsetParent === null) return false;
+                const text = (el.textContent || el.getAttribute('value') || '').trim();
+                return /^(\+\s*)?new\b/i.test(text);
+            }) || null;
+        };
 
-            const findSearchInput = () => {
-                const explicit = document.querySelector('[data-shortcut="search"]');
-                if (explicit instanceof HTMLInputElement) return explicit;
-                const searchInput = document.querySelector('input[type="search"], input[name="q"], input[name="search"]');
-                return searchInput instanceof HTMLInputElement ? searchInput : null;
-            };
+        const findSearchInput = () => {
+            const explicit = document.querySelector('[data-shortcut="search"]');
+            if (explicit instanceof HTMLInputElement) return explicit;
+            const searchInput = document.querySelector('input[type="search"], input[name="q"], input[name="search"]');
+            return searchInput instanceof HTMLInputElement ? searchInput : null;
+        };
 
-            const openGlobalSearch = () => {
-                const searchUrl = '{{ url_for("search") }}';
-                const currentPath = window.location.pathname.replace(/\/+$/, '') || '/';
-                const searchPath = new URL(searchUrl, window.location.origin).pathname.replace(/\/+$/, '') || '/';
-
-                if (currentPath === searchPath) {
-                    const searchInput = findSearchInput();
-                    if (!searchInput) return;
-                    searchInput.focus();
-                    searchInput.select();
-                    return;
-                }
-
+        const openGlobalSearch = () => {
+            const searchUrl = '{{ url_for("search") }}';
+            const currentPath = window.location.pathname.replace(/\/+$/, '') || '/';
+            const searchPath = new URL(searchUrl, window.location.origin).pathname.replace(/\/+$/, '') || '/';
+            if (currentPath === searchPath) {
                 const searchInput = findSearchInput();
-                const params = new URLSearchParams();
-                if (searchInput && searchInput.value.trim()) {
-                    params.set('q', searchInput.value.trim());
-                }
-
-                const destination = params.toString() ? `${searchUrl}?${params.toString()}` : searchUrl;
-                window.location.assign(destination);
-            };
-
-            const searchTrigger = document.getElementById('globalSearchTrigger');
-            if (searchTrigger) {
-                searchTrigger.addEventListener('click', () => {
-                    openGlobalSearch();
-                });
+                if (!searchInput) return;
+                searchInput.focus();
+                searchInput.select();
+                return;
             }
+            const searchInput = findSearchInput();
+            const params = new URLSearchParams();
+            if (searchInput && searchInput.value.trim()) { params.set('q', searchInput.value.trim()); }
+            const destination = params.toString() ? `${searchUrl}?${params.toString()}` : searchUrl;
+            window.location.assign(destination);
+        };
 
-            document.addEventListener('click', (event) => {
-                const menu = document.getElementById('userMenu');
-                const dropdown = document.getElementById('userDropdown');
-                if (menu && dropdown && !menu.contains(event.target)) {
-                    dropdown.classList.add('hidden');
-                }
-            });
+        document.addEventListener('keydown', (event) => {
+            const key = (event.key || '').toLowerCase();
+            const target = event.target;
+            const searchShortcut = key === 'k' && (event.metaKey || event.ctrlKey) && !event.altKey;
+            if (searchShortcut) { event.preventDefault(); openGlobalSearch(); return; }
+            if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return;
+            if (key === '/') {
+                if (isTypingContext(target)) return;
+                event.preventDefault(); openGlobalSearch(); return;
+            }
+            if (key === 'n') {
+                if (isTypingContext(target)) return;
+                const newAction = findPrimaryNewAction();
+                if (!newAction) return;
+                event.preventDefault(); newAction.focus(); return;
+            }
+            if (key === 's') {
+                if (isTypingContext(target)) return;
+                const activeElement = document.activeElement;
+                const activeForm = activeElement instanceof HTMLElement ? activeElement.closest('form') : null;
+                const form = activeForm || document.querySelector('form');
+                if (!(form instanceof HTMLFormElement)) return;
+                event.preventDefault();
+                if (typeof form.requestSubmit === 'function') { form.requestSubmit(); }
+                else { form.submit(); }
+            }
+        });
 
-            document.addEventListener('keydown', (event) => {
-                const key = (event.key || '').toLowerCase();
-                const target = event.target;
-                const searchShortcut = key === 'k' && (event.metaKey || event.ctrlKey) && !event.altKey;
-
-                if (searchShortcut) {
-                    event.preventDefault();
-                    openGlobalSearch();
-                    return;
-                }
-
-                if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return;
-
-                if (key === '/') {
-                    if (isTypingContext(target)) return;
-                    event.preventDefault();
-                    openGlobalSearch();
-                    return;
-                }
-
-                if (key === 'n') {
-                    if (isTypingContext(target)) return;
-                    const newAction = findPrimaryNewAction();
-                    if (!newAction) return;
-                    event.preventDefault();
-                    newAction.focus();
-                    return;
-                }
-
-                if (key === 's') {
-                    if (isTypingContext(target)) return;
-                    const activeElement = document.activeElement;
-                    const activeForm = activeElement instanceof HTMLElement ? activeElement.closest('form') : null;
-                    const form = activeForm || document.querySelector('form');
-                    if (!(form instanceof HTMLFormElement)) return;
-                    event.preventDefault();
-                    if (typeof form.requestSubmit === 'function') {
-                        form.requestSubmit();
-                    } else {
-                        form.submit();
-                    }
-                }
-            });
-        })();
-    </script>
-    {% block extra_scripts %}{% endblock %}
+        document.addEventListener('click', (event) => {
+            const sidebar = document.getElementById('fhqSidebar');
+            if (!sidebar) return;
+            if (sidebar.classList.contains('open') && !sidebar.contains(event.target)) {
+                sidebar.classList.remove('open');
+            }
+        });
+    })();
+</script>
+{% block extra_scripts %}{% endblock %}
 </body>
 </html>
