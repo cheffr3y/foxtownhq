@@ -1,710 +1,379 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard - Foxtown HQ{% endblock %}
+{% block title %}Dashboard — Foxtown HQ{% endblock %}
 
 {% block extra_head %}
 <style>
-    body.fhq-app-mode {
-        background: #e7ebef;
-    }
-    body.fhq-app-mode .fhq-topbar {
-        background: #0f1117;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    }
-    body.fhq-app-mode .fhq-topbar-inner {
-        max-width: none;
-        padding: 0.75rem 1.5rem;
-    }
-    body.fhq-app-mode .fhq-brand-title,
-    body.fhq-app-mode .fhq-brand {
-        color: #f7f3ec;
-    }
-    body.fhq-app-mode .fhq-brand-subtitle,
-    body.fhq-app-mode .top-nav-link {
-        color: rgba(247, 243, 236, 0.62);
-    }
-    body.fhq-app-mode .top-nav-link:hover {
-        background: rgba(255, 255, 255, 0.04);
-        color: #f7f3ec;
-    }
-    body.fhq-app-mode .top-nav-link.active {
-        color: #f7f3ec;
-        border-bottom-color: #c97b3a;
-        background: transparent;
-    }
-    body.fhq-app-mode .fhq-search-trigger,
-    body.fhq-app-mode .fhq-avatar,
-    body.fhq-app-mode .fhq-dropdown {
-        background: rgba(255, 255, 255, 0.04);
-        border-color: rgba(255, 255, 255, 0.08);
-        color: #f7f3ec;
-    }
-    body.fhq-app-mode .fhq-dropdown a {
-        color: #f7f3ec;
-    }
-    body.fhq-app-mode .fhq-dropdown a:hover {
-        background: rgba(255, 255, 255, 0.06);
-    }
-    body.fhq-app-mode .fhq-frame {
-        max-width: none;
-        padding: 0;
-    }
-    body.fhq-app-mode .fhq-frame > .space-y-2 {
-        padding: 1rem 1.5rem 0;
-    }
-    .brewpub-shell {
-        display: grid;
-        grid-template-columns: 17.5rem minmax(0, 1fr);
-        min-height: calc(100vh - 4.125rem);
-    }
-    .brewpub-sidebar {
-        background: #0f1117;
-        color: #f7f3ec;
-        border-right: 1px solid rgba(255, 255, 255, 0.08);
-        display: flex;
-        flex-direction: column;
-        min-width: 0;
-    }
-    .sidebar-head {
-        padding: 1.6rem 1.35rem 1.4rem;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    }
-    .sidebar-kicker,
-    .sidebar-divider span,
-    .brewpub-label,
-    .panel-label {
-        font-size: 9px;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        font-weight: 700;
-    }
-    .sidebar-kicker {
-        color: rgba(255, 255, 255, 0.48);
-    }
-    .sidebar-title {
-        margin-top: 0.5rem;
-        font-size: 1.3rem;
-        line-height: 1;
-        letter-spacing: -0.04em;
-        font-weight: 800;
-    }
-    .sidebar-copy {
-        margin-top: 0.45rem;
-        font-size: 0.8rem;
-        color: rgba(247, 243, 236, 0.62);
-    }
-    .sidebar-nav {
-        display: grid;
-        gap: 0.2rem;
-        padding: 1rem 0.85rem 0;
-    }
-    .sidebar-link {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 0.9rem;
-        padding: 0.78rem 0.85rem;
-        border-left: 2px solid transparent;
-        color: rgba(247, 243, 236, 0.72);
-        text-decoration: none;
-        transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
-    }
-    .sidebar-link:hover {
-        background: rgba(255, 255, 255, 0.04);
-        color: #f7f3ec;
-    }
-    .sidebar-link--active {
-        color: #f7f3ec;
-        background: rgba(201, 123, 58, 0.12);
-        border-left-color: #c97b3a;
-    }
-    .sidebar-label {
-        display: block;
-        font-size: 0.74rem;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        font-weight: 700;
-    }
-    .sidebar-sub {
-        display: block;
-        margin-top: 0.24rem;
-        font-size: 0.74rem;
-        color: currentColor;
-        opacity: 0.68;
-    }
-    .sidebar-copy-block {
-        min-width: 0;
-    }
-    .sidebar-badge {
-        min-width: 1.85rem;
-        height: 1.4rem;
-        padding: 0 0.45rem;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 999px;
-        font-size: 0.65rem;
-        font-weight: 700;
-        flex-shrink: 0;
-    }
-    .sidebar-badge--warning {
-        background: rgba(201, 123, 58, 0.16);
-        color: #c97b3a;
-    }
-    .sidebar-badge--amber {
-        background: rgba(217, 161, 76, 0.16);
-        color: #d1a04f;
-    }
-    .sidebar-badge--muted {
-        background: rgba(255, 255, 255, 0.08);
-        color: rgba(247, 243, 236, 0.72);
-    }
-    .sidebar-divider {
-        margin: 1rem 1.35rem 0;
-        padding-top: 1rem;
-        border-top: 1px solid rgba(255, 255, 255, 0.08);
-    }
-    .sidebar-divider span {
-        color: rgba(255, 255, 255, 0.45);
-    }
-    .sidebar-nav--support {
-        padding-top: 0.85rem;
-    }
-    .sidebar-link--support {
-        color: rgba(247, 243, 236, 0.58);
-    }
-    .sidebar-foot {
-        margin-top: auto;
-        padding: 1.15rem 1.35rem 1.3rem;
-        border-top: 1px solid rgba(255, 255, 255, 0.08);
-        display: flex;
-        flex-direction: column;
-        gap: 0.55rem;
-    }
-    .sidebar-foot a {
-        color: rgba(247, 243, 236, 0.62);
-        text-decoration: none;
-        font-size: 0.72rem;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        font-weight: 700;
-    }
-    .sidebar-foot a:hover {
-        color: #f7f3ec;
-    }
-    .brewpub-main {
-        min-width: 0;
-        background: #eef1f4;
-    }
-    .stat-rail {
-        display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 1px;
-        background: #d6dbe1;
-        border-bottom: 1px solid #d6dbe1;
-    }
-    .stat-card {
-        background: #ffffff;
-        min-height: 8rem;
-        padding: 1.15rem 1.25rem;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        gap: 1rem;
-    }
-    .brewpub-label {
-        color: #6d737c;
-    }
-    .stat-value {
-        font-size: clamp(1.1rem, 2vw, 1.55rem);
-        line-height: 1;
-        letter-spacing: -0.03em;
-        font-weight: 700;
-        color: #17212b;
-        text-transform: uppercase;
-    }
-    .stat-sub {
-        font-size: 0.78rem;
-        color: #5e6671;
-        font-weight: 600;
-    }
-    .stat-sub--warning {
-        color: #c97b3a;
-    }
-    .stat-sub--good {
-        color: #2f7a4f;
-    }
-    .brewpub-content {
-        display: grid;
-        grid-template-columns: minmax(0, 1.8fr) minmax(18rem, 0.92fr);
-        gap: 1.35rem;
-        padding: 1.35rem;
-        align-items: start;
-    }
-    .brewpub-stack {
-        display: grid;
-        gap: 1.35rem;
-        min-width: 0;
-    }
-    .panel {
-        background: #ffffff;
-        border: 0.5px solid #d3d8de;
-        border-radius: 0.75rem;
-        overflow: hidden;
-    }
-    .panel-head {
-        display: flex;
-        align-items: flex-end;
-        justify-content: space-between;
-        gap: 1rem;
-        padding: 1rem 1.1rem 0.95rem;
-        border-bottom: 0.5px solid #e1e5ea;
-    }
-    .panel-title {
-        margin-top: 0.3rem;
-        font-size: 12px;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        font-weight: 500;
-        color: #1c2630;
-    }
-    .panel-link,
-    .action-link,
-    .table-link {
-        color: #c97b3a;
-        text-decoration: none;
-        font-size: 0.73rem;
-        font-weight: 700;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-    }
-    .panel-link:hover,
-    .action-link:hover,
-    .table-link:hover {
-        color: #a65e28;
-    }
-    .panel-body {
-        padding: 0;
-    }
-    .ledger {
-        width: 100%;
-        border-collapse: collapse;
-    }
-    .ledger thead {
-        background: #f3f5f7;
-    }
-    .ledger th {
-        text-align: left;
-        padding: 0.75rem 1rem;
-        font-size: 9px;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        font-weight: 700;
-        color: #6d737c;
-        white-space: nowrap;
-    }
-    .ledger td {
-        padding: 0.95rem 1rem;
-        border-top: 0.5px solid #eceff3;
-        vertical-align: top;
-    }
-    .ledger tbody tr:hover td {
-        background: #fafbfc;
-    }
-    .item-name {
-        font-size: 0.92rem;
-        font-weight: 700;
-        color: #16202a;
-        line-height: 1.2;
-    }
-    .item-sub {
-        margin-top: 0.35rem;
-        font-size: 0.76rem;
-        color: #6c727b;
-        line-height: 1.45;
-    }
-    .badge {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 1.55rem;
-        padding: 0.15rem 0.58rem;
-        border-radius: 999px;
-        font-size: 0.7rem;
-        font-weight: 700;
-        white-space: nowrap;
-    }
-    .badge--good {
-        background: rgba(47, 122, 79, 0.12);
-        color: #2f7a4f;
-    }
-    .badge--warning {
-        background: rgba(201, 123, 58, 0.12);
-        color: #c97b3a;
-    }
-    .badge--danger {
-        background: rgba(173, 58, 58, 0.12);
-        color: #ad3a3a;
-    }
-    .badge--muted {
-        background: rgba(109, 115, 124, 0.1);
-        color: #6d737c;
-    }
-    .margin-value--good {
-        color: #2f7a4f;
-        font-weight: 700;
-    }
-    .margin-value--warning {
-        color: #c97b3a;
-        font-weight: 700;
-    }
-    .margin-value--danger {
-        color: #ad3a3a;
-        font-weight: 700;
-    }
-    .margin-value--muted {
-        color: #9097a1;
-    }
-    .tap-pair--muted {
-        color: #9097a1;
-    }
-    .action-strip {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.8rem;
-    }
-    .status-dot {
-        width: 6px;
-        height: 6px;
-        border-radius: 999px;
-        display: inline-block;
-        flex-shrink: 0;
-    }
-    .status-dot--good {
-        background: #2f7a4f;
-    }
-    .status-dot--warning {
-        background: #d1a04f;
-    }
-    .status-dot--amber {
-        background: #c97b3a;
-    }
-    .status-inline {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.45rem;
-        font-size: 0.78rem;
-        font-weight: 600;
-        color: #3a4652;
-    }
-    .panel-list {
-        display: grid;
-        gap: 0.75rem;
-        padding: 1rem;
-    }
-    .tap-card {
-        border: 0.5px solid #e1e5ea;
-        border-radius: 0.75rem;
-        padding: 0.95rem;
-        background: linear-gradient(180deg, #ffffff, #fbfcfd);
-    }
-    .tap-card-name {
-        font-size: 0.98rem;
-        font-weight: 700;
-        color: #18212b;
-    }
-    .tap-card-meta {
-        margin-top: 0.3rem;
-        font-size: 0.78rem;
-        color: #6c727b;
-    }
-    .tap-card-badges {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.45rem;
-        margin-top: 0.75rem;
-    }
-    .tap-card-pair {
-        margin-top: 0.7rem;
-        font-size: 0.8rem;
-        color: #39424d;
-    }
-    .tap-card-pair--muted {
-        color: #8e949c;
-    }
-    .tool-link {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 1rem;
-        padding: 0.85rem 1rem;
-        border-top: 0.5px solid #eceff3;
-        color: inherit;
-        text-decoration: none;
-    }
-    .tool-link:first-child {
-        border-top: none;
-    }
-    .tool-link:hover {
-        background: #fafbfc;
-    }
-    .tool-title {
-        font-size: 0.85rem;
-        font-weight: 700;
-        color: #16202a;
-    }
-    .tool-meta {
-        margin-top: 0.25rem;
-        font-size: 0.76rem;
-        color: #6d737c;
-    }
-    .tool-kicker {
-        font-size: 0.72rem;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        color: #c97b3a;
-        font-weight: 700;
-    }
-    .alert-list {
-        display: grid;
-        gap: 0.7rem;
-        padding: 1rem;
-    }
-    .alert-item {
-        display: grid;
-        grid-template-columns: auto minmax(0, 1fr);
-        gap: 0.7rem;
-        align-items: start;
-        padding: 0.85rem 0.9rem;
-        border: 0.5px solid #eceff3;
-        border-radius: 0.75rem;
-        color: inherit;
-        text-decoration: none;
-        background: #fbfcfd;
-    }
-    .alert-item:hover {
-        background: #f6f8fa;
-    }
-    .alert-text {
-        font-size: 0.84rem;
-        font-weight: 700;
-        color: #1d2731;
-    }
-    .alert-action {
-        margin-top: 0.25rem;
-        font-size: 0.76rem;
-        color: #6d737c;
-    }
-    .empty-state {
-        padding: 1.1rem;
-        font-size: 0.82rem;
-        color: #6d737c;
-    }
-    .empty-state a {
-        color: #c97b3a;
-        text-decoration: none;
-        font-weight: 700;
-    }
-    @media (max-width: 1180px) {
-        .brewpub-content {
-            grid-template-columns: 1fr;
-        }
-    }
-    @media (max-width: 980px) {
-        .brewpub-shell {
-            grid-template-columns: 1fr;
-        }
-        .brewpub-sidebar {
-            border-right: none;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-        }
-        .stat-rail {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-    }
-    @media (max-width: 700px) {
-        .stat-rail {
-            grid-template-columns: 1fr;
-        }
-        .brewpub-content {
-            padding: 1rem;
-        }
-        .panel-head {
-            flex-direction: column;
-            align-items: flex-start;
-        }
-        .ledger {
-            min-width: 44rem;
-        }
-        .panel-body {
-            overflow-x: auto;
-        }
-    }
+/* ── Header ── */
+.db-header {
+    padding-bottom: 1.25rem;
+    border-bottom: 1px solid var(--outline-ghost);
+}
+.db-kicker {
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--ember);
+    margin-bottom: 0.3rem;
+}
+.db-title {
+    font-size: 1.65rem;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    color: var(--fg);
+    line-height: 1.1;
+}
+
+/* ── Stat strip ── */
+.db-strip {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    border-bottom: 1px solid var(--outline-ghost);
+    margin-bottom: 2rem;
+}
+.db-stat {
+    padding: 1.1rem 1.5rem 1.1rem 0;
+    border-right: 1px solid var(--outline-ghost);
+}
+.db-stat + .db-stat { padding-left: 1.5rem; }
+.db-stat:last-child { border-right: none; padding-right: 0; }
+.db-stat-label {
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--muted);
+    margin-bottom: 0.25rem;
+}
+.db-stat-value {
+    font-size: 1.05rem;
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    color: var(--fg);
+    line-height: 1;
+}
+.db-stat-sub {
+    margin-top: 0.3rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--muted);
+}
+.db-stat-sub--warning { color: var(--ember); }
+.db-stat-sub--good { color: var(--success); }
+
+/* ── Body grid ── */
+.db-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 19rem;
+    gap: 3rem;
+    align-items: start;
+}
+.db-aside { display: grid; gap: 2.5rem; }
+
+/* ── Section typography ── */
+.db-kck {
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--muted);
+    margin-bottom: 0.2rem;
+}
+.db-kck--solo { margin-bottom: 0.8rem; }
+.db-ttl {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--fg);
+    margin-top: 0.15rem;
+    margin-bottom: 0.9rem;
+}
+.db-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+    margin-bottom: 0.9rem;
+}
+.db-lnk {
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--ember);
+    text-decoration: none;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.db-lnk:hover { color: var(--primary); }
+
+/* ── Menu board table ── */
+.db-wrap { overflow-x: auto; }
+.db-tbl {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 34rem;
+}
+.db-tbl thead tr { border-bottom: 1px solid var(--outline-ghost); }
+.db-tbl th {
+    text-align: left;
+    padding: 0 0.7rem 0.5rem 0;
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--muted);
+}
+.db-tbl th:last-child { padding-right: 0; }
+.db-tbl tbody tr { border-bottom: 1px solid var(--outline-ghost); }
+.db-tbl tbody tr:last-child { border-bottom: none; }
+.db-tbl td {
+    padding: 0.78rem 0.7rem 0.78rem 0;
+    vertical-align: middle;
+}
+.db-tbl td:last-child { padding-right: 0; }
+.db-nm {
+    font-size: 0.84rem;
+    font-weight: 700;
+    color: var(--fg);
+    line-height: 1.2;
+}
+.db-sb {
+    margin-top: 0.16rem;
+    font-size: 0.71rem;
+    color: var(--muted);
+}
+.db-bdg {
+    display: inline-flex;
+    padding: 0.17rem 0.42rem;
+    font-size: 0.61rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    border: 1px solid transparent;
+}
+.db-bdg--warning { background: rgba(192,97,43,0.08); color: var(--ember); border-color: rgba(192,97,43,0.18); }
+.db-bdg--muted { background: var(--surface-low); color: var(--muted); border-color: var(--outline-ghost); }
+.db-bdg--good { background: rgba(54,89,61,0.08); color: var(--success); border-color: rgba(54,89,61,0.2); }
+.db-mg { font-size: 0.84rem; font-weight: 700; white-space: nowrap; }
+.db-mg--good { color: var(--success); }
+.db-mg--warning { color: var(--ember); }
+.db-mg--danger { color: var(--danger); }
+.db-mg--muted { color: var(--muted); }
+.db-pr { font-size: 0.78rem; color: var(--muted); }
+.db-ax { display: flex; gap: 0.55rem; }
+.db-ac {
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--ember);
+    text-decoration: none;
+}
+.db-ac:hover { color: var(--primary); }
+
+/* ── Tap rows ── */
+.db-tap {
+    padding: 0.88rem 0;
+    border-bottom: 1px solid var(--outline-ghost);
+}
+.db-tap:first-child { padding-top: 0; }
+.db-tap:last-child { border-bottom: none; padding-bottom: 0; }
+.db-tn { font-size: 0.88rem; font-weight: 700; color: var(--fg); }
+.db-tm { margin-top: 0.16rem; font-size: 0.71rem; color: var(--muted); }
+.db-pls { margin-top: 0.42rem; display: flex; flex-wrap: wrap; gap: 0.28rem; }
+.db-pl {
+    display: inline-flex;
+    padding: 0.13rem 0.36rem;
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    border: 1px solid transparent;
+}
+.db-pl--muted { background: var(--surface-low); color: var(--muted); border-color: var(--outline-ghost); }
+.db-pl--warning { background: rgba(192,97,43,0.08); color: var(--ember); border-color: rgba(192,97,43,0.18); }
+.db-pl--good { background: rgba(54,89,61,0.08); color: var(--success); border-color: rgba(54,89,61,0.2); }
+.db-tp { margin-top: 0.38rem; font-size: 0.71rem; color: var(--muted); }
+
+/* ── Tool links ── */
+.db-tl {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.72rem 0;
+    border-bottom: 1px solid var(--outline-ghost);
+    text-decoration: none;
+    color: inherit;
+}
+.db-tl:first-child { padding-top: 0; }
+.db-tl:last-child { border-bottom: none; padding-bottom: 0; }
+.db-tl:hover .db-tlt { color: var(--ember); }
+.db-tlt { font-size: 0.84rem; font-weight: 700; color: var(--fg); transition: color 0.12s; }
+.db-tlm { font-size: 0.71rem; color: var(--muted); margin-top: 0.1rem; }
+.db-tlo {
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--ember);
+    flex-shrink: 0;
+}
+
+/* ── Alert rows ── */
+.db-al {
+    display: flex;
+    gap: 0.58rem;
+    padding: 0.72rem 0;
+    border-bottom: 1px solid var(--outline-ghost);
+    text-decoration: none;
+    color: inherit;
+    align-items: flex-start;
+}
+.db-al:first-child { padding-top: 0; }
+.db-al:last-child { border-bottom: none; padding-bottom: 0; }
+.db-ald {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 0.42rem;
+}
+.db-ald--amber { background: var(--ember); }
+.db-ald--warning { background: #d1a04f; }
+.db-alt { font-size: 0.82rem; font-weight: 700; color: var(--fg); line-height: 1.3; }
+.db-ala { font-size: 0.71rem; color: var(--muted); margin-top: 0.13rem; }
+
+.db-empty { font-size: 0.82rem; color: var(--muted); margin: 0; }
+
+@media (max-width: 1060px) {
+    .db-body { grid-template-columns: 1fr; gap: 2.5rem; }
+}
+@media (max-width: 580px) {
+    .db-strip { grid-template-columns: 1fr; }
+    .db-stat {
+        border-right: none;
+        border-bottom: 1px solid var(--outline-ghost);
+        padding: 0.95rem 0;
+    }
+    .db-stat + .db-stat { padding-left: 0; }
+    .db-stat:last-child { border-bottom: none; }
+}
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="brewpub-shell">
-    {% include "_dashboard_sidebar.html" %}
+<header class="db-header">
+    <div class="db-kicker">Brewpub Command</div>
+    <div class="db-title">Foxtown Brewing</div>
+</header>
 
-    <main class="brewpub-main">
-        <section class="stat-rail">
-            {% for card in stat_cards %}
-            <article class="stat-card">
-                <div>
-                    <div class="brewpub-label">{{ card.label }}</div>
-                    <div class="stat-value">{{ card.value }}</div>
-                </div>
-                <div class="stat-sub {% if card.sub_tone %}stat-sub--{{ card.sub_tone }}{% endif %}">{{ card.sub }}</div>
-            </article>
-            {% endfor %}
-        </section>
+<div class="db-strip">
+    {% for card in stat_cards %}
+    <div class="db-stat">
+        <div class="db-stat-label">{{ card.label }}</div>
+        <div class="db-stat-value">{{ card.value }}</div>
+        {% if card.sub %}<div class="db-stat-sub {% if card.sub_tone %}db-stat-sub--{{ card.sub_tone }}{% endif %}">{{ card.sub }}</div>{% endif %}
+    </div>
+    {% endfor %}
+</div>
 
-        <div class="brewpub-content">
-            <div class="brewpub-stack">
-                <section class="panel" id="live-menu">
-                    <div class="panel-head">
-                        <div>
-                            <div class="panel-label">Live Menu</div>
-                            <div class="panel-title">Brewpub Active Menu Board</div>
-                        </div>
-                        <a href="{{ menu_board_action_url }}" class="panel-link">Open Menu Builder &rarr;</a>
-                    </div>
-                    <div class="panel-body">
-                        {% if menu_board_items %}
-                        <table class="ledger">
-                            <thead>
-                                <tr>
-                                    <th>Item</th>
-                                    <th>Status</th>
-                                    <th>Margin %</th>
-                                    <th>Tap Pair</th>
-                                    <th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for item in menu_board_items %}
-                                <tr>
-                                    <td>
-                                        <div class="item-name">{{ item.name }}</div>
-                                        <div class="item-sub">
-                                            {{ item.category }}{% if item.notes %} · {{ item.notes }}{% endif %}
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <span class="badge badge--{{ item.status_tone }}">{{ item.status_label }}</span>
-                                    </td>
-                                    <td>
-                                        <span class="margin-value--{{ item.margin_tone }}">{{ item.margin_display }}</span>
-                                    </td>
-                                    <td>
-                                        {% if item.tap_pair_name %}
-                                        <span class="badge badge--muted">{{ item.tap_pair_name }}</span>
-                                        {% else %}
-                                        <span class="tap-pair--muted">&mdash; unpaired</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        <div class="action-strip">
-                                            {% if item.recipe_id %}
-                                            <a href="{{ url_for('recipes.recipe_edit', recipe_id=item.recipe_id) }}" class="action-link">Edit</a>
-                                            {% endif %}
-                                            <a href="{{ url_for('ingredients.ingredients', needs_update='1') }}" class="action-link">Cost</a>
-                                            <a href="{{ url_for('dashboard') }}#command-alerts" class="action-link">Flag</a>
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                        {% else %}
-                        <div class="empty-state">
-                            No brewpub menu rows are live yet. <a href="{{ menu_board_action_url }}">Open the menu builder</a> to stage the first board.
-                        </div>
-                        {% endif %}
-                    </div>
-                </section>
-
+<div class="db-body">
+    <div>
+        <div class="db-head">
+            <div>
+                <div class="db-kck">Live Menu</div>
+                <div class="db-ttl">Brewpub Active Menu Board</div>
             </div>
-
-            <aside class="brewpub-stack">
-                <section class="panel" id="tap-program">
-                    <div class="panel-head">
-                        <div>
-                            <div class="panel-label">Tap Program</div>
-                            <div class="panel-title">Current And Next Releases</div>
-                        </div>
-                    </div>
-                    <div class="panel-list">
-                        {% for card in tap_program_cards %}
-                        <article class="tap-card">
-                            <div class="tap-card-name">{{ card.beer_name }}</div>
-                            <div class="tap-card-meta">
-                                {{ card.style }}{% if card.handle_number %} · Handle {{ card.handle_number }}{% endif %}{% if card.release_date %} · {{ card.release_date.strftime('%b %d').replace(' 0', ' ') }}{% endif %}
-                            </div>
-                            <div class="tap-card-badges">
-                                {% if card.abv is not none %}
-                                <span class="badge badge--muted">{{ "%.1f"|format(card.abv) }}% ABV</span>
-                                {% endif %}
-                                <span class="badge badge--{{ card.status_tone }}">{{ card.status_label }}</span>
-                            </div>
-                            <div class="tap-card-pair {% if not card.paired_dish_name %}tap-card-pair--muted{% endif %}">
-                                {% if card.paired_dish_name %}
-                                Paired dish: {{ card.paired_dish_name }}
-                                {% else %}
-                                Pairing: not assigned &mdash; open R&amp;D
-                                {% endif %}
-                            </div>
-                        </article>
-                        {% endfor %}
-                    </div>
-                </section>
-
-                <section class="panel">
-                    <div class="panel-head">
-                        <div>
-                            <div class="panel-label">Tactical Toolkit &middot; Fast Access</div>
-                            <div class="panel-title">Operational Shortcuts</div>
-                        </div>
-                    </div>
-                    <div>
-                        {% for item in fast_access_items %}
-                        <a href="{{ item.href }}" class="tool-link">
-                            <span>
-                                <span class="tool-title">{{ item.title }}</span>
-                                <span class="tool-meta">{{ item.meta }}</span>
-                            </span>
-                            <span class="tool-kicker">Open</span>
-                        </a>
-                        {% endfor %}
-                    </div>
-                </section>
-
-                <section class="panel" id="command-alerts">
-                    <div class="panel-head">
-                        <div>
-                            <div class="panel-label">Command Alerts</div>
-                            <div class="panel-title">Priority Queue</div>
-                        </div>
-                    </div>
-                    {% if command_alerts %}
-                    <div class="alert-list">
-                        {% for alert in command_alerts %}
-                        <a href="{{ alert.href }}" class="alert-item">
-                            <span class="status-dot status-dot--{{ 'amber' if alert.tone == 'amber' else 'warning' if alert.tone == 'warning' else 'good' }}"></span>
-                            <span>
-                                <span class="alert-text">{{ alert.text }}</span>
-                                <span class="alert-action">{{ alert.action }}</span>
-                            </span>
-                        </a>
-                        {% endfor %}
-                    </div>
-                    {% else %}
-                    <div class="empty-state">No command alerts are active right now.</div>
-                    {% endif %}
-                </section>
-            </aside>
+            <a href="{{ menu_board_action_url }}" class="db-lnk">Open Menu Builder &rarr;</a>
         </div>
-    </main>
+
+        {% if menu_board_items %}
+        <div class="db-wrap">
+            <table class="db-tbl">
+                <thead>
+                    <tr>
+                        <th>Item</th>
+                        <th>Status</th>
+                        <th>Margin</th>
+                        <th>Tap Pair</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in menu_board_items %}
+                    <tr>
+                        <td>
+                            <div class="db-nm">{{ item.name }}</div>
+                            <div class="db-sb">{{ item.category }}{% if item.notes %} · {{ item.notes }}{% endif %}</div>
+                        </td>
+                        <td><span class="db-bdg db-bdg--{{ item.status_tone }}">{{ item.status_label }}</span></td>
+                        <td><span class="db-mg db-mg--{{ item.margin_tone }}">{{ item.margin_display }}</span></td>
+                        <td class="db-pr">{% if item.tap_pair_name %}{{ item.tap_pair_name }}{% else %}&mdash;{% endif %}</td>
+                        <td>
+                            <div class="db-ax">
+                                {% if item.recipe_id %}<a href="{{ url_for('recipes.recipe_edit', recipe_id=item.recipe_id) }}" class="db-ac">Edit</a>{% endif %}
+                                <a href="{{ url_for('ingredients.ingredients', needs_update='1') }}" class="db-ac">Cost</a>
+                                <a href="#alerts" class="db-ac">Flag</a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="db-empty">No brewpub menu rows are live yet. <a href="{{ menu_board_action_url }}" style="color:var(--ember);font-weight:700;text-decoration:none;">Open the menu builder</a> to stage the first board.</p>
+        {% endif %}
+    </div>
+
+    <aside class="db-aside">
+        <div>
+            <div class="db-kck">Tap Program</div>
+            <div class="db-ttl">Current and Next Releases</div>
+            {% for card in tap_program_cards %}
+            <div class="db-tap">
+                <div class="db-tn">{{ card.beer_name }}</div>
+                <div class="db-tm">{{ card.style }}{% if card.handle_number %} · Handle {{ card.handle_number }}{% endif %}{% if card.release_date %} · {{ card.release_date.strftime('%b %-d') }}{% endif %}</div>
+                <div class="db-pls">
+                    {% if card.abv is not none %}<span class="db-pl db-pl--muted">{{ "%.1f"|format(card.abv) }}% ABV</span>{% endif %}
+                    <span class="db-pl db-pl--{{ card.status_tone }}">{{ card.status_label }}</span>
+                </div>
+                <div class="db-tp">{% if card.paired_dish_name %}Paired: {{ card.paired_dish_name }}{% else %}Pairing not assigned{% endif %}</div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div>
+            <div class="db-kck db-kck--solo">Fast Access</div>
+            {% for item in fast_access_items %}
+            <a href="{{ item.href }}" class="db-tl">
+                <div>
+                    <div class="db-tlt">{{ item.title }}</div>
+                    <div class="db-tlm">{{ item.meta }}</div>
+                </div>
+                <span class="db-tlo">Open</span>
+            </a>
+            {% endfor %}
+        </div>
+
+        <div id="alerts">
+            <div class="db-kck db-kck--solo">Priority Queue</div>
+            {% if command_alerts %}
+            {% for alert in command_alerts %}
+            <a href="{{ alert.href }}" class="db-al">
+                <span class="db-ald db-ald--{{ 'amber' if alert.tone == 'amber' else 'warning' }}"></span>
+                <div>
+                    <div class="db-alt">{{ alert.text }}</div>
+                    <div class="db-ala">{{ alert.action }}</div>
+                </div>
+            </a>
+            {% endfor %}
+            {% else %}
+            <p class="db-empty">No active alerts.</p>
+            {% endif %}
+        </div>
+    </aside>
 </div>
 {% endblock %}
