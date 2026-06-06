@@ -1090,7 +1090,7 @@ def recipe_print(recipe_id):
     if not context:
         flash('Recipe not found', 'error')
         return redirect(url_for('recipes'))
-    return render_template('recipe_detail.html', auto_print=True, **context)
+    return render_template('recipe_print.html', **context)
 
 
 @bp.route('/recipes/<recipe_id>/buildcard')
