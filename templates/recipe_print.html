@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ recipe.name }} — Recipe Sheet</title>
+<style>
+  :root {
+    --ink:        #111111;
+    --ink-mid:    #3d3d3d;
+    --ink-soft:   #666666;
+    --rule:       #d4d0cb;
+    --rule-dark:  #111111;
+    --accent:     #8b1919;
+    --shade:      #f6f5f3;
+    --alert-bg:   #fdf3f3;
+    --sub-bg:     #3d4a55;
+    --paper:      #ffffff;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    background: #e5e2dd;
+    color: var(--ink);
+    padding: 28px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* ── SHEET ───────────────────────────────────────────────── */
+  .sheet {
+    width: 7.5in;
+    min-height: 10in;
+    background: var(--paper);
+    padding: 0.52in 0.6in 0.45in;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  /* ── HEADER ROW ──────────────────────────────────────────── */
+  .hdr {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    border-bottom: 3px solid var(--rule-dark);
+    padding-bottom: 9px;
+    margin-bottom: 18px;
+  }
+  .hdr-brand {
+    font-size: 7.5px;
+    font-weight: 800;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  .hdr-right {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+  }
+  .hdr-cat {
+    font-size: 7.5px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  .hdr-badge {
+    background: var(--rule-dark);
+    color: #fff;
+    font-size: 8px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 4px 10px;
+  }
+
+  /* ── TITLE BLOCK ─────────────────────────────────────────── */
+  .title-block { margin-bottom: 14px; }
+  .title-kicker {
+    font-size: 7.5px;
+    font-weight: 800;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-bottom: 5px;
+  }
+  .title-name {
+    font-size: 40pt;
+    font-weight: 900;
+    letter-spacing: -0.035em;
+    text-transform: uppercase;
+    line-height: 0.88;
+    color: var(--ink);
+    margin-bottom: 9px;
+  }
+  .title-desc {
+    font-size: 10.5px;
+    color: var(--ink-soft);
+    font-style: italic;
+    line-height: 1.5;
+  }
+
+  /* ── META STRIP ──────────────────────────────────────────── */
+  .meta {
+    display: flex;
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    margin-bottom: 22px;
+  }
+  .meta-cell {
+    flex: 1;
+    padding: 9px 13px;
+    border-right: 1px solid var(--rule);
+  }
+  .meta-cell:first-child { padding-left: 0; }
+  .meta-cell:last-child  { border-right: none; }
+  .meta-label {
+    font-size: 6.5px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-bottom: 3px;
+  }
+  .meta-value {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1.2;
+  }
+
+  /* ── SECTION ─────────────────────────────────────────────── */
+  .section { margin-bottom: 20px; }
+  .sec-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 9px;
+  }
+  .sec-title {
+    flex-shrink: 0;
+    font-size: 7px;
+    font-weight: 900;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+  .sec-rule {
+    flex: 1;
+    height: 1.5px;
+    background: var(--rule-dark);
+  }
+  .sec-title--alert { color: var(--accent); }
+  .sec-rule--alert  { background: var(--accent); }
+
+  /* ── INGREDIENT TABLE ────────────────────────────────────── */
+  table.ings {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  table.ings th {
+    font-size: 6.5px;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    text-align: left;
+    padding: 5px 8px;
+    border-bottom: 1px solid var(--rule);
+  }
+  table.ings td {
+    padding: 6px 8px;
+    font-size: 11.5px;
+    vertical-align: top;
+    border-bottom: 1px solid var(--rule);
+    color: var(--ink);
+    line-height: 1.3;
+  }
+  table.ings tr:nth-child(even) td { background: var(--shade); }
+  table.ings td.qty {
+    font-weight: 800;
+    white-space: nowrap;
+    width: 1%;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+  }
+  table.ings td.unit {
+    white-space: nowrap;
+    width: 1%;
+    color: var(--ink-mid);
+    font-size: 11px;
+  }
+  table.ings td.name { font-weight: 600; }
+  table.ings td.prep {
+    font-size: 10px;
+    color: var(--ink-soft);
+    font-style: italic;
+  }
+  .sub-badge {
+    display: inline-block;
+    background: var(--sub-bg);
+    color: #fff;
+    font-size: 6.5px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 2px 5px;
+    vertical-align: middle;
+    margin-right: 3px;
+  }
+  .ing-note {
+    display: block;
+    font-size: 9.5px;
+    color: var(--ink-soft);
+    font-style: italic;
+    margin-top: 2px;
+    font-weight: 400;
+  }
+  .no-content {
+    font-size: 11px;
+    color: var(--ink-soft);
+    font-style: italic;
+    padding: 6px 0;
+  }
+
+  /* ── CRITICAL ALERTS ─────────────────────────────────────── */
+  .alert-box {
+    border-left: 3px solid var(--accent);
+    background: var(--alert-bg);
+    padding: 10px 14px;
+  }
+  ol.alert-list { list-style: none; display: flex; flex-direction: column; gap: 5px; }
+  ol.alert-list li {
+    display: flex;
+    gap: 9px;
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--ink-mid);
+  }
+  .alert-num {
+    flex-shrink: 0;
+    font-size: 11px;
+    font-weight: 800;
+    color: var(--accent);
+    width: 22px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── METHOD ──────────────────────────────────────────────── */
+  ol.steps { list-style: none; }
+  ol.steps li {
+    display: flex;
+    gap: 14px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--rule);
+    align-items: flex-start;
+  }
+  .step-num {
+    flex-shrink: 0;
+    font-size: 12px;
+    font-weight: 900;
+    color: var(--accent);
+    width: 28px;
+    padding-top: 1px;
+    font-variant-numeric: tabular-nums;
+  }
+  .step-content { flex: 1; }
+  .step-title {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1.3;
+  }
+  .step-dur {
+    font-weight: 600;
+    color: var(--ink-soft);
+    font-size: 11px;
+  }
+  .step-body {
+    font-size: 11.5px;
+    color: var(--ink-mid);
+    line-height: 1.45;
+    margin-top: 2px;
+    white-space: pre-line;
+  }
+  .step-body--solo {
+    font-size: 12px;
+    color: var(--ink);
+    font-weight: 500;
+  }
+
+  /* ── STORAGE ─────────────────────────────────────────────── */
+  .storage-text {
+    font-size: 11px;
+    line-height: 1.6;
+    color: var(--ink-mid);
+  }
+
+  /* ── VENUES ──────────────────────────────────────────────── */
+  .venue-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .venue-chip {
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 3px 9px;
+    border: 1px solid var(--rule);
+    color: var(--ink-mid);
+  }
+
+  /* ── FOOTER ──────────────────────────────────────────────── */
+  .foot {
+    margin-top: auto;
+    padding-top: 10px;
+    border-top: 1px solid var(--rule);
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  .foot-left, .foot-right {
+    font-size: 7px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+
+  /* ── PRINT ───────────────────────────────────────────────── */
+  @page { size: letter portrait; margin: 0.42in 0.42in; }
+  @media print {
+    html, body { background: #fff !important; padding: 0 !important; }
+    .sheet { width: 100%; min-height: auto; padding: 0; margin: 0; }
+  }
+</style>
+</head>
+<body>
+
+{# ── LOCAL TEMPLATE VARS ────────────────────────────────────── #}
+{% if recipe.recipe_type == 'menu' %}
+  {% set recipe_kind = 'RM Plated' %}
+{% elif recipe.recipe_type == 'batch' %}
+  {% set recipe_kind = 'RB Batch' %}
+{% else %}
+  {% set recipe_kind = 'Recipe' %}
+{% endif %}
+{% set descriptor_copy = recipe.menu_descriptor or 'Operational recipe sheet with component yields and sub-recipe rollups.' %}
+{% set yield_display = smart_quantity(recipe.yield_qty, recipe.yield_unit) %}
+
+{# ── NUMBER FORMAT MACRO ────────────────────────────────────── #}
+{% macro fmt(n) -%}
+  {%- if n is none or n == '' -%}&mdash;
+  {%- elif (n | float) % 1 == 0 -%}{{ n | float | int }}
+  {%- else -%}{{ n | float | round(3) }}{%- endif -%}
+{%- endmacro %}
+
+<div class="sheet">
+
+  <!-- HEADER -->
+  <div class="hdr">
+    <div class="hdr-brand">Foxtown HQ &middot; Kitchen Ops</div>
+    <div class="hdr-right">
+      {% if recipe.category %}
+      <span class="hdr-cat">{{ recipe.category }}</span>
+      {% endif %}
+      <span class="hdr-badge">{{ recipe_kind }}</span>
+    </div>
+  </div>
+
+  <!-- TITLE BLOCK -->
+  <div class="title-block">
+    <div class="title-kicker">
+      {{ recipe.station or 'General' }} &middot; {{ recipe.id | upper }}
+    </div>
+    <div class="title-name">{{ recipe.name }}</div>
+    {% if descriptor_copy %}
+    <div class="title-desc">{{ descriptor_copy }}</div>
+    {% endif %}
+  </div>
+
+  <!-- META STRIP -->
+  <div class="meta">
+    <div class="meta-cell">
+      <div class="meta-label">Yield</div>
+      <div class="meta-value">{{ yield_display.quantity }} {{ yield_display.unit }}</div>
+    </div>
+    <div class="meta-cell">
+      <div class="meta-label">Prep Time</div>
+      <div class="meta-value">
+        {% if recipe.prep_time_minutes is not none %}
+          {% set mins = recipe.prep_time_minutes | int %}
+          {% if mins >= 60 %}{{ mins // 60 }} hr{% if mins % 60 %} {{ mins % 60 }} min{% endif %}
+          {% else %}{{ mins }} min{% endif %}
+        {% else %}&mdash;{% endif %}
+      </div>
+    </div>
+    <div class="meta-cell">
+      <div class="meta-label">Shelf Life</div>
+      <div class="meta-value">
+        {% if recipe.shelf_life_days is not none %}
+          {{ recipe.shelf_life_days }} day{{ 's' if recipe.shelf_life_days | int != 1 }}
+        {% else %}&mdash;{% endif %}
+      </div>
+    </div>
+    <div class="meta-cell">
+      <div class="meta-label">Station</div>
+      <div class="meta-value">{{ recipe.station or 'General' }}</div>
+    </div>
+    <div class="meta-cell">
+      <div class="meta-label">Equipment</div>
+      <div class="meta-value">{{ recipe.equipment or '&mdash;' }}</div>
+    </div>
+  </div>
+
+  <!-- INGREDIENTS -->
+  <div class="section">
+    <div class="sec-head">
+      <span class="sec-title">Ingredients</span>
+      <span class="sec-rule"></span>
+      <span class="sec-title" style="color:var(--ink-soft);letter-spacing:1px;">{{ component_count }} item{{ 's' if component_count != 1 }}</span>
+    </div>
+    {% if components %}
+    {% set ns = namespace(has_rows=false) %}
+    {% for item in components %}{% if item.type in ('ingredient','recipe') %}{% set ns.has_rows = true %}{% endif %}{% endfor %}
+    {% if ns.has_rows %}
+    <table class="ings">
+      <thead>
+        <tr>
+          <th>Qty</th>
+          <th>Unit</th>
+          <th>Ingredient</th>
+          <th>Prep</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in components %}
+          {% if item.type in ('ingredient', 'recipe') %}
+          <tr>
+            <td class="qty">{{ fmt(item.display_quantity) }}</td>
+            <td class="unit">{{ item.display_unit or item.unit or '' }}</td>
+            <td class="name">
+              {% if item.type == 'recipe' %}<span class="sub-badge">Sub</span>{% endif %}
+              {{ item.item_name }}
+              {% if item.type == 'recipe' and item.sub_recipe %}
+                {% set sv = smart_quantity(item.sub_recipe.yield_qty, item.sub_recipe.yield_unit) %}
+                <span class="ing-note">yields {{ sv.quantity }} {{ sv.unit }}</span>
+              {% endif %}
+            </td>
+            <td class="prep">{{ item.prep_note or '&mdash;' }}</td>
+          </tr>
+          {% endif %}
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="no-content">No ingredients recorded.</p>
+    {% endif %}
+    {% else %}
+    <p class="no-content">No ingredients recorded.</p>
+    {% endif %}
+  </div>
+
+  <!-- CRITICAL ALERTS -->
+  {% if critical_steps_list %}
+  <div class="section">
+    <div class="sec-head">
+      <span class="sec-title sec-title--alert">Critical Yield Alerts</span>
+      <span class="sec-rule sec-rule--alert"></span>
+    </div>
+    <div class="alert-box">
+      <ol class="alert-list">
+        {% for step in critical_steps_list %}
+        <li>
+          <span class="alert-num">{{ '%02d'|format(loop.index) }}.</span>
+          <span>{{ step }}</span>
+        </li>
+        {% endfor %}
+      </ol>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- PRODUCTION METHOD -->
+  {% if instruction_steps %}
+  <div class="section">
+    <div class="sec-head">
+      <span class="sec-title">Production Method</span>
+      <span class="sec-rule"></span>
+    </div>
+    <ol class="steps">
+      {% for step in instruction_steps %}
+      <li>
+        <span class="step-num">{{ '%02d'|format(loop.index) }}.</span>
+        <div class="step-content">
+          {% if step.title %}
+          <div class="step-title">{{ step.title }}{% if step.duration_text %} <span class="step-dur">({{ step.duration_text }})</span>{% endif %}</div>
+          {% endif %}
+          {% if step.body %}
+          <div class="step-body{% if not step.title %} step-body--solo{% endif %}">{{ step.body }}</div>
+          {% endif %}
+        </div>
+      </li>
+      {% endfor %}
+    </ol>
+  </div>
+  {% endif %}
+
+  <!-- STORAGE & HANDLING -->
+  {% if storage_lines %}
+  <div class="section">
+    <div class="sec-head">
+      <span class="sec-title">Storage &amp; Handling</span>
+      <span class="sec-rule"></span>
+    </div>
+    <div class="storage-text">
+      {% for line in storage_lines %}{{ line }}{% if not loop.last %}<br>{% endif %}{% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- VENUES -->
+  {% if recipe_venues %}
+  <div class="section">
+    <div class="sec-head">
+      <span class="sec-title">Assigned Venues</span>
+      <span class="sec-rule"></span>
+    </div>
+    <div class="venue-chips">
+      {% for venue in recipe_venues %}
+      <span class="venue-chip">{{ venue.name }}</span>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- FOOTER -->
+  <div class="foot">
+    <span class="foot-left">Foxtown HQ &middot; Kitchen Recipe Sheet</span>
+    <span class="foot-right">{{ recipe.id | upper }} &middot; <span id="print-date"></span></span>
+  </div>
+
+</div>
+
+<script>
+  var d = new Date();
+  var mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  document.getElementById('print-date').textContent = mo[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear();
+
+  window.addEventListener('load', function () {
+    setTimeout(function () { window.print(); }, 250);
+    window.addEventListener('afterprint', function () { window.close(); }, { once: true });
+  });
+</script>
+</body>
+</html>
