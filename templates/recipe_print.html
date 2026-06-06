@@ -4,159 +4,173 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{{ recipe.name }} — Recipe Sheet</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
-    --ink:        #111111;
-    --ink-mid:    #3d3d3d;
-    --ink-soft:   #666666;
-    --rule:       #d4d0cb;
-    --rule-dark:  #111111;
-    --accent:     #8b1919;
-    --shade:      #f6f5f3;
-    --alert-bg:   #fdf3f3;
-    --sub-bg:     #3d4a55;
-    --paper:      #ffffff;
+    --ink:       #21282b;
+    --ink-mid:   #4a545a;
+    --ink-soft:  #79848a;
+    --hair:      #e4e8ea;
+    --hair-mid:  #cfd6d9;
+    --rule:      #21282b;
+    --accent:    #c0612b;
+    --accent-soft: #faf1ea;
+    --panel:     #f6f8f9;
+    --sub:       #565e74;
+    --paper:     #ffffff;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
   html, body {
-    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-    background: #e5e2dd;
+    font-family: "Inter", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    background: #d9dee1;
     color: var(--ink);
-    padding: 28px;
+    padding: 32px;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
 
   /* ── SHEET ───────────────────────────────────────────────── */
   .sheet {
-    width: 7.5in;
+    width: 7.6in;
     min-height: 10in;
     background: var(--paper);
-    padding: 0.52in 0.6in 0.45in;
+    padding: 0.62in 0.66in 0.5in;
     margin: 0 auto;
+    box-shadow: 0 6px 28px rgba(33, 40, 43, 0.16);
     display: flex;
     flex-direction: column;
-    gap: 0;
   }
 
-  /* ── HEADER ROW ──────────────────────────────────────────── */
-  .hdr {
+  /* ── BRAND BAR ───────────────────────────────────────────── */
+  .brand {
     display: flex;
     justify-content: space-between;
-    align-items: flex-end;
-    border-bottom: 3px solid var(--rule-dark);
-    padding-bottom: 9px;
-    margin-bottom: 18px;
+    align-items: center;
+    padding-bottom: 11px;
+    border-bottom: 1px solid var(--hair-mid);
+    margin-bottom: 26px;
   }
-  .hdr-brand {
-    font-size: 7.5px;
-    font-weight: 800;
-    letter-spacing: 3px;
-    text-transform: uppercase;
-    color: var(--ink-soft);
-  }
-  .hdr-right {
+  .brand-mark {
     display: flex;
     align-items: center;
     gap: 9px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink);
   }
-  .hdr-cat {
-    font-size: 7.5px;
-    font-weight: 800;
-    letter-spacing: 2px;
+  .brand-dot {
+    width: 14px; height: 14px;
+    border-radius: 3px;
+    background: var(--accent);
+  }
+  .brand-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--ink-soft);
   }
-  .hdr-badge {
-    background: var(--rule-dark);
-    color: #fff;
-    font-size: 8px;
-    font-weight: 800;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    padding: 4px 10px;
+  .brand-tag {
+    color: var(--accent);
+    font-weight: 700;
   }
 
   /* ── TITLE BLOCK ─────────────────────────────────────────── */
-  .title-block { margin-bottom: 14px; }
+  .title-block { margin-bottom: 24px; }
   .title-kicker {
-    font-size: 7.5px;
-    font-weight: 800;
-    letter-spacing: 2.5px;
+    font-size: 9.5px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
     text-transform: uppercase;
     color: var(--ink-soft);
-    margin-bottom: 5px;
-  }
-  .title-name {
-    font-size: 40pt;
-    font-weight: 900;
-    letter-spacing: -0.035em;
-    text-transform: uppercase;
-    line-height: 0.88;
-    color: var(--ink);
     margin-bottom: 9px;
   }
+  .title-name {
+    font-size: 33pt;
+    font-weight: 800;
+    letter-spacing: -0.022em;
+    line-height: 1.02;
+    color: var(--ink);
+    margin-bottom: 11px;
+  }
   .title-desc {
-    font-size: 10.5px;
-    color: var(--ink-soft);
-    font-style: italic;
-    line-height: 1.5;
+    font-size: 11.5px;
+    color: var(--ink-mid);
+    line-height: 1.55;
+    max-width: 92%;
   }
 
   /* ── META STRIP ──────────────────────────────────────────── */
   .meta {
     display: flex;
-    border-top: 1px solid var(--rule);
-    border-bottom: 1px solid var(--rule);
-    margin-bottom: 22px;
+    flex-wrap: wrap;
+    border: 1px solid var(--hair);
+    border-radius: 7px;
+    overflow: hidden;
+    margin-bottom: 28px;
   }
   .meta-cell {
     flex: 1;
-    padding: 9px 13px;
-    border-right: 1px solid var(--rule);
+    min-width: 18%;
+    padding: 11px 14px;
+    border-right: 1px solid var(--hair);
   }
-  .meta-cell:first-child { padding-left: 0; }
-  .meta-cell:last-child  { border-right: none; }
+  .meta-cell:last-child { border-right: none; }
   .meta-label {
-    font-size: 6.5px;
-    font-weight: 800;
-    letter-spacing: 2px;
+    font-size: 8px;
+    font-weight: 600;
+    letter-spacing: 0.13em;
     text-transform: uppercase;
     color: var(--ink-soft);
-    margin-bottom: 3px;
+    margin-bottom: 5px;
   }
   .meta-value {
-    font-size: 13px;
+    font-size: 13.5px;
     font-weight: 700;
     color: var(--ink);
     line-height: 1.2;
+    font-variant-numeric: tabular-nums;
   }
 
   /* ── SECTION ─────────────────────────────────────────────── */
-  .section { margin-bottom: 20px; }
+  .section { margin-bottom: 26px; }
   .sec-head {
     display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 9px;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 12px;
   }
   .sec-title {
     flex-shrink: 0;
-    font-size: 7px;
-    font-weight: 900;
-    letter-spacing: 2.5px;
-    text-transform: uppercase;
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
     color: var(--ink);
   }
   .sec-rule {
     flex: 1;
-    height: 1.5px;
-    background: var(--rule-dark);
+    height: 1px;
+    background: var(--hair-mid);
+    transform: translateY(-3px);
+  }
+  .sec-count {
+    flex-shrink: 0;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
   }
   .sec-title--alert { color: var(--accent); }
-  .sec-rule--alert  { background: var(--accent); }
 
   /* ── INGREDIENT TABLE ────────────────────────────────────── */
   table.ings {
@@ -164,26 +178,26 @@
     border-collapse: collapse;
   }
   table.ings th {
-    font-size: 6.5px;
-    font-weight: 800;
-    letter-spacing: 1.5px;
+    font-size: 8px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
     color: var(--ink-soft);
     text-align: left;
-    padding: 5px 8px;
-    border-bottom: 1px solid var(--rule);
+    padding: 0 10px 7px;
+    border-bottom: 1px solid var(--hair-mid);
   }
   table.ings td {
-    padding: 6px 8px;
+    padding: 8px 10px;
     font-size: 11.5px;
     vertical-align: top;
-    border-bottom: 1px solid var(--rule);
+    border-bottom: 1px solid var(--hair);
     color: var(--ink);
-    line-height: 1.3;
+    line-height: 1.35;
   }
-  table.ings tr:nth-child(even) td { background: var(--shade); }
+  table.ings tr:last-child td { border-bottom: none; }
   table.ings td.qty {
-    font-weight: 800;
+    font-weight: 700;
     white-space: nowrap;
     width: 1%;
     font-size: 12px;
@@ -195,57 +209,58 @@
     color: var(--ink-mid);
     font-size: 11px;
   }
-  table.ings td.name { font-weight: 600; }
+  table.ings td.name { font-weight: 500; }
   table.ings td.prep {
     font-size: 10px;
     color: var(--ink-soft);
-    font-style: italic;
   }
   .sub-badge {
     display: inline-block;
-    background: var(--sub-bg);
+    background: var(--sub);
     color: #fff;
-    font-size: 6.5px;
-    font-weight: 800;
-    letter-spacing: 1px;
+    font-size: 7px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
-    padding: 2px 5px;
+    padding: 2px 6px;
+    border-radius: 3px;
     vertical-align: middle;
-    margin-right: 3px;
+    margin-right: 5px;
   }
   .ing-note {
     display: block;
     font-size: 9.5px;
     color: var(--ink-soft);
-    font-style: italic;
-    margin-top: 2px;
+    margin-top: 3px;
     font-weight: 400;
   }
   .no-content {
     font-size: 11px;
     color: var(--ink-soft);
     font-style: italic;
-    padding: 6px 0;
+    padding: 8px 0;
   }
 
   /* ── CRITICAL ALERTS ─────────────────────────────────────── */
   .alert-box {
+    border: 1px solid #eed8c8;
     border-left: 3px solid var(--accent);
-    background: var(--alert-bg);
-    padding: 10px 14px;
+    background: var(--accent-soft);
+    border-radius: 7px;
+    padding: 13px 16px;
   }
-  ol.alert-list { list-style: none; display: flex; flex-direction: column; gap: 5px; }
+  ol.alert-list { list-style: none; display: flex; flex-direction: column; gap: 7px; }
   ol.alert-list li {
     display: flex;
-    gap: 9px;
+    gap: 10px;
     font-size: 11px;
-    line-height: 1.4;
+    line-height: 1.45;
     color: var(--ink-mid);
   }
   .alert-num {
     flex-shrink: 0;
     font-size: 11px;
-    font-weight: 800;
+    font-weight: 700;
     color: var(--accent);
     width: 22px;
     font-variant-numeric: tabular-nums;
@@ -255,86 +270,93 @@
   ol.steps { list-style: none; }
   ol.steps li {
     display: flex;
-    gap: 14px;
-    padding: 8px 0;
-    border-bottom: 1px solid var(--rule);
+    gap: 15px;
+    padding: 11px 0;
+    border-bottom: 1px solid var(--hair);
     align-items: flex-start;
   }
+  ol.steps li:last-child { border-bottom: none; }
   .step-num {
     flex-shrink: 0;
-    font-size: 12px;
-    font-weight: 900;
-    color: var(--accent);
-    width: 28px;
-    padding-top: 1px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #fff;
+    background: var(--ink);
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-variant-numeric: tabular-nums;
   }
-  .step-content { flex: 1; }
+  .step-content { flex: 1; padding-top: 1px; }
   .step-title {
-    font-size: 12.5px;
+    font-size: 12px;
     font-weight: 700;
     color: var(--ink);
-    line-height: 1.3;
+    line-height: 1.35;
   }
   .step-dur {
-    font-weight: 600;
-    color: var(--ink-soft);
-    font-size: 11px;
+    font-weight: 500;
+    color: var(--accent);
+    font-size: 10.5px;
   }
   .step-body {
     font-size: 11.5px;
     color: var(--ink-mid);
-    line-height: 1.45;
-    margin-top: 2px;
+    line-height: 1.5;
+    margin-top: 3px;
     white-space: pre-line;
   }
   .step-body--solo {
-    font-size: 12px;
+    font-size: 11.5px;
     color: var(--ink);
-    font-weight: 500;
   }
 
   /* ── STORAGE ─────────────────────────────────────────────── */
   .storage-text {
     font-size: 11px;
-    line-height: 1.6;
+    line-height: 1.65;
     color: var(--ink-mid);
   }
 
   /* ── VENUES ──────────────────────────────────────────────── */
-  .venue-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .venue-chips { display: flex; gap: 7px; flex-wrap: wrap; }
   .venue-chip {
-    font-size: 8px;
-    font-weight: 700;
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
-    padding: 3px 9px;
-    border: 1px solid var(--rule);
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    padding: 4px 10px;
+    border: 1px solid var(--hair-mid);
+    border-radius: 999px;
     color: var(--ink-mid);
   }
 
   /* ── FOOTER ──────────────────────────────────────────────── */
   .foot {
     margin-top: auto;
-    padding-top: 10px;
-    border-top: 1px solid var(--rule);
+    padding-top: 12px;
+    border-top: 1px solid var(--hair-mid);
     display: flex;
     justify-content: space-between;
     align-items: baseline;
   }
   .foot-left, .foot-right {
-    font-size: 7px;
-    font-weight: 700;
-    letter-spacing: 1.5px;
+    font-size: 8px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
     color: var(--ink-soft);
   }
 
   /* ── PRINT ───────────────────────────────────────────────── */
-  @page { size: letter portrait; margin: 0.42in 0.42in; }
+  @page { size: letter portrait; margin: 0.5in 0.5in; }
   @media print {
     html, body { background: #fff !important; padding: 0 !important; }
-    .sheet { width: 100%; min-height: auto; padding: 0; margin: 0; }
+    .sheet { width: 100%; min-height: auto; padding: 0; margin: 0; box-shadow: none; }
+    .section { break-inside: avoid-page; }
+    ol.steps li { break-inside: avoid; }
   }
 </style>
 </head>
@@ -360,14 +382,16 @@
 
 <div class="sheet">
 
-  <!-- HEADER -->
-  <div class="hdr">
-    <div class="hdr-brand">Foxtown HQ &middot; Kitchen Ops</div>
-    <div class="hdr-right">
-      {% if recipe.category %}
-      <span class="hdr-cat">{{ recipe.category }}</span>
-      {% endif %}
-      <span class="hdr-badge">{{ recipe_kind }}</span>
+  <!-- BRAND BAR -->
+  <div class="brand">
+    <div class="brand-mark">
+      <span class="brand-dot"></span>
+      Foxtown HQ
+    </div>
+    <div class="brand-right">
+      <span>Kitchen Recipe Sheet</span>
+      {% if recipe.category %}<span>&middot; {{ recipe.category }}</span>{% endif %}
+      <span class="brand-tag">{{ recipe_kind }}</span>
     </div>
   </div>
 
@@ -421,7 +445,7 @@
     <div class="sec-head">
       <span class="sec-title">Ingredients</span>
       <span class="sec-rule"></span>
-      <span class="sec-title" style="color:var(--ink-soft);letter-spacing:1px;">{{ component_count }} item{{ 's' if component_count != 1 }}</span>
+      <span class="sec-count">{{ component_count }} item{{ 's' if component_count != 1 }}</span>
     </div>
     {% if components %}
     {% set ns = namespace(has_rows=false) %}
@@ -469,13 +493,13 @@
   <div class="section">
     <div class="sec-head">
       <span class="sec-title sec-title--alert">Critical Yield Alerts</span>
-      <span class="sec-rule sec-rule--alert"></span>
+      <span class="sec-rule"></span>
     </div>
     <div class="alert-box">
       <ol class="alert-list">
         {% for step in critical_steps_list %}
         <li>
-          <span class="alert-num">{{ '%02d'|format(loop.index) }}.</span>
+          <span class="alert-num">{{ '%02d'|format(loop.index) }}</span>
           <span>{{ step }}</span>
         </li>
         {% endfor %}
@@ -494,7 +518,7 @@
     <ol class="steps">
       {% for step in instruction_steps %}
       <li>
-        <span class="step-num">{{ '%02d'|format(loop.index) }}.</span>
+        <span class="step-num">{{ loop.index }}</span>
         <div class="step-content">
           {% if step.title %}
           <div class="step-title">{{ step.title }}{% if step.duration_text %} <span class="step-dur">({{ step.duration_text }})</span>{% endif %}</div>
@@ -548,7 +572,7 @@
 <script>
   var d = new Date();
   var mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  document.getElementById('print-date').textContent = mo[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear();
+  document.getElementById('print-date').textContent = mo[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear();
 
   window.addEventListener('load', function () {
     setTimeout(function () { window.print(); }, 250);
