@@ -134,6 +134,22 @@
             text-transform: uppercase; color: var(--muted);
         }
         .cook-back-link:hover { color: var(--fg); }
+        .cook-print-group {
+            display: flex; align-items: center; gap: 0.4rem;
+        }
+        .cook-qty-input {
+            width: 64px; height: 2rem; padding: 0 0.4rem;
+            border: 1px solid var(--fg); background: transparent; color: var(--fg);
+            font-size: 0.7rem; font-weight: 700; font-family: inherit;
+            -moz-appearance: textfield;
+        }
+        .cook-qty-input::-webkit-outer-spin-button,
+        .cook-qty-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+        .cook-qty-input::placeholder { opacity: 0.45; }
+        .cook-qty-unit {
+            font-size: 0.65rem; font-weight: 800; letter-spacing: 0.1em;
+            text-transform: uppercase; opacity: 0.55;
+        }
         .cook-print-btn {
             padding: 0.45rem 0.9rem;
             font-size: 0.7rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;

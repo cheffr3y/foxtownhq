@@ -133,7 +133,14 @@
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg>
             All Recipes
         </a>
-        <button type="button" class="cook-print-btn" onclick="exportRecipePdf()">Print / PDF</button>
+        <div class="cook-print-group">
+            <input type="number" id="cookPrintQty" step="any" min="0.001"
+                   placeholder="{{ recipe.yield_qty or '' }}"
+                   class="cook-qty-input"
+                   title="Target qty — leave blank for base yield">
+            {% if recipe.yield_unit %}<span class="cook-qty-unit">{{ recipe.yield_unit }}</span>{% endif %}
+            <button type="button" class="cook-print-btn" onclick="openBuildCard('cookPrintQty')">Print</button>
+        </div>
     </div>
     {% else %}
     <div class="rm-toolbar no-print">
@@ -145,15 +152,15 @@
             <a href="{{ url_for('recipes') }}" class="rm-btn rm-btn--ghost">All Recipes</a>
             <button type="button" id="collapseSubrecipesButton" class="rm-btn rm-btn--ghost">Collapse Subs</button>
             <button type="button" id="expandSubrecipesButton" class="rm-btn rm-btn--ghost">Expand Subs</button>
-            <button type="button" id="recipeExportButton" onclick="exportRecipePdf()" class="rm-btn rm-btn--ghost">Print / Save PDF</button>
             <div style="display:flex;align-items:center;gap:0.35rem;">
                 <input type="number" id="buildCardTargetQty" step="any" min="0.001"
                        placeholder="{{ recipe.yield_qty or '' }}"
-                       title="Target batch qty (leave blank for base yield)"
-                       style="width:72px;height:2.7rem;padding:0 0.5rem;border:1px solid #717c82;background:#fff;color:#2a3439;font-size:0.72rem;font-weight:700;border-radius:0;">
+                       title="Target qty — leave blank for base yield"
+                       style="width:72px;height:2.7rem;padding:0 0.5rem;border:1px solid #717c82;background:#fff;color:#2a3439;font-size:0.72rem;font-weight:700;border-radius:0;-moz-appearance:textfield;">
                 <span style="font-size:0.7rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#566166;">{{ recipe.yield_unit or '' }}</span>
-                <button type="button" onclick="openBuildCard()" class="rm-btn rm-btn--ghost">Print Build Card</button>
+                <button type="button" onclick="openBuildCard()" class="rm-btn rm-btn--ghost">Print</button>
             </div>
+            <button type="button" id="recipeExportButton" onclick="exportRecipePdf()" class="rm-btn rm-btn--ghost rm-btn--dim">Recipe Sheet</button>
             <form method="POST" action="{{ url_for('recipe_clone', recipe_id=recipe.id) }}"><button type="submit" class="rm-btn rm-btn--ghost">Clone</button></form>
             <form method="POST" action="{{ url_for('recipe_delete', recipe_id=recipe.id) }}" onsubmit="return confirm('Delete ' + {{ recipe.name|tojson }} + '? This cannot be undone.')">
                 <button type="submit" class="rm-btn rm-btn--danger">Delete</button>
@@ -398,6 +405,15 @@
 .rm-btn--danger {
     border-color: #c00815;
     color: #c00815;
+}
+.rm-btn--dim {
+    color: #8a979d;
+    border-color: #c5cdd1;
+    font-size: 0.65rem;
+}
+.rm-btn--dim:hover {
+    color: #2a3439;
+    border-color: #717c82;
 }
 .rm-sheet {
     max-width: 72rem;
@@ -1122,19 +1138,19 @@
 </style>
 
 <script>
-function openBuildCard() {
-    const qty = (document.getElementById('buildCardTargetQty').value || '').trim();
+function openBuildCard(inputId) {
+    const input = document.getElementById(inputId || 'buildCardTargetQty');
+    const qty = (input ? input.value : '').trim();
     let url = {{ url_for('recipe_buildcard', recipe_id=recipe.id) | tojson }};
     if (qty) url += '?target_qty=' + encodeURIComponent(qty);
-    window.open(url, '_blank', 'noopener,noreferrer');
+    const popup = window.open(url, '_blank', 'noopener,noreferrer');
+    if (!popup) { window.location.href = url; }
 }
 
 function exportRecipePdf() {
     const printUrl = {{ url_for('recipe_print', recipe_id=recipe.id) | tojson }};
     const popup = window.open(printUrl, '_blank', 'noopener,noreferrer');
-    if (!popup) {
-        window.location.href = printUrl;
-    }
+    if (!popup) { window.location.href = printUrl; }
 }
 
 {% if not auto_print %}
