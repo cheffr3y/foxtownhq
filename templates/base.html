@@ -497,11 +497,14 @@
 
         /* Mobile: sidebar becomes sticky top bar */
         @media (max-width: 900px) {
+            .fhq-layout { flex-direction: column; }
             .fhq-sidebar {
                 width: 100%;
                 height: auto;
                 position: sticky;
                 top: 0;
+                bottom: auto;
+                left: auto;
                 flex-direction: row;
                 align-items: center;
                 flex-wrap: wrap;
